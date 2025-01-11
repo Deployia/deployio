@@ -1,0 +1,45 @@
+name: Deploy Frontend and Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Deploy to VPS
+      - name: Deploy to VPS
+        env:
+          NODE_ENV: production
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            set -e # Exit on errors
+
+            echo "Navigating to project directory..."
+            cd /home/${{ secrets.SERVER_USER }}/projects/name
+
+            echo "Installing backend dependencies"
+            npm install
+
+            echo "Pulling the latest code from main branch..."
+            git pull origin main
+
+            echo "Installing frontend dependencies and building the project..."
+            cd client
+            npm install
+            npm run build
+
+            echo "Restarting backend with PM2..."
+            pm2 restart server.js
+            pm2 save
+
+            echo "Deployment complete!"
+          EOF
