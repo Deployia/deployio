@@ -26,20 +26,20 @@ jobs:
             echo "Navigating to project directory..."
             cd /home/${{ secrets.SERVER_USER }}/projects/name
 
+            echo "Pulling the latest code from main branch..."
+            git pull origin main
+
             echo "Installing backend dependencies"
             npm install
 
-            echo "Pulling the latest code from main branch..."
-            git pull origin main
+            echo "Restarting backend with PM2..."
+            pm2 restart server.js
+            pm2 save
 
             echo "Installing frontend dependencies and building the project..."
             cd client
             npm install
             npm run build
-
-            echo "Restarting backend with PM2..."
-            pm2 restart server.js
-            pm2 save
 
             echo "Deployment complete!"
           EOF
