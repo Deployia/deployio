@@ -1,4 +1,5 @@
 const authService = require("../services/authService");
+const jwt = require("jsonwebtoken");
 
 /**
  * Register a new user
@@ -18,11 +19,12 @@ const register = async (req, res) => {
     }
 
     // Register user
-    const { user, token } = await authService.registerUser({
+    const { user, token, refreshToken } = await authService.registerUser({
       username,
       email,
       password,
-    }); // Set JWT as an HTTP-only cookie
+    });
+    // Set JWT as an HTTP-only cookie
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -31,8 +33,11 @@ const register = async (req, res) => {
       secure: process.env.NODE_ENV === "production", // Use secure cookies in production
       sameSite: "strict",
     };
-
     res.cookie("token", token, cookieOptions);
+    res.cookie("refreshToken", refreshToken, {
+      ...cookieOptions,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
 
     // Return user data (without password)
     res.status(201).json({
@@ -69,7 +74,11 @@ const login = async (req, res) => {
     }
 
     // Login user
-    const { user, token } = await authService.loginUser(email, password); // Set JWT as an HTTP-only cookie
+    const { user, token, refreshToken } = await authService.loginUser(
+      email,
+      password
+    );
+    // Set JWT as an HTTP-only cookie
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -78,8 +87,11 @@ const login = async (req, res) => {
       secure: process.env.NODE_ENV === "production", // Use secure cookies in production
       sameSite: "strict",
     };
-
     res.cookie("token", token, cookieOptions);
+    res.cookie("refreshToken", refreshToken, {
+      ...cookieOptions,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
 
     // Return user data (without password)
     res.status(200).json({
@@ -252,6 +264,74 @@ const getMe = async (req, res) => {
   }
 };
 
+// Google OAuth callback
+const googleAuthCallback = async (req, res) => {
+  try {
+    // User is attached to req.user by passport
+    const user = req.user;
+    // Generate access and refresh tokens
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    });
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_REFRESH_SECRET,
+      {
+        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+      }
+    );
+    // Set cookies
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+    res.cookie("token", accessToken, {
+      ...cookieOptions,
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+    res.cookie("refreshToken", refreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    // Redirect or respond
+    res.redirect(process.env.FRONTEND_URL_DEV || "/");
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Refresh token logic
+const refreshToken = async (req, res) => {
+  try {
+    const token = req.cookies.refreshToken;
+    if (!token)
+      return res
+        .status(401)
+        .json({ success: false, message: "No refresh token" });
+    // Verify refresh token
+    jwt.verify(token, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
+      if (err)
+        return res
+          .status(403)
+          .json({ success: false, message: "Invalid refresh token" });
+      // Issue new access token
+      const accessToken = jwt.sign({ id: decoded.id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+      });
+      res.cookie("token", accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+      res.json({ success: true });
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -260,4 +340,6 @@ module.exports = {
   updatePassword,
   logout,
   getMe,
+  googleAuthCallback,
+  refreshToken,
 };

@@ -1,6 +1,7 @@
 const express = require("express");
 const authController = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
+const passport = require("passport");
 
 const router = express.Router();
 
@@ -14,5 +15,23 @@ router.post("/reset-password/:token", authController.resetPassword);
 router.put("/update-password", protect, authController.updatePassword);
 router.get("/logout", protect, authController.logout);
 router.get("/me", protect, authController.getMe);
+
+// Google OAuth
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: "/login",
+  }),
+  require("../controllers/authController").googleAuthCallback
+);
+
+// Refresh token endpoint
+router.post("/refresh-token", authController.refreshToken);
 
 module.exports = router;

@@ -14,6 +14,12 @@ const generateToken = (user) => {
   });
 };
 
+const generateRefreshToken = (user) => {
+  return jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+  });
+};
+
 /**
  * Register a new user
  * @param {Object} userData - User data including username, email, password
@@ -37,8 +43,8 @@ const registerUser = async (userData) => {
 
   // Generate token
   const token = generateToken(user);
-
-  return { user, token };
+  const refreshToken = generateRefreshToken(user);
+  return { user, token, refreshToken };
 };
 
 /**
@@ -64,8 +70,8 @@ const loginUser = async (email, password) => {
 
   // Generate token
   const token = generateToken(user);
-
-  return { user, token };
+  const refreshToken = generateRefreshToken(user);
+  return { user, token, refreshToken };
 };
 
 /**
@@ -210,4 +216,6 @@ module.exports = {
   updatePassword,
   generateToken,
   logoutUser,
+  // Export generateRefreshToken if needed elsewhere
+  generateRefreshToken,
 };

@@ -5,6 +5,7 @@ const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const passport = require("passport");
 
 // Load env vars
 dotenv.config();
@@ -14,6 +15,9 @@ const authRoutes = require("./routes/authRoutes");
 
 // Import middleware
 const errorHandler = require("./middleware/errorMiddleware");
+
+// Passport config
+require("./config/passport");
 
 const app = express();
 
@@ -30,6 +34,9 @@ const corsOptions = {
 
 // CORS middleware
 app.use(cors(corsOptions));
+
+// Initialize passport
+app.use(passport.initialize());
 
 // Rate limiting middleware (Limit to 100 requests per 15 minutes)
 const limiter = rateLimit({
