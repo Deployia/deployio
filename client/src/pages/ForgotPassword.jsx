@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { forgotPassword, reset } from "../redux/slices/authSlice";
-import Spinner from "../components/Spinner";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -28,9 +27,6 @@ function ForgotPassword() {
     e.preventDefault();
     dispatch(forgotPassword(email));
   };
-  if (loading && loading.forgotPassword) {
-    return <Spinner />;
-  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-teal-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
