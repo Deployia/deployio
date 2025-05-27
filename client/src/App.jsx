@@ -6,6 +6,8 @@ import { useEffect } from "react";
 import Header from "./components/Header";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Spinner from "./components/Spinner";
+import Sidebar from "./components/Sidebar";
+import Modal from "./components/Modal";
 
 // Auth Components
 import Login from "./pages/Login";
@@ -36,6 +38,8 @@ function App() {
   return (
     <>
       <Header />
+      <Sidebar />
+      <Modal />
       <>
         <Routes>
           {/* Public Routes */}

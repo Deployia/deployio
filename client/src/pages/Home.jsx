@@ -1,8 +1,31 @@
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { useSidebar } from "../context/SidebarContext.jsx";
+import { useModal } from "../context/ModalContext.jsx";
 
 function Home() {
   const { user } = useSelector((state) => state.auth);
+  const { openSidebar } = useSidebar();
+  const { openModal } = useModal();
+
+  const handleOpenSidebar = () => {
+    openSidebar(
+      <div>
+        <h2 className="text-xl font-bold mb-2">Sidebar Content</h2>
+        <p>This is a demo sidebar. Click outside or press Escape to close.</p>
+      </div>
+    );
+  };
+
+  const handleOpenModal = () => {
+    openModal(
+      <div>
+        <h2 className="text-xl font-bold mb-2">Modal Content</h2>
+        <p>This is a demo modal. Click outside or press Escape to close.</p>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-20">
@@ -97,6 +120,22 @@ function Home() {
               Intuitive interface designed for the best user experience.
             </p>
           </div>
+        </div>
+
+        {/* Demo Buttons for Sidebar and Modal */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition mb-4"
+            onClick={handleOpenSidebar}
+          >
+            Open Sidebar
+          </button>
+          <button
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition mb-4"
+            onClick={handleOpenModal}
+          >
+            Open Modal
+          </button>
         </div>
 
         {/* CTA Section */}
