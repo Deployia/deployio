@@ -187,6 +187,28 @@ export const refreshToken = createAsyncThunk(
   }
 );
 
+// Verify OTP (2FA after signup)
+export const verifyOtp = createAsyncThunk(
+  "auth/verifyOtp",
+  async ({ email, otp }, thunkAPI) => {
+    try {
+      const response = await api.post("/api/v1/auth/verify-otp", {
+        email,
+        otp,
+      });
+      return response.data;
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 // Create the auth slice
 const authSlice = createSlice({
   name: "auth",
@@ -324,6 +346,23 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.error.me = action.payload;
+      })
+
+      // Verify OTP cases
+      .addCase(verifyOtp.pending, (state) => {
+        state.loading.verifyOtp = true;
+        state.error.verifyOtp = null;
+      })
+      .addCase(verifyOtp.fulfilled, (state, action) => {
+        state.loading.verifyOtp = false;
+        state.user = action.payload.user;
+        state.isAuthenticated = true;
+      })
+      .addCase(verifyOtp.rejected, (state, action) => {
+        state.loading.verifyOtp = false;
+        state.error.verifyOtp = action.payload;
+        state.user = null;
+        state.isAuthenticated = false;
       });
   },
 });

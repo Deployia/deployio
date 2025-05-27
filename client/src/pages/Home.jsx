@@ -172,7 +172,7 @@ function Home() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
-                  to="/register"
+                  to="/auth/register"
                   className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 >
                   Get Started Free
@@ -191,7 +191,7 @@ function Home() {
                   </svg>
                 </Link>{" "}
                 <Link
-                  to="/login"
+                  to="/auth/login"
                   className="inline-flex items-center justify-center px-6 py-3 bg-gray-700 hover:bg-gray-600 text-purple-400 border-2 border-gray-600 hover:border-purple-400 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 >
                   Sign In

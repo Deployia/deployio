@@ -9,7 +9,7 @@ const ProtectedRoute = () => {
     return <Spinner />;
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" />;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/auth/login" />;
 };
 
 export default ProtectedRoute;

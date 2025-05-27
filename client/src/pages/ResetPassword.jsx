@@ -25,7 +25,7 @@ function ResetPassword() {
     if (success && success.resetPassword) {
       toast.success("Password has been reset successfully");
       setTimeout(() => {
-        navigate("/login");
+        navigate("/auth/login");
       }, 2000);
     }
 
@@ -46,16 +46,13 @@ function ResetPassword() {
       toast.error("Passwords do not match");
     } else {
       dispatch(resetPassword({ token, password }));
-      navigate("/login");
+      navigate("/auth/login");
     }
   };
 
-  if (loading && loading.resetPassword) {
-    return <Spinner />;
-  }
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
+    <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+      <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
         <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-8 py-6 text-center">
@@ -71,7 +68,7 @@ function ResetPassword() {
           </div>
 
           {/* Form Content */}
-          <div className="px-8 py-8">
+          <div className="px-6 sm:px-10 py-10 overflow-x-hidden">
             {success.resetPassword ? (
               <div className="text-center space-y-6">
                 <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-purple-100">
@@ -144,32 +141,10 @@ function ResetPassword() {
                   <button
                     type="submit"
                     disabled={loading.resetPassword}
-                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
                     {loading.resetPassword ? (
-                      <div className="flex items-center">
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Resetting...
-                      </div>
+                      <Spinner size={20} />
                     ) : (
                       "Reset Password"
                     )}
@@ -180,7 +155,7 @@ function ResetPassword() {
                   <span className="text-sm text-slate-600">
                     Remember your password?{" "}
                     <Link
-                      to="/login"
+                      to="/auth/login"
                       className="font-semibold text-purple-600 hover:text-purple-700 transition-colors"
                     >
                       Back to Login

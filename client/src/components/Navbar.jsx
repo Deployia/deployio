@@ -90,7 +90,7 @@ function Navbar() {
               <>
                 <li>
                   <Link
-                    to="/login"
+                    to="/auth/login"
                     className="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-purple-400 transition-all duration-200 font-semibold"
                   >
                     Login
@@ -98,7 +98,7 @@ function Navbar() {
                 </li>
                 <li>
                   <Link
-                    to="/register"
+                    to="/auth/register"
                     className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
                   >
                     Sign Up

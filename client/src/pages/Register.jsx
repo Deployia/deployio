@@ -17,7 +17,7 @@ function Register() {
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { isAuthenticated, loading, error } = useSelector(
+  const { isAuthenticated, loading, error, user } = useSelector(
     (state) => state.auth
   );
 
@@ -25,13 +25,16 @@ function Register() {
     if (error && error.signup) {
       toast.error(error.signup);
     }
-
+    // If registration returns otpSent, redirect to verify-otp
+    if (user && user.email && !isAuthenticated) {
+      toast.success("OTP sent to your email. Please verify.");
+      navigate("/auth/verify-otp", { state: { email: user.email } });
+    }
     if (isAuthenticated) {
       navigate("/profile");
     }
-
     dispatch(reset());
-  }, [isAuthenticated, error, navigate, dispatch]);
+  }, [isAuthenticated, error, navigate, dispatch, user]);
 
   const onChange = (e) => {
     setFormData((prevState) => ({
@@ -59,8 +62,8 @@ function Register() {
     return <Spinner />;
   }
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
+    <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+      <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
         <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
           {/* Header - Compact */}
           <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
@@ -74,8 +77,7 @@ function Register() {
           </div>
 
           {/* Form Content - Compact */}
-          <div className="px-6 py-6">
-            {" "}
+          <div className="px-6 sm:px-10 py-10 overflow-x-hidden">
             <form onSubmit={onSubmit} className="space-y-4">
               <div>
                 <label
@@ -155,33 +157,7 @@ function Register() {
                   disabled={loading.signup}
                   className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
-                  {loading.signup ? (
-                    <div className="flex items-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Creating account...
-                    </div>
-                  ) : (
-                    "Create Account"
-                  )}
+                  {loading.signup ? <Spinner size={20} /> : "Create Account"}
                 </button>
               </div>{" "}
               {/* OAuth Buttons - Compact */}
@@ -195,7 +171,7 @@ function Register() {
                   </span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2 mt-2">
                 <a
                   href="http://localhost:5000/api/v1/auth/google"
                   className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
@@ -233,12 +209,23 @@ function Register() {
                     />
                   </svg>
                 </a>
+                <a
+                  href="http://localhost:5000/api/v1/auth/facebook"
+                  className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path
+                      fill="#1877F3"
+                      d="M22.675 0h-21.35C.595 0 0 .592 0 1.326v21.348C0 23.408.595 24 1.325 24h11.495v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.406 24 24 23.408 24 22.674V1.326C24 .592 23.406 0 22.675 0"
+                    />
+                  </svg>
+                </a>
               </div>
               <div className="text-center pt-3">
                 <span className="text-xs text-slate-600">
                   Already have an account?{" "}
                   <Link
-                    to="/login"
+                    to="/auth/login"
                     className="font-semibold text-purple-600 hover:text-purple-700 transition-colors"
                   >
                     Sign in here
