@@ -15,10 +15,9 @@ import ResetPassword from "./pages/ResetPassword";
 
 // Pages
 import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
-import UpdatePassword from "./pages/UpdatePassword";
 import NotFound from "./pages/NotFound";
 import { getMe } from "./redux/slices/authSlice";
+import Profile from "./pages/Profile";
 
 function App() {
   const { loading } = useSelector((state) => state.auth);
@@ -48,8 +47,7 @@ function App() {
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
 
           {/* 404 Route - Must be last */}

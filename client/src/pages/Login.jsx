@@ -24,7 +24,7 @@ function Login() {
     }
 
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate("/profile");
     }
 
     dispatch(reset());
