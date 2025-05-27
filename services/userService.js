@@ -16,8 +16,10 @@ const updateProfile = async (userId, updateData, profileImageUrl) => {
 
 // Update user password
 const updatePassword = async (userId, currentPassword, newPassword) => {
-  const user = await User.findById(userId).select("+password");
+  const user = await User.findById(userId).select("+password googleId");
   if (!user) throw new Error("User not found");
+  if (user.googleId)
+    throw new Error("Password update not allowed for OAuth users");
   const isMatch = await user.comparePassword(currentPassword);
   if (!isMatch) throw new Error("Current password is incorrect");
   user.password = newPassword;
