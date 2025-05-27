@@ -23,13 +23,13 @@ function Navbar() {
   // Disable logout button while logout is processing
   const isLoggingOut = loading && loading.logout;
   return (
-    <header className="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-xl border-b border-slate-700">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+    <header className="bg-gray-800 shadow-lg border-b border-gray-700 flex-shrink-0">
+      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-3 group">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+          <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-violet-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg">
             <span className="text-white text-lg font-bold">F!</span>
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
             Fauxigent
           </span>
         </Link>
@@ -41,7 +41,7 @@ function Navbar() {
                 <li>
                   <Link
                     to="/profile"
-                    className="px-4 py-2 rounded-lg hover:bg-slate-700 transition-all duration-200 font-medium"
+                    className="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-purple-400 transition-all duration-200 font-semibold"
                   >
                     Profile
                   </Link>
@@ -50,10 +50,10 @@ function Navbar() {
                   <button
                     onClick={onLogout}
                     disabled={isLoggingOut}
-                    className={`px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium ${
+                    className={`px-6 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-200 font-semibold shadow-lg ${
                       isLoggingOut
                         ? "opacity-50 cursor-not-allowed"
-                        : "hover:scale-105"
+                        : "hover:shadow-xl"
                     }`}
                   >
                     {isLoggingOut ? (
@@ -91,7 +91,7 @@ function Navbar() {
                 <li>
                   <Link
                     to="/login"
-                    className="px-4 py-2 rounded-lg hover:bg-slate-700 transition-all duration-200 font-medium"
+                    className="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-purple-400 transition-all duration-200 font-semibold"
                   >
                     Login
                   </Link>
@@ -99,7 +99,7 @@ function Navbar() {
                 <li>
                   <Link
                     to="/register"
-                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-200 font-medium hover:scale-105"
+                    className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
                   >
                     Sign Up
                   </Link>

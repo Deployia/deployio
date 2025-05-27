@@ -35,12 +35,27 @@ function App() {
     return <Spinner fullScreen={true} />;
   }
 
+  // Check if current path is an auth page
+  const isAuthPage = () => {
+    const authPaths = ["/login", "/register", "/forgot-password"];
+    const currentPath = window.location.pathname;
+    return (
+      authPaths.some((path) => currentPath.startsWith(path)) ||
+      currentPath.includes("/reset-password")
+    );
+  };
   return (
-    <>
-      <Navbar />
-      <Sidebar />
+    <div className="h-screen w-screen overflow-hidden bg-gray-900 flex flex-col">
+      {/* Conditionally render navbar and sidebar only for non-auth pages */}
+      {!isAuthPage() && <Navbar />}
+      {!isAuthPage() && <Sidebar />}
       <Modal />
-      <>
+
+      <main
+        className={
+          isAuthPage() ? "flex-1 overflow-hidden" : "flex-1 overflow-hidden"
+        }
+      >
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
@@ -57,8 +72,8 @@ function App() {
           {/* 404 Route - Must be last */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </>
-    </>
+      </main>
+    </div>
   );
 }
 
