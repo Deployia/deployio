@@ -30,6 +30,36 @@ router.get(
   require("../controllers/authController").googleAuthCallback
 );
 
+// Facebook OAuth
+router.get(
+  "/facebook",
+  passport.authenticate("facebook", { scope: ["email"] })
+);
+
+router.get(
+  "/facebook/callback",
+  passport.authenticate("facebook", {
+    session: false,
+    failureRedirect: "/login",
+  }),
+  require("../controllers/authController").googleAuthCallback // Reuse callback logic
+);
+
+// GitHub OAuth
+router.get(
+  "/github",
+  passport.authenticate("github", { scope: ["user:email"] })
+);
+
+router.get(
+  "/github/callback",
+  passport.authenticate("github", {
+    session: false,
+    failureRedirect: "/login",
+  }),
+  require("../controllers/authController").googleAuthCallback // Reuse callback logic
+);
+
 // Refresh token endpoint
 router.post("/refresh-token", authController.refreshToken);
 
