@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useCallback } from "react";
 
 const ModalContext = createContext();
 
