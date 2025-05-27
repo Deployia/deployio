@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../redux/slices/authSlice";
 import { toast } from "react-hot-toast";
 
-function Header() {
+function Navbar() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -113,4 +113,4 @@ function Header() {
   );
 }
 
-export default Header;
+export default Navbar;
