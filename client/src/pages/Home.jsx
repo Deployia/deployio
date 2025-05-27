@@ -146,10 +146,10 @@ function Home() {
                 Welcome back! Ready to continue?
               </p>
               <Link
-                to="/dashboard"
+                to="/profile"
                 className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               >
-                Go to Dashboard
+                Go to Profile 
                 <svg
                   className="ml-2 w-5 h-5"
                   fill="none"
