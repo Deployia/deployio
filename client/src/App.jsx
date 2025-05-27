@@ -27,7 +27,6 @@ function App() {
 
   // Global axios configuration for cookies
   useEffect(() => {
-    axios.defaults.withCredentials = true;
     dispatch(getMe());
   }, [dispatch]);
 
@@ -37,9 +36,9 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen h-screen max-h-screen flex flex-col overflow-hidden">
       <Header />
-      <main className="flex-grow">
+      <main className="flex-grow h-full max-h-full overflow-hidden">
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
