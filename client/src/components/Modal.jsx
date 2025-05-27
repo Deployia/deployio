@@ -1,9 +1,24 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useModal } from "../context/ModalContext.jsx";
 
 const Modal = () => {
   const { isModalOpen, closeModal, modalContent } = useModal();
+  const [shouldRender, setShouldRender] = useState(false);
+  const [animate, setAnimate] = useState(false);
   const modalRef = useRef(null);
+
+  // Mount/unmount logic for animation
+  useEffect(() => {
+    if (isModalOpen) {
+      setShouldRender(true);
+      setAnimate(false); // Reset animate to false before triggering
+      requestAnimationFrame(() => setAnimate(true));
+    } else if (shouldRender) {
+      setAnimate(false);
+      const timeout = setTimeout(() => setShouldRender(false), 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [isModalOpen, shouldRender]);
 
   // Close on Escape key
   useEffect(() => {
@@ -22,37 +37,20 @@ const Modal = () => {
     }
   };
 
-  if (!isModalOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <div
-      className="modal-overlay"
+      className={`fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+        animate ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
       onClick={handleOverlayClick}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        background: "rgba(0,0,0,0.4)",
-        backdropFilter: "blur(4px)",
-        zIndex: 2000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
     >
       <div
         ref={modalRef}
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          minWidth: 320,
-          maxWidth: 480,
-          padding: 32,
-          boxShadow: "0 4px 32px rgba(0,0,0,0.18)",
-          position: "relative",
-        }}
+        className={`bg-white rounded-xl min-w-[320px] max-w-[90vw] md:max-w-lg p-8 shadow-2xl relative transform transition-all duration-300 ${
+          animate ? "scale-100 opacity-100" : "scale-0 opacity-0"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {modalContent}

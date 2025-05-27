@@ -1,9 +1,26 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSidebar } from "../context/SidebarContext.jsx";
 
 const Sidebar = () => {
   const { isSidebarOpen, closeSidebar, sidebarContent } = useSidebar();
+  const [shouldRender, setShouldRender] = useState(false);
+  const [animate, setAnimate] = useState(false);
   const sidebarRef = useRef(null);
+
+  // Mount/unmount logic for animation
+  useEffect(() => {
+    if (isSidebarOpen) {
+      setShouldRender(true);
+      setAnimate(false); // Reset animate to false before triggering
+      // Start animation on next animation frame
+      requestAnimationFrame(() => setAnimate(true));
+    } else if (shouldRender) {
+      setAnimate(false);
+      // Wait for animation out before unmounting
+      const timeout = setTimeout(() => setShouldRender(false), 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [isSidebarOpen, shouldRender]);
 
   // Close on Escape key
   useEffect(() => {
@@ -15,6 +32,28 @@ const Sidebar = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSidebarOpen, closeSidebar]);
 
+  // Touch events for swipe-to-close
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchCurrentX, setTouchCurrentX] = useState(null);
+  const handleTouchStart = (e) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchCurrentX(e.touches[0].clientX);
+  };
+  const handleTouchMove = (e) => {
+    setTouchCurrentX(e.touches[0].clientX);
+  };
+  const handleTouchEnd = () => {
+    if (
+      touchStartX !== null &&
+      touchCurrentX !== null &&
+      touchStartX - touchCurrentX > 80
+    ) {
+      closeSidebar();
+    }
+    setTouchStartX(null);
+    setTouchCurrentX(null);
+  };
+
   // Close on click outside
   const handleOverlayClick = (e) => {
     if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
@@ -22,37 +61,24 @@ const Sidebar = () => {
     }
   };
 
-  if (!isSidebarOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <div
-      className="sidebar-overlay"
+      className={`fixed inset-0 z-[1000] flex items-stretch bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+        animate ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
       onClick={handleOverlayClick}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        background: "rgba(0,0,0,0.4)",
-        backdropFilter: "blur(4px)",
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "stretch",
-      }}
     >
       <aside
         ref={sidebarRef}
-        style={{
-          background: "#fff",
-          minWidth: 300,
-          maxWidth: 400,
-          height: "100%",
-          boxShadow: "2px 0 8px rgba(0,0,0,0.1)",
-          padding: 24,
-          overflowY: "auto",
-        }}
+        className={`ml-auto h-full w-[90vw] max-w-sm bg-white shadow-2xl p-6 overflow-y-auto transform transition-transform duration-300 ${
+          animate ? "translate-x-0" : "translate-x-full"
+        }`}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {sidebarContent}
       </aside>
