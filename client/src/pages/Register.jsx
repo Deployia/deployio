@@ -27,7 +27,7 @@ function Register() {
     }
 
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate("/profile");
     }
 
     dispatch(reset());
