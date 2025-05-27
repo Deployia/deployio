@@ -9,10 +9,10 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Spinner from "./components/Spinner";
 
 // Auth Components
-import Login from "./components/auth/Login";
-import Register from "./components/auth/Register";
-import ForgotPassword from "./components/auth/ForgotPassword";
-import ResetPassword from "./components/auth/ResetPassword";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 // Pages
 import Home from "./pages/Home";
