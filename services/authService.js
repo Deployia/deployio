@@ -155,34 +155,6 @@ const resetPassword = async (token, newPassword) => {
 };
 
 /**
- * Update user password
- * @param {String} userId - User ID
- * @param {String} currentPassword - Current password
- * @param {String} newPassword - New password
- * @returns {String} Success message
- */
-const updatePassword = async (userId, currentPassword, newPassword) => {
-  // Find user by ID and include password in query result
-  const user = await User.findById(userId).select("+password");
-
-  // Check if user exists
-  if (!user) {
-    throw new Error("User not found");
-  }
-
-  // Check if current password is correct
-  const isMatch = await user.comparePassword(currentPassword);
-  if (!isMatch) {
-    throw new Error("Current password is incorrect");
-  }
-
-  // Update password
-  user.password = newPassword;
-  await user.save();
-  return "Password updated successfully";
-};
-
-/**
  * Logout user
  * @param {String} userId - The ID of the user logging out
  * @returns {String} Success message
@@ -213,8 +185,6 @@ module.exports = {
   loginUser,
   forgotPassword,
   resetPassword,
-  updatePassword,
-  generateToken,
   logoutUser,
   // Export generateRefreshToken if needed elsewhere
   generateRefreshToken,

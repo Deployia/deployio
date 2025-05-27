@@ -86,25 +86,6 @@
  *       200:
  *         description: Password reset successful
  *
- * /api/v1/auth/update-password:
- *   put:
- *     summary: Update user password
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               currentPassword:
- *                 type: string
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Password updated successfully
- *
  * /api/v1/auth/logout:
  *   get:
  *     summary: Logout user

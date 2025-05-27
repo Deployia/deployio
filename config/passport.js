@@ -21,7 +21,21 @@ passport.use(
             password: crypto.randomBytes
               ? crypto.randomBytes(20).toString("hex")
               : Math.random().toString(36).slice(-20), // fallback for environments without crypto.randomBytes
+            profileImage:
+              profile.photos && profile.photos[0]
+                ? profile.photos[0].value
+                : "",
           });
+        } else {
+          // Update profile image if changed
+          if (
+            profile.photos &&
+            profile.photos[0] &&
+            user.profileImage !== profile.photos[0].value
+          ) {
+            user.profileImage = profile.photos[0].value;
+            await user.save();
+          }
         }
         return done(null, user);
       } catch (err) {

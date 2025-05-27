@@ -1,10 +1,10 @@
 const express = require("express");
 const authRoutes = require("./authRoutes");
+const userRoutes = require("./userRoutes");
 
 const router = express.Router();
 
 router.use("/auth", authRoutes);
-
-// Add more route imports and uses here as your app grows
+router.use("/user", userRoutes);
 
 module.exports = router;

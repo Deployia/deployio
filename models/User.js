@@ -35,6 +35,26 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    profileImage: {
+      type: String,
+      default: "",
+    },
+    firstName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    lastName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    bio: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 300,
+    },
   },
   {
     timestamps: true,

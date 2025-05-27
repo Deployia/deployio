@@ -71,12 +71,10 @@ const login = async (req, res) => {
       ...cookieOptions,
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        user: { id: user._id, username: user.username, email: user.email },
-      });
+    res.status(200).json({
+      success: true,
+      user: { id: user._id, username: user.username, email: user.email },
+    });
   } catch (error) {
     res.status(401).json({ success: false, message: error.message });
   }
@@ -119,29 +117,6 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Update user password
-const updatePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Please provide current and new password",
-        });
-    }
-    const result = await authService.updatePassword(
-      req.user.id,
-      currentPassword,
-      newPassword
-    );
-    res.status(200).json({ success: true, message: result });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
 // Logout user
 const logout = async (req, res) => {
   try {
@@ -153,12 +128,10 @@ const logout = async (req, res) => {
     });
     res.status(200).json({ success: true, message: result });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: error.message || "An error occurred during logout",
-      });
+    res.status(500).json({
+      success: false,
+      message: error.message || "An error occurred during logout",
+    });
   }
 };
 
@@ -239,7 +212,6 @@ module.exports = {
   login,
   forgotPassword,
   resetPassword,
-  updatePassword,
   logout,
   getMe,
   googleAuthCallback,
