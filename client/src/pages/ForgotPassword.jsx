@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { forgotPassword, reset } from "../../redux/slices/authSlice";
-import Spinner from "../Spinner";
+import { forgotPassword, reset } from "../redux/slices/authSlice";
+import Spinner from "../components/Spinner";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
