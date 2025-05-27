@@ -1,7 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect } from "react";
-import axios from "axios";
 
 // Components
 import Header from "./components/Header";
@@ -36,9 +35,9 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen h-screen max-h-screen flex flex-col overflow-hidden">
+    <>
       <Header />
-      <main className="flex-grow h-full max-h-full overflow-hidden">
+      <>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
@@ -56,8 +55,8 @@ function App() {
           {/* 404 Route - Must be last */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </main>
-    </div>
+      </>
+    </>
   );
 }
 
