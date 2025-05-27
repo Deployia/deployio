@@ -6,9 +6,13 @@ import {
 } from "../redux/slices/userSlice";
 import { useEffect, useRef, useState } from "react";
 import Spinner from "../components/Spinner";
+import { useSearchParams } from "react-router-dom";
+import { FaPen } from "react-icons/fa";
 
 function Profile() {
-  const [activeTab, setActiveTab] = useState("details");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "details";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [profileForm, setProfileForm] = useState({
     firstName: "",
     lastName: "",
@@ -26,6 +30,7 @@ function Profile() {
     (state) => state.user
   );
   const authUser = useSelector((state) => state.auth.user);
+  const isOAuthUser = !!authUser?.googleId;
 
   useEffect(() => {
     if (authUser) {
@@ -74,6 +79,10 @@ function Profile() {
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
+    if (isOAuthUser) {
+      alert("Password update is not allowed for OAuth users.");
+      return;
+    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert("Passwords do not match");
       return;
@@ -86,6 +95,12 @@ function Profile() {
     );
   };
 
+  // Handle tab change and update search params
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
   useEffect(() => {
     return () => {
       dispatch(resetUserState());
@@ -96,15 +111,34 @@ function Profile() {
     <div className="max-w-2xl mx-auto mt-8 p-6 bg-white rounded shadow">
       {/* Profile image and user details */}
       <div className="flex flex-col items-center mb-8">
-        <img
-          src={
-            user?.profileImage ||
-            authUser?.profileImage ||
-            "https://ui-avatars.com/api/?name=" + (authUser?.username || "User")
-          }
-          alt="Profile"
-          className="w-24 h-24 rounded-full border mb-2"
-        />
+        <div className="relative">
+          <img
+            src={
+              user?.profileImage ||
+              authUser?.profileImage ||
+              "https://ui-avatars.com/api/?name=" +
+                (authUser?.username || "User")
+            }
+            alt="Profile"
+            className="w-24 h-24 rounded-full border mb-2"
+          />
+          <button
+            type="button"
+            className="absolute bottom-2 right-2 bg-white rounded-full p-1 shadow hover:bg-gray-100"
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            aria-label="Change profile image"
+          >
+            <FaPen className="text-gray-600 w-4 h-4" />
+          </button>
+          <input
+            type="file"
+            name="profileImage"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleProfileChange}
+            className="hidden"
+          />
+        </div>
         <div className="text-center">
           <div className="font-bold text-lg">
             {authUser?.username || "User Name"}
@@ -122,20 +156,22 @@ function Profile() {
               ? "border-blue-500 text-blue-600"
               : "border-transparent text-gray-500"
           }`}
-          onClick={() => setActiveTab("details")}
+          onClick={() => handleTabChange("details")}
         >
           Profile Details
         </button>
-        <button
-          className={`ml-4 px-4 py-2 font-semibold focus:outline-none border-b-2 transition-colors duration-200 ${
-            activeTab === "password"
-              ? "border-blue-500 text-blue-600"
-              : "border-transparent text-gray-500"
-          }`}
-          onClick={() => setActiveTab("password")}
-        >
-          Update Password
-        </button>
+        {!isOAuthUser && (
+          <button
+            className={`ml-4 px-4 py-2 font-semibold focus:outline-none border-b-2 transition-colors duration-200 ${
+              activeTab === "password"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500"
+            }`}
+            onClick={() => handleTabChange("password")}
+          >
+            Update Password
+          </button>
+        )}
       </div>
       <div>
         {activeTab === "details" && (
@@ -177,19 +213,6 @@ function Profile() {
                 rows={3}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Profile Image
-              </label>
-              <input
-                type="file"
-                name="profileImage"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handleProfileChange}
-                className="mt-1 block w-full border rounded px-3 py-2"
-              />
-            </div>
             {error && <div className="text-red-500">{error}</div>}
             {success && <div className="text-green-600">{success}</div>}
             <button
@@ -201,9 +224,14 @@ function Profile() {
             </button>
           </form>
         )}
-        {activeTab === "password" && (
+        {activeTab === "password" && !isOAuthUser && (
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <h2 className="text-xl font-bold mb-4">Update Password</h2>
+            {isOAuthUser && (
+              <div className="text-yellow-600 font-semibold mb-2">
+                Password update is not allowed for OAuth users.
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Current Password
@@ -250,7 +278,7 @@ function Profile() {
             <button
               type="submit"
               className="bg-blue-600 text-white px-4 py-2 rounded"
-              disabled={loading}
+              disabled={loading || isOAuthUser}
             >
               {loading ? <Spinner size={20} /> : "Update Password"}
             </button>
