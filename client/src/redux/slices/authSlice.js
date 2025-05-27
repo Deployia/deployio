@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-
-const BACKEND_URL = import.meta.env.VITE_APP_BACKEND_URL;
+import api from "../../utils/api";
 
 // Initial State
 const initialState = {
@@ -39,13 +37,7 @@ export const registerUser = createAsyncThunk(
   "auth/register",
   async (userData, thunkAPI) => {
     try {
-      const response = await axios.post(
-        `${BACKEND_URL}/api/v1/auth/register`,
-        userData,
-        {
-          withCredentials: true,
-        }
-      );
+      const response = await api.post("/api/v1/auth/register", userData);
       return response.data;
     } catch (error) {
       const message =
@@ -65,13 +57,7 @@ export const loginUser = createAsyncThunk(
   "auth/login",
   async (userData, thunkAPI) => {
     try {
-      const response = await axios.post(
-        `${BACKEND_URL}/api/v1/auth/login`,
-        userData,
-        {
-          withCredentials: true,
-        }
-      );
+      const response = await api.post("/api/v1/auth/login", userData);
       return response.data;
     } catch (error) {
       const message =
@@ -89,9 +75,7 @@ export const loginUser = createAsyncThunk(
 // Logout user
 export const logout = createAsyncThunk("auth/logout", async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${BACKEND_URL}/api/v1/auth/logout`, {
-      withCredentials: true,
-    });
+    const response = await api.get("/api/v1/auth/logout");
     return response.data;
   } catch (error) {
     const message =
@@ -108,11 +92,9 @@ export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
   async (email, thunkAPI) => {
     try {
-      const response = await axios.post(
-        `${BACKEND_URL}/api/v1/auth/forgot-password`,
-        { email },
-        { withCredentials: true }
-      );
+      const response = await api.post("/api/v1/auth/forgot-password", {
+        email,
+      });
       return response.data;
     } catch (error) {
       const message =
@@ -132,11 +114,9 @@ export const resetPassword = createAsyncThunk(
   "auth/resetPassword",
   async ({ token, password }, thunkAPI) => {
     try {
-      const response = await axios.post(
-        `${BACKEND_URL}/api/v1/auth/reset-password/${token}`,
-        { password },
-        { withCredentials: true }
-      );
+      const response = await api.post(`/api/v1/auth/reset-password/${token}`, {
+        password,
+      });
       return response.data;
     } catch (error) {
       const message =
@@ -156,10 +136,9 @@ export const updatePassword = createAsyncThunk(
   "auth/updatePassword",
   async (passwordData, thunkAPI) => {
     try {
-      const response = await axios.put(
-        `${BACKEND_URL}/api/v1/auth/update-password`,
-        passwordData,
-        { withCredentials: true }
+      const response = await api.put(
+        "/api/v1/auth/update-password",
+        passwordData
       );
       return response.data;
     } catch (error) {
@@ -178,9 +157,7 @@ export const updatePassword = createAsyncThunk(
 // Get current user
 export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${BACKEND_URL}/api/v1/auth/me`, {
-      withCredentials: true,
-    });
+    const response = await api.get("/api/v1/auth/me");
     return response.data;
   } catch (error) {
     const message =
@@ -196,11 +173,7 @@ export const refreshToken = createAsyncThunk(
   "auth/refreshToken",
   async (_, thunkAPI) => {
     try {
-      const response = await axios.post(
-        `${BACKEND_URL}/api/v1/auth/refresh-token`,
-        {},
-        { withCredentials: true }
-      );
+      const response = await api.post("/api/v1/auth/refresh-token", {});
       return response.data;
     } catch (error) {
       const message =
