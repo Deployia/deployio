@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useEffect } from "react";
 
 // Components
-import Header from "./components/Header";
+import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Spinner from "./components/Spinner";
 import Sidebar from "./components/Sidebar";
@@ -37,7 +37,7 @@ function App() {
 
   return (
     <>
-      <Header />
+      <Navbar />
       <Sidebar />
       <Modal />
       <>
