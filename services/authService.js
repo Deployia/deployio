@@ -20,6 +20,24 @@ const generateRefreshToken = (user) => {
   });
 };
 
+const generateOtp = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+const otpEmailTemplate = (username, otp) => `
+  <div style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 50%, #c7d2fe 100%); padding: 32px; border-radius: 16px; max-width: 400px; margin: 0 auto; font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif; border: 1px solid #a78bfa; box-shadow: 0 8px 32px 0 rgba(80, 0, 120, 0.08);">
+    <div style="background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
+      <span style="display: inline-block; background: rgba(255,255,255,0.15); border-radius: 50%; width: 48px; height: 48px; line-height: 48px; color: #fff; font-size: 1.5rem; font-weight: bold;">F!</span>
+      <h2 style="color: #fff; font-size: 1.25rem; font-weight: bold; margin: 8px 0 0 0;">Verify your Fauxigent account</h2>
+    </div>
+    <p style="color: #6d28d9; font-size: 1rem; margin-bottom: 16px;">Hi <b>${username}</b>,</p>
+    <p style="color: #4b5563; font-size: 1rem; margin-bottom: 16px;">Your One-Time Password (OTP) for account verification is:</p>
+    <div style="background: #ede9fe; color: #7c3aed; font-size: 2rem; font-weight: bold; text-align: center; padding: 16px; border-radius: 8px; letter-spacing: 4px; margin-bottom: 16px;">${otp}</div>
+    <p style="color: #6b7280; font-size: 0.95rem;">This OTP is valid for 10 minutes. If you did not sign up, please ignore this email.</p>
+    <p style="color: #a78bfa; font-size: 0.85rem; margin-top: 24px; text-align: center;">&copy; ${new Date().getFullYear()} Fauxigent</p>
+  </div>
+`;
+
 /**
  * Register a new user
  * @param {Object} userData - User data including username, email, password
@@ -41,10 +59,24 @@ const registerUser = async (userData) => {
     password,
   });
 
-  // Generate token
-  const token = generateToken(user);
-  const refreshToken = generateRefreshToken(user);
-  return { user, token, refreshToken };
+  // Generate OTP for 2FA
+  const otp = generateOtp();
+  user.otp = otp;
+  user.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+  await user.save();
+
+  // Send OTP email
+  await sendEmail({
+    to: user.email,
+    subject: "Verify your Fauxigent account (OTP)",
+    html: otpEmailTemplate(username, otp),
+  });
+
+  // Do not authenticate yet, require OTP verification
+  return {
+    user: { id: user._id, username: user.username, email: user.email },
+    otpSent: true,
+  };
 };
 
 /**
@@ -72,6 +104,35 @@ const loginUser = async (email, password) => {
   const token = generateToken(user);
   const refreshToken = generateRefreshToken(user);
   return { user, token, refreshToken };
+};
+
+/**
+ * Verify OTP for 2FA after signup
+ * @param {String} email - User email
+ * @param {String} otp - OTP code
+ * @returns {Object} Success message
+ */
+const verifyOtp = async (email, otp) => {
+  const user = await User.findOne({ email });
+  if (!user) throw new Error("User not found");
+  if (!user.otp || !user.otpExpire) throw new Error("No OTP requested");
+  if (user.otp !== otp) throw new Error("Invalid OTP");
+  if (user.otpExpire < Date.now()) throw new Error("OTP expired");
+
+  // OTP valid, clear OTP fields and mark as verified
+  user.otp = undefined;
+  user.otpExpire = undefined;
+  user.isVerified = true;
+  await user.save();
+
+  // Now generate tokens for login
+  const token = generateToken(user);
+  const refreshToken = generateRefreshToken(user);
+  return {
+    user: { id: user._id, username: user.username, email: user.email },
+    token,
+    refreshToken,
+  };
 };
 
 /**
@@ -180,12 +241,35 @@ const logoutUser = async (userId) => {
   return "Logged out successfully";
 };
 
+/**
+ * Resend OTP for 2FA after signup
+ * @param {String} email - User email
+ * @returns {String} Success message
+ */
+const resendOtp = async (email) => {
+  const user = await User.findOne({ email });
+  if (!user) throw new Error("User not found");
+  // Generate new OTP
+  const otp = generateOtp();
+  user.otp = otp;
+  user.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+  await user.save();
+  // Send OTP email
+  await sendEmail({
+    to: user.email,
+    subject: "Your Fauxigent OTP (Resend)",
+    html: otpEmailTemplate(user.username, otp),
+  });
+  return "OTP resent to your email";
+};
+
 module.exports = {
   registerUser,
   loginUser,
   forgotPassword,
   resetPassword,
   logoutUser,
-  // Export generateRefreshToken if needed elsewhere
   generateRefreshToken,
+  verifyOtp,
+  resendOtp,
 };

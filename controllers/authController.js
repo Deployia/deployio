@@ -11,11 +11,38 @@ const register = async (req, res) => {
         message: "Please provide username, email, and password",
       });
     }
-    const { user, token, refreshToken } = await authService.registerUser({
+    const result = await authService.registerUser({
       username,
       email,
       password,
     });
+    // Do not set cookies yet, require OTP verification
+    res.status(201).json({
+      success: true,
+      otpSent: true,
+      user: result.user,
+      message:
+        "OTP sent to your email. Please verify to activate your account.",
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// 2FA OTP verification after signup
+const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and OTP required" });
+    }
+    const result = await authService.verifyOtp(email, otp);
+    // Set cookies after successful verification
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -24,24 +51,18 @@ const register = async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     };
-    res.cookie("token", token, cookieOptions);
-    res.cookie("refreshToken", refreshToken, {
+    res.cookie("token", result.token, cookieOptions);
+    res.cookie("refreshToken", result.refreshToken, {
       ...cookieOptions,
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
+      user: result.user,
+      message: "Account verified and logged in successfully!",
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
@@ -207,6 +228,22 @@ const refreshToken = async (req, res) => {
   }
 };
 
+// Resend OTP after signup
+const resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email required" });
+    }
+    const result = await authService.resendOtp(email);
+    res.status(200).json({ success: true, message: result });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -216,4 +253,6 @@ module.exports = {
   getMe,
   googleAuthCallback,
   refreshToken,
+  verifyOtp,
+  resendOtp,
 };

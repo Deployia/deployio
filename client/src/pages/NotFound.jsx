@@ -10,12 +10,20 @@ function NotFound() {
       <p className="text-gray-400 text-center mb-8 max-w-md">
         The page you are looking for doesn't exist or has been moved.
       </p>
-      <Link
-        to="/"
-        className="px-6 py-2 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
-      >
-        Go to Home
-      </Link>
+      <div className="flex space-x-4">
+        <Link
+          to="/auth/login"
+          className="px-6 py-2 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
+        >
+          Go to Login
+        </Link>
+        <Link
+          to="/"
+          className="px-6 py-2 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
+        >
+          Go to Home
+        </Link>
+      </div>
     </div>
   );
 }
