@@ -6,13 +6,19 @@ import { Toaster } from "react-hot-toast";
 import "./index.css";
 import App from "./App.jsx";
 import { store } from "./redux/store";
+import { SidebarProvider } from "./context/SidebarContext.jsx";
+import { ModalProvider } from "./context/ModalContext.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <Provider store={store}>
       <BrowserRouter>
-        <App />
-        <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+        <SidebarProvider>
+          <ModalProvider>
+            <App />
+            <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+          </ModalProvider>
+        </SidebarProvider>
       </BrowserRouter>
     </Provider>
   </StrictMode>
