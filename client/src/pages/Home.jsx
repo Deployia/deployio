@@ -7,52 +7,52 @@ function Home() {
   const { user } = useSelector((state) => state.auth);
   const { openSidebar } = useSidebar();
   const { openModal } = useModal();
-
   const handleOpenSidebar = () => {
     openSidebar(
       <div>
-        <h2 className="text-xl font-bold mb-2">Sidebar Content</h2>
-        <p>This is a demo sidebar. Click outside or press Escape to close.</p>
+        <h2 className="text-xl font-bold mb-2 text-white">Sidebar Content</h2>
+        <p className="text-gray-300">
+          This is a demo sidebar. Click outside or press Escape to close.
+        </p>
       </div>
     );
   };
-
   const handleOpenModal = () => {
     openModal(
       <div>
-        <h2 className="text-xl font-bold mb-2">Modal Content</h2>
-        <p>This is a demo modal. Click outside or press Escape to close.</p>
+        <h2 className="text-xl font-bold mb-2 text-white">Modal Content</h2>
+        <p className="text-gray-300">
+          This is a demo modal. Click outside or press Escape to close.
+        </p>
       </div>
     );
   };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          {/* Main Logo */}
-          <div className="mx-auto mb-8 w-24 h-24 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
-            <span className="text-white text-4xl font-bold">F!</span>
+    <div className="h-full bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 overflow-hidden">
+      <div className="h-full flex flex-col px-6 py-4">
+        {/* Header Section - Compact */}
+        <div className="text-center mb-4 flex-shrink-0">
+          {/* Main Logo - Smaller */}
+          <div className="mx-auto mb-3 w-16 h-16 bg-gradient-to-r from-purple-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-xl">
+            <span className="text-white text-2xl font-bold">F!</span>
           </div>
-
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-6">
-            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl md:text-4xl font-extrabold mb-3">
+            <span className="bg-gradient-to-r from-purple-400 via-violet-400 to-purple-500 bg-clip-text text-transparent">
               Welcome to Fauxigent
             </span>
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+          </h1>{" "}
+          <p className="text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
             Your intelligent companion for seamless authentication and user
-            management. Experience the future of secure, modern web applications
-            with our cutting-edge authentication system.
+            management. Experience the future of secure, modern web
+            applications.
           </p>
-        </div>
-
-        {/* Feature Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16 max-w-4xl mx-auto">
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-white/20">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-4">
+        </div>{" "}
+        {/* Feature Cards - Compact and Consistent */}
+        <div className="grid md:grid-cols-3 gap-4 mb-4 max-w-6xl mx-auto flex-shrink-0">
+          <div className="bg-gray-800/90 backdrop-blur-sm p-4 rounded-xl shadow-xl border border-gray-700">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-3">
               <svg
-                className="w-6 h-6 text-white"
+                className="w-5 h-5 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -63,20 +63,20 @@ function Home() {
                   strokeWidth="2"
                   d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                 ></path>
-              </svg>
+              </svg>{" "}
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            <h3 className="text-lg font-semibold text-white mb-2">
               Secure Authentication
             </h3>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-300">
               Advanced security with JWT tokens and encrypted sessions.
             </p>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-white/20">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-4">
+          <div className="bg-gray-800/90 backdrop-blur-sm p-4 rounded-xl shadow-xl border border-gray-700">
+            <div className="w-10 h-10 bg-gradient-to-r from-violet-500 to-violet-600 rounded-lg flex items-center justify-center mb-3">
               <svg
-                className="w-6 h-6 text-white"
+                className="w-5 h-5 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -87,71 +87,71 @@ function Home() {
                   strokeWidth="2"
                   d="M13 10V3L4 14h7v7l9-11h-7z"
                 ></path>
-              </svg>
+              </svg>{" "}
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            <h3 className="text-lg font-semibold text-white mb-2">
               Lightning Fast
             </h3>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-300">
               Optimized performance with modern React and Redux architecture.
             </p>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-white/20">
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center mb-4">
+          <div className="bg-gray-800/90 backdrop-blur-sm p-4 rounded-xl shadow-xl border border-gray-700">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-violet-600 rounded-lg flex items-center justify-center mb-3">
               <svg
-                className="w-6 h-6 text-white"
+                className="w-5 h-5 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
+                {" "}
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
                   d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                 ></path>
-              </svg>
+              </svg>{" "}
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            <h3 className="text-lg font-semibold text-white mb-2">
               User Friendly
             </h3>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-300">
               Intuitive interface designed for the best user experience.
             </p>
           </div>
-        </div>
-
-        {/* Demo Buttons for Sidebar and Modal */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+        </div>{" "}
+        {/* Demo Buttons for Sidebar and Modal - Compact */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6 flex-shrink-0">
           <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition mb-4"
+            className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 font-semibold text-sm"
             onClick={handleOpenSidebar}
           >
             Open Sidebar
-          </button>
+          </button>{" "}
           <button
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition mb-4"
+            className="bg-gray-700 text-purple-400 border-2 border-gray-600 hover:bg-gray-600 hover:border-purple-400 px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 font-semibold text-sm"
             onClick={handleOpenModal}
           >
             Open Modal
           </button>
-        </div>
-
-        {/* CTA Section */}
-        <div className="text-center">
+        </div>{" "}
+        {/* CTA Section - Compact */}
+        <div className="text-center flex-grow flex flex-col justify-center min-h-0">
+          {" "}
           {user ? (
-            <div className="space-y-4">
-              <p className="text-lg text-gray-600 mb-6">
+            <div className="space-y-3">
+              <p className="text-base text-gray-300 mb-4">
                 Welcome back! Ready to continue?
               </p>
               <Link
                 to="/profile"
-                className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               >
-                Go to Profile 
+                Go to Profile
                 <svg
-                  className="ml-2 w-5 h-5"
+                  className="ml-2 w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -166,18 +166,18 @@ function Home() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-6">
-              <p className="text-lg text-gray-600 mb-8">
+            <div className="space-y-4">
+              <p className="text-base text-gray-300 mb-5">
                 Ready to get started? Join thousands of users today!
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
                   to="/register"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 >
                   Get Started Free
                   <svg
-                    className="ml-2 w-5 h-5"
+                    className="ml-2 w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -189,23 +189,16 @@ function Home() {
                       d="M13 7l5 5m0 0l-5 5m5-5H6"
                     ></path>
                   </svg>
-                </Link>
+                </Link>{" "}
                 <Link
                   to="/login"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-white hover:bg-gray-50 text-gray-800 border-2 border-gray-200 hover:border-gray-300 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-gray-700 hover:bg-gray-600 text-purple-400 border-2 border-gray-600 hover:border-purple-400 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 >
                   Sign In
                 </Link>
               </div>
             </div>
           )}
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-10 w-20 h-20 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-          <div className="absolute bottom-20 right-10 w-32 h-32 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-1000"></div>
-          <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-500"></div>
         </div>
       </div>
     </div>
