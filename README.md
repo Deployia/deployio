@@ -1,127 +1,101 @@
-# Fauxigent MERN Template
+# RouteMate Authentication API
 
-This is a template project for a **MERN stack** application with **Vite** for the frontend and **Express** for the backend. The template comes pre-configured with:
+A Node.js Express backend with authentication features including user registration, login, password management, and secure cookie-based JWT authentication.
 
-- TailwindCSS for styling
-- MongoDB connection
-- Environment variables configuration for both development and production environments
-- Proxying API requests from the frontend to the backend
+## Features
+
+- User Registration with email, username, and password
+- User Login with secure HTTP-only cookie authentication
+- Secure logout that clears authentication cookies
+- Forgot Password functionality with email notifications
+- Reset Password with secure token validation
+- Update Password for authenticated users
+- Secure password storage with bcrypt hashing
+- MongoDB integration using Mongoose
+- Error handling and validation
+- Rate limiting for API security
 
 ## Project Structure
 
-```bash
-.
-├── client/                # Frontend application (React with Vite)
-├── node_modules/          # Node.js modules
-├── package.json           # Project dependencies and scripts
-├── package-lock.json      # Exact version of installed dependencies
-└── server.js              # Backend Express server
+```
+├── config/             # Configuration files
+├── controllers/        # Request handlers
+│   └── authController.js
+├── middleware/         # Middleware functions
+│   ├── authMiddleware.js
+│   └── errorMiddleware.js
+├── models/             # Database models
+│   └── User.js
+├── routes/             # Express routes
+│   └── authRoutes.js
+├── services/           # Business logic
+│   ├── authService.js
+│   └── emailService.js
+├── .env                # Environment variables
+├── .env.example        # Example environment variables
+├── server.js           # Entry point
+└── package.json        # Dependencies
 ```
 
-## Getting Started
+## Installation
 
-### Prerequisites
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Create a `.env` file based on `.env.example`
+4. Start the server: `npm start`
 
-Ensure you have the following installed on your machine:
+## API Endpoints
 
-- Node.js (>=16.x)
-- npm (>=7.x)
-- MongoDB (if running locally)
+### Authentication
 
-### 1. Install Dependencies
+- `POST /api/auth/register` - Register a new user (sets HTTP-only cookie)
+- `POST /api/auth/login` - Login (sets HTTP-only cookie with JWT token)
+- `GET /api/auth/logout` - Logout (clears auth cookie)
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password/:token` - Reset password with token
+- `PUT /api/auth/update-password` - Update password (requires authentication)
 
-Run the following command to install dependencies for both the backend and frontend.
+## Environment Variables
 
-```bash
-npm install
+Create a `.env` file with the following variables:
+
 ```
+# MongoDB Connection String
+MONGO_URI=mongodb://localhost:27017/routemate
 
-### 2. Configure Environment Variables
+# JWT Secret Key
+JWT_SECRET=your_jwt_secret_key_here
+JWT_EXPIRES_IN=1d
+JWT_COOKIE_EXPIRES_IN=1
 
-Create `.env` files for both the frontend and backend.
+# Node Environment
+NODE_ENV=development
 
-#### Frontend (`client/.env`)
-
-```env
-VITE_APP_BACKEND_URL_DEV=http://localhost:5000
-VITE_APP_BACKEND_URL_PROD=https://your-production-domain.com
-VITE_APP_ENV=development
-VITE_APP_DOMAIN=your-domain.com
-```
-
-#### Backend (`.env`)
-
-```env
-MONGO_URI=mongodb://localhost:27017/your-database
+# Server Port
 PORT=5000
+
+# Frontend URLs
+FRONTEND_URL_DEV=http://localhost:3000
+FRONTEND_URL_PROD=https://yourproductionurl.com
+
+# Email Configuration for Nodemailer
+EMAIL_SERVICE=gmail
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password_here
+EMAIL_FROM=your_email@gmail.com
+
+# Password Reset Token Expiry (in minutes)
+PASSWORD_RESET_EXPIRES=30
 ```
 
-### 4. Run the Development Servers
+## Dependencies
 
-To run both the backend (Express) and frontend (Vite) in parallel, you can use the following npm scripts:
-
-- To start the **backend** server:
-
-  ```bash
-  npm run server
-  ```
-
-- To start the **frontend** (Vite) development server:
-
-  ```bash
-  npm run client
-  ```
-
-- To run both the frontend and backend together:
-
-  ```bash
-  npm run dev
-  ```
-
-### 5. Access the Application
-
-Once both servers are running, you can access:
-
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:5000/api/hello` (or other API routes)
-
-## Scripts
-
-- **`npm run dev`**: Runs both the frontend and backend servers concurrently using `concurrently`.
-- **`npm run client`**: Starts the Vite frontend server.
-- **`npm run server`**: Starts the Express backend server.
-- **`npm run build`**: Builds the frontend production assets.
-
-## Proxying API Requests
-
-The Vite development server is configured to proxy API requests to the backend (on port `5000` by default) using the following configuration:
-
-```js
-server: {
-  proxy: {
-    "/api": "http://localhost:1234", // Proxy API requests to backend
-    // adjust accordingly
-  }
-}
-```
-
-## Backend Configuration
-
-The backend is built using Express and connected to MongoDB. It includes:
-
-- A basic `server.js` file that sets up Express and middleware.
-- An API route at `/api/hello` that returns a simple message for testing purposes.
-
-### Example API Route (in `server.js`)
-
-```javascript
-app.get("/api/hello", (req, res) => {
-  res.json({ message: "Hello from the backend!" });
-});
-```
-
-## Deployment
-
-For production deployment, you will need to:
-
-1. Update the `outDir` in the Vite config to your desired output directory for building the frontend assets.
+- express - Web framework
+- mongoose - MongoDB ODM
+- bcryptjs - Password hashing
+- jsonwebtoken - JWT authentication
+- nodemailer - Email sending
+- dotenv - Environment variables
+- cors - CORS support
+- express-rate-limit - API rate limiting
+- morgan - HTTP request logger

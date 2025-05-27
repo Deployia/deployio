@@ -1,49 +1,63 @@
-import { useState } from "react";
+import { Routes, Route } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from "react";
 import axios from "axios";
 
-function App() {
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+// Components
+import Header from "./components/Header";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Spinner from "./components/Spinner";
 
-  const fetchMessage = async () => {
-    setLoading(true);
-    try {
-      /* proxying to backend is done, just append the route you want to, with /api/v1/login or /api/v1/user or whatever. */
-      const response = await axios.get("/api/hello"); // Make the API request to the /hello endpoint
-      setMessage(response.data.message);
-    } catch (error) {
-      console.error(error);
-      setMessage("Error fetching data.");
-    } finally {
-      setLoading(false);
-    }
-  };
+// Auth Components
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
+
+// Pages
+import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
+import UpdatePassword from "./pages/UpdatePassword";
+import NotFound from "./pages/NotFound";
+import { getMe } from "./redux/slices/authSlice";
+
+function App() {
+  const { loading } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+
+  // Global axios configuration for cookies
+  useEffect(() => {
+    axios.defaults.withCredentials = true;
+    dispatch(getMe());
+  }, [dispatch]);
+
+  // Show loading spinner when checking authentication status
+  if (loading.me) {
+    return <Spinner fullScreen={true} />;
+  }
 
   return (
-    <div className="h-screen w-full flex items-center justify-center relative bg-gray-600 flex-col">
-      <img
-        src="https://github.com/fauxigent.png"
-        alt="logo"
-        className="w-32 h-32 rounded-full mb-6"
-      />
-      <h1 className="text-8xl text-white z-10 mb-4">Fauxigent MERN Template</h1>
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-grow">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-      {/* Message paragraph */}
-      <p className="text-xl text-white mb-4">{message}</p>
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/update-password" element={<UpdatePassword />} />
+          </Route>
 
-      {/* Spinner and button */}
-      <div className="flex flex-col items-center">
-        {loading ? (
-          <div className="loader"></div> // You can replace this with a spinner component
-        ) : (
-          <button
-            onClick={fetchMessage}
-            className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700"
-          >
-            Fetch Message
-          </button>
-        )}
-      </div>
+          {/* 404 Route - Must be last */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
     </div>
   );
 }
