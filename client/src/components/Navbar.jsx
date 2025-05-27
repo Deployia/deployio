@@ -40,10 +40,10 @@ function Navbar() {
               <>
                 <li>
                   <Link
-                    to="/dashboard"
+                    to="/profile"
                     className="px-4 py-2 rounded-lg hover:bg-slate-700 transition-all duration-200 font-medium"
                   >
-                    Dashboard
+                    Profile
                   </Link>
                 </li>
                 <li>
