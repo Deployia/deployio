@@ -10,21 +10,23 @@ const hpp = require("hpp");
 const cors = require("cors");
 
 module.exports = (app) => {
-  // Swagger
-  const swaggerOptions = {
-    definition: {
-      openapi: "3.0.0",
-      info: {
-        title: "Fauxigent API Docs",
-        version: "1.0.0",
-        description: "API documentation for Fauxigent MERN Template",
+  // Swagger (only in local/development)
+  if (process.env.NODE_ENV === "development") {
+    const swaggerOptions = {
+      definition: {
+        openapi: "3.0.0",
+        info: {
+          title: "Fauxigent API Docs",
+          version: "1.0.0",
+          description: "API documentation for Fauxigent MERN Template",
+        },
+        servers: [{ url: "/" }],
       },
-      servers: [{ url: "/" }],
-    },
-    apis: ["./routes/*.js", "./controllers/*.js"],
-  };
-  const swaggerSpec = swaggerJsdoc(swaggerOptions);
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+      apis: ["./docs/*.js"],
+    };
+    const swaggerSpec = swaggerJsdoc(swaggerOptions);
+    app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  }
 
   // Passport
   app.use(passport.initialize());
