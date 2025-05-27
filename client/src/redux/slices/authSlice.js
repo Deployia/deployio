@@ -191,6 +191,29 @@ export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
   }
 });
 
+// Refresh token logic
+export const refreshToken = createAsyncThunk(
+  "auth/refreshToken",
+  async (_, thunkAPI) => {
+    try {
+      const response = await axios.post(
+        `${BACKEND_URL}/api/v1/auth/refresh-token`,
+        {},
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 // Create the auth slice
 const authSlice = createSlice({
   name: "auth",

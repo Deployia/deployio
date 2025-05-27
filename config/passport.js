@@ -1,6 +1,7 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const User = require("../models/User");
+const crypto = require("crypto");
 
 passport.use(
   new GoogleStrategy(
@@ -17,7 +18,9 @@ passport.use(
             username: profile.displayName,
             email: profile.emails[0].value,
             googleId: profile.id,
-            password: crypto.randomBytes(20).toString("hex"), // random password
+            password: crypto.randomBytes
+              ? crypto.randomBytes(20).toString("hex")
+              : Math.random().toString(36).slice(-20), // fallback for environments without crypto.randomBytes
           });
         }
         return done(null, user);
