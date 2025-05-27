@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../redux/slices/authSlice";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 
 function Header() {
   const navigate = useNavigate();
