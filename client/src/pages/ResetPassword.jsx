@@ -46,6 +46,7 @@ function ResetPassword() {
       toast.error("Passwords do not match");
     } else {
       dispatch(resetPassword({ token, password }));
+      navigate("/login");
     }
   };
 
