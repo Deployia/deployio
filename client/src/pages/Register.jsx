@@ -14,27 +14,28 @@ function Register() {
   });
 
   const { username, email, password, confirmPassword } = formData;
-
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { isAuthenticated, loading, error, user } = useSelector(
-    (state) => state.auth
-  );
-
+  const { loading, error, user } = useSelector((state) => state.auth);
   useEffect(() => {
     if (error && error.signup) {
       toast.error(error.signup);
     }
-    // If registration returns otpSent, redirect to verify-otp
-    if (user && user.email && !isAuthenticated) {
+
+    // If registration returns user with email, redirect to verify-otp
+    // No need to check !isAuthenticated as we've fixed the reducer
+    if (user && user.email) {
       toast.success("OTP sent to your email. Please verify.");
       navigate("/auth/verify-otp", { state: { email: user.email } });
+      dispatch(reset());
+      return;
     }
-    if (isAuthenticated) {
-      navigate("/profile");
-    }
+
+    // Do not redirect to /profile from Register page
+    // Let VerifyOtp.jsx handle that after successful verification
+
     dispatch(reset());
-  }, [isAuthenticated, error, navigate, dispatch, user]);
+  }, [error, navigate, dispatch, user]);
 
   const onChange = (e) => {
     setFormData((prevState) => ({

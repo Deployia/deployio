@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -10,6 +10,7 @@ function VerifyOtp() {
   const [otpArray, setOtpArray] = useState(["", "", "", "", "", ""]);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const inputsRef = useRef([]);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -44,31 +45,28 @@ function VerifyOtp() {
   const handleOtpChange = (e, idx) => {
     const value = e.target.value.replace(/[^0-9]/g, "");
     if (!value) return;
+
     const newOtp = [...otpArray];
-    newOtp[idx] = value[0];
+    newOtp[idx] = value[0]; // Take only first digit
     setOtpArray(newOtp);
-    // Move to next input
+
+    // Move to next input if available
     if (value && idx < 5) {
-      const nextInput = document.getElementById(`otp-input-${idx + 1}`);
-      if (nextInput) nextInput.focus();
+      inputsRef.current[idx + 1].focus();
     }
   };
 
   // Handle backspace
   const handleOtpKeyDown = (e, idx) => {
     if (e.key === "Backspace") {
-      if (otpArray[idx]) {
-        const newOtp = [...otpArray];
-        newOtp[idx] = "";
-        setOtpArray(newOtp);
-        // Move to previous input if not the first block
-        if (idx > 0) {
-          const prevInput = document.getElementById(`otp-input-${idx - 1}`);
-          if (prevInput) prevInput.focus();
-        }
-      } else if (idx > 0) {
-        const prevInput = document.getElementById(`otp-input-${idx - 1}`);
-        if (prevInput) prevInput.focus();
+      // Always clear current input first
+      const newOtp = [...otpArray];
+      newOtp[idx] = "";
+      setOtpArray(newOtp);
+
+      // Always move to previous input if not the first block
+      if (idx > 0) {
+        inputsRef.current[idx - 1].focus();
       }
     }
   };
@@ -121,7 +119,7 @@ function VerifyOtp() {
             <form onSubmit={onSubmit} className="space-y-4">
               <div>
                 <label
-                  htmlFor="otp"
+                  htmlFor="otp-input-0"
                   className="block text-sm font-semibold text-slate-700 mb-1"
                 >
                   OTP Code
@@ -131,6 +129,7 @@ function VerifyOtp() {
                     <input
                       key={idx}
                       id={`otp-input-${idx}`}
+                      ref={(el) => (inputsRef.current[idx] = el)}
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"

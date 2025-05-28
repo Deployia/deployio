@@ -241,7 +241,7 @@ const authSlice = createSlice({
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading.signup = false;
         state.user = action.payload.user;
-        state.isAuthenticated = true;
+        state.isAuthenticated = false; // Not authenticated until OTP is verified
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading.signup = false;
