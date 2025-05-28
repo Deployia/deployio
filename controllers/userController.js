@@ -52,7 +52,163 @@ const updatePassword = async (req, res) => {
   }
 };
 
+// 2FA Controller Functions
+
+// Generate 2FA secret
+const generate2FASecret = async (req, res) => {
+  try {
+    const result = await userService.generate2FASecret(req.user.id);
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: "2FA secret generated successfully",
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Enable 2FA
+const enable2FA = async (req, res) => {
+  try {
+    const { token, secret } = req.body;
+    if (!token || !secret) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide verification token and secret",
+      });
+    }
+    const result = await userService.enable2FA(req.user.id, token, secret);
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: result.message,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Verify 2FA during login
+const verify2FALogin = async (req, res) => {
+  try {
+    const { token, userId } = req.body;
+    if (!token || !userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide verification token and user ID",
+      });
+    }
+
+    const verificationResult = await userService.verify2FALogin(userId, token);
+    if (!verificationResult.verified) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid verification code",
+      });
+    }
+
+    // Complete login by generating tokens
+    const loginResult = await userService.complete2FALogin(userId);
+
+    // Set cookies
+    const isProduction = process.env.NODE_ENV === "production";
+    res.cookie("accessToken", loginResult.token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+    res.cookie("refreshToken", loginResult.refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: loginResult.user,
+        method: verificationResult.method,
+      },
+      message: "2FA verification successful",
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Disable 2FA
+const disable2FA = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide your password",
+      });
+    }
+    const result = await userService.disable2FA(req.user.id, password);
+    res.status(200).json({
+      success: true,
+      message: result,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Get 2FA status
+const get2FAStatus = async (req, res) => {
+  try {
+    const result = await userService.get2FAStatus(req.user.id);
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Generate new backup codes
+const generateNewBackupCodes = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide your password",
+      });
+    }
+    const result = await userService.generateNewBackupCodes(
+      req.user.id,
+      password
+    );
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: result.message,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   updateProfile,
   updatePassword,
+  generate2FASecret,
+  enable2FA,
+  verify2FALogin,
+  disable2FA,
+  get2FAStatus,
+  generateNewBackupCodes,
+  generate2FASecret,
+  enable2FA,
+  verify2FALogin,
+  disable2FA,
+  get2FAStatus,
+  generateNewBackupCodes,
 };
