@@ -7,7 +7,7 @@ import api from "../utils/api";
 import Spinner from "../components/Spinner";
 
 function VerifyOtp() {
-  const [otp, setOtp] = useState("");
+  const [otpArray, setOtpArray] = useState(["", "", "", "", "", ""]);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const dispatch = useDispatch();
@@ -40,10 +40,44 @@ function VerifyOtp() {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
+  // Handle OTP input change
+  const handleOtpChange = (e, idx) => {
+    const value = e.target.value.replace(/[^0-9]/g, "");
+    if (!value) return;
+    const newOtp = [...otpArray];
+    newOtp[idx] = value[0];
+    setOtpArray(newOtp);
+    // Move to next input
+    if (value && idx < 5) {
+      const nextInput = document.getElementById(`otp-input-${idx + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  // Handle backspace
+  const handleOtpKeyDown = (e, idx) => {
+    if (e.key === "Backspace") {
+      if (otpArray[idx]) {
+        const newOtp = [...otpArray];
+        newOtp[idx] = "";
+        setOtpArray(newOtp);
+        // Move to previous input if not the first block
+        if (idx > 0) {
+          const prevInput = document.getElementById(`otp-input-${idx - 1}`);
+          if (prevInput) prevInput.focus();
+        }
+      } else if (idx > 0) {
+        const prevInput = document.getElementById(`otp-input-${idx - 1}`);
+        if (prevInput) prevInput.focus();
+      }
+    }
+  };
+
   const onSubmit = (e) => {
     e.preventDefault();
-    if (!otp || !email) {
-      toast.error("OTP and email are required");
+    const otp = otpArray.join("");
+    if (otp.length !== 6 || !email) {
+      toast.error("Enter all 6 digits and email is required");
       return;
     }
     dispatch(verifyOtp({ email, otp }));
@@ -92,19 +126,23 @@ function VerifyOtp() {
                 >
                   OTP Code
                 </label>
-                <input
-                  type="text"
-                  id="otp"
-                  name="otp"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400 text-center tracking-widest text-lg"
-                  placeholder="6-digit code"
-                  required
-                  maxLength={6}
-                  minLength={6}
-                  autoFocus
-                />
+                <div className="flex justify-center gap-2 md:gap-3">
+                  {otpArray.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      id={`otp-input-${idx}`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(e, idx)}
+                      onKeyDown={(e) => handleOtpKeyDown(e, idx)}
+                      className="w-10 h-12 md:w-12 md:h-14 text-center text-lg md:text-2xl border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 bg-slate-50 shadow-sm"
+                      autoFocus={idx === 0}
+                    />
+                  ))}
+                </div>
               </div>
               <button
                 type="submit"
