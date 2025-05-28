@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../utils/api";
+import { verify2FALogin } from "./twoFactorSlice";
 
 // Initial State
 const initialState = {
@@ -346,9 +347,7 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.error.me = action.payload;
-      })
-
-      // Verify OTP cases
+      })      // Verify OTP cases
       .addCase(verifyOtp.pending, (state) => {
         state.loading.verifyOtp = true;
         state.error.verifyOtp = null;
@@ -363,6 +362,16 @@ const authSlice = createSlice({
         state.error.verifyOtp = action.payload;
         state.user = null;
         state.isAuthenticated = false;
+      })
+
+      // Handle 2FA login completion
+      .addCase(verify2FALogin.fulfilled, (state, action) => {
+        if (action.payload.user) {
+          state.user = action.payload.user;
+          state.isAuthenticated = true;
+          state.loading.login = false;
+          state.error.login = null;
+        }
       });
   },
 });

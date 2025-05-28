@@ -20,4 +20,16 @@ router.put(
 // Update password
 router.put("/update-password", protect, userController.updatePassword);
 
+// 2FA Routes
+router.get("/2fa/generate", protect, userController.generate2FASecret);
+router.post("/2fa/enable", protect, userController.enable2FA);
+router.post("/2fa/verify", userController.verify2FALogin);
+router.post("/2fa/disable", protect, userController.disable2FA);
+router.get("/2fa/status", protect, userController.get2FAStatus);
+router.post(
+  "/2fa/backup-codes",
+  protect,
+  userController.generateNewBackupCodes
+);
+
 module.exports = router;

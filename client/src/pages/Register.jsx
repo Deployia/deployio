@@ -24,9 +24,9 @@ function Register() {
 
     // If registration returns user with email, redirect to verify-otp
     // No need to check !isAuthenticated as we've fixed the reducer
-    if (user && user.email) {
+    if (user && user?.email) {
       toast.success("OTP sent to your email. Please verify.");
-      navigate("/auth/verify-otp", { state: { email: user.email } });
+      navigate("/auth/verify-otp", { state: { email: user?.email } });
       dispatch(reset());
       return;
     }

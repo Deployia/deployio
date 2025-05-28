@@ -94,7 +94,7 @@ const login = async (req, res) => {
     });
     res.status(200).json({
       success: true,
-      user: { id: user._id, username: user.username, email: user.email },
+      user: { id: user?._id, username: user?.username, email: user?.email },
     });
   } catch (error) {
     res.status(401).json({ success: false, message: error.message });
@@ -141,7 +141,7 @@ const resetPassword = async (req, res) => {
 // Logout user
 const logout = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user?._id;
     const result = await authService.logoutUser(userId);
     res.cookie("token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
@@ -172,11 +172,11 @@ const getMe = async (req, res) => {
 const googleAuthCallback = async (req, res) => {
   try {
     const user = req.user;
-    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    const accessToken = jwt.sign({ id: user?._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || "1d",
     });
     const refreshToken = jwt.sign(
-      { id: user._id },
+      { id: user?._id },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d" }
     );
