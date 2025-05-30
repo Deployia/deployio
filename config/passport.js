@@ -14,7 +14,19 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        // Try to find user by provider ID
         let user = await User.findOne({ googleId: profile.id });
+        // If not found, try to find by email (for account linking)
+        if (!user && profile.emails && profile.emails[0]) {
+          user = await User.findOne({ email: profile.emails[0].value });
+          if (user) {
+            user.googleId = profile.id;
+            if (profile.photos && profile.photos[0]) {
+              user.profileImage = profile.photos[0].value;
+            }
+            await user.save();
+          }
+        }
         if (!user) {
           user = await User.create({
             username: profile.displayName,
@@ -22,7 +34,7 @@ passport.use(
             googleId: profile.id,
             password: crypto.randomBytes
               ? crypto.randomBytes(20).toString("hex")
-              : Math.random().toString(36).slice(-20), // fallback for environments without crypto.randomBytes
+              : Math.random().toString(36).slice(-20),
             profileImage:
               profile.photos && profile.photos[0]
                 ? profile.photos[0].value
@@ -59,6 +71,17 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ facebookId: profile.id });
+        // Try to find by email for account linking
+        if (!user && profile.emails && profile.emails[0]) {
+          user = await User.findOne({ email: profile.emails[0].value });
+          if (user) {
+            user.facebookId = profile.id;
+            if (profile.photos && profile.photos[0]) {
+              user.profileImage = profile.photos[0].value;
+            }
+            await user.save();
+          }
+        }
         if (!user) {
           user = await User.create({
             username: profile.displayName,
@@ -105,6 +128,17 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ githubId: profile.id });
+        // Try to find by email for account linking
+        if (!user && profile.emails && profile.emails[0]) {
+          user = await User.findOne({ email: profile.emails[0].value });
+          if (user) {
+            user.githubId = profile.id;
+            if (profile.photos && profile.photos[0]) {
+              user.profileImage = profile.photos[0].value;
+            }
+            await user.save();
+          }
+        }
         if (!user) {
           user = await User.create({
             username: profile.displayName || profile.username,

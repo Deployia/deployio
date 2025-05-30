@@ -44,7 +44,7 @@ router.get(
     session: false,
     failureRedirect: "/login",
   }),
-  require("../controllers/authController").googleAuthCallback // Reuse callback logic
+  authController.facebookAuthCallback
 );
 
 // GitHub OAuth
@@ -59,7 +59,7 @@ router.get(
     session: false,
     failureRedirect: "/login",
   }),
-  require("../controllers/authController").googleAuthCallback // Reuse callback logic
+  authController.githubAuthCallback
 );
 
 // Refresh token endpoint
