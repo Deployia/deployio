@@ -57,10 +57,12 @@ const TwoFactorDashboard = () => {
     dispatch(clearQRCode());
     toast.success("2FA enabled successfully!");
   };
-
   const handleBackupCodesDownloaded = () => {
     setShowBackupCodes(false);
-    dispatch(clearBackupCodes());
+    // Only clear backup codes if they were from initial setup, not when generating new ones
+    if (!twoFactorEnabled) {
+      dispatch(clearBackupCodes());
+    }
     dispatch(get2FAStatus()); // Refresh status
   };
 
@@ -71,13 +73,13 @@ const TwoFactorDashboard = () => {
       </div>
     );
   }
-
   // Show backup codes after successful 2FA setup
-  if (showBackupCodes && backupCodes.length > 0) {
+  if (showBackupCodes) {
     return (
       <BackupCodes
         backupCodes={backupCodes}
         onClose={handleBackupCodesDownloaded}
+        showRefresh={twoFactorEnabled} // Show refresh button for existing accounts with 2FA enabled
       />
     );
   }
@@ -149,11 +151,11 @@ const TwoFactorDashboard = () => {
               className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
               Disable 2FA
-            </button>
-
+            </button>{" "}
             <button
               onClick={() => {
-                // This will be handled by BackupCodes component
+                // Clear any existing backup codes in the Redux store before showing the component
+                dispatch(clearBackupCodes());
                 setShowBackupCodes(true);
               }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2"

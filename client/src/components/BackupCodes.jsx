@@ -10,9 +10,19 @@ import { generateNewBackupCodes } from "../redux/slices/twoFactorSlice";
 import Spinner from "./Spinner";
 import toast from "react-hot-toast";
 
-const BackupCodes = ({ backupCodes = [], onClose, showRefresh = false }) => {
+const BackupCodes = ({
+  backupCodes: initialBackupCodes = [],
+  onClose,
+  showRefresh = false,
+}) => {
   const dispatch = useDispatch();
-  const { isLoading } = useSelector((state) => state.twoFactor);
+  const { isLoading, backupCodes: storeBackupCodes } = useSelector(
+    (state) => state.twoFactor
+  );
+
+  // Use backupCodes from Redux store if available, otherwise use the ones passed in via props
+  const backupCodes =
+    storeBackupCodes.length > 0 ? storeBackupCodes : initialBackupCodes;
 
   const [password, setPassword] = useState("");
   const [showRefreshForm, setShowRefreshForm] = useState(false);
@@ -55,7 +65,6 @@ const BackupCodes = ({ backupCodes = [], onClose, showRefresh = false }) => {
     setHasDownloaded(true);
     toast.success("Backup codes downloaded");
   };
-
   const handleGenerateNew = async (e) => {
     e.preventDefault();
 
@@ -68,9 +77,12 @@ const BackupCodes = ({ backupCodes = [], onClose, showRefresh = false }) => {
       await dispatch(generateNewBackupCodes(password)).unwrap();
       setShowRefreshForm(false);
       setPassword("");
+      // Reset hasDownloaded to false since new codes were generated
+      setHasDownloaded(false);
       toast.success("New backup codes generated");
-    } catch (err) {
-      // Error handled by Redux slice
+    } catch (error) {
+      // Error already handled by Redux slice through its rejected action
+      console.error("Failed to generate new backup codes", error);
     }
   };
 
@@ -89,7 +101,6 @@ const BackupCodes = ({ backupCodes = [], onClose, showRefresh = false }) => {
           device.
         </p>
       </div>
-
       {/* Warning */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <div className="flex items-start space-x-3">
@@ -108,22 +119,33 @@ const BackupCodes = ({ backupCodes = [], onClose, showRefresh = false }) => {
             </ul>
           </div>
         </div>
-      </div>
-
+      </div>{" "}
       {/* Backup Codes Grid */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-        <div className="grid grid-cols-2 gap-3">
-          {backupCodes.map((code, index) => (
-            <div
-              key={index}
-              className="bg-white border border-gray-300 rounded-lg p-3 text-center font-mono text-sm"
-            >
-              {code}
-            </div>
-          ))}
-        </div>
+        {backupCodes.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {backupCodes.map((code, index) => (
+              <div
+                key={index}
+                className="bg-white border border-gray-300 rounded-lg p-3 text-center font-mono text-sm"
+              >
+                {code}
+              </div>
+            ))}
+          </div>
+        ) : showRefresh ? (
+          <div className="text-center py-6">
+            <p className="text-gray-600">
+              Use the "Generate New Codes" button to create new backup codes
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <Spinner />
+            <p className="text-gray-600 mt-2">Loading backup codes...</p>
+          </div>
+        )}
       </div>
-
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3 justify-center">
         <button
@@ -152,7 +174,6 @@ const BackupCodes = ({ backupCodes = [], onClose, showRefresh = false }) => {
           </button>
         )}
       </div>
-
       {/* Generate New Codes Form */}
       {showRefreshForm && (
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-4">
@@ -212,20 +233,22 @@ const BackupCodes = ({ backupCodes = [], onClose, showRefresh = false }) => {
             </div>
           </form>
         </div>
-      )}
-
+      )}{" "}
       {/* Continue Button */}
       <div className="text-center">
         <button
           onClick={onClose}
-          disabled={!hasDownloaded}
+          disabled={backupCodes.length > 0 && !hasDownloaded}
           className="px-8 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {hasDownloaded ? "Continue" : "Download codes first to continue"}
+          {backupCodes.length === 0
+            ? "Return to Dashboard"
+            : hasDownloaded
+            ? "Continue"
+            : "Download codes first to continue"}
         </button>
       </div>
-
-      {!hasDownloaded && (
+      {backupCodes.length > 0 && !hasDownloaded && (
         <div className="text-center text-sm text-gray-500">
           Please download or copy your backup codes before continuing
         </div>
