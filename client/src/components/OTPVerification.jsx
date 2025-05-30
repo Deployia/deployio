@@ -12,13 +12,14 @@ const OTPVerification = ({
   onCancel,
 }) => {
   const dispatch = useDispatch();
-  const { isDisabling, isVerifying } = useSelector((state) => state.twoFactor);
+  const { isDisabling } = useSelector((state) => state.twoFactor);
+  const { loading } = useSelector((state) => state.auth);
 
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
 
-  const isLoading = mode === "disable" ? isDisabling : isVerifying;
+  const isLoading = mode === "disable" ? isDisabling : loading.login;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,12 +45,12 @@ const OTPVerification = ({
         );
         return;
       }
-
       try {
         await dispatch(verify2FALogin({ token: code, userId })).unwrap();
         onSuccess();
-      } catch (err) {
-        // Error handled by Redux slice
+      } catch (error) {
+        // Display the error message from the API
+        toast.error(error || "Verification failed. Please try again.");
       }
     }
   };

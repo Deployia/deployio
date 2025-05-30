@@ -100,19 +100,17 @@ const loginUser = async (email, password) => {
   if (!user.isVerified) {
     throw new Error("Account not verified. Please check your email for OTP.");
   }
-
   // Check if password is correct
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw new Error("Invalid email or password");
   }
 
-  console.log(user);
   // Check if 2FA is enabled
   if (user.twoFactorEnabled) {
     return {
       requires2FA: true,
-      userId: user?._id,
+      userId: user._id,
       message: "2FA verification required",
     };
   }

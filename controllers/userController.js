@@ -109,21 +109,19 @@ const verify2FALogin = async (req, res) => {
     }
 
     // Complete login by generating tokens
-    const loginResult = await userService.complete2FALogin(userId);
-
-    // Set cookies
-    const isProduction = process.env.NODE_ENV === "production";
-    res.cookie("accessToken", loginResult.token, {
+    const loginResult = await userService.complete2FALogin(userId); // Set cookies (using same names as regular login)
+    const cookieOptions = {
+      expires: new Date(
+        Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+      ),
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "None" : "Lax",
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    });
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+    res.cookie("token", loginResult.token, cookieOptions);
     res.cookie("refreshToken", loginResult.refreshToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "None" : "Lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      ...cookieOptions,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
     res.status(200).json({
@@ -199,12 +197,6 @@ const generateNewBackupCodes = async (req, res) => {
 module.exports = {
   updateProfile,
   updatePassword,
-  generate2FASecret,
-  enable2FA,
-  verify2FALogin,
-  disable2FA,
-  get2FAStatus,
-  generateNewBackupCodes,
   generate2FASecret,
   enable2FA,
   verify2FALogin,
