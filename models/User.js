@@ -99,6 +99,15 @@ const userSchema = new mongoose.Schema(
         },
       },
     ],
+    // Track used TOTP tokens for additional security
+    lastTOTPToken: {
+      type: String,
+      select: false, // Don't include in queries by default
+    },
+    lastTOTPTimestamp: {
+      type: Date,
+      select: false, // Don't include in queries by default
+    },
   },
   {
     timestamps: true,

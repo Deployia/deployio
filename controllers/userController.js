@@ -104,7 +104,7 @@ const verify2FALogin = async (req, res) => {
     if (!verificationResult.verified) {
       return res.status(400).json({
         success: false,
-        message: "Invalid verification code",
+        message: verificationResult.error || "Invalid verification code",
       });
     }
 

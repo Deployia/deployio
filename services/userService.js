@@ -61,7 +61,7 @@ const enable2FA = async (userId, token, secret) => {
     secret: secret,
     encoding: "base32",
     token: token,
-    window: 2, // Allow for some time drift
+    window: 1, // Allow minimal time drift during setup only (±1 period)
   });
 
   if (!verified) {
@@ -92,21 +92,36 @@ const enable2FA = async (userId, token, secret) => {
 // Verify 2FA token during login
 const verify2FALogin = async (userId, token) => {
   const user = await User.findById(userId).select(
-    "+twoFactorSecret +backupCodes"
+    "+twoFactorSecret +backupCodes +lastTOTPToken +lastTOTPTimestamp"
   );
   if (!user) throw new Error("User not found");
 
   if (!user.twoFactorEnabled) {
     throw new Error("2FA is not enabled for this account");
   }
-
   // First, try to verify with TOTP
+  // Use window: 0 for better security - only current time period is accepted
+  // This prevents attacks using old/expired TOTP codes
   const verified = speakeasy.totp.verify({
     secret: user.twoFactorSecret,
     encoding: "base32",
     token: token,
-    window: 2,
+    window: 0, // Restricted to current time period only (typically 30 seconds)
   });
+  // Check for token reuse (if the token was already used in the past)
+  if (user.lastTOTPToken === token) {
+    // Token has been used before - reject it to prevent replay attacks
+    return { verified: false, error: "Verification code already used" };
+  }
+
+  // Store the last used token and timestamp for additional security
+  // This can help prevent token reuse attacks
+  if (verified) {
+    // Save the used token to prevent replay attacks
+    user.lastTOTPToken = token;
+    user.lastTOTPTimestamp = new Date();
+    await user.save();
+  }
 
   if (verified) {
     return { verified: true, method: "totp" };
@@ -125,7 +140,8 @@ const verify2FALogin = async (userId, token) => {
     return { verified: true, method: "backup" };
   }
 
-  return { verified: false };
+  // Neither TOTP nor backup code worked
+  return { verified: false, error: "Invalid verification code" };
 };
 
 // Disable 2FA
@@ -136,11 +152,12 @@ const disable2FA = async (userId, password) => {
   // Verify password
   const isMatch = await user.comparePassword(password);
   if (!isMatch) throw new Error("Incorrect password");
-
-  // Disable 2FA
+  // Disable 2FA and clear all related data
   user.twoFactorEnabled = false;
   user.twoFactorSecret = undefined;
   user.backupCodes = [];
+  user.lastTOTPToken = undefined;
+  user.lastTOTPTimestamp = undefined;
   await user.save();
 
   return "2FA disabled successfully";
