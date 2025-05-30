@@ -6,6 +6,7 @@ import {
 } from "../redux/slices/userSlice";
 import { useEffect, useRef, useState } from "react";
 import Spinner from "../components/Spinner";
+import TwoFactorDashboard from "../components/TwoFactorDashboard";
 import { useSearchParams } from "react-router-dom";
 import { FaPen } from "react-icons/fa";
 
@@ -158,8 +159,7 @@ function Profile() {
                   {authUser?.email || "user@email.com"}
                 </div>
               </div>
-            </div>
-
+            </div>{" "}
             {/* Tabs */}
             <div className="flex border-b border-purple-100 mb-8">
               <button
@@ -184,8 +184,17 @@ function Profile() {
                   Update Password
                 </button>
               )}
+              <button
+                className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
+                  activeTab === "security"
+                    ? "border-purple-500 text-purple-600 bg-purple-50"
+                    : "border-transparent text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                }`}
+                onClick={() => handleTabChange("security")}
+              >
+                Security
+              </button>
             </div>
-
             <div>
               {activeTab === "details" && (
                 <form onSubmit={handleProfileSubmit} className="space-y-6">
@@ -306,7 +315,7 @@ function Profile() {
                     <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl">
                       {passwordSuccess}
                     </div>
-                  )}
+                  )}{" "}
                   <button
                     type="submit"
                     className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -315,6 +324,15 @@ function Profile() {
                     {loading ? <Spinner size={20} /> : "Update Password"}
                   </button>
                 </form>
+              )}
+
+              {activeTab === "security" && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-bold mb-6 text-white">
+                    Security Settings
+                  </h2>
+                  <TwoFactorDashboard />
+                </div>
               )}
             </div>
           </div>
