@@ -1,4 +1,4 @@
-# RouteMate Authentication API
+# Authentication API
 
 A Node.js Express backend with authentication features including user registration, login, password management, and secure cookie-based JWT authentication.
 
