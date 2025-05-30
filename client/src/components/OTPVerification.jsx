@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { FiShield, FiKey } from "react-icons/fi";
+import { FiShield, FiKey, FiSmartphone } from "react-icons/fi";
 import { disable2FA, verify2FALogin } from "../redux/slices/twoFactorSlice";
 import Spinner from "./Spinner";
 import toast from "react-hot-toast";
@@ -18,8 +18,77 @@ const OTPVerification = ({
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
+  const inputsRef = useRef([]);
+
+  // For split input UI while keeping original logic
+  const [otpArray, setOtpArray] = useState(
+    Array(useBackupCode ? 8 : 6).fill("")
+  );
 
   const isLoading = mode === "disable" ? isDisabling : loading.login;
+
+  // Focus on first input when component loads or when switching between TOTP/backup mode
+  useEffect(() => {
+    inputsRef.current[0]?.focus();
+  }, [useBackupCode]);
+
+  // Keep the original code state in sync with the visual separated inputs
+  useEffect(() => {
+    setCode(otpArray.join(""));
+  }, [otpArray]);
+
+  const handleInputChange = (value, index) => {
+    // For TOTP mode, only allow digits
+    if (!useBackupCode && !/^[0-9]?$/.test(value)) return;
+
+    // For backup codes, allow alphanumeric (uppercase)
+    if (useBackupCode && !/^[0-9A-Z]?$/.test(value)) return;
+
+    const newOtpArray = [...otpArray];
+    newOtpArray[index] = useBackupCode ? value.toUpperCase() : value;
+    setOtpArray(newOtpArray);
+
+    // Auto-advance to next field
+    if (value && index < otpArray.length - 1) {
+      inputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === "Backspace") {
+      if (otpArray[index]) {
+        // Clear current field if it has content
+        const newOtpArray = [...otpArray];
+        newOtpArray[index] = "";
+        setOtpArray(newOtpArray);
+      } else if (index > 0) {
+        // Move to previous field if current is empty
+        inputsRef.current[index - 1]?.focus();
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const paste = e.clipboardData
+      .getData("text")
+      .slice(0, useBackupCode ? 8 : 6);
+
+    // Validate pasted content based on mode
+    if (useBackupCode) {
+      if (!/^[0-9A-Z]{8}$/i.test(paste)) return;
+    } else {
+      if (!/^\d{6}$/.test(paste)) return;
+    }
+
+    const newOtpArray = paste
+      .split("")
+      .map((char) => (useBackupCode ? char.toUpperCase() : char));
+    setOtpArray(newOtpArray);
+
+    // Set focus to last field after paste
+    inputsRef.current[newOtpArray.length - 1]?.focus();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -138,84 +207,107 @@ const OTPVerification = ({
       </div>
     );
   }
-
   return (
-    <div className="max-w-md mx-auto space-y-6">
+    <div className="w-full max-w-md mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <div className="mx-auto h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+        <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
           {useBackupCode ? (
-            <FiKey className="h-6 w-6 text-blue-600" />
+            <FiKey className="h-7 w-7 text-blue-600" />
           ) : (
-            <FiShield className="h-6 w-6 text-blue-600" />
+            <FiShield className="h-7 w-7 text-blue-600" />
           )}
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">{getTitle()}</h3>
+        <h3 className="text-2xl font-semibold text-gray-900">{getTitle()}</h3>
         <p className="text-sm text-gray-600">{getDescription()}</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <input
-            type="text"
-            placeholder={useBackupCode ? "XXXXXXXX" : "000000"}
-            value={code}
-            onChange={(e) => {
-              const value = useBackupCode
-                ? e.target.value.toUpperCase().slice(0, 8)
-                : e.target.value.replace(/\D/g, "").slice(0, 6);
-              setCode(value);
-            }}
-            className="w-full px-4 py-3 text-center text-lg font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            maxLength={useBackupCode ? 8 : 6}
-            autoComplete="off"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={
-            isLoading ||
-            !code ||
-            (useBackupCode ? code.length !== 8 : code.length !== 6)
-          }
-          className="w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-        >
-          {isLoading ? (
-            <>
-              <Spinner size="sm" />
-              <span>Verifying...</span>
-            </>
-          ) : (
-            <span>Verify</span>
-          )}
-        </button>
-
         {mode === "login" && (
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setUseBackupCode(!useBackupCode);
-                setCode("");
-              }}
-              className="text-sm text-blue-600 hover:text-blue-700"
-            >
-              {useBackupCode
-                ? "Use authenticator code instead"
-                : "Use backup code instead"}
-            </button>
+          <div className="flex items-center justify-center gap-2 mt-1 text-gray-700 font-medium">
+            <FiSmartphone className="text-blue-500" />
+            <span>Use your authenticator app</span>
           </div>
         )}
+      </div>
 
-        {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="w-full px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label
+            htmlFor="otp-input"
+            className="block text-sm font-medium text-gray-700 mb-3 text-center"
           >
-            Cancel
+            Enter {useBackupCode ? "8-character" : "6-digit"} verification code
+          </label>
+
+          <div
+            className="w-full flex justify-center items-center gap-2"
+            onPaste={handlePaste}
+          >
+            {otpArray.map((digit, index) => (
+              <input
+                key={index}
+                type="text"
+                maxLength="1"
+                value={digit}
+                onChange={(e) => handleInputChange(e.target.value, index)}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+                ref={(el) => (inputsRef.current[index] = el)}
+                autoFocus={index === 0}
+                inputMode={useBackupCode ? "text" : "numeric"}
+                className="w-10 h-12 sm:w-12 sm:h-14 rounded-md border border-gray-300 text-center text-xl font-mono font-medium bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none transition-colors"
+              />
+            ))}
+          </div>
+
+          {/* Hidden input to maintain original logic */}
+          <input type="hidden" value={code} readOnly />
+        </div>
+
+        <div className="flex flex-col space-y-3">
+          <button
+            type="submit"
+            disabled={
+              isLoading ||
+              !code ||
+              (useBackupCode ? code.length !== 8 : code.length !== 6)
+            }
+            className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <div className="flex items-center space-x-2">
+                <Spinner size="sm" />
+                <span>Verifying...</span>
+              </div>
+            ) : (
+              "Verify"
+            )}
           </button>
-        )}
+
+          {mode === "login" && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setUseBackupCode(!useBackupCode);
+                  setCode("");
+                  setOtpArray(Array(useBackupCode ? 6 : 8).fill(""));
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {useBackupCode
+                  ? "Use authenticator code instead"
+                  : "Use backup code instead"}
+              </button>
+            </div>
+          )}
+
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
 
       {mode === "login" && (
