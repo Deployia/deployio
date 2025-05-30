@@ -168,8 +168,8 @@ const getMe = async (req, res) => {
   }
 };
 
-// Google OAuth callback
-const googleAuthCallback = async (req, res) => {
+// DRY: Unified OAuth callback handler
+const handleOAuthCallback = (providerName) => async (req, res) => {
   try {
     const user = req.user;
     const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
@@ -198,6 +198,10 @@ const googleAuthCallback = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+const googleAuthCallback = handleOAuthCallback("google");
+const githubAuthCallback = handleOAuthCallback("github");
+const facebookAuthCallback = handleOAuthCallback("facebook");
 
 // Refresh token logic
 const refreshToken = async (req, res) => {
@@ -252,6 +256,8 @@ module.exports = {
   logout,
   getMe,
   googleAuthCallback,
+  githubAuthCallback,
+  facebookAuthCallback,
   refreshToken,
   verifyOtp,
   resendOtp,
