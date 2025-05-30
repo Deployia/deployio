@@ -75,6 +75,39 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // 2FA fields
+    twoFactorSecret: {
+      type: String,
+      select: false, // Don't include in queries by default
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    backupCodes: [
+      {
+        code: {
+          type: String,
+          required: true,
+        },
+        used: {
+          type: Boolean,
+          default: false,
+        },
+        usedAt: {
+          type: Date,
+        },
+      },
+    ],
+    // Track used TOTP tokens for additional security
+    lastTOTPToken: {
+      type: String,
+      select: false, // Don't include in queries by default
+    },
+    lastTOTPTimestamp: {
+      type: Date,
+      select: false, // Don't include in queries by default
+    },
   },
   {
     timestamps: true,
