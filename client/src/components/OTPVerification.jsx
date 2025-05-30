@@ -291,9 +291,7 @@ const OTPVerification = ({
                 }}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                {useBackupCode
-                  ? "Use authenticator code instead"
-                  : "Use backup code instead"}
+                {useBackupCode ? "Use authenticator code" : "Use backup code"}
               </button>
             </div>
           )}
