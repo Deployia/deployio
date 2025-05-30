@@ -9,13 +9,13 @@ const { sendEmail, templates } = require("./emailService");
  * @returns {String} JWT token
  */
 const generateToken = (user) => {
-  return jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id: user?._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
 
 const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
+  return jwt.sign({ id: user?._id }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   });
 };
@@ -53,7 +53,7 @@ const registerUser = async (userData) => {
 
   // Send OTP email
   await sendEmail({
-    to: user.email,
+    to: user?.email,
     subject: "Verify your Fauxigent account (OTP)",
     template: "otp",
     variables: { username, otp },
@@ -61,7 +61,7 @@ const registerUser = async (userData) => {
 
   // Do not authenticate yet, require OTP verification
   return {
-    user: { id: user._id, username: user.username, email: user.email },
+    user: { id: user?._id, username: user?.username, email: user?.email },
     otpSent: true,
   };
 };
@@ -70,21 +70,36 @@ const registerUser = async (userData) => {
  * Login user and generate token
  * @param {String} email - User email
  * @param {String} password - User password
- * @returns {Object} User object and token
+ * @returns {Object} User object and token or 2FA requirement
  */
 const loginUser = async (email, password) => {
-  // Find user by email and include password in query result
-  const user = await User.findOne({ email }).select("+password");
+  // Find user by email and include password and 2FA fields in query result
+  const user = await User.findOne({ email }).select(
+    "+password +twoFactorEnabled"
+  );
 
   // Check if user exists
   if (!user) {
     throw new Error("Invalid email or password");
   }
 
+  // Check if user is verified
+  if (!user.isVerified) {
+    throw new Error("Account not verified. Please check your email for OTP.");
+  }
   // Check if password is correct
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw new Error("Invalid email or password");
+  }
+
+  // Check if 2FA is enabled
+  if (user.twoFactorEnabled) {
+    return {
+      requires2FA: true,
+      userId: user._id,
+      message: "2FA verification required",
+    };
   }
 
   // Generate token
@@ -116,7 +131,7 @@ const verifyOtp = async (email, otp) => {
   const token = generateToken(user);
   const refreshToken = generateRefreshToken(user);
   return {
-    user: { id: user._id, username: user.username, email: user.email },
+    user: { id: user?._id, username: user?.username, email: user?.email },
     token,
     refreshToken,
   };
@@ -152,7 +167,23 @@ const forgotPassword = async (email, resetUrl) => {
     variables: { resetLink },
   });
 
-  return "Password reset email sent";
+  try {
+    // Send email
+    await sendEmail({
+      to: user?.email,
+      subject: "Password Reset Request",
+      text: message,
+    });
+
+    return "Password reset email sent";
+  } catch (error) {
+    // If error sending email, clear reset token and expiry
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    throw new Error("Email could not be sent");
+  }
 };
 
 /**
@@ -226,10 +257,9 @@ const resendOtp = async (email) => {
   await user.save();
   // Send OTP email
   await sendEmail({
-    to: user.email,
+    to: user?.email,
     subject: "Your Fauxigent OTP (Resend)",
-    template: "otp",
-    variables: { username: user.username, otp },
+    html: otpEmailTemplate(user?.username, otp),
   });
   return "OTP resent to your email";
 };

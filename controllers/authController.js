@@ -75,10 +75,21 @@ const login = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please provide email and password" });
     }
-    const { user, token, refreshToken } = await authService.loginUser(
-      email,
-      password
-    );
+    const result = await authService.loginUser(email, password);
+
+    // Check if 2FA is required
+    if (result.requires2FA) {
+      // Return 2FA requirement response without setting cookies
+      return res.status(200).json({
+        success: true,
+        requires2FA: true,
+        userId: result.userId,
+        message: result.message,
+      });
+    }
+
+    // Normal login flow (without 2FA)
+    const { user, token, refreshToken } = result;
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -94,7 +105,7 @@ const login = async (req, res) => {
     });
     res.status(200).json({
       success: true,
-      user: { id: user._id, username: user.username, email: user.email },
+      user: { id: user?._id, username: user?.username, email: user?.email },
     });
   } catch (error) {
     res.status(401).json({ success: false, message: error.message });
@@ -141,7 +152,7 @@ const resetPassword = async (req, res) => {
 // Logout user
 const logout = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user?._id;
     const result = await authService.logoutUser(userId);
     res.cookie("token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
@@ -172,11 +183,11 @@ const getMe = async (req, res) => {
 const handleOAuthCallback = (providerName) => async (req, res) => {
   try {
     const user = req.user;
-    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    const accessToken = jwt.sign({ id: user?._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || "1d",
     });
     const refreshToken = jwt.sign(
-      { id: user._id },
+      { id: user?._id },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d" }
     );

@@ -55,7 +55,7 @@ const sendEmail = async (options) => {
 
   // Define email options
   const mailOptions = {
-    from: `RouteMate <${process.env.EMAIL_FROM}>`,
+    from: `Fauxigent <${process.env.EMAIL_FROM}>`,
     to: options.to,
     subject: options.subject,
     text: options.text,
