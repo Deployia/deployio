@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { loginUser, reset } from "../redux/slices/authSlice";
+import { loginUser, reset, reset2FA } from "../redux/slices/authSlice";
 import Spinner from "../components/Spinner";
 import OTPVerification from "../components/OTPVerification";
 
@@ -11,16 +11,12 @@ function Login() {
     email: "",
     password: "",
   });
-  const [requires2FA, setRequires2FA] = useState(false);
-  const [userId, setUserId] = useState(null);
 
   const { email, password } = formData;
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { isAuthenticated, loading, error } = useSelector(
-    (state) => state.auth
-  );
-
+  const { isAuthenticated, loading, error, requires2FA, pending2FAUserId } =
+    useSelector((state) => state.auth);
   useEffect(() => {
     if (error && error.login) {
       toast.error(error.login);
@@ -30,7 +26,10 @@ function Login() {
       navigate("/profile");
     }
 
-    dispatch(reset());
+    // Only reset errors, not the 2FA flags
+    if (error) {
+      dispatch(reset());
+    }
   }, [isAuthenticated, error, navigate, dispatch]);
 
   const onChange = (e) => {
@@ -39,7 +38,6 @@ function Login() {
       [e.target.name]: e.target.value,
     }));
   };
-
   const onSubmit = async (e) => {
     e.preventDefault();
 
@@ -48,14 +46,8 @@ function Login() {
       password,
     };
     try {
-      const result = await dispatch(loginUser(userData)).unwrap();
-
-      // Check if 2FA is required
-      if (result.requires2FA) {
-        setRequires2FA(true);
-        setUserId(result.userId);
-        toast.success("Please enter your 2FA code");
-      }
+      await dispatch(loginUser(userData)).unwrap();
+      // No need to handle 2FA here, the Redux state will be updated automatically
     } catch {
       // Error is handled by the auth slice
     }
@@ -65,24 +57,21 @@ function Login() {
     // The verify2FALogin action will handle authentication
     // and redirect will happen via the useEffect above
     toast.success("Login successful!");
-    setRequires2FA(false);
-    setUserId(null);
+    // Redux state will be updated by the verify2FALogin action
   };
-
   const handle2FACancel = () => {
-    setRequires2FA(false);
-    setUserId(null);
+    // Reset only the 2FA flags by using the dedicated action
+    dispatch(reset2FA());
   };
-
   // Show 2FA verification if required
-  if (requires2FA) {
+  if (requires2FA && pending2FAUserId) {
     return (
       <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100 p-8">
             <OTPVerification
               mode="login"
-              userId={userId}
+              userId={pending2FAUserId}
               onSuccess={handle2FASuccess}
               onCancel={handle2FACancel}
             />

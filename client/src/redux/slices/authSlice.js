@@ -6,6 +6,8 @@ import { verify2FALogin } from "./twoFactorSlice";
 const initialState = {
   user: null,
   isAuthenticated: false,
+  requires2FA: false, // Flag to indicate 2FA verification is needed
+  pending2FAUserId: null, // Store user ID for 2FA verification
   loading: {
     me: true,
     signup: false,
@@ -59,6 +61,15 @@ export const loginUser = createAsyncThunk(
   async (userData, thunkAPI) => {
     try {
       const response = await api.post("/api/v1/auth/login", userData);
+
+      // Check if 2FA is required from the response
+      if (response.data.requires2FA) {
+        return {
+          requires2FA: true,
+          userId: response.data.userId,
+        };
+      }
+
       return response.data;
     } catch (error) {
       const message =
@@ -231,6 +242,34 @@ const authSlice = createSlice({
         state.success[key] = false;
       });
     },
+
+    // Add a separate action to reset 2FA state
+    reset2FA: (state) => {
+      state.requires2FA = false;
+      state.pending2FAUserId = null;
+    },
+
+    // Add a comprehensive logout reset
+    logoutReset: (state) => {
+      state.user = null;
+      state.isAuthenticated = false;
+      state.requires2FA = false;
+      state.pending2FAUserId = null;
+
+      Object.keys(state.loading).forEach((key) => {
+        if (key !== "me") {
+          state.loading[key] = false;
+        }
+      });
+
+      Object.keys(state.error).forEach((key) => {
+        state.error[key] = null;
+      });
+
+      Object.keys(state.success).forEach((key) => {
+        state.success[key] = false;
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -253,28 +292,45 @@ const authSlice = createSlice({
       .addCase(loginUser.pending, (state) => {
         state.loading.login = true;
         state.error.login = null;
+        state.requires2FA = false;
+        state.pending2FAUserId = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading.login = false;
-        state.user = action.payload.user;
-        state.isAuthenticated = true;
+
+        // If 2FA is required, set the appropriate flags but don't authenticate yet
+        if (action.payload.requires2FA) {
+          state.requires2FA = true;
+          state.pending2FAUserId = action.payload.userId;
+          state.user = null;
+          state.isAuthenticated = false;
+        } else {
+          // Normal login without 2FA
+          state.user = action.payload.user;
+          state.isAuthenticated = true;
+          state.requires2FA = false;
+          state.pending2FAUserId = null;
+        }
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading.login = false;
         state.error.login = action.payload;
         state.user = null;
         state.isAuthenticated = false;
-      })
-
-      // Logout cases
+        state.requires2FA = false;
+        state.pending2FAUserId = null;
+      }) // Logout cases
       .addCase(logout.pending, (state) => {
         state.loading.logout = true;
         state.error.logout = null;
       })
       .addCase(logout.fulfilled, (state) => {
         state.loading.logout = false;
+        // Use the complete reset for logout
         state.user = null;
         state.isAuthenticated = false;
+        state.requires2FA = false;
+        state.pending2FAUserId = null;
       })
       .addCase(logout.rejected, (state, action) => {
         state.loading.logout = false;
@@ -347,7 +403,7 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.error.me = action.payload;
-      })      // Verify OTP cases
+      }) // Verify OTP cases
       .addCase(verifyOtp.pending, (state) => {
         state.loading.verifyOtp = true;
         state.error.verifyOtp = null;
@@ -362,19 +418,31 @@ const authSlice = createSlice({
         state.error.verifyOtp = action.payload;
         state.user = null;
         state.isAuthenticated = false;
-      })
-
-      // Handle 2FA login completion
+      }) // Handle 2FA login completion
       .addCase(verify2FALogin.fulfilled, (state, action) => {
         if (action.payload.user) {
           state.user = action.payload.user;
           state.isAuthenticated = true;
           state.loading.login = false;
           state.error.login = null;
+          // Reset 2FA flags after successful verification
+          state.requires2FA = false;
+          state.pending2FAUserId = null;
         }
+      })
+      // Handle pending states for verify2FALogin
+      .addCase(verify2FALogin.pending, (state) => {
+        state.loading.login = true;
+        state.error.login = null;
+      })
+      // Handle rejected states for verify2FALogin
+      .addCase(verify2FALogin.rejected, (state, action) => {
+        state.isVerifying = false;
+        state.error.login = action.payload;
+        // Don't reset requires2FA here so the user can try again
       });
   },
 });
 
-export const { reset } = authSlice.actions;
+export const { reset, reset2FA, logoutReset } = authSlice.actions;
 export default authSlice.reducer;

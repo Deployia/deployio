@@ -75,10 +75,21 @@ const login = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please provide email and password" });
     }
-    const { user, token, refreshToken } = await authService.loginUser(
-      email,
-      password
-    );
+    const result = await authService.loginUser(email, password);
+
+    // Check if 2FA is required
+    if (result.requires2FA) {
+      // Return 2FA requirement response without setting cookies
+      return res.status(200).json({
+        success: true,
+        requires2FA: true,
+        userId: result.userId,
+        message: result.message,
+      });
+    }
+
+    // Normal login flow (without 2FA)
+    const { user, token, refreshToken } = result;
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
