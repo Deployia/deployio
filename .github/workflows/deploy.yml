@@ -6,74 +6,73 @@ on:
       - main
 
 jobs:
-  build-and-publish:
-    name: Build and Publish to GitHub Packages
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20" # Specify your Node.js version
-          registry-url: "https://npm.pkg.github.com"
-
-      - name: Install Server Dependencies and Publish
-        run: |
-          npm install
-          npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Client Dependencies and Publish
-        run: |
-          cd client
-          npm install
-          npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   deploy:
-    name: Deploy to VPS
+    name: Deploy to VPS and Build Docker Images
     runs-on: ubuntu-latest
-    needs: build-and-publish # Ensure this job runs after publishing
     env:
-      SERVER_USER: ${{ secrets.SERVER_USER }}
-      SERVER_IP: ${{ secrets.SERVER_IP }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository # Checks out repo in the Actions runner environment
         uses: actions/checkout@v3
 
       - name: Deploy to VPS
+        env:
+          # This REPO_URL is expanded by GitHub Actions and then used in the SSH script
+          REPO_URL: "https://github.com/${{ github.repository }}.git"
         run: |
-          ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP << \'EOF\'
-            set -e # Exit on errors
+          echo "Setting up SSH key..."
+          echo "$SSH_PRIVATE_KEY" > id_rsa_temp
+          chmod 600 id_rsa_temp
 
-            echo "Navigating to project directory..."
-            cd /home/$SERVER_USER/projects/name # Update with your project path
+          VPS_USER="vasudevshetty"
+          VPS_HOST="server.fauxigent.com"
+          # Define the project directory on the VPS
+          PROJECT_DIR_ON_VPS="/home/$VPS_USER/projects/mern-template"
 
-            echo "Pulling the latest code from main branch..."
-            git pull origin main # Or fetch specific tags/releases if you prefer
+          echo "Connecting to $VPS_USER@$VPS_HOST and deploying..."
+          # The heredoc marker is \\'EOF\\'
+          ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << \\"EOF\\"
+            set -e # Exit on any error
 
-            echo "Logging into GitHub Packages..."
-            echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Variables received by the remote script (or use hardcoded values directly)
+            # PROJECT_DIR_REMOTE=\\"$1\\" # Example if passing args
+            # REPO_URL_REMOTE=\\"$2\\"   # Example if passing args
 
-            echo "Updating docker-compose.yml to use a different port..."
-            # This is a placeholder. You might need a more robust way to update the port.
-            # Consider using environment variables in your docker-compose.yml
-            sed -i 's/80:80/8080:80/g' docker-compose.yml # Replace 8080 with your desired port
+            # Using direct values inside the script for clarity as requested
+            PROJECT_DIR_ON_VPS_SCRIPT=\\"$PROJECT_DIR_ON_VPS\\"
+            REPO_URL_SCRIPT=\\"$REPO_URL\\" # This value comes from GHA env
 
-            echo "Pulling latest images and restarting services with Docker Compose..."
-            docker-compose pull
-            docker-compose up -d --force-recreate
+            echo "Target project directory on server: \$PROJECT_DIR_ON_VPS_SCRIPT"
+            echo "Repository URL for clone/pull: \$REPO_URL_SCRIPT"
 
-            echo "Cleaning up unused Docker images..."
-            docker image prune -f
+            if [ -d "\$PROJECT_DIR_ON_VPS_SCRIPT" ]; then
+              echo "Project directory exists. Pulling latest changes."
+              cd "\$PROJECT_DIR_ON_VPS_SCRIPT"
+              git checkout main
+              echo "Updating remote URL to \$REPO_URL_SCRIPT ..."
+              git remote set-url origin "\$REPO_URL_SCRIPT"
+              echo "Pulling from origin main..."
+              git pull origin main
+            else
+              echo "Project directory does not exist. Cloning repository."
+              # Create parent directory if it doesn't exist
+              mkdir -p "\$(dirname "\$PROJECT_DIR_ON_VPS_SCRIPT")"
+              git clone "\$REPO_URL_SCRIPT" "\$PROJECT_DIR_ON_VPS_SCRIPT"
+              cd "\$PROJECT_DIR_ON_VPS_SCRIPT"
+            fi
+
+            echo "Building and restarting services with Docker Compose..."
+            # export DOCKER_BUILDKIT=1 # Uncomment if needed on your VPS for BuildKit features
+            docker-compose build --no-cache # Build images, --no-cache ensures fresh builds
+            docker-compose up -d --force-recreate # Restart services with new images
+
+            echo "Cleaning up unused Docker images (optional)..."
+            docker image prune -af # -a to remove all unused images, not just dangling ones; -f to force
 
             echo "Deployment complete!"
-          \'EOF\'
+          \\"EOF\\"
+          # Note: If passing arguments to bash -s, they would be listed after "bash -s" -- arg1 arg2 etc.
+          # For this change, REPO_URL is directly expanded from GHA env, and PROJECT_DIR_ON_VPS is constructed from hardcoded values.
+
+          echo "Cleaning up SSH key..."
+          rm -f id_rsa_temp
