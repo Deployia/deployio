@@ -6,40 +6,74 @@ on:
       - main
 
 jobs:
-  deploy:
-    name: Deploy to VPS
+  build-and-publish:
+    name: Build and Publish to GitHub Packages
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Deploy to VPS
-      - name: Deploy to VPS
-        env:
-          NODE_ENV: production
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20" # Specify your Node.js version
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Install Server Dependencies and Publish
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          npm install
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Client Dependencies and Publish
+        run: |
+          cd client
+          npm install
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: build-and-publish # Ensure this job runs after publishing
+    env:
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_IP: ${{ secrets.SERVER_IP }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP << \'EOF\'
             set -e # Exit on errors
 
             echo "Navigating to project directory..."
-            cd /home/${{ secrets.SERVER_USER }}/projects/name
+            cd /home/$SERVER_USER/projects/name # Update with your project path
 
             echo "Pulling the latest code from main branch..."
-            git pull origin main
+            git pull origin main # Or fetch specific tags/releases if you prefer
 
-            echo "Installing backend dependencies"
-            npm install
+            echo "Logging into GitHub Packages..."
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            echo "Restarting backend with PM2..."
-            pm2 restart server.js
-            pm2 save
+            echo "Updating docker-compose.yml to use a different port..."
+            # This is a placeholder. You might need a more robust way to update the port.
+            # Consider using environment variables in your docker-compose.yml
+            sed -i 's/80:80/8080:80/g' docker-compose.yml # Replace 8080 with your desired port
 
-            echo "Installing frontend dependencies and building the project..."
-            cd client
-            npm install
-            npm run build
+            echo "Pulling latest images and restarting services with Docker Compose..."
+            docker-compose pull
+            docker-compose up -d --force-recreate
+
+            echo "Cleaning up unused Docker images..."
+            docker image prune -f
 
             echo "Deployment complete!"
-          EOF
+          \'EOF\'
