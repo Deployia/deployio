@@ -20,20 +20,16 @@ jobs:
           VPS_USER: "vasudevshetty"
           VPS_HOST: "server.fauxigent.com"
           PROJECT_DIR_ON_VPS: "/home/vasudevshetty/projects/mern-template"
-          REPO_URL: "https://github.com/${{ github.repository }}.git"
+          REPO_URL: "git@github.com:${{ github.repository }}.git"
         run: |
           echo "Setting up SSH key..."
           echo "$SSH_PRIVATE_KEY" > id_rsa_temp # SSH_PRIVATE_KEY is from job env
           chmod 600 id_rsa_temp
 
           echo "Connecting to $VPS_HOST as $VPS_USER and deploying..."
-          # Corrected heredoc delimiter to EOF for local (runner) expansion
+          # Heredoc for the remote script
           ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << EOF
             set -e # Exit on any error
-
-            # These variables will be expanded by the GitHub Actions runner's shell.
-            # The script sent to the remote server will contain their literal values.
-            # Effectively, this "hardcodes" the values into the remote script.
 
             echo "Target project directory on server: ${PROJECT_DIR_ON_VPS}"
             echo "Repository URL for clone/pull: ${REPO_URL}"
@@ -48,8 +44,9 @@ jobs:
               git pull origin main
             else
               echo "Project directory does not exist. Cloning repository."
-              # Create parent directory if it doesn't exist. Note: dirname needs remote expansion of the literal path.
+              # Create parent directory if it doesn't exist.
               mkdir -p "\$(dirname "${PROJECT_DIR_ON_VPS}")"
+              # Ensure git knows about the SSH key if needed for cloning
               git clone "${REPO_URL}" "${PROJECT_DIR_ON_VPS}"
               cd "${PROJECT_DIR_ON_VPS}"
             fi
@@ -63,7 +60,7 @@ jobs:
             docker image prune -af # -a to remove all unused images, not just dangling ones; -f to force
 
             echo "Deployment complete!"
-          EOF # Corrected closing delimiter, must be on a line by itself with no leading/trailing whitespace
+          EOF # This EOF must be on a line by itself with no leading/trailing whitespace
 
           echo "Cleaning up SSH key..."
           rm -f id_rsa_temp
