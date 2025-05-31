@@ -30,35 +30,32 @@ jobs:
           PROJECT_DIR_ON_VPS="/home/$VPS_USER/projects/mern-template"
 
           echo "Connecting to $VPS_USER@$VPS_HOST and deploying..."
-          # The heredoc marker is \\'EOF\\'
-          ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << \\"EOF\\"
+          # Changed heredoc delimiter to EOF for local expansion
+          ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << EOF
             set -e # Exit on any error
 
-            # Variables received by the remote script (or use hardcoded values directly)
-            # PROJECT_DIR_REMOTE=\\"$1\\" # Example if passing args
-            # REPO_URL_REMOTE=\\"$2\\"   # Example if passing args
+            # These variables are now defined using expansions from the GHA runner's environment.
+            # Their values will be embedded into the script sent to the remote server.
+            PROJECT_DIR_ON_VPS_SCRIPT="$PROJECT_DIR_ON_VPS"
+            REPO_URL_SCRIPT="$REPO_URL" # REPO_URL is from the step's env block
 
-            # Using direct values inside the script for clarity as requested
-            PROJECT_DIR_ON_VPS_SCRIPT=\\"$PROJECT_DIR_ON_VPS\\"
-            REPO_URL_SCRIPT=\\"$REPO_URL\\" # This value comes from GHA env
+            echo "Target project directory on server: $PROJECT_DIR_ON_VPS_SCRIPT"
+            echo "Repository URL for clone/pull: $REPO_URL_SCRIPT"
 
-            echo "Target project directory on server: \$PROJECT_DIR_ON_VPS_SCRIPT"
-            echo "Repository URL for clone/pull: \$REPO_URL_SCRIPT"
-
-            if [ -d "\$PROJECT_DIR_ON_VPS_SCRIPT" ]; then
+            if [ -d "$PROJECT_DIR_ON_VPS_SCRIPT" ]; then
               echo "Project directory exists. Pulling latest changes."
-              cd "\$PROJECT_DIR_ON_VPS_SCRIPT"
+              cd "$PROJECT_DIR_ON_VPS_SCRIPT"
               git checkout main
-              echo "Updating remote URL to \$REPO_URL_SCRIPT ..."
-              git remote set-url origin "\$REPO_URL_SCRIPT"
+              echo "Updating remote URL to $REPO_URL_SCRIPT ..."
+              git remote set-url origin "$REPO_URL_SCRIPT"
               echo "Pulling from origin main..."
               git pull origin main
             else
               echo "Project directory does not exist. Cloning repository."
               # Create parent directory if it doesn't exist
-              mkdir -p "\$(dirname "\$PROJECT_DIR_ON_VPS_SCRIPT")"
-              git clone "\$REPO_URL_SCRIPT" "\$PROJECT_DIR_ON_VPS_SCRIPT"
-              cd "\$PROJECT_DIR_ON_VPS_SCRIPT"
+              mkdir -p "$(dirname "$PROJECT_DIR_ON_VPS_SCRIPT")"
+              git clone "$REPO_URL_SCRIPT" "$PROJECT_DIR_ON_VPS_SCRIPT"
+              cd "$PROJECT_DIR_ON_VPS_SCRIPT"
             fi
 
             echo "Building and restarting services with Docker Compose..."
@@ -70,7 +67,7 @@ jobs:
             docker image prune -af # -a to remove all unused images, not just dangling ones; -f to force
 
             echo "Deployment complete!"
-          \\"EOF\\"
+          EOF # Corrected closing delimiter
           # Note: If passing arguments to bash -s, they would be listed after "bash -s" -- arg1 arg2 etc.
           # For this change, REPO_URL is directly expanded from GHA env, and PROJECT_DIR_ON_VPS is constructed from hardcoded values.
 
