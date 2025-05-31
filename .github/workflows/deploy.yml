@@ -9,53 +9,49 @@ jobs:
   deploy:
     name: Deploy to VPS and Build Docker Images
     runs-on: ubuntu-latest
-    env:
+    env: # Job-level env
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
     steps:
       - name: Checkout Repository # Checks out repo in the Actions runner environment
         uses: actions/checkout@v3
 
       - name: Deploy to VPS
-        env:
-          # This REPO_URL is expanded by GitHub Actions and then used in the SSH script
+        env: # Step-level env for clarity and reliable expansion
+          VPS_USER: "vasudevshetty"
+          VPS_HOST: "server.fauxigent.com"
+          PROJECT_DIR_ON_VPS: "/home/vasudevshetty/projects/mern-template"
           REPO_URL: "https://github.com/${{ github.repository }}.git"
         run: |
           echo "Setting up SSH key..."
-          echo "$SSH_PRIVATE_KEY" > id_rsa_temp
+          echo "$SSH_PRIVATE_KEY" > id_rsa_temp # SSH_PRIVATE_KEY is from job env
           chmod 600 id_rsa_temp
 
-          VPS_USER="vasudevshetty"
-          VPS_HOST="server.fauxigent.com"
-          # Define the project directory on the VPS
-          PROJECT_DIR_ON_VPS="/home/$VPS_USER/projects/mern-template"
-
-          echo "Connecting to $VPS_USER@$VPS_HOST and deploying..."
-          # Changed heredoc delimiter to EOF for local expansion
+          echo "Connecting to $VPS_HOST as $VPS_USER and deploying..."
+          # Corrected heredoc delimiter to EOF for local (runner) expansion
           ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << EOF
             set -e # Exit on any error
 
-            # These variables are now defined using expansions from the GHA runner's environment.
-            # Their values will be embedded into the script sent to the remote server.
-            PROJECT_DIR_ON_VPS_SCRIPT="$PROJECT_DIR_ON_VPS"
-            REPO_URL_SCRIPT="$REPO_URL" # REPO_URL is from the step's env block
+            # These variables will be expanded by the GitHub Actions runner's shell.
+            # The script sent to the remote server will contain their literal values.
+            # Effectively, this "hardcodes" the values into the remote script.
 
-            echo "Target project directory on server: $PROJECT_DIR_ON_VPS_SCRIPT"
-            echo "Repository URL for clone/pull: $REPO_URL_SCRIPT"
+            echo "Target project directory on server: ${PROJECT_DIR_ON_VPS}"
+            echo "Repository URL for clone/pull: ${REPO_URL}"
 
-            if [ -d "$PROJECT_DIR_ON_VPS_SCRIPT" ]; then
+            if [ -d "${PROJECT_DIR_ON_VPS}" ]; then
               echo "Project directory exists. Pulling latest changes."
-              cd "$PROJECT_DIR_ON_VPS_SCRIPT"
+              cd "${PROJECT_DIR_ON_VPS}"
               git checkout main
-              echo "Updating remote URL to $REPO_URL_SCRIPT ..."
-              git remote set-url origin "$REPO_URL_SCRIPT"
+              echo "Updating remote URL to ${REPO_URL} ..."
+              git remote set-url origin "${REPO_URL}"
               echo "Pulling from origin main..."
               git pull origin main
             else
               echo "Project directory does not exist. Cloning repository."
-              # Create parent directory if it doesn't exist
-              mkdir -p "$(dirname "$PROJECT_DIR_ON_VPS_SCRIPT")"
-              git clone "$REPO_URL_SCRIPT" "$PROJECT_DIR_ON_VPS_SCRIPT"
-              cd "$PROJECT_DIR_ON_VPS_SCRIPT"
+              # Create parent directory if it doesn't exist. Note: dirname needs remote expansion of the literal path.
+              mkdir -p "\$(dirname "${PROJECT_DIR_ON_VPS}")"
+              git clone "${REPO_URL}" "${PROJECT_DIR_ON_VPS}"
+              cd "${PROJECT_DIR_ON_VPS}"
             fi
 
             echo "Building and restarting services with Docker Compose..."
@@ -67,9 +63,7 @@ jobs:
             docker image prune -af # -a to remove all unused images, not just dangling ones; -f to force
 
             echo "Deployment complete!"
-          EOF # Corrected closing delimiter
-          # Note: If passing arguments to bash -s, they would be listed after "bash -s" -- arg1 arg2 etc.
-          # For this change, REPO_URL is directly expanded from GHA env, and PROJECT_DIR_ON_VPS is constructed from hardcoded values.
+          EOF # Corrected closing delimiter, must be on a line by itself with no leading/trailing whitespace
 
           echo "Cleaning up SSH key..."
           rm -f id_rsa_temp
