@@ -1,0 +1,66 @@
+name: Deploy Frontend and Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to VPS and Build Docker Images
+    runs-on: ubuntu-latest
+    env: # Job-level env
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+    steps:
+      - name: Checkout Repository # Checks out repo in the Actions runner environment
+        uses: actions/checkout@v3
+
+      - name: Deploy to VPS
+        env: # Step-level env for clarity and reliable expansion
+          VPS_USER: "vasudevshetty"
+          VPS_HOST: "server.fauxigent.com"
+          PROJECT_DIR_ON_VPS: "/home/vasudevshetty/projects/mern-template"
+          REPO_URL: "git@github.com:${{ github.repository }}.git"
+        run: |
+          echo "Setting up SSH key..."
+          echo "$SSH_PRIVATE_KEY" > id_rsa_temp # SSH_PRIVATE_KEY is from job env
+          chmod 600 id_rsa_temp
+
+          echo "Connecting to $VPS_HOST as $VPS_USER and deploying..."
+          # Heredoc for the remote script
+          ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << EOF
+            set -e # Exit on any error
+
+            echo "Target project directory on server: ${PROJECT_DIR_ON_VPS}"
+            echo "Repository URL for clone/pull: ${REPO_URL}"
+
+            if [ -d "${PROJECT_DIR_ON_VPS}" ]; then
+              echo "Project directory exists. Pulling latest changes."
+              cd "${PROJECT_DIR_ON_VPS}"
+              git checkout main
+              echo "Updating remote URL to ${REPO_URL} ..."
+              git remote set-url origin "${REPO_URL}"
+              echo "Pulling from origin main..."
+              git pull origin main
+            else
+              echo "Project directory does not exist. Cloning repository."
+              # Create parent directory if it doesn't exist.
+              mkdir -p "\$(dirname "${PROJECT_DIR_ON_VPS}")"
+              # Ensure git knows about the SSH key if needed for cloning
+              git clone "${REPO_URL}" "${PROJECT_DIR_ON_VPS}"
+              cd "${PROJECT_DIR_ON_VPS}"
+            fi
+
+            echo "Building and restarting services with Docker Compose..."
+            # export DOCKER_BUILDKIT=1 # Uncomment if needed on your VPS for BuildKit features
+            docker-compose build --no-cache # Build images, --no-cache ensures fresh builds
+            docker-compose up -d --force-recreate # Restart services with new images
+
+            echo "Cleaning up unused Docker images (optional)..."
+            docker image prune -af # -a to remove all unused images, not just dangling ones; -f to force
+
+            echo "Deployment complete!"
+          EOF # This EOF must be on a line by itself with no leading/trailing whitespace
+
+          echo "Cleaning up SSH key..."
+          rm -f id_rsa_temp
