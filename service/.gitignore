@@ -1,0 +1,29 @@
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# FastAPI / Uvicorn specific
+# No specific files usually, but you might add logs or other generated files here
+# *.log
+
+# OS specific
+.DS_Store
+Thumbs.db
