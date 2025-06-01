@@ -1,51 +1,44 @@
-name: Deploy Frontend and Backend
+name: Build and Deploy to EC2
 
 on:
   push:
     branches:
-      - main
+      - main # Or your deployment branch
 
 jobs:
-  deploy:
-    name: Deploy to EC2 and Build Docker Images
+  build-and-deploy:
     runs-on: ubuntu-latest
-    env: # Job-level env
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
     steps:
-      - name: Checkout Repository # Checks out repo in the Actions runner environment
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Deploy to EC2
-        env: # Step-level env for clarity and reliable expansion
-          VPS_USER: "vasudevshetty"
-          VPS_HOST: "deployio.tech"
-          PROJECT_DIR_ON_VPS: "/home/vasudevshetty/deployio"
-        run: |
-          echo "Setting up SSH key..."
-          echo "$SSH_PRIVATE_KEY" > id_rsa_temp # SSH_PRIVATE_KEY is from job env
-          chmod 600 id_rsa_temp
+      - name: Deploy to EC2 and Build Locally
+        uses: appleboy/ssh-action@master
+        with:
+          host: deployio.tech
+          username: vasudevshetty
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e 
+            APP_PATH="/home/vasudevshetty/deployio" # IMPORTANT: Set this to your actual app path on EC2
+            cd $APP_PATH
 
-          echo "Connecting to $VPS_HOST as $VPS_USER and deploying..."
-          # Heredoc for the remote script
-          ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << EOF
-            set -e # Exit on any error
+            echo "Fetching latest code from Git..."
+            git checkout main # Or your specific deployment branch
+            git pull origin main # Or your specific deployment branch
 
-            echo "Navigating to project directory on server: ${PROJECT_DIR_ON_VPS}"
-            cd "${PROJECT_DIR_ON_VPS}"
+            echo "Stopping and removing old containers (if any)..."
+            docker-compose -f docker-compose.yml down --remove-orphans
 
-            echo "Bringing down existing services..."
-            docker-compose down
-
-            echo "Building and restarting services with Docker Compose..."
-            # export DOCKER_BUILDKIT=1 # Uncomment if needed on your VPS for BuildKit features
-            docker-compose build --no-cache # Build images, --no-cache ensures fresh builds
-            docker-compose up -d --force-recreate # Restart services with new images
+            echo "Building and starting new containers..."
+            # This command will build images locally on the EC2 using Dockerfiles from the repo
+            # and then start the services defined in your production docker-compose.yml.
+            docker-compose -f docker-compose.yml up --build -d
 
             echo "Cleaning up unused Docker images (optional)..."
-            docker image prune -af # -a to remove all unused images, not just dangling ones; -f to force
+            # Consider uncommenting the next line to save disk space on your EC2 instance
+            # docker image prune -af
 
-            echo "Deployment complete!"
-          EOF # This EOF must be on a line by itself with no leading/trailing whitespace
-
-          echo "Cleaning up SSH key..."
-          rm -f id_rsa_temp
+            echo "Deployment successful!"

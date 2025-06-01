@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+# Add other dependencies like pymongo, pydantic, etc.
+# pymongo
+# python-jose[cryptography]
+# passlib[bcrypt]
