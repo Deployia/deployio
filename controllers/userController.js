@@ -6,24 +6,83 @@ const updateProfile = async (req, res) => {
     const userId = req.user.id;
     const updateData = req.body;
     let profileImageUrl = undefined;
-
+    const removeProfileImage = req.body.removeProfileImage === "true";
     if (req.file) {
+      // Check if file size is too large (limit to 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (req.file.size > maxSize) {
+        throw new Error("Image file size must be less than 5MB");
+      }
+
+      // Check valid image MIME types
+      const validMimeTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!validMimeTypes.includes(req.file.mimetype)) {
+        throw new Error(
+          "Only JPEG, PNG, GIF and WebP image formats are supported"
+        );
+      }
+
       // Upload image to Cloudinary
       const cloudinary = require("../config/cloudinary");
-      const result = await cloudinary.uploader.upload_stream(
-        { folder: "profile_images", width: 300, crop: "scale" },
-        (error, result) => {
-          if (error) throw new Error("Image upload failed");
-          profileImageUrl = result.secure_url;
+
+      try {
+        // Validate Cloudinary configuration
+        if (
+          !process.env.CLOUDINARY_CLOUD_NAME ||
+          !process.env.CLOUDINARY_API_KEY ||
+          !process.env.CLOUDINARY_API_SECRET
+        ) {
+          throw new Error(
+            "Cloudinary configuration is missing. Please check your environment variables."
+          );
         }
-      );
-      // Note: If using memoryStorage, you may need to use a stream buffer here
+
+        // Create a promise to handle the upload stream
+        const uploadPromise = new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: "profile_images",
+              width: 300,
+              height: 300,
+              crop: "fill",
+              quality: "auto",
+              fetch_format: "auto",
+            },
+            (error, result) => {
+              if (error) {
+                console.error("Cloudinary upload error:", error);
+                reject(new Error(error.message || "Image upload failed"));
+              } else resolve(result);
+            }
+          );
+
+          // Create buffer from file and pipe to upload stream
+          const buffer = req.file.buffer;
+          const stream = require("stream");
+          const bufferStream = new stream.PassThrough();
+          bufferStream.end(buffer);
+          bufferStream.pipe(uploadStream);
+        });
+
+        // Wait for upload to complete and get result
+        const uploadResult = await uploadPromise;
+        profileImageUrl = uploadResult.secure_url;
+      } catch (error) {
+        console.error("Image upload error:", error);
+        throw new Error("Failed to upload profile image");
+      }
     }
 
     const updatedUser = await userService.updateProfile(
       userId,
       updateData,
-      profileImageUrl
+      profileImageUrl,
+      removeProfileImage
     );
     res.status(200).json({ success: true, user: updatedUser });
   } catch (error) {

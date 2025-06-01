@@ -8,7 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import Spinner from "../components/Spinner";
 import TwoFactorDashboard from "../components/TwoFactorDashboard";
 import { useSearchParams } from "react-router-dom";
-import { FaPen } from "react-icons/fa";
+import { FaPen, FaTrash } from "react-icons/fa";
+import toast from "react-hot-toast";
 
 function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -54,23 +55,93 @@ function Profile() {
       }));
     }
   }, [user]);
-
   const handleProfileChange = (e) => {
     const { name, value, files } = e.target;
-    if (name === "profileImage") {
-      setProfileForm((prev) => ({ ...prev, profileImage: files[0] }));
+    if (name === "profileImage" && files?.[0]) {
+      // Validate file size (max 5MB)
+      if (files[0].size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+
+      // Show loading toast
+      const loadingToastId = toast.loading("Uploading image...");
+
+      // Create a FormData object for immediate upload
+      const formData = new FormData();
+      formData.append("profileImage", files[0]);
+
+      // Add other existing profile data
+      Object.entries(profileForm).forEach(([key, val]) => {
+        if (key !== "profileImage" && val) formData.append(key, val);
+      });
+
+      // Dispatch the update action
+      dispatch(updateProfile(formData))
+        .unwrap()
+        .then(() => {
+          toast.success("Profile image updated successfully", {
+            id: loadingToastId,
+          });
+        })
+        .catch((error) => {
+          toast.error(`Failed to update image: ${error}`, {
+            id: loadingToastId,
+          });
+        });
     } else {
       setProfileForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
+  const handleRemoveProfileImage = () => {
+    // Show confirmation
+    if (!confirm("Are you sure you want to remove your profile image?")) {
+      return;
+    }
+
+    // Show loading toast
+    const loadingToastId = toast.loading("Removing profile image...");
+
+    // Create FormData with a special flag to remove profile image
+    const formData = new FormData();
+    formData.append("removeProfileImage", "true");
+
+    // Add other existing profile data
+    Object.entries(profileForm).forEach(([key, val]) => {
+      if (key !== "profileImage" && val) formData.append(key, val);
+    });
+
+    dispatch(updateProfile(formData))
+      .unwrap()
+      .then(() => {
+        toast.success("Profile image removed successfully", {
+          id: loadingToastId,
+        });
+      })
+      .catch((error) => {
+        toast.error(`Failed to remove image: ${error}`, { id: loadingToastId });
+      });
+  };
   const handleProfileSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData();
     Object.entries(profileForm).forEach(([key, value]) => {
       if (value) formData.append(key, value);
     });
-    dispatch(updateProfile(formData));
+
+    const loadingToastId = toast.loading("Updating profile...");
+
+    dispatch(updateProfile(formData))
+      .unwrap()
+      .then(() => {
+        toast.success("Profile updated successfully", { id: loadingToastId });
+      })
+      .catch((error) => {
+        toast.error(`Failed to update profile: ${error}`, {
+          id: loadingToastId,
+        });
+      });
   };
 
   const handlePasswordChange = (e) => {
@@ -121,6 +192,7 @@ function Profile() {
           {/* Profile image and user details */}
           <div className="px-8 py-8">
             <div className="flex flex-col items-center mb-8">
+              {" "}
               <div className="relative">
                 <img
                   src={
@@ -132,16 +204,29 @@ function Profile() {
                   alt="Profile"
                   className="w-24 h-24 rounded-full border-4 border-purple-100 shadow-lg mb-2"
                 />
-                <button
-                  type="button"
-                  className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-lg hover:bg-purple-50 border border-purple-200 transition-all duration-200"
-                  onClick={() =>
-                    fileInputRef.current && fileInputRef.current.click()
-                  }
-                  aria-label="Change profile image"
-                >
-                  <FaPen className="text-purple-600 w-3 h-3" />
-                </button>
+                <div className="absolute bottom-2 right-2 flex gap-1">
+                  <button
+                    type="button"
+                    className="bg-white rounded-full p-2 shadow-lg hover:bg-purple-50 border border-purple-200 transition-all duration-200"
+                    onClick={() =>
+                      fileInputRef.current && fileInputRef.current.click()
+                    }
+                    aria-label="Change profile image"
+                  >
+                    <FaPen className="text-purple-600 w-3 h-3" />
+                  </button>
+                  {(user?.profileImage || authUser?.profileImage) && (
+                    <button
+                      type="button"
+                      className="bg-white rounded-full p-2 shadow-lg hover:bg-red-50 border border-red-200 transition-all duration-200"
+                      onClick={handleRemoveProfileImage}
+                      aria-label="Remove profile image"
+                    >
+                      {" "}
+                      <FaTrash className="text-red-500 w-3 h-3" />
+                    </button>
+                  )}
+                </div>
                 <input
                   type="file"
                   name="profileImage"

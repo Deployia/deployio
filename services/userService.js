@@ -4,11 +4,22 @@ const QRCode = require("qrcode");
 const crypto = require("crypto");
 
 // Update user profile
-const updateProfile = async (userId, updateData, profileImageUrl) => {
+const updateProfile = async (
+  userId,
+  updateData,
+  profileImageUrl,
+  removeProfileImage
+) => {
   const updateFields = { ...updateData };
+
+  // Handle profile image changes
   if (profileImageUrl) {
     updateFields.profileImage = profileImageUrl;
+  } else if (removeProfileImage) {
+    // If removeProfileImage flag is true, set profileImage to null or default
+    updateFields.profileImage = null;
   }
+
   const user = await User.findByIdAndUpdate(userId, updateFields, {
     new: true,
     runValidators: true,
