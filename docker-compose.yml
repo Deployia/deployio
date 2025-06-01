@@ -14,7 +14,9 @@ services:
       - VITE_APP_ENV=production
       - VITE_APP_BACKEND_URL=
   backend:
-    build: .
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:

@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to VPS and Build Docker Images
+    name: Deploy to EC2 and Build Docker Images
     runs-on: ubuntu-latest
     env: # Job-level env
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -15,12 +15,11 @@ jobs:
       - name: Checkout Repository # Checks out repo in the Actions runner environment
         uses: actions/checkout@v3
 
-      - name: Deploy to VPS
+      - name: Deploy to EC2
         env: # Step-level env for clarity and reliable expansion
           VPS_USER: "vasudevshetty"
-          VPS_HOST: "server.fauxigent.com"
-          PROJECT_DIR_ON_VPS: "/home/vasudevshetty/projects/mern-template"
-          REPO_URL: "git@github.com:${{ github.repository }}.git"
+          VPS_HOST: "deployio.tech"
+          PROJECT_DIR_ON_VPS: "/home/vasudevshetty/deployio"
         run: |
           echo "Setting up SSH key..."
           echo "$SSH_PRIVATE_KEY" > id_rsa_temp # SSH_PRIVATE_KEY is from job env
@@ -31,25 +30,11 @@ jobs:
           ssh -i ./id_rsa_temp -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "bash -s" << EOF
             set -e # Exit on any error
 
-            echo "Target project directory on server: ${PROJECT_DIR_ON_VPS}"
-            echo "Repository URL for clone/pull: ${REPO_URL}"
+            echo "Navigating to project directory on server: ${PROJECT_DIR_ON_VPS}"
+            cd "${PROJECT_DIR_ON_VPS}"
 
-            if [ -d "${PROJECT_DIR_ON_VPS}" ]; then
-              echo "Project directory exists. Pulling latest changes."
-              cd "${PROJECT_DIR_ON_VPS}"
-              git checkout main
-              echo "Updating remote URL to ${REPO_URL} ..."
-              git remote set-url origin "${REPO_URL}"
-              echo "Pulling from origin main..."
-              git pull origin main
-            else
-              echo "Project directory does not exist. Cloning repository."
-              # Create parent directory if it doesn't exist.
-              mkdir -p "\$(dirname "${PROJECT_DIR_ON_VPS}")"
-              # Ensure git knows about the SSH key if needed for cloning
-              git clone "${REPO_URL}" "${PROJECT_DIR_ON_VPS}"
-              cd "${PROJECT_DIR_ON_VPS}"
-            fi
+            echo "Bringing down existing services..."
+            docker-compose down
 
             echo "Building and restarting services with Docker Compose..."
             # export DOCKER_BUILDKIT=1 # Uncomment if needed on your VPS for BuildKit features
