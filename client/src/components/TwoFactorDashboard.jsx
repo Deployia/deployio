@@ -200,11 +200,12 @@ const TwoFactorDashboard = () => {
           <div className="space-y-3">
             <h4 className="font-medium text-gray-900">How it works:</h4>
             <ul className="space-y-2 text-sm text-gray-600">
+              {" "}
               <li className="flex items-start space-x-2">
                 <span className="font-medium text-blue-600">1.</span>
                 <span>
-                  Download an authenticator app like Google Authenticator or
-                  Authy
+                  Download an authenticator app like Google Authenticator,
+                  Microsoft Authenticator, Authy, or 1Password
                 </span>
               </li>
               <li className="flex items-start space-x-2">
