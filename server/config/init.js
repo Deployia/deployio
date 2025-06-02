@@ -16,9 +16,9 @@ module.exports = (app) => {
       definition: {
         openapi: "3.0.0",
         info: {
-          title: "Fauxigent API Docs",
+          title: "DeployIO API Docs",
           version: "1.0.0",
-          description: "API documentation for Fauxigent MERN Template",
+          description: "API documentation for DeployIO MERN Template",
         },
         servers: [{ url: "/" }],
       },

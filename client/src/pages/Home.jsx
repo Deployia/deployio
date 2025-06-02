@@ -34,11 +34,11 @@ function Home() {
         <div className="text-center mb-4 flex-shrink-0">
           {/* Main Logo - Smaller */}
           <div className="mx-auto mb-3 w-16 h-16 bg-gradient-to-r from-purple-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-xl">
-            <span className="text-white text-2xl font-bold">F!</span>
+            <span className="text-white text-2xl font-bold">D!</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold mb-3">
             <span className="bg-gradient-to-r from-purple-400 via-violet-400 to-purple-500 bg-clip-text text-transparent">
-              Welcome to Fauxigent
+              Welcome to DeployIO
             </span>
           </h1>{" "}
           <p className="text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">

@@ -50,8 +50,8 @@ const generate2FASecret = async (userId) => {
 
   // Generate secret
   const secret = speakeasy.generateSecret({
-    name: `Fauxigent (${user?.email})`,
-    issuer: "Fauxigent",
+    name: `DeployIO (${user?.email})`,
+    issuer: "DeployIO",
     length: 32,
   });
 

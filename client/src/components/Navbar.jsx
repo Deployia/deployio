@@ -25,15 +25,12 @@ function Navbar() {
   return (
     <header className="bg-gray-800 shadow-lg border-b border-gray-700 flex-shrink-0">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <Link to="/" className="flex items-center space-x-3 group">
-          <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-violet-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg">
-            <span className="text-white text-lg font-bold">F!</span>
+        <Link to="/" className="flex items-center">
+          <div className="bg-purple-600 p-2 rounded-full">
+            <span className="text-white text-lg font-bold">D!</span>
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
-            Fauxigent
-          </span>
+          <span className="ml-3 text-xl font-bold text-white">DeployIO</span>
         </Link>
-
         <nav>
           <ul className="flex items-center space-x-6">
             {isAuthenticated ? (

@@ -54,7 +54,7 @@ const registerUser = async (userData) => {
   // Send OTP email
   await sendEmail({
     to: user?.email,
-    subject: "Verify your Fauxigent account (OTP)",
+    subject: "Verify your DeployIO account (OTP)",
     template: "otp",
     variables: { username, otp },
   });
@@ -258,7 +258,7 @@ const resendOtp = async (email) => {
   // Send OTP email
   await sendEmail({
     to: user?.email,
-    subject: "Your Fauxigent OTP (Resend)",
+    subject: "Your DeployIO OTP (Resend)",
     html: otpEmailTemplate(user?.username, otp),
   });
   return "OTP resent to your email";
