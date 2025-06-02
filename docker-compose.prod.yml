@@ -5,12 +5,13 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      target: production # Add this line
     ports:
       - "127.0.0.1:8080:8080" # Bind to localhost only for the host Nginx to proxy to
     depends_on:
       - server
       - mongo
-      - python_service
+      - service
     networks:
       - deployio-network
     restart: unless-stopped
@@ -19,6 +20,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+    command: npm run prod # Add this line
     # No ports exposed to host
     env_file:
       - ./server/.env.prod
