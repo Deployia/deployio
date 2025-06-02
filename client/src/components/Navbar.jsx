@@ -32,7 +32,9 @@ function Navbar({ darkMode, toggleDarkMode }) {
           <img
             src="/favicon.png"
             alt="DeployIO Logo"
-            className="h-8 w-8 mr-2"
+            className={`h-8 w-8 mr-2 ${
+              !darkMode ? "light-mode-favicon-invert" : ""
+            }`}
           />
           <span className="text-xl font-bold text-[rgb(var(--text-primary))]">
             DeployIO
