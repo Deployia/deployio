@@ -47,6 +47,11 @@
   scroll-behavior: smooth;
 }
 
+/* Add this class for inverting favicon in light mode */
+.light-mode-favicon-invert {
+  filter: invert(100%);
+}
+
 .dark {
   --bg-primary: 18, 18, 18; /* Dark mode: Main background - e.g., very dark gray */
   --bg-secondary: 31, 31, 31; /* Dark mode: Secondary background */
