@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080" # Bind to localhost only for the host Nginx to proxy to
+    depends_on:
+      - server
+      - mongo
+      - python_service
+    networks:
+      - deployio-network
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    # No ports exposed to host
+    env_file:
+      - ./server/.env.prod
+    depends_on:
+      - mongo
+    networks:
+      - deployio-network
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:latest
+    # No ports exposed to host
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - deployio-network
+    restart: unless-stopped
+
+  python_service:
+    build:
+      context: ./service
+      dockerfile: Dockerfile
+    # No ports exposed to host
+    env_file:
+      - ./service/.env.prod
+    depends_on:
+      - mongo
+    networks:
+      - deployio-network
+    restart: unless-stopped
+
+networks:
+  deployio-network:
+    driver: bridge
+
+volumes:
+  mongo-data:

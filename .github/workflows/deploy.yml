@@ -35,7 +35,7 @@ jobs:
             echo "Building and starting new containers..."
             # This command will build images locally on the EC2 using Dockerfiles from the repo
             # and then start the services defined in your production docker-compose.yml.
-            docker-compose -f docker-compose.yml up --build -d
+            docker-compose -f docker-compose.prod.yml up --build -d
 
             echo "Cleaning up unused Docker images (optional)..."
             # Consider uncommenting the next line to save disk space on your EC2 instance

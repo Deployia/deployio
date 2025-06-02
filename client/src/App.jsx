@@ -18,6 +18,7 @@ import ResetPassword from "./pages/ResetPassword";
 // Pages
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
+import DevHealthPage from "./pages/DevHealthPage"; // Import the new health page
 import { getMe } from "./redux/slices/authSlice";
 import Profile from "./pages/Profile";
 import VerifyOtp from "./pages/VerifyOtp";
@@ -51,6 +52,8 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="profile" element={<Profile />} />
           </Route>
+          <Route path="dev/health" element={<DevHealthPage />} />{" "}
+          {/* Add route for health page */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
