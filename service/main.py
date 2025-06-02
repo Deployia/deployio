@@ -29,7 +29,7 @@ def get_db_connection():
 db, mongodb_connection_status = get_db_connection()
 
 
-@app.get("/services/v1/health")  # Path for consistency
+@app.get("/service/v1/health")  # Path for consistency
 async def health_check():
     # Re-check status if db was None initially, or provide cached status
     # For a more robust check, you might want to ping the DB on each health request
@@ -39,22 +39,3 @@ async def health_check():
         "status": "ok",
         "mongodb_status": current_status,
     }
-
-
-@app.get("/items/")
-async def read_items():
-    if db is None:
-        raise HTTPException(
-            status_code=503, detail="MongoDB not connected"
-        )  # Use HTTPException here
-    # Example: Fetch items from a 'items' collection
-    # items_collection = db["items"]
-    # all_items = list(items_collection.find({}, {"_id": 0})) # Exclude MongoDB's _id field
-    # return all_items
-    return [{"name": "Item 1 from FastAPI"}, {"name": "Item 2 from FastAPI"}]
-
-
-# Add more routes and logic as needed
-
-# To run this app (if not using Docker Uvicorn command):
-# uvicorn main:app --reload --host 0.0.0.0 --port 8000

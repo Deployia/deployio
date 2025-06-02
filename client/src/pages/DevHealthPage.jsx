@@ -24,7 +24,7 @@ const DevHealthPage = () => {
 
     // Fetch FastAPI server health
     axios
-      .get("/services/v1/health") // Ensure this path is correct as per your server setup & Nginx proxy
+      .get("/service/v1/health") // Ensure this path is correct as per your server setup & Nginx proxy
       .then((response) => {
         setFastApiStatus(response.data);
       })
