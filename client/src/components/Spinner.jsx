@@ -1,14 +1,16 @@
 function Spinner({ fullScreen = false, size = 56 }) {
   const spinnerCircle = (
     <div
-      className={`animate-spin rounded-full border-4 border-t-blue-500 border-b-blue-500 border-gray-200`}
+      // Apply themed border colors for the spinner - only top border will be accent
+      className={`animate-spin rounded-full border-4 border-t-[rgb(var(--accent-primary))] border-[rgb(var(--border-color))]`}
       style={{ width: size, height: size }}
     ></div>
   );
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 flex justify-center items-center bg-white/60 z-50">
+      // Apply themed background for the full-screen overlay
+      <div className="fixed inset-0 flex justify-center items-center bg-[rgba(var(--bg-primary-rgb),0.6)] z-50">
         {spinnerCircle}
       </div>
     );
