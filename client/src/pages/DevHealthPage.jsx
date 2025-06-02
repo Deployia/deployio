@@ -42,47 +42,47 @@ const DevHealthPage = () => {
   const renderStatusCard = (service) => {
     if (!service) {
       return (
-        <div className="bg-gray-800 shadow-lg rounded-lg p-6 mb-6 animate-pulse border border-gray-700">
-          <div className="h-4 bg-gray-700 rounded w-3/4 mb-4"></div>
-          <div className="h-3 bg-gray-700 rounded w-1/2 mb-2"></div>
-          <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+        <div className="bg-color-card-background shadow-lg rounded-lg p-6 mb-6 animate-pulse border border-color-border">
+          <div className="h-4 bg-color-input-background rounded w-3/4 mb-4"></div>
+          <div className="h-3 bg-color-input-background rounded w-1/2 mb-2"></div>
+          <div className="h-3 bg-color-input-background rounded w-1/2"></div>
         </div>
       );
     }
 
     const statusColor =
-      service.status === "ok" ? "text-green-400" : "text-red-400";
+      service.status === "ok" ? "text-green-500" : "text-red-500"; // Adjusted for better contrast with teal
     const mongoStatusColor =
       service.mongodb_status === "connected"
-        ? "text-green-400"
-        : "text-red-400";
+        ? "text-green-500"
+        : "text-red-500"; // Adjusted for better contrast with teal
 
     return (
-      <div className="bg-gray-800 shadow-lg rounded-lg p-6 mb-6 border border-gray-700">
-        <h3 className="text-xl font-semibold text-white mb-3">
+      <div className="bg-color-card-background shadow-lg rounded-lg p-6 mb-6 border border-color-border">
+        <h3 className="text-xl font-semibold text-color-text-primary mb-3">
           {service.service_name}
         </h3>
-        <p className="text-gray-300 mb-1">
+        <p className="text-color-text-secondary mb-1">
           Service Status:{" "}
           <span className={`font-medium ${statusColor}`}>{service.status}</span>
         </p>
-        <p className="text-gray-300">
+        <p className="text-color-text-secondary">
           MongoDB Status:{" "}
           <span className={`font-medium ${mongoStatusColor}`}>
             {service.mongodb_status}
           </span>
         </p>
         {service.status === "error" && (
-          <p className="text-red-400 mt-2">Error: {service.error}</p>
+          <p className="text-red-500 mt-2">Error: {service.error}</p> // Adjusted for better contrast
         )}
       </div>
     );
   };
 
   return (
-    <div className="p-6 bg-gray-900 text-gray-100 h-full overflow-y-auto">
+    <div className="p-6 bg-color-background text-color-text-primary h-full overflow-y-auto">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl font-bold text-white mb-8 text-center">
+        <h2 className="text-3xl font-bold text-color-text-primary mb-8 text-center">
           Development Health Dashboard
         </h2>
         <div className="grid md:grid-cols-2 gap-6">

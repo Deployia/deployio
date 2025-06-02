@@ -29,17 +29,19 @@ function ForgotPassword() {
     dispatch(forgotPassword(email));
   };
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col justify-center items-center p-4">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
+    <div className="min-h-[90vh] bg-[rgb(var(--bg-primary))] flex flex-col justify-center items-center p-4">
+      <div className="bg-[rgb(var(--bg-card))] text-[rgb(var(--text-primary))] p-8 rounded-lg shadow-xl w-full max-w-md border border-[rgb(var(--border-color))]">
         <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-2xl font-bold">D!</span>
+          <div className="w-16 h-16 bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-full flex items-center justify-center">
+            <span className="text-[rgb(var(--text-on-accent))] text-2xl font-bold">
+              D!
+            </span>
           </div>
         </div>
-        <h2 className="text-3xl font-bold text-center text-white mb-6">
+        <h2 className="text-3xl font-bold text-center text-[rgb(var(--text-primary))] mb-6">
           Reset Password
         </h2>
-        <p className="text-center text-purple-200 text-sm mb-8">
+        <p className="text-center text-[rgb(var(--text-secondary))] text-sm mb-8">
           We'll send you a link to reset your password
         </p>
 
@@ -47,9 +49,9 @@ function ForgotPassword() {
         <div className="px-6 sm:px-10 py-10 overflow-x-hidden">
           {success.forgotPassword ? (
             <div className="text-center space-y-6">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-purple-100">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-[rgb(var(--accent-primary))] bg-opacity-20">
                 <svg
-                  className="h-8 w-8 text-purple-600"
+                  className="h-8 w-8 text-[rgb(var(--accent-primary))]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -63,16 +65,16 @@ function ForgotPassword() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">
+                <h3 className="text-lg font-semibold text-[rgb(var(--text-primary))]">
                   Check your email
                 </h3>
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-[rgb(var(--text-secondary))]">
                   We've sent password reset instructions to your email address.
                 </p>
               </div>
               <Link
                 to="/auth/login"
-                className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-[rgb(var(--text-on-accent))] bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:from-[rgb(var(--accent-primary-hover))] hover:to-[rgb(var(--accent-secondary-hover))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--accent-primary))] transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 Back to Login
               </Link>
@@ -82,7 +84,7 @@ function ForgotPassword() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-semibold text-slate-700 mb-2"
+                  className="block text-sm font-semibold text-[rgb(var(--text-secondary))] mb-2"
                 >
                   Email address
                 </label>
@@ -92,7 +94,7 @@ function ForgotPassword() {
                   name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                  className="w-full px-4 py-3 border border-[rgb(var(--border-color))] rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(var(--accent-primary))] focus:border-transparent transition-all duration-200 bg-[rgb(var(--bg-input))] text-[rgb(var(--text-input))] placeholder:text-[rgb(var(--text-placeholder))]"
                   placeholder="Enter your email address"
                   required
                 />
@@ -102,7 +104,7 @@ function ForgotPassword() {
                 <button
                   type="submit"
                   disabled={loading.forgotPassword}
-                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-[rgb(var(--text-on-accent))] bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:from-[rgb(var(--accent-primary-hover))] hover:to-[rgb(var(--accent-secondary-hover))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--accent-primary))] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {loading.forgotPassword ? (
                     <Spinner size={20} />
@@ -113,11 +115,11 @@ function ForgotPassword() {
               </div>
 
               <div className="text-center pt-2">
-                <span className="text-sm text-slate-600">
+                <span className="text-sm text-[rgb(var(--text-secondary))]">
                   Remember your password?{" "}
                   <Link
                     to="/auth/login"
-                    className="font-semibold text-purple-600 hover:text-purple-700 transition-colors"
+                    className="font-semibold text-[rgb(var(--accent-primary))] hover:text-[rgb(var(--accent-primary-hover))] transition-colors"
                   >
                     Back to Login
                   </Link>

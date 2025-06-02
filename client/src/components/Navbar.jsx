@@ -2,8 +2,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../redux/slices/authSlice";
 import { toast } from "react-hot-toast";
+import { FaSun, FaMoon } from "react-icons/fa";
 
-function Navbar() {
+function Navbar({ darkMode, toggleDarkMode }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -23,22 +24,46 @@ function Navbar() {
   // Disable logout button while logout is processing
   const isLoggingOut = loading && loading.logout;
   return (
-    <header className="bg-gray-800 shadow-lg border-b border-gray-700 flex-shrink-0">
+    // Apply themed background and border to header
+    <header className="bg-[rgb(var(--bg-secondary))] shadow-lg border-b border-[rgb(var(--border-color))] flex-shrink-0">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link to="/" className="flex items-center">
-          <div className="bg-purple-600 p-2 rounded-full">
-            <span className="text-white text-lg font-bold">D!</span>
-          </div>
-          <span className="ml-3 text-xl font-bold text-white">DeployIO</span>
+          {/* Use favicon.png as logo */}
+          <img
+            src="/favicon.png"
+            alt="DeployIO Logo"
+            className="h-8 w-8 mr-2"
+          />
+          <span className="text-xl font-bold text-[rgb(var(--text-primary))]">
+            DeployIO
+          </span>
         </Link>
         <nav>
-          <ul className="flex items-center space-x-6">
+          <ul className="flex items-center space-x-4 md:space-x-6">
+            {/* Dark Mode Toggle Button - styling already updated */}
+            <li>
+              <button
+                onClick={toggleDarkMode}
+                // Ensure hover background and text color use theme variables
+                className="p-2 rounded-full text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--bg-hover))] hover:text-[rgb(var(--accent-primary))] focus:outline-none transition-colors duration-200"
+                aria-label={
+                  darkMode ? "Switch to light mode" : "Switch to dark mode"
+                }
+              >
+                {darkMode ? (
+                  <FaSun className="h-5 w-5" />
+                ) : (
+                  <FaMoon className="h-5 w-5" />
+                )}
+              </button>
+            </li>
             {isAuthenticated ? (
               <>
                 <li>
                   <Link
                     to="/profile"
-                    className="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-purple-400 transition-all duration-200 font-semibold"
+                    // Ensure hover background and text color use theme variables
+                    className="px-3 py-2 rounded-md text-sm font-medium text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--bg-hover))] hover:text-[rgb(var(--text-primary))] transition-colors duration-200"
                   >
                     Profile
                   </Link>
@@ -47,16 +72,18 @@ function Navbar() {
                   <button
                     onClick={onLogout}
                     disabled={isLoggingOut}
-                    className={`px-6 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-200 font-semibold shadow-lg ${
+                    // Apply themed button styles (text color should be --text-button)
+                    className={`px-4 py-2 rounded-md text-sm font-medium text-[rgb(var(--text-button))] bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-secondary))] transition-colors duration-200 shadow-sm ${
                       isLoggingOut
                         ? "opacity-50 cursor-not-allowed"
-                        : "hover:shadow-xl"
+                        : "hover:shadow-md"
                     }`}
                   >
                     {isLoggingOut ? (
                       <div className="flex items-center space-x-2">
                         <svg
-                          className="animate-spin h-4 w-4"
+                          // Ensure spinner color matches button text
+                          className="animate-spin h-4 w-4 text-[rgb(var(--text-button))]"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -88,7 +115,8 @@ function Navbar() {
                 <li>
                   <Link
                     to="/auth/login"
-                    className="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-purple-400 transition-all duration-200 font-semibold"
+                    // Ensure hover background and text color use theme variables
+                    className="px-3 py-2 rounded-md text-sm font-medium text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--bg-hover))] hover:text-[rgb(var(--text-primary))] transition-colors duration-200"
                   >
                     Login
                   </Link>
@@ -96,7 +124,8 @@ function Navbar() {
                 <li>
                   <Link
                     to="/auth/register"
-                    className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                    // Apply themed button-like link styles (text color should be --text-button)
+                    className="px-4 py-2 rounded-md text-sm font-medium text-[rgb(var(--text-button))] bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-secondary))] transition-colors duration-200 shadow-sm hover:shadow-md"
                   >
                     Sign Up
                   </Link>
