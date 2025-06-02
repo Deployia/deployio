@@ -30,16 +30,7 @@ services:
       - deployio-network
     restart: unless-stopped
 
-  mongo:
-    image: mongo:latest
-    # No ports exposed to host
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - deployio-network
-    restart: unless-stopped
-
-  python_service:
+  service:
     build:
       context: ./service
       dockerfile: Dockerfile
@@ -48,6 +39,15 @@ services:
       - ./service/.env.prod
     depends_on:
       - mongo
+    networks:
+      - deployio-network
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:latest
+    # No ports exposed to host
+    volumes:
+      - mongo-data:/data/db
     networks:
       - deployio-network
     restart: unless-stopped
