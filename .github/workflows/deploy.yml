@@ -30,15 +30,12 @@ jobs:
             git pull origin main # Or your specific deployment branch
 
             echo "Stopping and removing old containers (if any)..."
-            docker-compose -f docker-compose.yml down --remove-orphans
+            docker-compose -f docker-compose.prod.yml down --remove-orphans
 
             echo "Building and starting new containers..."
-            # This command will build images locally on the EC2 using Dockerfiles from the repo
-            # and then start the services defined in your production docker-compose.yml.
             docker-compose -f docker-compose.prod.yml up --build -d
 
-            echo "Cleaning up unused Docker images (optional)..."
-            # Consider uncommenting the next line to save disk space on your EC2 instance
-            # docker image prune -af
+            echo "Cleaning up unused Docker images..."
+            docker image prune -af
 
             echo "Deployment successful!"
