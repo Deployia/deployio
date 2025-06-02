@@ -106,7 +106,7 @@ function VerifyOtp() {
         <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
           <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
             <div className="mx-auto h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3">
-              <span className="text-white text-lg font-bold">F!</span>
+              <span className="text-white text-lg font-bold">D!</span>
             </div>
             <h2 className="text-xl font-bold text-white">
               Verify your account

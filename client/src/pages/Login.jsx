@@ -88,11 +88,11 @@ function Login() {
           {/* Header - Compact */}
           <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
             <div className="mx-auto h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3">
-              <span className="text-white text-lg font-bold">F!</span>
+              <span className="text-white text-lg font-bold">D!</span>
             </div>
             <h2 className="text-xl font-bold text-white">Welcome back</h2>
             <p className="text-purple-100 text-xs mt-1">
-              Sign in to your Fauxigent account
+              Sign in to your DeployIO account
             </p>
           </div>
 
@@ -201,7 +201,7 @@ function Login() {
                     />
                   </svg>
                 </a>
-                <a
+                {/* <a
                   href="http://localhost:5000/api/v1/auth/facebook"
                   className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
                 >
@@ -211,7 +211,7 @@ function Login() {
                       d="M22.675 0h-21.35C.595 0 0 .592 0 1.326v21.348C0 23.408.595 24 1.325 24h11.495v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.406 24 24 23.408 24 22.674V1.326C24 .592 23.406 0 22.675 0"
                     />
                   </svg>
-                </a>
+                </a> */}
               </div>{" "}
               <div className="text-center pt-3">
                 <span className="text-xs text-slate-600">

@@ -57,7 +57,7 @@ function ResetPassword() {
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-8 py-6 text-center">
             <div className="mx-auto h-16 w-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
-              <span className="text-white text-2xl font-bold">F!</span>
+              <span className="text-white text-2xl font-bold">D!</span>
             </div>
             <h2 className="text-2xl font-bold text-white">
               Create New Password

@@ -32,21 +32,6 @@ router.get(
   require("../controllers/authController").googleAuthCallback
 );
 
-// Facebook OAuth
-router.get(
-  "/facebook",
-  passport.authenticate("facebook", { scope: ["email"] })
-);
-
-router.get(
-  "/facebook/callback",
-  passport.authenticate("facebook", {
-    session: false,
-    failureRedirect: "/login",
-  }),
-  authController.facebookAuthCallback
-);
-
 // GitHub OAuth
 router.get(
   "/github",
