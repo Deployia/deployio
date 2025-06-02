@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useState } from "react"; // Ensure useState is imported
 
 // Components
 import Spinner from "./components/Spinner";
@@ -27,6 +27,35 @@ function App() {
   const { loading } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
+  // Dark mode state
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedMode = localStorage.getItem("darkMode");
+    if (savedMode) {
+      return savedMode === "true";
+    }
+    // If no saved mode, check system preference
+    return (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    );
+  });
+
+  // Effect to apply dark mode class to <html> and save preference
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("darkMode", "true");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("darkMode", "false");
+    }
+  }, [darkMode]);
+
+  // Function to toggle dark mode (you'll pass this to Navbar or a theme context)
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
   useEffect(() => {
     dispatch(getMe());
   }, [dispatch]);
@@ -37,6 +66,10 @@ function App() {
 
   return (
     <>
+      {/* Pass darkMode and toggleDarkMode to Layout/Navbar if the button is there */}
+      {/* For example, if Layout includes Navbar: <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode} /> */}
+      {/* Or manage it via Context API for deeper component access */}
+
       <Routes>
         {/* Auth Layout Routes */}
         <Route path="/auth" element={<AuthLayout />}>
@@ -47,7 +80,13 @@ function App() {
           <Route path="verify-otp" element={<VerifyOtp />} />
         </Route>
         {/* Main Layout Routes */}
-        <Route path="/" element={<Layout />}>
+        {/* Ensure Layout component can receive and use darkMode/toggleDarkMode if Navbar is inside it */}
+        <Route
+          path="/"
+          element={
+            <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+          }
+        >
           <Route index element={<Home />} />
           <Route element={<ProtectedRoute />}>
             <Route path="profile" element={<Profile />} />

@@ -49,12 +49,12 @@ const Modal = () => {
       {" "}
       <div
         ref={modalRef}
-        className={`bg-gray-800 border border-gray-700 rounded-xl min-w-[320px] max-w-[90vw] md:max-w-lg p-8 shadow-2xl relative transform transition-all duration-300 ${
+        className={`bg-[rgb(var(--bg-card))] border border-[rgb(var(--border-color))] rounded-xl min-w-[320px] max-w-[90vw] md:max-w-lg p-8 shadow-2xl relative transform transition-all duration-300 ${
           animate ? "scale-100 opacity-100" : "scale-0 opacity-0"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-white">{modalContent}</div>
+        <div className="text-[rgb(var(--text-primary))]">{modalContent}</div>
       </div>
     </div>
   );

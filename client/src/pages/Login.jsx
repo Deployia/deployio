@@ -66,9 +66,9 @@ function Login() {
   // Show 2FA verification if required
   if (requires2FA && pending2FAUserId) {
     return (
-      <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+      <div className="min-h-[90vh] bg-[rgb(var(--bg-primary))] flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100 p-8">
+          <div className="bg-[rgb(var(--bg-card))] text-[rgb(var(--text-primary))] shadow-2xl rounded-2xl overflow-hidden border border-[rgb(var(--border-color))] p-8">
             <OTPVerification
               mode="login"
               userId={pending2FAUserId}
@@ -82,16 +82,20 @@ function Login() {
   }
 
   return (
-    <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+    <div className="min-h-[90vh] bg-[rgb(var(--bg-primary))] flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
       <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
+        <div className="bg-[rgb(var(--bg-card))] text-[rgb(var(--text-primary))] shadow-2xl rounded-2xl overflow-hidden border border-[rgb(var(--border-color))]">
           {/* Header - Compact */}
-          <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
+          <div className="bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] px-6 py-4 text-center">
             <div className="mx-auto h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3">
-              <span className="text-white text-lg font-bold">D!</span>
+              <span className="text-[rgb(var(--text-on-accent))] text-lg font-bold">
+                D!
+              </span>
             </div>
-            <h2 className="text-xl font-bold text-white">Welcome back</h2>
-            <p className="text-purple-100 text-xs mt-1">
+            <h2 className="text-xl font-bold text-[rgb(var(--text-on-accent))]">
+              Welcome back
+            </h2>
+            <p className="text-[rgb(var(--text-on-accent-muted))] text-xs mt-1">
               Sign in to your DeployIO account
             </p>
           </div>
@@ -102,7 +106,7 @@ function Login() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-semibold text-slate-700 mb-1"
+                  className="block text-sm font-semibold text-[rgb(var(--text-secondary))] mb-1"
                 >
                   Email address
                 </label>
@@ -112,7 +116,7 @@ function Login() {
                   name="email"
                   value={email}
                   onChange={onChange}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                  className="w-full px-3 py-2.5 border border-[rgb(var(--border-color))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgb(var(--accent-primary))] focus:border-transparent transition-all duration-200 bg-[rgb(var(--bg-input))] text-[rgb(var(--text-input))] placeholder:text-[rgb(var(--text-placeholder))]"
                   placeholder="Enter your email"
                   required
                 />
@@ -120,7 +124,7 @@ function Login() {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-semibold text-slate-700 mb-1"
+                  className="block text-sm font-semibold text-[rgb(var(--text-secondary))] mb-1"
                 >
                   Password
                 </label>
@@ -130,7 +134,7 @@ function Login() {
                   name="password"
                   value={password}
                   onChange={onChange}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                  className="w-full px-3 py-2.5 border border-[rgb(var(--border-color))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgb(var(--accent-primary))] focus:border-transparent transition-all duration-200 bg-[rgb(var(--bg-input))] text-[rgb(var(--text-input))] placeholder:text-[rgb(var(--text-placeholder))]"
                   placeholder="Enter your password"
                   required
                 />
@@ -138,7 +142,7 @@ function Login() {
               <div className="flex items-center justify-end">
                 <Link
                   to="/auth/forgot-password"
-                  className="text-xs text-purple-600 hover:text-purple-700 font-medium transition-colors"
+                  className="text-xs text-[rgb(var(--accent-primary))] hover:text-[rgb(var(--accent-primary-hover))] font-medium transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -147,7 +151,7 @@ function Login() {
                 <button
                   type="submit"
                   disabled={loading.login}
-                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-[rgb(var(--text-on-accent))] bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:from-[rgb(var(--accent-primary-hover))] hover:to-[rgb(var(--accent-secondary-hover))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--accent-primary))] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {loading.login ? <Spinner size={20} /> : "Sign in"}
                 </button>
@@ -155,10 +159,10 @@ function Login() {
               {/* OAuth Buttons - Compact */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
+                  <div className="w-full border-t border-[rgb(var(--border-color))]" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="px-3 bg-white text-slate-500">
+                  <span className="px-3 bg-[rgb(var(--bg-card))] text-[rgb(var(--text-tertiary))]">
                     or continue with
                   </span>
                 </div>
@@ -166,7 +170,7 @@ function Login() {
               <div className="grid grid-cols-3 gap-2 mt-2">
                 <a
                   href="http://localhost:5000/api/v1/auth/google"
-                  className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center justify-center py-2.5 px-3 border border-[rgb(var(--border-color))] rounded-lg shadow-sm bg-[rgb(var(--bg-button-secondary))] text-[rgb(var(--text-button-secondary))] hover:bg-[rgb(var(--bg-button-secondary-hover))] transition-all duration-200 hover:shadow-md"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 48 48">
                     <g>
@@ -192,7 +196,7 @@ function Login() {
                 </a>
                 <a
                   href="http://localhost:5000/api/v1/auth/github"
-                  className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center justify-center py-2.5 px-3 border border-[rgb(var(--border-color))] rounded-lg shadow-sm bg-[rgb(var(--bg-button-secondary))] text-[rgb(var(--text-button-secondary))] hover:bg-[rgb(var(--bg-button-secondary-hover))] transition-all duration-200 hover:shadow-md"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -203,7 +207,7 @@ function Login() {
                 </a>
                 {/* <a
                   href="http://localhost:5000/api/v1/auth/facebook"
-                  className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center justify-center py-2.5 px-3 border border-[rgb(var(--border-color))] rounded-lg shadow-sm bg-[rgb(var(--bg-button-secondary))] text-[rgb(var(--text-button-secondary))] hover:bg-[rgb(var(--bg-button-secondary-hover))] transition-all duration-200 hover:shadow-md"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -214,11 +218,11 @@ function Login() {
                 </a> */}
               </div>{" "}
               <div className="text-center pt-3">
-                <span className="text-xs text-slate-600">
+                <span className="text-xs text-[rgb(var(--text-secondary))]">
                   Don't have an account?{" "}
                   <Link
                     to="/auth/register"
-                    className="font-semibold text-purple-600 hover:text-purple-700 transition-colors"
+                    className="font-semibold text-[rgb(var(--accent-primary))] hover:text-[rgb(var(--accent-primary-hover))] transition-colors"
                   >
                     Create one here
                   </Link>

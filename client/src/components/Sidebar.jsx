@@ -64,14 +64,16 @@ const Sidebar = () => {
   if (!shouldRender) return null;
   return (
     <div
-      className={`fixed inset-0 z-[1000] flex items-stretch bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+      // Overlay styling - uses Tailwind's arbitrary color for backdrop
+      className={`fixed inset-0 z-[1000] flex items-stretch bg-black/60 dark:bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${
         animate ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
       onClick={handleOverlayClick}
     >
       <aside
         ref={sidebarRef}
-        className={`ml-auto h-full w-[90vw] max-w-sm bg-gray-800 border-l border-gray-700 shadow-2xl p-6 overflow-y-auto transform transition-transform duration-300 ${
+        // Apply themed background and border to sidebar
+        className={`ml-auto h-full w-[90vw] max-w-sm bg-[rgb(var(--bg-secondary))] border-l border-[rgb(var(--bg-tertiary))] shadow-2xl p-6 overflow-y-auto transform transition-transform duration-300 ${
           animate ? "translate-x-0" : "translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -79,7 +81,8 @@ const Sidebar = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="text-white">{sidebarContent}</div>
+        {/* Ensure sidebar content text color is themed */}
+        <div className="text-[rgb(var(--text-primary))]">{sidebarContent}</div>
       </aside>
     </div>
   );

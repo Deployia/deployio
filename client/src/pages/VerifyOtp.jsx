@@ -101,17 +101,19 @@ function VerifyOtp() {
   };
 
   return (
-    <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+    <div className="min-h-[90vh] bg-[rgb(var(--bg-primary))] flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
       <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
-          <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
+        <div className="bg-[rgb(var(--bg-card))] text-[rgb(var(--text-primary))] shadow-2xl rounded-2xl overflow-hidden border border-[rgb(var(--border-color))]">
+          <div className="bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] px-6 py-4 text-center">
             <div className="mx-auto h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3">
-              <span className="text-white text-lg font-bold">D!</span>
+              <span className="text-[rgb(var(--text-on-accent))] text-lg font-bold">
+                D!
+              </span>
             </div>
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-bold text-[rgb(var(--text-on-accent))]">
               Verify your account
             </h2>
-            <p className="text-purple-100 text-xs mt-1">
+            <p className="text-[rgb(var(--text-on-accent-muted))] text-xs mt-1">
               Enter the OTP sent to your email
             </p>
           </div>
@@ -120,7 +122,7 @@ function VerifyOtp() {
               <div>
                 <label
                   htmlFor="otp-input-0"
-                  className="block text-sm font-semibold text-slate-700 mb-1"
+                  className="block text-sm font-semibold text-[rgb(var(--text-secondary))] mb-1"
                 >
                   OTP Code
                 </label>
@@ -137,7 +139,7 @@ function VerifyOtp() {
                       value={digit}
                       onChange={(e) => handleOtpChange(e, idx)}
                       onKeyDown={(e) => handleOtpKeyDown(e, idx)}
-                      className="w-10 h-12 md:w-12 md:h-14 text-center text-lg md:text-2xl border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 bg-slate-50 shadow-sm"
+                      className="w-10 h-12 md:w-12 md:h-14 text-center text-lg md:text-2xl border border-[rgb(var(--border-color))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgb(var(--accent-primary))] focus:border-transparent transition-all duration-200 bg-[rgb(var(--bg-input))] text-[rgb(var(--text-input))] shadow-sm"
                       autoFocus={idx === 0}
                     />
                   ))}
@@ -146,13 +148,13 @@ function VerifyOtp() {
               <button
                 type="submit"
                 disabled={loading.verifyOtp}
-                className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-[rgb(var(--text-on-accent))] bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:from-[rgb(var(--accent-primary-hover))] hover:to-[rgb(var(--accent-secondary-hover))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--accent-primary))] transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading.verifyOtp ? <Spinner size={20} /> : "Verify & Login"}
               </button>
             </form>
             <div className="text-center pt-3">
-              <span className="text-xs text-slate-600">
+              <span className="text-xs text-[rgb(var(--text-tertiary))]">
                 Didn't receive the code? Check your spam folder.
               </span>
               <div className="mt-2">
@@ -160,7 +162,7 @@ function VerifyOtp() {
                   type="button"
                   onClick={handleResendOtp}
                   disabled={resendLoading || resendCooldown > 0}
-                  className="text-xs font-semibold text-purple-600 hover:text-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={`text-xs font-semibold text-[rgb(var(--accent-primary))] hover:text-[rgb(var(--accent-primary-hover))] disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
                 >
                   {resendLoading
                     ? "Resending..."
