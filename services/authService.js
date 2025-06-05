@@ -77,20 +77,44 @@ const loginUser = async (email, password) => {
   const user = await User.findOne({ email }).select(
     "+password +twoFactorEnabled"
   );
-
   // Check if user exists
   if (!user) {
     throw new Error("Invalid email or password");
   }
 
-  // Check if user is verified
-  if (!user.isVerified) {
-    throw new Error("Account not verified. Please check your email for OTP.");
-  }
   // Check if password is correct
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw new Error("Invalid email or password");
+  }
+
+  // Check if user is verified - return verification status instead of throwing error
+  if (!user.isVerified) {
+    // Generate OTP if user is not verified
+    const otp = generateOtp();
+    user.otp = otp;
+    user.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    try {
+      // Send OTP email
+      await sendEmail({
+        to: user?.email,
+        subject: "Verify your Fauxigent account (OTP)",
+        template: "otp",
+        variables: { username: user.username, otp },
+      });
+      console.log(`OTP email sent to ${user.email}`);
+    } catch (error) {
+      console.error(`Failed to send OTP email to ${user.email}:`, error);
+    }
+
+    return {
+      needsVerification: true,
+      userId: user._id,
+      email: user.email,
+      message: "Account verification required",
+    };
   }
 
   // Check if 2FA is enabled
@@ -157,22 +181,15 @@ const forgotPassword = async (email, resetUrl) => {
   await user.save({ validateBeforeSave: false });
 
   // Create reset URL
-  const resetLink = `${resetUrl}/reset-password/${resetToken}`;
-
-  // Send email
-  await sendEmail({
-    to: user.email,
-    subject: "Password Reset Request",
-    template: "passwordReset",
-    variables: { resetLink },
-  });
+  const resetLink = `${resetUrl}/auth/reset-password/${resetToken}`;
 
   try {
     // Send email
     await sendEmail({
-      to: user?.email,
+      to: user.email,
       subject: "Password Reset Request",
-      text: message,
+      template: "passwordReset",
+      variables: { resetLink },
     });
 
     return "Password reset email sent";
