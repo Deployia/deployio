@@ -75,7 +75,16 @@ const login = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please provide email and password" });
     }
-    const result = await authService.loginUser(email, password);
+    const result = await authService.loginUser(email, password); // Check if user needs verification
+    if (result.needsVerification) {
+      return res.status(200).json({
+        success: true,
+        needsVerification: true,
+        email: result.email,
+        userId: result.userId,
+        message: result.message,
+      });
+    }
 
     // Check if 2FA is required
     if (result.requires2FA) {

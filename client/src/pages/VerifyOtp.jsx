@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { verifyOtp, reset } from "../redux/slices/authSlice";
+import { verifyOtp, reset, resetVerification } from "../redux/slices/authSlice";
 import api from "../utils/api";
 import Spinner from "../components/Spinner";
 
@@ -14,12 +14,15 @@ function VerifyOtp() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { loading, error, isAuthenticated } = useSelector(
+  const { loading, error, isAuthenticated, needsVerification } = useSelector(
     (state) => state.auth
   );
+  // Get email from location state or from redux state (redirected from register or login)
+  const { pendingVerificationEmail } = useSelector((state) => state.auth);
+  const email = location.state?.email || pendingVerificationEmail || "";
 
-  // Get email from location state (redirected from register)
-  const email = location.state?.email || "";
+  // Track the verification source (login or register)
+  const isFromLogin = !!pendingVerificationEmail;
 
   useEffect(() => {
     if (error && error.verifyOtp) {
@@ -28,9 +31,16 @@ function VerifyOtp() {
     if (isAuthenticated) {
       toast.success("Account verified and logged in!");
       navigate("/profile");
+
+      // Clear verification state if coming from login flow
+      if (isFromLogin) {
+        dispatch(resetVerification());
+      }
     }
+
+    // Clean up - only reset errors, not the verification state
     return () => dispatch(reset());
-  }, [error, isAuthenticated, navigate, dispatch]);
+  }, [error, isAuthenticated, isFromLogin, navigate, dispatch]);
 
   // Cooldown timer for resend
   useEffect(() => {
@@ -107,12 +117,14 @@ function VerifyOtp() {
           <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
             <div className="mx-auto h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3">
               <span className="text-white text-lg font-bold">F!</span>
-            </div>
+            </div>{" "}
             <h2 className="text-xl font-bold text-white">
-              Verify your account
+              {isFromLogin
+                ? "Account Verification Required"
+                : "Verify your account"}
             </h2>
             <p className="text-purple-100 text-xs mt-1">
-              Enter the OTP sent to your email
+              Enter the OTP sent to {email || "your email"}
             </p>
           </div>
           <div className="px-6 sm:px-10 py-10 overflow-x-hidden">
@@ -150,12 +162,20 @@ function VerifyOtp() {
               >
                 {loading.verifyOtp ? <Spinner size={20} /> : "Verify & Login"}
               </button>
-            </form>
+            </form>{" "}
             <div className="text-center pt-3">
+              {isFromLogin && (
+                <div className="mb-3 bg-yellow-50 border border-yellow-100 rounded-lg p-3">
+                  <p className="text-xs text-yellow-600">
+                    Your account requires verification before you can log in.
+                    Please enter the OTP code sent to your email.
+                  </p>
+                </div>
+              )}
               <span className="text-xs text-slate-600">
                 Didn't receive the code? Check your spam folder.
               </span>
-              <div className="mt-2">
+              <div className="mt-2 flex flex-col space-y-2">
                 <button
                   type="button"
                   onClick={handleResendOtp}
@@ -167,6 +187,20 @@ function VerifyOtp() {
                     : resendCooldown > 0
                     ? `Resend OTP (${resendCooldown}s)`
                     : "Resend OTP"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // If from login, reset verification state and go back to login
+                    if (isFromLogin) {
+                      dispatch(resetVerification());
+                    }
+                    navigate("/auth/login");
+                  }}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-600 transition-colors"
+                >
+                  Back to Login
                 </button>
               </div>
             </div>

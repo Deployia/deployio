@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { loginUser, reset, reset2FA } from "../redux/slices/authSlice";
+import {
+  loginUser,
+  reset,
+  reset2FA,
+  resetVerification,
+} from "../redux/slices/authSlice";
 import Spinner from "../components/Spinner";
 import OTPVerification from "../components/OTPVerification";
 
@@ -15,8 +20,16 @@ function Login() {
   const { email, password } = formData;
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { isAuthenticated, loading, error, requires2FA, pending2FAUserId } =
-    useSelector((state) => state.auth);
+  const {
+    isAuthenticated,
+    loading,
+    error,
+    requires2FA,
+    pending2FAUserId,
+    needsVerification,
+    pendingVerificationEmail,
+  } = useSelector((state) => state.auth);
+
   useEffect(() => {
     if (error && error.login) {
       toast.error(error.login);
@@ -26,11 +39,25 @@ function Login() {
       navigate("/profile");
     }
 
-    // Only reset errors, not the 2FA flags
+    // Redirect to OTP verification if needed
+    if (needsVerification && pendingVerificationEmail) {
+      navigate("/auth/verify-otp", {
+        state: { email: pendingVerificationEmail },
+      });
+    }
+
+    // Only reset errors, not the 2FA or verification flags
     if (error) {
       dispatch(reset());
     }
-  }, [isAuthenticated, error, navigate, dispatch]);
+  }, [
+    isAuthenticated,
+    needsVerification,
+    pendingVerificationEmail,
+    error,
+    navigate,
+    dispatch,
+  ]);
 
   const onChange = (e) => {
     setFormData((prevState) => ({
