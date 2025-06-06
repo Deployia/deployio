@@ -281,6 +281,77 @@ const resendOtp = async (email) => {
   return "OTP resent to your email";
 };
 
+// OAuth providers and session management functions
+/**
+ * Get linked OAuth providers for a user
+ */
+async function getLinkedProviders(userId) {
+  const user = await User.findById(userId);
+  return {
+    google: Boolean(user.googleId),
+    facebook: Boolean(user.facebookId),
+    github: Boolean(user.githubId),
+  };
+}
+
+/**
+ * Link an OAuth provider to user account
+ */
+async function linkProvider(userId, provider, providerId, profileImage) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+  user[`${provider}Id`] = providerId;
+  if (profileImage) user.profileImage = profileImage;
+  await user.save();
+}
+
+/**
+ * Unlink an OAuth provider from user account
+ */
+async function unlinkProvider(userId, provider) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+  let count = 0;
+  if (user.password) count++;
+  if (user.googleId) count++;
+  if (user.facebookId) count++;
+  if (user.githubId) count++;
+  if (count <= 1)
+    throw new Error("Cannot unlink the only authentication method");
+  user[`${provider}Id`] = undefined;
+  await user.save();
+}
+
+/**
+ * Add a session record for the user
+ */
+async function addSession(userId, session) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+  user.sessions.push(session);
+  await user.save();
+  return user.sessions[user.sessions.length - 1];
+}
+
+/**
+ * Get all sessions for a user
+ */
+async function getSessions(userId) {
+  const user = await User.findById(userId).select("sessions");
+  if (!user) throw new Error("User not found");
+  return user.sessions;
+}
+
+/**
+ * Delete a user session
+ */
+async function deleteSession(userId, sessionId) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+  user.sessions = user.sessions.filter((s) => s._id.toString() !== sessionId);
+  await user.save();
+}
+
 module.exports = {
   registerUser,
   loginUser,
@@ -290,4 +361,11 @@ module.exports = {
   generateRefreshToken,
   verifyOtp,
   resendOtp,
+  // OAuth providers and session management
+  getLinkedProviders,
+  linkProvider,
+  unlinkProvider,
+  getSessions,
+  deleteSession,
+  addSession,
 };

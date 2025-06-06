@@ -108,6 +108,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false, // Don't include in queries by default
     },
+    // Track user sessions for multi-session management
+    sessions: [
+      {
+        ip: { type: String },
+        userAgent: { type: String },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: true,

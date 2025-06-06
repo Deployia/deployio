@@ -6,10 +6,10 @@ import { verify2FALogin } from "./twoFactorSlice";
 const initialState = {
   user: null,
   isAuthenticated: false,
-  requires2FA: false, // Flag to indicate 2FA verification is needed
-  pending2FAUserId: null, // Store user ID for 2FA verification
-  needsVerification: false, // Flag to indicate email verification is needed
-  pendingVerificationEmail: null, // Store email for verification
+  requires2FA: false,
+  pending2FAUserId: null,
+  needsVerification: false,
+  pendingVerificationEmail: null,
   loading: {
     me: true,
     signup: false,
@@ -35,6 +35,13 @@ const initialState = {
     resetPassword: false,
     updatePassword: false,
   },
+  // OAuth providers and session management state
+  providers: {},
+  providersLoading: false,
+  providersError: null,
+  sessions: [],
+  sessionsLoading: false,
+  sessionsError: null,
 };
 
 // Register user
@@ -223,7 +230,66 @@ export const verifyOtp = createAsyncThunk(
   }
 );
 
-// Create the auth slice
+// Fetch linked OAuth providers
+export const fetchProviders = createAsyncThunk(
+  "auth/fetchProviders",
+  async (_, thunkAPI) => {
+    try {
+      const response = await api.get("/api/v1/auth/providers");
+      return response.data.providers;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
+// Fetch user sessions
+export const fetchSessions = createAsyncThunk(
+  "auth/fetchSessions",
+  async (_, thunkAPI) => {
+    try {
+      const response = await api.get("/api/v1/auth/sessions");
+      return response.data.sessions;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
+// Unlink provider
+export const unlinkProvider = createAsyncThunk(
+  "auth/unlinkProvider",
+  async (provider, thunkAPI) => {
+    try {
+      await api.delete(`/api/v1/auth/unlink/${provider}`);
+      return provider;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
+// Delete session
+export const deleteSession = createAsyncThunk(
+  "auth/deleteSession",
+  async (sessionId, thunkAPI) => {
+    try {
+      await api.delete(`/api/v1/auth/sessions/${sessionId}`);
+      return sessionId;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -461,6 +527,44 @@ const authSlice = createSlice({
         state.isVerifying = false;
         state.error.login = action.payload;
         // Don't reset requires2FA here so the user can try again
+      })
+      // providers
+      .addCase(fetchProviders.pending, (state) => {
+        state.providersLoading = true;
+        state.providersError = null;
+      })
+      .addCase(fetchProviders.fulfilled, (state, action) => {
+        state.providersLoading = false;
+        state.providers = action.payload;
+      })
+      .addCase(fetchProviders.rejected, (state, action) => {
+        state.providersLoading = false;
+        state.providersError = action.payload;
+      })
+
+      // sessions
+      .addCase(fetchSessions.pending, (state) => {
+        state.sessionsLoading = true;
+        state.sessionsError = null;
+      })
+      .addCase(fetchSessions.fulfilled, (state, action) => {
+        state.sessionsLoading = false;
+        state.sessions = action.payload;
+      })
+      .addCase(fetchSessions.rejected, (state, action) => {
+        state.sessionsLoading = false;
+        state.sessionsError = action.payload;
+      })
+
+      // unlink provider
+      .addCase(unlinkProvider.fulfilled, (state, action) => {
+        const prov = action.payload;
+        state.providers[prov] = false;
+      })
+
+      // delete session
+      .addCase(deleteSession.fulfilled, (state, action) => {
+        state.sessions = state.sessions.filter((s) => s._id !== action.payload);
       });
   },
 });

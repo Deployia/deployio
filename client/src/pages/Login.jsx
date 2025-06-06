@@ -1,13 +1,8 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import {
-  loginUser,
-  reset,
-  reset2FA,
-  resetVerification,
-} from "../redux/slices/authSlice";
+import { loginUser, reset, reset2FA } from "../redux/slices/authSlice";
 import Spinner from "../components/Spinner";
 import OTPVerification from "../components/OTPVerification";
 
@@ -16,6 +11,9 @@ function Login() {
     email: "",
     password: "",
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const oauth2fa = searchParams.get("oauth2fa");
+  const oauth2faUserId = searchParams.get("userId");
 
   const { email, password } = formData;
   const navigate = useNavigate();
@@ -29,6 +27,14 @@ function Login() {
     needsVerification,
     pendingVerificationEmail,
   } = useSelector((state) => state.auth);
+
+  // Determine if 2FA verification is needed (OAuth or normal login)
+  const twoFAUserId =
+    oauth2fa === "true"
+      ? oauth2faUserId
+      : requires2FA
+      ? pending2FAUserId
+      : null;
 
   useEffect(() => {
     if (error && error.login) {
@@ -80,27 +86,26 @@ function Login() {
     }
   };
 
-  const handle2FASuccess = () => {
-    // The verify2FALogin action will handle authentication
-    // and redirect will happen via the useEffect above
-    toast.success("Login successful!");
-    // Redux state will be updated by the verify2FALogin action
-  };
-  const handle2FACancel = () => {
-    // Reset only the 2FA flags by using the dedicated action
-    dispatch(reset2FA());
-  };
-  // Show 2FA verification if required
-  if (requires2FA && pending2FAUserId) {
+  // If any 2FA flow is required, render OTP form
+  if (twoFAUserId) {
     return (
       <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100 p-8">
             <OTPVerification
               mode="login"
-              userId={pending2FAUserId}
-              onSuccess={handle2FASuccess}
-              onCancel={handle2FACancel}
+              userId={twoFAUserId}
+              onSuccess={() => {
+                // Clear 2FA state and params, then redirect to profile
+                setSearchParams({});
+                dispatch(reset2FA());
+                toast.success("Login successful!");
+                navigate("/profile");
+              }}
+              onCancel={() => {
+                setSearchParams({});
+                dispatch(reset2FA());
+              }}
             />
           </div>
         </div>
