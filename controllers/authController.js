@@ -42,6 +42,11 @@ const verifyOtp = async (req, res) => {
         .json({ success: false, message: "Email and OTP required" });
     }
     const result = await authService.verifyOtp(email, otp);
+    // Record user session
+    await authService.addSession(result.user.id, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
     // Set cookies after successful verification
     const cookieOptions = {
       expires: new Date(
@@ -99,6 +104,11 @@ const login = async (req, res) => {
 
     // Normal login flow (without 2FA)
     const { user, token, refreshToken } = result;
+    // Record user session
+    await authService.addSession(user._id, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -192,6 +202,17 @@ const getMe = async (req, res) => {
 const handleOAuthCallback = (providerName) => async (req, res) => {
   try {
     const user = req.user;
+    // If user has 2FA enabled, redirect to a front-end OTP page instead of issuing tokens
+    if (user.twoFactorEnabled) {
+      const front =
+        process.env.NODE_ENV === "development"
+          ? process.env.FRONTEND_URL_DEV
+          : process.env.FRONTEND_URL_PROD;
+      // Redirect to frontend OAuth login with 2FA parameters
+      return res.redirect(
+        `${front}/auth/login?oauth2fa=true&userId=${user._id}`
+      );
+    }
     const accessToken = jwt.sign({ id: user?._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || "1d",
     });
@@ -213,7 +234,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    res.redirect(process.env.FRONTEND_URL_DEV || "/");
+    res.redirect(process.env.FRONTEND_URL_DEV + "/profile");
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -268,6 +289,77 @@ const resendOtp = async (req, res) => {
   }
 };
 
+// New controller methods
+// Get linked OAuth providers
+const getLinkedProviders = async (req, res) => {
+  try {
+    const providers = await authService.getLinkedProviders(req.user._id);
+    res.status(200).json({ success: true, providers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Link provider callback
+const linkProviderCallback = (providerName) => async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const providerId = req.account.id;
+    const profileImage =
+      req.account.photos &&
+      req.account.photos[0] &&
+      req.account.photos[0].value;
+    await authService.linkProvider(
+      userId,
+      providerName,
+      providerId,
+      profileImage
+    );
+    res.redirect(process.env.FRONTEND_URL_DEV + "/profile");
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Unlink OAuth provider
+const unlinkProvider = async (req, res) => {
+  try {
+    const provider = req.params.provider;
+    await authService.unlinkProvider(req.user._id, provider);
+    res.status(200).json({ success: true, message: `${provider} unlinked` });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Get user sessions
+const getSessions = async (req, res) => {
+  try {
+    const sessions = await authService.getSessions(req.user._id);
+    res.status(200).json({ success: true, sessions });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete a session
+const deleteSession = async (req, res) => {
+  try {
+    const sessionId = req.params.sessionId;
+    // Prevent deleting the current session
+    const sessions = await authService.getSessions(req.user._id);
+    const target = sessions.find((s) => s._id.toString() === sessionId);
+    if (!target) throw new Error("Session not found");
+    if (target.userAgent === req.headers["user-agent"]) {
+      throw new Error("Cannot delete current session");
+    }
+    await authService.deleteSession(req.user._id, sessionId);
+    res.status(200).json({ success: true, message: "Session removed" });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -281,4 +373,9 @@ module.exports = {
   refreshToken,
   verifyOtp,
   resendOtp,
+  getLinkedProviders,
+  linkProviderCallback,
+  unlinkProvider,
+  getSessions,
+  deleteSession,
 };

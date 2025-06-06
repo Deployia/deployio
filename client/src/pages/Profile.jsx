@@ -4,12 +4,21 @@ import {
   updatePassword,
   resetUserState,
 } from "../redux/slices/userSlice";
+import {
+  fetchProviders,
+  fetchSessions,
+  unlinkProvider,
+  deleteSession,
+} from "../redux/slices/authSlice";
 import { useEffect, useRef, useState } from "react";
 import Spinner from "../components/Spinner";
 import TwoFactorDashboard from "../components/TwoFactorDashboard";
 import { useSearchParams } from "react-router-dom";
 import { FaPen, FaTrash } from "react-icons/fa";
 import toast from "react-hot-toast";
+
+// Get backend URL for OAuth link redirects
+const BACKEND_URL = import.meta.env.VITE_APP_BACKEND_URL || "";
 
 function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,8 +40,15 @@ function Profile() {
   const { user, loading, error, success, passwordSuccess } = useSelector(
     (state) => state.user
   );
+  const {
+    providers,
+    providersLoading,
+    providersError,
+    sessions,
+    sessionsLoading,
+    sessionsError,
+  } = useSelector((state) => state.auth);
   const authUser = useSelector((state) => state.auth.user);
-  const isOAuthUser = !!authUser?.googleId;
 
   useEffect(() => {
     if (authUser) {
@@ -151,10 +167,6 @@ function Profile() {
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
-    if (isOAuthUser) {
-      alert("Password update is not allowed for OAuth users.");
-      return;
-    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert("Passwords do not match");
       return;
@@ -178,6 +190,15 @@ function Profile() {
       dispatch(resetUserState());
     };
   }, [dispatch]);
+
+  // Load providers and sessions when Security tab is active
+  useEffect(() => {
+    if (activeTab === "security") {
+      dispatch(fetchProviders());
+      dispatch(fetchSessions());
+    }
+  }, [activeTab, dispatch]);
+
   return (
     <div className="h-full bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 py-8 overflow-y-auto">
       <div className="max-w-2xl mx-auto px-4">
@@ -257,18 +278,16 @@ function Profile() {
               >
                 Profile Details
               </button>
-              {!isOAuthUser && (
-                <button
-                  className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
-                    activeTab === "password"
-                      ? "border-purple-500 text-purple-600 bg-purple-50"
-                      : "border-transparent text-slate-500 hover:text-purple-600 hover:bg-purple-50"
-                  }`}
-                  onClick={() => handleTabChange("password")}
-                >
-                  Update Password
-                </button>
-              )}
+              <button
+                className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
+                  activeTab === "password"
+                    ? "border-purple-500 text-purple-600 bg-purple-50"
+                    : "border-transparent text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                }`}
+                onClick={() => handleTabChange("password")}
+              >
+                Update Password
+              </button>
               <button
                 className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
                   activeTab === "security"
@@ -342,16 +361,11 @@ function Profile() {
                   </button>
                 </form>
               )}
-              {activeTab === "password" && !isOAuthUser && (
+              {activeTab === "password" && (
                 <form onSubmit={handlePasswordSubmit} className="space-y-6">
                   <h2 className="text-xl font-bold mb-6 text-white">
                     Update Password
                   </h2>
-                  {isOAuthUser && (
-                    <div className="bg-yellow-50 border border-yellow-200 text-yellow-600 px-4 py-3 rounded-xl font-semibold">
-                      Password update is not allowed for OAuth users.
-                    </div>
-                  )}
                   <div>
                     <label className="block text-sm font-semibold text-gray-300 mb-2">
                       Current Password
@@ -404,7 +418,7 @@ function Profile() {
                   <button
                     type="submit"
                     className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-                    disabled={loading || isOAuthUser}
+                    disabled={loading}
                   >
                     {loading ? <Spinner size={20} /> : "Update Password"}
                   </button>
@@ -412,11 +426,89 @@ function Profile() {
               )}
 
               {activeTab === "security" && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-bold mb-6 text-white">
+                <div>
+                  <h2 className="text-xl font-bold mb-4 text-white">
                     Security Settings
                   </h2>
-                  <TwoFactorDashboard />
+                  {/* Two-Factor Authentication */}
+                  <div className="mb-6">
+                    <TwoFactorDashboard />
+                  </div>
+                  {/* OAuth Providers */}
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-white mb-2">
+                      Linked OAuth Providers
+                    </h3>
+                    {providersLoading ? (
+                      <Spinner />
+                    ) : providersError ? (
+                      <div className="text-red-500">{providersError}</div>
+                    ) : (
+                      <div className="flex gap-4">
+                        {["google", "facebook", "github"].map((prov) => (
+                          <div
+                            key={prov}
+                            className="flex items-center space-x-2"
+                          >
+                            <span className="capitalize text-white">
+                              {prov}
+                            </span>
+                            {providers[prov] ? (
+                              <button
+                                className="px-2 py-1 bg-red-600 text-white rounded"
+                                onClick={() => dispatch(unlinkProvider(prov))}
+                              >
+                                Unlink
+                              </button>
+                            ) : (
+                              <a
+                                className="px-2 py-1 bg-green-600 text-white rounded"
+                                href={`${BACKEND_URL}/api/v1/auth/link/${prov}`}
+                              >
+                                Link
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Active Sessions */}
+                  <div>
+                    <h3 className="font-semibold text-white mb-2">
+                      Active Sessions
+                    </h3>
+                    {sessionsLoading ? (
+                      <Spinner />
+                    ) : sessionsError ? (
+                      <div className="text-red-500">{sessionsError}</div>
+                    ) : (
+                      <ul className="space-y-2">
+                        {sessions.map((s) => (
+                          <li
+                            key={s._id}
+                            className="flex justify-between items-center bg-gray-700 p-2 rounded"
+                          >
+                            <div className="text-white text-sm">
+                              {new Date(s.createdAt).toLocaleString()} — {s.ip}
+                            </div>
+                            <button
+                              className="px-2 py-1 bg-red-600 text-white rounded text-sm disabled:bg-gray-500"
+                              disabled={s.userAgent === navigator.userAgent}
+                              title={
+                                s.userAgent === navigator.userAgent
+                                  ? "Cannot sign out current session"
+                                  : "Sign out"
+                              }
+                              onClick={() => dispatch(deleteSession(s._id))}
+                            >
+                              Sign out
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

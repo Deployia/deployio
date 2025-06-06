@@ -65,4 +65,60 @@ router.get(
 // Refresh token endpoint
 router.post("/refresh-token", authController.refreshToken);
 
+// Get linked OAuth providers
+router.get("/providers", protect, authController.getLinkedProviders);
+
+// Link OAuth providers
+router.get(
+  "/link/google",
+  protect,
+  passport.authorize("google", { scope: ["profile", "email"], session: false })
+);
+router.get(
+  "/link/google/callback",
+  protect,
+  passport.authorize("google", {
+    session: false,
+    failureRedirect: "/profile",
+  }),
+  authController.linkProviderCallback("google")
+);
+
+router.get(
+  "/link/facebook",
+  protect,
+  passport.authorize("facebook", { scope: ["email"], session: false })
+);
+router.get(
+  "/link/facebook/callback",
+  protect,
+  passport.authorize("facebook", {
+    session: false,
+    failureRedirect: "/profile",
+  }),
+  authController.linkProviderCallback("facebook")
+);
+
+router.get(
+  "/link/github",
+  protect,
+  passport.authorize("github", { scope: ["user:email"], session: false })
+);
+router.get(
+  "/link/github/callback",
+  protect,
+  passport.authorize("github", {
+    session: false,
+    failureRedirect: "/profile",
+  }),
+  authController.linkProviderCallback("github")
+);
+
+// Unlink OAuth provider
+router.delete("/unlink/:provider", protect, authController.unlinkProvider);
+
+// Session management
+router.get("/sessions", protect, authController.getSessions);
+router.delete("/sessions/:sessionId", protect, authController.deleteSession);
+
 module.exports = router;
