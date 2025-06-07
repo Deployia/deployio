@@ -26,20 +26,32 @@ const protect = async (req, res, next) => {
     try {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const { id, sessionId } = decoded;
 
       // Find user by ID
-      const user = await User.findById(decoded.id);
+      const user = await User.findById(id);
 
       // Check if user exists
       if (!user) {
-        return res.status(404).json({
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      // Check that sessionId exists in user's sessions
+      const sessionExists = user.sessions.some(
+        (s) => s._id.toString() === sessionId
+      );
+      if (!sessionExists) {
+        return res.status(401).json({
           success: false,
-          message: "User not found",
+          message: "Session invalid or expired. Please log in again.",
         });
       }
 
-      // Attach user to request object
+      // Attach user and sessionId to request object
       req.user = user;
+      req.sessionId = sessionId;
       next();
     } catch (error) {
       return res.status(401).json({

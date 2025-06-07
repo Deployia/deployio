@@ -1,4 +1,5 @@
 const authService = require("../services/authService");
+const userService = require("../services/userService");
 const jwt = require("jsonwebtoken");
 
 // Register a new user
@@ -42,12 +43,19 @@ const verifyOtp = async (req, res) => {
         .json({ success: false, message: "Email and OTP required" });
     }
     const result = await authService.verifyOtp(email, otp);
-    // Record user session
-    await authService.addSession(result.user.id, {
+    // Record user session and get session record
+    const session = await authService.addSession(result.user.id, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
-    // Set cookies after successful verification
+    // Generate tokens including sessionId
+    const payload = { id: result.user.id, sessionId: session._id.toString() };
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+    });
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -56,15 +64,15 @@ const verifyOtp = async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     };
-    res.cookie("token", result.token, cookieOptions);
-    res.cookie("refreshToken", result.refreshToken, {
+    res.cookie("token", accessToken, cookieOptions);
+    res.cookie("refreshToken", refreshToken, {
       ...cookieOptions,
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
     res.status(200).json({
       success: true,
       user: result.user,
-      message: "Account verified and logged in successfully!",
+      sessionId: session._id.toString(),
     });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -102,12 +110,19 @@ const login = async (req, res) => {
       });
     }
 
-    // Normal login flow (without 2FA)
-    const { user, token, refreshToken } = result;
-    // Record user session
-    await authService.addSession(user._id, {
+    const { user } = result;
+    // Record user session and get session record
+    const session = await authService.addSession(user._id, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
+    });
+    // Generate tokens including sessionId
+    const payload = { id: user._id, sessionId: session._id.toString() };
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     });
     const cookieOptions = {
       expires: new Date(
@@ -117,14 +132,15 @@ const login = async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     };
-    res.cookie("token", token, cookieOptions);
+    res.cookie("token", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, {
       ...cookieOptions,
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
     res.status(200).json({
       success: true,
-      user: { id: user?._id, username: user?.username, email: user?.email },
+      user: { id: user._id, username: user.username, email: user.email },
+      sessionId: session._id.toString(),
     });
   } catch (error) {
     res.status(401).json({ success: false, message: error.message });
@@ -172,8 +188,22 @@ const resetPassword = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const userId = req.user?._id;
+    // Remove current session record based on IP and user-agent
+    const sessions = await authService.getSessions(userId);
+    const currentAgent = req.headers["user-agent"];
+    const currentSession = sessions.find(
+      (s) => s.userAgent === currentAgent && s.ip === req.ip
+    );
+    if (currentSession) {
+      await authService.deleteSession(userId, currentSession._id.toString());
+    }
     const result = await authService.logoutUser(userId);
+    // Clear authentication cookies
     res.cookie("token", "none", {
+      expires: new Date(Date.now() + 10 * 1000),
+      httpOnly: true,
+    });
+    res.cookie("refreshToken", "none", {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
     });
@@ -192,7 +222,8 @@ const getMe = async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    res.status(200).json({ user: req.user });
+    // Return user data and current session ID
+    res.status(200).json({ user: req.user, sessionId: req.sessionId });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -202,6 +233,11 @@ const getMe = async (req, res) => {
 const handleOAuthCallback = (providerName) => async (req, res) => {
   try {
     const user = req.user;
+    // Record user session and get session
+    const session = await authService.addSession(user._id, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
     // If user has 2FA enabled, redirect to a front-end OTP page instead of issuing tokens
     if (user.twoFactorEnabled) {
       const front =
@@ -213,14 +249,14 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
         `${front}/auth/login?oauth2fa=true&userId=${user._id}`
       );
     }
-    const accessToken = jwt.sign({ id: user?._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    // Generate tokens including sessionId
+    const payload = { id: user._id, sessionId: session._id.toString() };
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
     });
-    const refreshToken = jwt.sign(
-      { id: user?._id },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d" }
-    );
+    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+    });
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -234,7 +270,11 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    res.redirect(process.env.FRONTEND_URL_DEV + "/profile");
+    res.redirect(
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV + "/profile"
+        : process.env.FRONTEND_URL_PROD + "/profile"
+    );
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -360,6 +400,129 @@ const deleteSession = async (req, res) => {
   }
 };
 
+// 2FA Controller Functions
+
+// Generate 2FA secret
+const generate2FASecret = async (req, res) => {
+  try {
+    const result = await userService.generate2FASecret(req.user.id);
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: "2FA secret generated successfully",
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Enable 2FA
+const enable2FA = async (req, res) => {
+  try {
+    const { token, secret } = req.body;
+    if (!token || !secret) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide verification token and secret",
+      });
+    }
+    const result = await userService.enable2FA(req.user.id, token, secret);
+    res
+      .status(200)
+      .json({ success: true, data: result, message: result.message });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Verify 2FA during login
+const verify2FALogin = async (req, res) => {
+  try {
+    const { token, userId } = req.body;
+    if (!token || !userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide verification token and user ID",
+      });
+    }
+    const verificationResult = await userService.verify2FALogin(userId, token);
+    if (!verificationResult.verified) {
+      return res.status(400).json({
+        success: false,
+        message: verificationResult.error || "Invalid verification code",
+      });
+    }
+    const loginResult = await userService.complete2FALogin(userId);
+    const cookieOptions = {
+      expires: new Date(
+        Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+      ),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+    res.cookie("token", loginResult.token, cookieOptions);
+    res.cookie("refreshToken", loginResult.refreshToken, {
+      ...cookieOptions,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+    res.status(200).json({
+      success: true,
+      data: { user: loginResult.user, method: verificationResult.method },
+      message: "2FA verification successful",
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Disable 2FA
+const disable2FA = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide your password" });
+    }
+    const result = await userService.disable2FA(req.user.id, password);
+    res.status(200).json({ success: true, message: result });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Get 2FA status
+const get2FAStatus = async (req, res) => {
+  try {
+    const result = await userService.get2FAStatus(req.user.id);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Generate new backup codes
+const generateNewBackupCodes = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide your password" });
+    }
+    const result = await userService.generateNewBackupCodes(
+      req.user.id,
+      password
+    );
+    res
+      .status(200)
+      .json({ success: true, data: result, message: result.message });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -378,4 +541,11 @@ module.exports = {
   unlinkProvider,
   getSessions,
   deleteSession,
+  // 2FA methods
+  generate2FASecret,
+  enable2FA,
+  verify2FALogin,
+  disable2FA,
+  get2FAStatus,
+  generateNewBackupCodes,
 };

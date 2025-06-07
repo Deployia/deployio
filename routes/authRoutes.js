@@ -121,4 +121,16 @@ router.delete("/unlink/:provider", protect, authController.unlinkProvider);
 router.get("/sessions", protect, authController.getSessions);
 router.delete("/sessions/:sessionId", protect, authController.deleteSession);
 
+// 2FA routes
+router.get("/2fa/generate", protect, authController.generate2FASecret);
+router.post("/2fa/enable", protect, authController.enable2FA);
+router.post("/2fa/verify", authController.verify2FALogin);
+router.post("/2fa/disable", protect, authController.disable2FA);
+router.get("/2fa/status", protect, authController.get2FAStatus);
+router.post(
+  "/2fa/backup-codes",
+  protect,
+  authController.generateNewBackupCodes
+);
+
 module.exports = router;

@@ -42,6 +42,7 @@ const initialState = {
   sessions: [],
   sessionsLoading: false,
   sessionsError: null,
+  currentSessionId: null,
 };
 
 // Register user
@@ -327,6 +328,7 @@ const authSlice = createSlice({
       state.pending2FAUserId = null;
       state.needsVerification = false;
       state.pendingVerificationEmail = null;
+      state.currentSessionId = null;
 
       Object.keys(state.loading).forEach((key) => {
         if (key !== "me") {
@@ -395,6 +397,8 @@ const authSlice = createSlice({
           state.pending2FAUserId = null;
           state.needsVerification = false;
           state.pendingVerificationEmail = null;
+          // Store current session ID
+          state.currentSessionId = action.payload.sessionId;
         }
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -418,6 +422,7 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.requires2FA = false;
         state.pending2FAUserId = null;
+        state.currentSessionId = null;
       })
       .addCase(logout.rejected, (state, action) => {
         state.loading.logout = false;
@@ -484,6 +489,7 @@ const authSlice = createSlice({
         state.loading.me = false;
         state.user = action.payload.user;
         state.isAuthenticated = true;
+        state.currentSessionId = action.payload.sessionId;
       })
       .addCase(getMe.rejected, (state, action) => {
         state.loading.me = false;
