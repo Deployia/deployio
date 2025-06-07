@@ -130,6 +130,210 @@
  *       200:
  *         description: Access token refreshed
  *
+ * /api/v1/auth/providers:
+ *   get:
+ *     summary: Get linked OAuth providers
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of linked providers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 providers:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *
+ * /api/v1/auth/unlink/{provider}:
+ *   delete:
+ *     summary: Unlink an OAuth provider
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: provider
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: OAuth provider name (e.g., google, facebook, github)
+ *     responses:
+ *       200:
+ *         description: Provider unlinked successfully
+ *
+ * /api/v1/auth/sessions:
+ *   get:
+ *     summary: Get user sessions
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of user sessions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 sessions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       ip:
+ *                         type: string
+ *                       userAgent:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *
+ * /api/v1/auth/sessions/{sessionId}:
+ *   delete:
+ *     summary: Delete a user session
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID to delete
+ *     responses:
+ *       200:
+ *         description: Session deleted successfully
+ *
+ * /api/v1/auth/2fa/generate:
+ *   get:
+ *     summary: Generate 2FA secret and QR code
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 2FA secret generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 otpauthUrl:
+ *                   type: string
+ *                 base32:
+ *                   type: string
+ *
+ * /api/v1/auth/2fa/enable:
+ *   post:
+ *     summary: Enable 2FA for user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *               secret:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 2FA enabled successfully
+ *
+ * /api/v1/auth/2fa/verify:
+ *   post:
+ *     summary: Verify 2FA code during login
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *               userId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 2FA verification successful
+ *
+ * /api/v1/auth/2fa/disable:
+ *   post:
+ *     summary: Disable 2FA for user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 2FA disabled successfully
+ *
+ * /api/v1/auth/2fa/status:
+ *   get:
+ *     summary: Get 2FA status for user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 2FA status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                 methods:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *
+ * /api/v1/auth/2fa/backup-codes:
+ *   post:
+ *     summary: Generate new 2FA backup codes
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Backup codes generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 codes:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *
  * components:
  *   schemas:
  *     User:
