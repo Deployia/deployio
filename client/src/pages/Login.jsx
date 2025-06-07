@@ -178,11 +178,16 @@ function Login() {
               <div>
                 <button
                   type="submit"
-                  disabled={loading.login}
+                  disabled={loading.login || !email || !password}
                   className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {loading.login ? <Spinner size={20} /> : "Sign in"}
                 </button>
+                {(!email || !password) && (
+                  <p className="mt-1 text-xs text-red-600" role="alert">
+                    Email and password are required
+                  </p>
+                )}
               </div>{" "}
               {/* OAuth Buttons - Compact */}
               <div className="relative">

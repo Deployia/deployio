@@ -7,6 +7,7 @@ import api from "../utils/api";
 import Spinner from "../components/Spinner";
 
 function VerifyOtp() {
+  const [otpError, setOtpError] = useState("");
   const [otpArray, setOtpArray] = useState(["", "", "", "", "", ""]);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -14,7 +15,7 @@ function VerifyOtp() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { loading, error, isAuthenticated, needsVerification } = useSelector(
+  const { loading, error, isAuthenticated } = useSelector(
     (state) => state.auth
   );
   // Get email from location state or from redux state (redirected from register or login)
@@ -84,8 +85,13 @@ function VerifyOtp() {
   const onSubmit = (e) => {
     e.preventDefault();
     const otp = otpArray.join("");
-    if (otp.length !== 6 || !email) {
-      toast.error("Enter all 6 digits and email is required");
+    setOtpError("");
+    if (!email) {
+      setOtpError("Email is required");
+      return;
+    }
+    if (otp.length !== 6) {
+      setOtpError("Please enter all 6 digits of the OTP");
       return;
     }
     dispatch(verifyOtp({ email, otp }));
@@ -149,15 +155,27 @@ function VerifyOtp() {
                       value={digit}
                       onChange={(e) => handleOtpChange(e, idx)}
                       onKeyDown={(e) => handleOtpKeyDown(e, idx)}
+                      aria-invalid={otpError ? true : false}
+                      aria-describedby={otpError ? "otp-error" : undefined}
                       className="w-10 h-12 md:w-12 md:h-14 text-center text-lg md:text-2xl border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 bg-slate-50 shadow-sm"
                       autoFocus={idx === 0}
                     />
                   ))}
                 </div>
+                {otpError && (
+                  <p
+                    id="otp-error"
+                    className="mt-2 text-xs text-red-600"
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    {otpError}
+                  </p>
+                )}
               </div>
               <button
                 type="submit"
-                disabled={loading.verifyOtp}
+                disabled={loading.verifyOtp || otpArray.join("").length !== 6}
                 className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 {loading.verifyOtp ? <Spinner size={20} /> : "Verify & Login"}

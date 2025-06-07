@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { registerUser, reset } from "../redux/slices/authSlice";
 import Spinner from "../components/Spinner";
+import zxcvbn from "zxcvbn";
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ function Register() {
     password: "",
     confirmPassword: "",
   });
+  const [passwordScore, setPasswordScore] = useState(0);
 
   const { username, email, password, confirmPassword } = formData;
   const navigate = useNavigate();
@@ -37,6 +39,12 @@ function Register() {
     dispatch(reset());
   }, [error, navigate, dispatch, user]);
 
+  // Update password strength score whenever password changes
+  useEffect(() => {
+    const { score } = zxcvbn(password);
+    setPasswordScore(score);
+  }, [password]);
+
   const onChange = (e) => {
     setFormData((prevState) => ({
       ...prevState,
@@ -49,15 +57,15 @@ function Register() {
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
-    } else {
-      const userData = {
-        username,
-        email,
-        password,
-      };
-
-      dispatch(registerUser(userData));
+      return;
     }
+    const userData = {
+      username,
+      email,
+      password,
+    };
+
+    dispatch(registerUser(userData));
   };
   if (loading && loading.signup) {
     return <Spinner />;
@@ -133,6 +141,33 @@ function Register() {
                   placeholder="Create a password"
                   required
                 />
+                {/* Password strength meter */}
+                <div className="mt-1 h-2 bg-gray-200 rounded">
+                  <div
+                    className={`h-full rounded ${
+                      [
+                        "bg-red-500",
+                        "bg-orange-500",
+                        "bg-yellow-400",
+                        "bg-blue-500",
+                        "bg-green-500",
+                      ][passwordScore]
+                    }`}
+                    style={{
+                      width: `${((passwordScore + 1) / 5) * 100}%`,
+                    }}
+                  />
+                </div>
+                <p
+                  className="mt-1 text-xs font-medium capitalize"
+                  aria-live="polite"
+                >
+                  {
+                    ["Very Weak", "Weak", "Fair", "Good", "Strong"][
+                      passwordScore
+                    ]
+                  }
+                </p>
               </div>
               <div>
                 <label
@@ -149,13 +184,27 @@ function Register() {
                   onChange={onChange}
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
                   placeholder="Confirm your password"
+                  aria-invalid={confirmPassword && password !== confirmPassword}
+                  aria-describedby={
+                    confirmPassword && password !== confirmPassword
+                      ? "password-match-error"
+                      : undefined
+                  }
                   required
                 />
+                {confirmPassword && password !== confirmPassword && (
+                  <p
+                    id="password-match-error"
+                    className="mt-1 text-xs text-red-600"
+                  >
+                    Passwords do not match
+                  </p>
+                )}
               </div>
               <div>
                 <button
                   type="submit"
-                  disabled={loading.signup}
+                  disabled={loading.signup || password !== confirmPassword}
                   className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {loading.signup ? <Spinner size={20} /> : "Create Account"}

@@ -1,6 +1,8 @@
 const authService = require("../services/authService");
 const userService = require("../services/userService");
 const jwt = require("jsonwebtoken");
+const { storeRefreshToken } = require("../services/authService");
+const User = require("../models/User");
 
 // Register a new user
 const register = async (req, res) => {
@@ -48,7 +50,6 @@ const verifyOtp = async (req, res) => {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
-    // Generate tokens including sessionId
     const payload = { id: result.user.id, sessionId: session._id.toString() };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN,
@@ -56,6 +57,8 @@ const verifyOtp = async (req, res) => {
     const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     });
+    // Store the new refresh token for rotation
+    await storeRefreshToken(result.user.id, refreshToken);
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -67,7 +70,6 @@ const verifyOtp = async (req, res) => {
     res.cookie("token", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, {
       ...cookieOptions,
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
     res.status(200).json({
       success: true,
@@ -88,20 +90,62 @@ const login = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please provide email and password" });
     }
-    const result = await authService.loginUser(email, password); // Check if user needs verification
-    if (result.needsVerification) {
-      return res.status(200).json({
-        success: true,
-        needsVerification: true,
-        email: result.email,
-        userId: result.userId,
-        message: result.message,
-      });
-    }
-
-    // Check if 2FA is required
+    const result = await authService.loginUser(email, password);
+    // Handle two-factor requirement or remembered device
     if (result.requires2FA) {
-      // Return 2FA requirement response without setting cookies
+      // Check if this device was remembered
+      const sessions = await authService.getSessions(result.userId);
+      const remembered = sessions.find(
+        (s) =>
+          s.ip === req.ip &&
+          s.userAgent === req.headers["user-agent"] &&
+          s.rememberedUntil &&
+          new Date(s.rememberedUntil) > new Date()
+      );
+      if (remembered) {
+        // Skip 2FA: fetch full user and proceed to login
+        const user = await User.findById(result.userId);
+        // Record a new session or reuse
+        const session = await authService.addSession(user._id, {
+          ip: req.ip,
+          userAgent: req.headers["user-agent"],
+        });
+        const payload = { id: user._id, sessionId: session._id.toString() };
+        const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+          expiresIn: process.env.JWT_EXPIRES_IN,
+        });
+        const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+        });
+        await storeRefreshToken(user._id, refreshToken);
+        const cookieOptions = {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge:
+            parseInt(process.env.JWT_COOKIE_EXPIRES_IN, 10) *
+            24 *
+            60 *
+            60 *
+            1000,
+        };
+        res.cookie("token", accessToken, cookieOptions);
+        res.cookie("refreshToken", refreshToken, {
+          ...cookieOptions,
+          maxAge:
+            (parseInt(process.env.JWT_REFRESH_EXPIRES_IN, 10) || 7) *
+            24 *
+            60 *
+            60 *
+            1000,
+        });
+        return res.status(200).json({
+          success: true,
+          user: { id: user._id, username: user.username, email: user.email },
+          sessionId: session._id.toString(),
+        });
+      }
+      // Otherwise require 2FA
       return res.status(200).json({
         success: true,
         requires2FA: true,
@@ -116,7 +160,6 @@ const login = async (req, res) => {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
-    // Generate tokens including sessionId
     const payload = { id: user._id, sessionId: session._id.toString() };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN,
@@ -124,6 +167,8 @@ const login = async (req, res) => {
     const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     });
+    // Store the new refresh token for rotation
+    await storeRefreshToken(user._id, refreshToken);
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -135,7 +180,6 @@ const login = async (req, res) => {
     res.cookie("token", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, {
       ...cookieOptions,
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
     res.status(200).json({
       success: true,
@@ -287,27 +331,67 @@ const facebookAuthCallback = handleOAuthCallback("facebook");
 // Refresh token logic
 const refreshToken = async (req, res) => {
   try {
-    const token = req.cookies.refreshToken;
-    if (!token)
+    const incomingToken = req.cookies.refreshToken;
+    if (!incomingToken)
       return res
         .status(401)
         .json({ success: false, message: "No refresh token" });
-    jwt.verify(token, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
-      if (err)
-        return res
-          .status(403)
-          .json({ success: false, message: "Invalid refresh token" });
-      const accessToken = jwt.sign({ id: decoded.id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || "1d",
-      });
-      res.cookie("token", accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 24 * 60 * 60 * 1000,
-      });
-      res.json({ success: true });
-    });
+    // Verify token signature and get payload
+    jwt.verify(
+      incomingToken,
+      process.env.JWT_REFRESH_SECRET,
+      async (err, decoded) => {
+        if (err)
+          return res
+            .status(403)
+            .json({ success: false, message: "Invalid refresh token" });
+        // Find user and check token rotation list
+        const user = await require("../models/User").findById(decoded.id);
+        if (!user)
+          return res
+            .status(404)
+            .json({ success: false, message: "User not found" });
+        const tokenIndex = user.refreshTokens.findIndex(
+          (rt) => rt.token === incomingToken
+        );
+        if (tokenIndex === -1)
+          return res.status(403).json({
+            success: false,
+            message: "Refresh token revoked or not found",
+          });
+        // Remove the used refresh token (rotation)
+        user.refreshTokens.splice(tokenIndex, 1);
+        await user.save();
+        // Generate new tokens with same sessionId
+        const payload = { id: decoded.id, sessionId: decoded.sessionId };
+        const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+          expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+        });
+        const newRefreshToken = jwt.sign(
+          payload,
+          process.env.JWT_REFRESH_SECRET,
+          {
+            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+          }
+        );
+        // Store the new refresh token for rotation
+        await storeRefreshToken(decoded.id, newRefreshToken);
+        // Set cookies
+        res.cookie("token", newAccessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+        res.cookie("refreshToken", newRefreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        res.json({ success: true });
+      }
+    );
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -438,7 +522,7 @@ const enable2FA = async (req, res) => {
 // Verify 2FA during login
 const verify2FALogin = async (req, res) => {
   try {
-    const { token, userId } = req.body;
+    const { token, userId, rememberDevice } = req.body;
     if (!token || !userId) {
       return res.status(400).json({
         success: false,
@@ -452,25 +536,58 @@ const verify2FALogin = async (req, res) => {
         message: verificationResult.error || "Invalid verification code",
       });
     }
-    const loginResult = await userService.complete2FALogin(userId);
-    const cookieOptions = {
-      expires: new Date(
-        Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
-      ),
+    // Register session (with optional "remember this device")
+    const rememberUntil = rememberDevice
+      ? new Date(
+          Date.now() +
+            (parseInt(process.env.REMEMBER_DAYS, 10) || 30) *
+              24 *
+              60 *
+              60 *
+              1000
+        )
+      : undefined;
+    const session = await authService.addSession(userId, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      rememberedUntil: rememberUntil,
+    });
+    // Generate tokens for this session
+    const payload = { id: userId, sessionId: session._id.toString() };
+    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+    const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+    });
+    // Store and rotate refresh token
+    await storeRefreshToken(userId, newRefreshToken);
+    // Set cookies
+    const opts = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
+      maxAge:
+        parseInt(process.env.JWT_COOKIE_EXPIRES_IN, 10) * 24 * 60 * 60 * 1000,
     };
-    res.cookie("token", loginResult.token, cookieOptions);
-    res.cookie("refreshToken", loginResult.refreshToken, {
-      ...cookieOptions,
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    res.cookie("token", newAccessToken, opts);
+    res.cookie("refreshToken", newRefreshToken, {
+      ...opts,
+      maxAge:
+        (parseInt(process.env.JWT_REFRESH_EXPIRES_IN, 10) || 7) *
+        24 *
+        60 *
+        60 *
+        1000,
     });
-    res.status(200).json({
-      success: true,
-      data: { user: loginResult.user, method: verificationResult.method },
-      message: "2FA verification successful",
-    });
+    // Return method and sessionId
+    res
+      .status(200)
+      .json({
+        success: true,
+        method: verificationResult.method,
+        sessionId: session._id.toString(),
+      });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

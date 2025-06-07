@@ -281,6 +281,16 @@ const resendOtp = async (email) => {
   return "OTP resent to your email";
 };
 
+// New function to store refresh tokens for rotation
+async function storeRefreshToken(userId, token) {
+  const decoded = jwt.decode(token);
+  const expiresAt = new Date(decoded.exp * 1000);
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found for storing refresh token");
+  user.refreshTokens.push({ token, expiresAt });
+  await user.save();
+}
+
 // OAuth providers and session management functions
 /**
  * Get linked OAuth providers for a user
@@ -332,7 +342,14 @@ async function addSession(userId, session) {
   const existing = user.sessions.find(
     (s) => s.ip === session.ip && s.userAgent === session.userAgent
   );
-  if (existing) return existing;
+  if (existing) {
+    // Update remember setting if provided
+    if (session.rememberedUntil) {
+      existing.rememberedUntil = session.rememberedUntil;
+      await user.save();
+    }
+    return existing;
+  }
   user.sessions.push(session);
   await user.save();
   return user.sessions[user.sessions.length - 1];
@@ -373,4 +390,5 @@ module.exports = {
   getSessions,
   deleteSession,
   addSession,
+  storeRefreshToken,
 };
