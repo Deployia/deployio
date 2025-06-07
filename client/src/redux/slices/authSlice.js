@@ -513,15 +513,18 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
       }) // Handle 2FA login completion
       .addCase(verify2FALogin.fulfilled, (state, action) => {
+        // Populate auth state after successful 2FA verification
+        state.loading.login = false;
+        state.error.login = null;
+        state.requires2FA = false;
+        state.pending2FAUserId = null;
         if (action.payload.user) {
           state.user = action.payload.user;
-          state.isAuthenticated = true;
-          state.loading.login = false;
-          state.error.login = null;
-          // Reset 2FA flags after successful verification
-          state.requires2FA = false;
-          state.pending2FAUserId = null;
         }
+        if (action.payload.sessionId) {
+          state.currentSessionId = action.payload.sessionId;
+        }
+        state.isAuthenticated = true;
       })
       // Handle pending states for verify2FALogin
       .addCase(verify2FALogin.pending, (state) => {
