@@ -277,22 +277,64 @@ const getMe = async (req, res) => {
 const handleOAuthCallback = (providerName) => async (req, res) => {
   try {
     const user = req.user;
-    // Record user session and get session
-    const session = await authService.addSession(user._id, {
-      ip: req.ip,
-      userAgent: req.headers["user-agent"],
-    });
-    // If user has 2FA enabled, redirect to a front-end OTP page instead of issuing tokens
+    const front =
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+    // If user has 2FA enabled, check for remembered device
     if (user.twoFactorEnabled) {
-      const front =
-        process.env.NODE_ENV === "development"
-          ? process.env.FRONTEND_URL_DEV
-          : process.env.FRONTEND_URL_PROD;
-      // Redirect to frontend OAuth login with 2FA parameters
+      // Fetch past sessions for this user
+      const sessions = await authService.getSessions(user._id);
+      const remembered = sessions.find(
+        (s) =>
+          s.ip === req.ip &&
+          s.userAgent === req.headers["user-agent"] &&
+          s.rememberedUntil &&
+          new Date(s.rememberedUntil) > new Date()
+      );
+      if (remembered) {
+        // Skip 2FA: create a new session and issue tokens
+        const session = await authService.addSession(user._id, {
+          ip: req.ip,
+          userAgent: req.headers["user-agent"],
+        });
+        const payload = {
+          id: user._id,
+          sessionId: session._id.toString(),
+        };
+        const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+          expiresIn: process.env.JWT_EXPIRES_IN,
+        });
+        const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+        });
+        await storeRefreshToken(user._id, refreshToken);
+        const cookieOptions = {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+        };
+        res.cookie("token", accessToken, {
+          ...cookieOptions,
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+        res.cookie("refreshToken", refreshToken, {
+          ...cookieOptions,
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        return res.redirect(`${front}/profile`);
+      }
+      // Otherwise require 2FA
       return res.redirect(
         `${front}/auth/login?oauth2fa=true&userId=${user._id}`
       );
     }
+
+    // No 2FA or not enabled: record session and issue tokens
+    const session = await authService.addSession(user._id, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
     // Generate tokens including sessionId
     const payload = { id: user._id, sessionId: session._id.toString() };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -314,11 +356,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    res.redirect(
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV + "/profile"
-        : process.env.FRONTEND_URL_PROD + "/profile"
-    );
+    return res.redirect(`${front}/profile`);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -580,14 +618,21 @@ const verify2FALogin = async (req, res) => {
         60 *
         1000,
     });
-    // Return method and sessionId
-    res
-      .status(200)
-      .json({
-        success: true,
+    // Return user, method, and sessionId for client-side authentication
+    // Fetch user details (exclude sensitive fields)
+    const user = await User.findById(userId).select("username email");
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id.toString(),
+          username: user.username,
+          email: user.email,
+        },
         method: verificationResult.method,
         sessionId: session._id.toString(),
-      });
+      },
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
