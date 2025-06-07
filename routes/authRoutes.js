@@ -2,16 +2,43 @@ const express = require("express");
 const authController = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 const passport = require("passport");
+const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
 
+// Rate limiters for sensitive auth routes
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  message: {
+    success: false,
+    message: "Too many login attempts, please try again later.",
+  },
+});
+const refreshLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: {
+    success: false,
+    message: "Too many token requests, please try again later.",
+  },
+});
+const otpLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: {
+    success: false,
+    message: "Too many OTP requests, please try again later.",
+  },
+});
+
 // Public routes
 router.post("/register", authController.register);
-router.post("/login", authController.login);
+router.post("/login", loginLimiter, authController.login);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password/:token", authController.resetPassword);
-router.post("/verify-otp", authController.verifyOtp);
-router.post("/resend-otp", authController.resendOtp);
+router.post("/verify-otp", otpLimiter, authController.verifyOtp);
+router.post("/resend-otp", otpLimiter, authController.resendOtp);
 
 // Protected routes
 router.get("/logout", protect, authController.logout);
@@ -63,7 +90,7 @@ router.get(
 );
 
 // Refresh token endpoint
-router.post("/refresh-token", authController.refreshToken);
+router.post("/refresh-token", refreshLimiter, authController.refreshToken);
 
 // Get linked OAuth providers
 router.get("/providers", protect, authController.getLinkedProviders);
@@ -124,7 +151,16 @@ router.delete("/sessions/:sessionId", protect, authController.deleteSession);
 // 2FA routes
 router.get("/2fa/generate", protect, authController.generate2FASecret);
 router.post("/2fa/enable", protect, authController.enable2FA);
-router.post("/2fa/verify", authController.verify2FALogin);
+router.post(
+  "/2fa/verify",
+  (req, res, next) => {
+    // Normalize rememberDevice to boolean
+    req.body.rememberDevice =
+      req.body.rememberDevice === true || req.body.rememberDevice === "true";
+    next();
+  },
+  authController.verify2FALogin
+);
 router.post("/2fa/disable", protect, authController.disable2FA);
 router.get("/2fa/status", protect, authController.get2FAStatus);
 router.post(

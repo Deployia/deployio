@@ -63,9 +63,10 @@ module.exports = (app) => {
       process.env.NODE_ENV === "development"
         ? process.env.FRONTEND_URL_DEV
         : process.env.FRONTEND_URL_PROD,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+    optionsSuccessStatus: 200,
   };
   app.use(cors(corsOptions));
 };

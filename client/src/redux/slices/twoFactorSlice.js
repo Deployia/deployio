@@ -50,11 +50,12 @@ export const enable2FA = createAsyncThunk(
 
 export const verify2FALogin = createAsyncThunk(
   "twoFactor/verify2FALogin",
-  async ({ token, userId }, { rejectWithValue }) => {
+  async ({ token, userId, rememberDevice }, { rejectWithValue }) => {
     try {
       const response = await api.post("/api/v1/auth/2fa/verify", {
         token,
         userId,
+        rememberDevice,
       });
       return response.data.data;
     } catch (error) {

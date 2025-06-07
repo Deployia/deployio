@@ -114,6 +114,16 @@ const userSchema = new mongoose.Schema(
         ip: { type: String },
         userAgent: { type: String },
         createdAt: { type: Date, default: Date.now },
+        // If user opts to remember device, skip 2FA until this date
+        rememberedUntil: { type: Date },
+      },
+    ],
+    // Store valid refresh tokens for rotation protection
+    refreshTokens: [
+      {
+        token: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+        expiresAt: { type: Date },
       },
     ],
   },
