@@ -47,6 +47,7 @@ function Profile() {
     sessions,
     sessionsLoading,
     sessionsError,
+    currentSessionId,
   } = useSelector((state) => state.auth);
   const authUser = useSelector((state) => state.auth.user);
 
@@ -198,6 +199,11 @@ function Profile() {
       dispatch(fetchSessions());
     }
   }, [activeTab, dispatch]);
+
+  // Deduplicate sessions by _id
+  const uniqueSessions = sessions.filter(
+    (s, idx, arr) => arr.findIndex((x) => x._id === s._id) === idx
+  );
 
   return (
     <div className="h-full bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 py-8 overflow-y-auto">
@@ -484,19 +490,26 @@ function Profile() {
                       <div className="text-red-500">{sessionsError}</div>
                     ) : (
                       <ul className="space-y-2">
-                        {sessions.map((s) => (
+                        {uniqueSessions.map((s) => (
                           <li
                             key={s._id}
+                            data-cy="session-item"
                             className="flex justify-between items-center bg-gray-700 p-2 rounded"
                           >
                             <div className="text-white text-sm">
                               {new Date(s.createdAt).toLocaleString()} — {s.ip}
+                              {s._id === currentSessionId && (
+                                <span className="ml-2 text-xs text-green-300">
+                                  (Current device)
+                                </span>
+                              )}
                             </div>
                             <button
+                              data-cy="session-signout"
                               className="px-2 py-1 bg-red-600 text-white rounded text-sm disabled:bg-gray-500"
-                              disabled={s.userAgent === navigator.userAgent}
+                              disabled={s._id === currentSessionId}
                               title={
-                                s.userAgent === navigator.userAgent
+                                s._id === currentSessionId
                                   ? "Cannot sign out current session"
                                   : "Sign out"
                               }

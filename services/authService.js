@@ -328,6 +328,11 @@ async function unlinkProvider(userId, provider) {
 async function addSession(userId, session) {
   const user = await User.findById(userId);
   if (!user) throw new Error("User not found");
+  // Avoid duplicate sessions for the same device
+  const existing = user.sessions.find(
+    (s) => s.ip === session.ip && s.userAgent === session.userAgent
+  );
+  if (existing) return existing;
   user.sessions.push(session);
   await user.save();
   return user.sessions[user.sessions.length - 1];
