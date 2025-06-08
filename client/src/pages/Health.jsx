@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Spinner from "../components/Spinner";
+import { FaCheckCircle, FaTimesCircle, FaClock } from "react-icons/fa";
 
 function Health() {
   const [loading, setLoading] = useState(true);
@@ -53,9 +54,16 @@ function Health() {
         <div className="grid md:grid-cols-2 gap-6">
           {/* Backend Card */}
           <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body">
-            <h3 className="text-lg font-semibold text-white mb-2 heading">
-              Backend Service
-            </h3>
+            <div className="flex items-center mb-2">
+              {backendStatus === "ok" ? (
+                <FaCheckCircle className="text-green-400 mr-2" />
+              ) : (
+                <FaTimesCircle className="text-red-400 mr-2" />
+              )}
+              <span className="text-lg font-semibold text-white heading">
+                Backend Service
+              </span>
+            </div>
             <p className="text-sm text-neutral-400">
               Message: <span className="text-white">{backendHello}</span>
             </p>
@@ -65,16 +73,24 @@ function Health() {
             <p className="text-sm text-neutral-400">
               MongoDB: <span className="text-white">{backendDb}</span>
             </p>
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-400 flex items-center">
+              <FaClock className="text-yellow-300 mr-1" />
               Uptime:{" "}
               <span className="text-white">{Math.round(backendUptime)}s</span>
             </p>
           </div>
           {/* FastAPI Card */}
           <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body">
-            <h3 className="text-lg font-semibold text-white mb-2 heading">
-              FastAPI Service
-            </h3>
+            <div className="flex items-center mb-2">
+              {fastapiStatus === "ok" ? (
+                <FaCheckCircle className="text-green-400 mr-2" />
+              ) : (
+                <FaTimesCircle className="text-red-400 mr-2" />
+              )}
+              <span className="text-lg font-semibold text-white heading">
+                FastAPI Service
+              </span>
+            </div>
             <p className="text-sm text-neutral-400">
               Message: <span className="text-white">{fastapiHello}</span>
             </p>
@@ -84,7 +100,8 @@ function Health() {
             <p className="text-sm text-neutral-400">
               MongoDB: <span className="text-white">{fastapiDb}</span>
             </p>
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-400 flex items-center">
+              <FaClock className="text-yellow-300 mr-1" />
               Uptime:{" "}
               <span className="text-white">{Math.round(fastapiUptime)}s</span>
             </p>
