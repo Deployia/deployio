@@ -4,6 +4,7 @@ const authRoutes = require("./routes/authRoutes");
 const errorHandler = require("./middleware/errorMiddleware");
 const routes = require("./routes");
 require("./config/passport");
+const mongoose = require("mongoose");
 
 const app = express();
 
@@ -13,9 +14,22 @@ init(app);
 // Routes
 app.use("/api/v1", routes);
 
-// Health check
+// Greeting endpoint
 app.get("/api/v1/hello", (req, res) => {
-  res.json({ message: "Hello from the backend! 💥⏳" });
+  res.json({ message: "Hello from Backend Service", uptime: process.uptime() });
+});
+
+// Health check
+app.get("/api/v1/health", (req, res) => {
+  const uptime = process.uptime();
+  const dbState =
+    mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  res.json({
+    service_name: "Backend Service",
+    status: "ok",
+    mongodb_status: dbState,
+    uptime: uptime,
+  });
 });
 
 // Cookie test
