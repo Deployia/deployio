@@ -299,7 +299,6 @@ async function getLinkedProviders(userId) {
   const user = await User.findById(userId);
   return {
     google: Boolean(user.googleId),
-    facebook: Boolean(user.facebookId),
     github: Boolean(user.githubId),
   };
 }
@@ -324,7 +323,6 @@ async function unlinkProvider(userId, provider) {
   let count = 0;
   if (user.password) count++;
   if (user.googleId) count++;
-  if (user.facebookId) count++;
   if (user.githubId) count++;
   if (count <= 1)
     throw new Error("Cannot unlink the only authentication method");

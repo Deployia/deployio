@@ -163,7 +163,7 @@
  *         required: true
  *         schema:
  *           type: string
- *         description: OAuth provider name (e.g., google, facebook, github)
+ *         description: OAuth provider name (e.g., google, github)
  *     responses:
  *       200:
  *         description: Provider unlinked successfully

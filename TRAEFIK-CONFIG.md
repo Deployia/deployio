@@ -58,7 +58,6 @@ Configure your OAuth providers with these callback URLs:
 
 - **Google**: `https://deployio.tech/api/v1/auth/google/callback`
 - **GitHub**: `https://deployio.tech/api/v1/auth/github/callback`
-- **Facebook**: `https://deployio.tech/api/v1/auth/facebook/callback`
 
 ### Development Environment
 
@@ -66,6 +65,5 @@ For local development, use these callback URLs:
 
 - **Google**: `http://localhost:3000/api/v1/auth/google/callback`
 - **GitHub**: `http://localhost:3000/api/v1/auth/github/callback`
-- **Facebook**: `http://localhost:3000/api/v1/auth/facebook/callback`
 
 Note: You may need to register separate OAuth applications for development and production environments.

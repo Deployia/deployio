@@ -368,7 +368,6 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
 
 const googleAuthCallback = handleOAuthCallback("google");
 const githubAuthCallback = handleOAuthCallback("github");
-const facebookAuthCallback = handleOAuthCallback("facebook");
 
 // Refresh token logic
 const refreshToken = async (req, res) => {
@@ -699,7 +698,6 @@ module.exports = {
   getMe,
   googleAuthCallback,
   githubAuthCallback,
-  facebookAuthCallback,
   refreshToken,
   verifyOtp,
   resendOtp,
