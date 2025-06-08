@@ -1,20 +1,8 @@
 // This file centralizes API base URL configuration
 
-const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_APP_ENV === "production") {
-    return "/api/v1";
-  }
-  return import.meta.env.VITE_APP_BACKEND_URL || "http://localhost:3000/api/v1";
-};
-
-const getFastApiBaseUrl = () => {
-  if (import.meta.env.VITE_APP_ENV === "production") {
-    return "/service/v1";
-  }
-  return (
-    import.meta.env.VITE_APP_FASTAPI_URL || "http://localhost:8000/service/v1"
-  );
-};
+// Simply use the environment variables, which are properly set with defaults in vite.config.js
+const getApiBaseUrl = () => import.meta.env.VITE_APP_BACKEND_URL;
+const getFastApiBaseUrl = () => import.meta.env.VITE_APP_FASTAPI_URL;
 
 // Log the URLs to help with debugging
 console.log("API Base URLs:", {

@@ -52,7 +52,7 @@ function Health() {
           Health Check
         </h2>
         {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-        {/* Environment Debug Section */}
+        {/* Environment Debug Section */}{" "}
         <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-4">
           <h3 className="text-lg font-semibold text-white heading mb-2">
             Environment Variables
@@ -73,6 +73,10 @@ function Health() {
             (isDev: <span className="text-white">{String(envInfo.isDev)}</span>,
             isProd: <span className="text-white">{String(envInfo.isProd)}</span>
             )
+          </p>
+          <p className="text-sm text-neutral-400">
+            Running in Docker:{" "}
+            <span className="text-white">{String(envInfo.inDocker)}</span>
           </p>
         </div>
         <div className="grid md:grid-cols-2 gap-6">

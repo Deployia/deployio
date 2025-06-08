@@ -4,13 +4,12 @@ This document explains how environment variables are handled in the Deployio app
 
 ## Frontend Environment Variables
 
-The frontend uses Vite's environment variable system with the following setup:
+The frontend uses Vite's environment variable system with a simplified setup:
 
 ### Environment Files
 
-- `.env`: Default environment variables for all environments
+- `.env`: Default environment variables used during build
 - `.env.local`: Local development overrides (not committed to git)
-- `.env.production`: Production-specific variables used during Docker build
 
 ### Key Environment Variables
 
@@ -20,10 +19,13 @@ The frontend uses Vite's environment variable system with the following setup:
 
 ### Docker Build
 
-The Docker build process injects environment variables in two ways:
+The Docker build process injects environment variables in a more streamlined manner:
 
-1. By copying `.env.production` into the container during build
-2. By using ARG/ENV in the Dockerfile to override variables when needed
+1. Build arguments from `docker-compose.yml` are passed to the Dockerfile
+2. These arguments are used to create a `.env` file during the container build
+3. Vite uses this `.env` file during the build process
+
+This eliminates duplication and ensures consistency between Docker and the application.
 
 ## Local Development
 
@@ -46,11 +48,20 @@ For local development:
 
 For production deployment:
 
-1. Environment variables are set in the `.env.production` file
+1. Environment variables are set as build arguments in `docker-compose.yml`
 2. The Docker build uses these variables to create a production build
 3. When deployed with Traefik, all service paths are properly routed:
    - `/api/v1/*` routes to the backend Express service
    - `/service/v1/*` routes to the FastAPI service
+
+## Default Values
+
+The application includes sensible defaults in `vite.config.js`:
+
+- For development: Local server URLs (http://localhost:...)
+- For production: Relative paths (/api/v1, /service/v1)
+
+These defaults are used when environment variables are not explicitly provided.
 
 ## Debugging
 
