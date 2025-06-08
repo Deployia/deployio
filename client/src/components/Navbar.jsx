@@ -4,6 +4,7 @@ import { logout } from "../redux/slices/authSlice";
 import { toast } from "react-hot-toast";
 import { useState } from "react";
 import { FaBars, FaTimes, FaSpinner } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -52,7 +53,6 @@ function Navbar() {
               DeployIO
             </span>
           </Link>
-
           {/* Desktop Navigation */}
           <nav className="hidden md:block">
             <ul className="flex items-center gap-2">
@@ -116,92 +116,135 @@ function Navbar() {
                 </>
               )}
             </ul>
-          </nav>
-
+          </nav>{" "}
           {/* Mobile Menu Button */}
-          <button
+          <motion.button
             onClick={toggleMobileMenu}
+            whileTap={{ scale: 0.95 }}
             className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-neutral-600 transition-colors duration-200"
             aria-label="Toggle mobile menu"
           >
-            {isMobileMenuOpen ? (
-              <FaTimes className="w-5 h-5" />
-            ) : (
-              <FaBars className="w-5 h-5" />
-            )}
-          </button>
-        </div>
-
+            <motion.div
+              animate={{ rotate: isMobileMenuOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {isMobileMenuOpen ? (
+                <FaTimes className="w-5 h-5" />
+              ) : (
+                <FaBars className="w-5 h-5" />
+              )}
+            </motion.div>
+          </motion.button>
+        </div>{" "}
         {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t border-neutral-800 animate-fade-in-down">
-            <nav className="pt-4">
-              <ul className="flex flex-col gap-2">
-                {isAuthenticated ? (
-                  <>
-                    <li>
-                      <Link
-                        to="/profile"
-                        onClick={closeMobileMenu}
-                        className="flex items-center min-h-[44px] px-4 py-3 rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors duration-200 font-medium text-base body"
-                      >
-                        Profile
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/health"
-                        onClick={closeMobileMenu}
-                        className="flex items-center min-h-[44px] px-4 py-3 rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors duration-200 font-medium text-base body"
-                      >
-                        System Health
-                      </Link>
-                    </li>
-                    <li className="pt-2 border-t border-neutral-800 mt-2">
-                      <button
-                        onClick={onLogout}
-                        disabled={isLoggingOut}
-                        className={`w-full flex items-center justify-center min-h-[44px] gap-2 px-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors duration-200 font-medium text-base body ${
-                          isLoggingOut ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                      >
-                        {isLoggingOut ? (
-                          <>
-                            <FaSpinner className="w-4 h-4 animate-spin flex-shrink-0" />
-                            <span>Logging out...</span>
-                          </>
-                        ) : (
-                          "Logout"
-                        )}
-                      </button>
-                    </li>
-                  </>
-                ) : (
-                  <>
-                    <li>
-                      <Link
-                        to="/auth/login"
-                        onClick={closeMobileMenu}
-                        className="flex items-center min-h-[44px] px-4 py-3 rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors duration-200 font-medium text-base body"
-                      >
-                        Login
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/auth/register"
-                        onClick={closeMobileMenu}
-                        className="flex items-center justify-center min-h-[44px] px-4 py-3 rounded-lg bg-white hover:bg-neutral-100 text-black transition-colors duration-200 font-medium text-base body"
-                      >
-                        Sign Up
-                      </Link>
-                    </li>
-                  </>
-                )}
-              </ul>
-            </nav>
-          </div>
-        )}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="md:hidden overflow-hidden"
+            >
+              <div className="mt-4 pb-4 border-t border-neutral-800">
+                <nav className="pt-4">
+                  <motion.ul
+                    initial={{ y: -10 }}
+                    animate={{ y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.2 }}
+                    className="flex flex-col gap-2"
+                  >
+                    {" "}
+                    {isAuthenticated ? (
+                      <>
+                        <motion.li
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1, duration: 0.2 }}
+                        >
+                          <Link
+                            to="/profile"
+                            onClick={closeMobileMenu}
+                            className="flex items-center min-h-[44px] px-4 py-3 rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors duration-200 font-medium text-base body"
+                          >
+                            Profile
+                          </Link>
+                        </motion.li>
+                        <motion.li
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.2, duration: 0.2 }}
+                        >
+                          <Link
+                            to="/health"
+                            onClick={closeMobileMenu}
+                            className="flex items-center min-h-[44px] px-4 py-3 rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors duration-200 font-medium text-base body"
+                          >
+                            System Health
+                          </Link>
+                        </motion.li>
+                        <motion.li
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.3, duration: 0.2 }}
+                          className="pt-2 border-t border-neutral-800 mt-2"
+                        >
+                          <button
+                            onClick={onLogout}
+                            disabled={isLoggingOut}
+                            className={`w-full flex items-center justify-center min-h-[44px] gap-2 px-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors duration-200 font-medium text-base body ${
+                              isLoggingOut
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          >
+                            {isLoggingOut ? (
+                              <>
+                                <FaSpinner className="w-4 h-4 animate-spin flex-shrink-0" />
+                                <span>Logging out...</span>
+                              </>
+                            ) : (
+                              "Logout"
+                            )}
+                          </button>
+                        </motion.li>
+                      </>
+                    ) : (
+                      <>
+                        <motion.li
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1, duration: 0.2 }}
+                        >
+                          <Link
+                            to="/auth/login"
+                            onClick={closeMobileMenu}
+                            className="flex items-center min-h-[44px] px-4 py-3 rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors duration-200 font-medium text-base body"
+                          >
+                            Login
+                          </Link>
+                        </motion.li>
+                        <motion.li
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.2, duration: 0.2 }}
+                        >
+                          <Link
+                            to="/auth/register"
+                            onClick={closeMobileMenu}
+                            className="flex items-center justify-center min-h-[44px] px-4 py-3 rounded-lg bg-white hover:bg-neutral-100 text-black transition-colors duration-200 font-medium text-base body"
+                          >
+                            Sign Up
+                          </Link>
+                        </motion.li>
+                      </>
+                    )}
+                  </motion.ul>
+                </nav>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </header>
   );
