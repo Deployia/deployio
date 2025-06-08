@@ -87,6 +87,11 @@ EMAIL_FROM=your_email@gmail.com
 # Password Reset Token Expiry (in minutes)
 PASSWORD_RESET_EXPIRES=30
 
+# Facebook OAuth
+FACEBOOK_CLIENT_ID=your_facebook_client_id
+FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
+FACEBOOK_CALLBACK_URL=http://localhost:5000/api/v1/auth/facebook/callback
+
 # GitHub OAuth
 GITHUB_CLIENT_ID=your_github_client_id
 GITHUB_CLIENT_SECRET=your_github_client_secret
