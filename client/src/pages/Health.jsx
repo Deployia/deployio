@@ -3,7 +3,21 @@ import api from "../utils/api";
 import fastapi from "../utils/fastapi";
 import useEnvironmentInfo from "../utils/useEnvironmentInfo";
 import Spinner from "../components/Spinner";
-import { FaCheckCircle, FaTimesCircle, FaClock } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaTimesCircle,
+  FaClock,
+  FaServer,
+  FaDatabase,
+  FaCode,
+  FaCog,
+  FaClipboardCheck,
+  FaExclamationTriangle,
+  FaDocker,
+  FaNetworkWired,
+  FaCodeBranch,
+  FaInfoCircle,
+} from "react-icons/fa";
 
 function Health() {
   const [loading, setLoading] = useState(true);
@@ -47,92 +61,363 @@ function Health() {
   if (loading) return <Spinner fullScreen={true} />;
   return (
     <>
-      <div className="h-full overflow-auto p-6 body">
-        <h2 className="text-2xl font-bold text-white mb-4 heading">
-          Health Check
-        </h2>
-        {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-        {/* Environment Debug Section */}{" "}
-        <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-4">
-          <h3 className="text-lg font-semibold text-white heading mb-2">
-            Environment Variables
-          </h3>
-          <p className="text-sm text-neutral-400">
-            ENV: <span className="text-white">{envInfo.env}</span>
-          </p>
-          <p className="text-sm text-neutral-400">
-            Backend URL:{" "}
-            <span className="text-white">{envInfo.backendUrl}</span>
-          </p>
-          <p className="text-sm text-neutral-400">
-            FastAPI URL:{" "}
-            <span className="text-white">{envInfo.fastapiUrl}</span>
-          </p>
-          <p className="text-sm text-neutral-400">
-            Mode: <span className="text-white">{envInfo.mode}</span>
-            (isDev: <span className="text-white">{String(envInfo.isDev)}</span>,
-            isProd: <span className="text-white">{String(envInfo.isProd)}</span>
-            )
-          </p>
-          <p className="text-sm text-neutral-400">
-            Running in Docker:{" "}
-            <span className="text-white">{String(envInfo.inDocker)}</span>
-          </p>
-        </div>
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Backend Card */}
-          <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body">
-            <div className="flex items-center mb-2">
-              {backendStatus === "ok" ? (
-                <FaCheckCircle className="text-green-400 mr-2" />
-              ) : (
-                <FaTimesCircle className="text-red-400 mr-2" />
-              )}
-              <span className="text-lg font-semibold text-white heading">
-                Backend Service
-              </span>
+      <div className="h-full overflow-auto p-6 body bg-gradient-to-b from-black to-neutral-900">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-1 heading flex items-center">
+                <FaClipboardCheck className="mr-2 text-purple-400" />
+                System Health Dashboard
+              </h2>
+              <p className="text-neutral-400 text-sm">
+                Monitor the status and performance of all system components
+              </p>
             </div>
-            <p className="text-sm text-neutral-400">
-              Message: <span className="text-white">{backendHello}</span>
-            </p>
-            <p className="text-sm text-neutral-400">
-              Status: <span className="text-white">{backendStatus}</span>
-            </p>
-            <p className="text-sm text-neutral-400">
-              MongoDB: <span className="text-white">{backendDb}</span>
-            </p>
-            <p className="text-sm text-neutral-400 flex items-center">
-              <FaClock className="text-yellow-300 mr-1" />
-              Uptime:{" "}
-              <span className="text-white">{Math.round(backendUptime)}s</span>
-            </p>
+            {error ? (
+              <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center">
+                <FaExclamationTriangle className="text-red-400 mr-2" />
+                <span className="text-red-300 text-sm">{error}</span>
+              </div>
+            ) : (
+              <div className="px-4 py-2 bg-green-900/20 border border-green-700/30 rounded-lg flex items-center">
+                <FaCheckCircle className="text-green-400 mr-2" />
+                <span className="text-green-300 text-sm">
+                  All systems operational
+                </span>
+              </div>
+            )}
           </div>
-          {/* FastAPI Card */}
-          <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body">
-            <div className="flex items-center mb-2">
-              {fastapiStatus === "ok" ? (
-                <FaCheckCircle className="text-green-400 mr-2" />
-              ) : (
-                <FaTimesCircle className="text-red-400 mr-2" />
-              )}
-              <span className="text-lg font-semibold text-white heading">
-                FastAPI Service
-              </span>
+
+          {/* Service Status Cards */}
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            {/* Backend Card */}
+            <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body shadow-lg bg-neutral-900/70 hover:bg-neutral-900 transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div
+                    className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
+                      backendStatus === "ok"
+                        ? "bg-green-600/20 text-green-400"
+                        : "bg-red-600/20 text-red-400"
+                    }`}
+                  >
+                    <FaServer className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white heading">
+                      Backend Service
+                    </h3>
+                    <p className="text-xs text-neutral-400">Express.js API</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  {backendStatus === "ok" ? (
+                    <span className="px-2 py-1 text-xs bg-green-900/30 text-green-300 rounded-full border border-green-700/30">
+                      Online
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 text-xs bg-red-900/30 text-red-300 rounded-full border border-red-700/30">
+                      Issue Detected
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 mt-4 border-t border-neutral-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaInfoCircle className="mr-2 text-neutral-500" />
+                    Status
+                  </div>
+                  <div className="flex items-center">
+                    {backendStatus === "ok" ? (
+                      <FaCheckCircle className="text-green-400 mr-2" />
+                    ) : (
+                      <FaTimesCircle className="text-red-400 mr-2" />
+                    )}
+                    <span
+                      className={
+                        backendStatus === "ok"
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }
+                    >
+                      {backendStatus || "Unknown"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaDatabase className="mr-2 text-neutral-500" />
+                    Database
+                  </div>
+                  <div className="flex items-center">
+                    {backendDb === "connected" ? (
+                      <FaCheckCircle className="text-green-400 mr-2" />
+                    ) : (
+                      <FaTimesCircle className="text-red-400 mr-2" />
+                    )}
+                    <span
+                      className={
+                        backendDb === "connected"
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }
+                    >
+                      {backendDb || "Unknown"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaClock className="mr-2 text-neutral-500" />
+                    Uptime
+                  </div>
+                  <div>
+                    <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
+                      {Math.round(backendUptime)}s
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaCode className="mr-2 text-neutral-500" />
+                    Response
+                  </div>
+                  <div>
+                    <span className="text-white text-sm italic">
+                      "{backendHello}"
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-neutral-400">
-              Message: <span className="text-white">{fastapiHello}</span>
-            </p>
-            <p className="text-sm text-neutral-400">
-              Status: <span className="text-white">{fastapiStatus}</span>
-            </p>
-            <p className="text-sm text-neutral-400">
-              MongoDB: <span className="text-white">{fastapiDb}</span>
-            </p>
-            <p className="text-sm text-neutral-400 flex items-center">
-              <FaClock className="text-yellow-300 mr-1" />
-              Uptime:{" "}
-              <span className="text-white">{Math.round(fastapiUptime)}s</span>
-            </p>
+
+            {/* FastAPI Card */}
+            <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body shadow-lg bg-neutral-900/70 hover:bg-neutral-900 transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div
+                    className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
+                      fastapiStatus === "ok"
+                        ? "bg-blue-600/20 text-blue-400"
+                        : "bg-red-600/20 text-red-400"
+                    }`}
+                  >
+                    <FaCode className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white heading">
+                      FastAPI Service
+                    </h3>
+                    <p className="text-xs text-neutral-400">
+                      Python microservice
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  {fastapiStatus === "ok" ? (
+                    <span className="px-2 py-1 text-xs bg-blue-900/30 text-blue-300 rounded-full border border-blue-700/30">
+                      Online
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 text-xs bg-red-900/30 text-red-300 rounded-full border border-red-700/30">
+                      Issue Detected
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 mt-4 border-t border-neutral-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaInfoCircle className="mr-2 text-neutral-500" />
+                    Status
+                  </div>
+                  <div className="flex items-center">
+                    {fastapiStatus === "ok" ? (
+                      <FaCheckCircle className="text-blue-400 mr-2" />
+                    ) : (
+                      <FaTimesCircle className="text-red-400 mr-2" />
+                    )}
+                    <span
+                      className={
+                        fastapiStatus === "ok"
+                          ? "text-blue-400"
+                          : "text-red-400"
+                      }
+                    >
+                      {fastapiStatus || "Unknown"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaDatabase className="mr-2 text-neutral-500" />
+                    Database
+                  </div>
+                  <div className="flex items-center">
+                    {fastapiDb === "connected" ? (
+                      <FaCheckCircle className="text-blue-400 mr-2" />
+                    ) : (
+                      <FaTimesCircle className="text-red-400 mr-2" />
+                    )}
+                    <span
+                      className={
+                        fastapiDb === "connected"
+                          ? "text-blue-400"
+                          : "text-red-400"
+                      }
+                    >
+                      {fastapiDb || "Unknown"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaClock className="mr-2 text-neutral-500" />
+                    Uptime
+                  </div>
+                  <div>
+                    <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
+                      {Math.round(fastapiUptime)}s
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaCode className="mr-2 text-neutral-500" />
+                    Response
+                  </div>
+                  <div>
+                    <span className="text-white text-sm italic">
+                      "{fastapiHello}"
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Environment Debug Section */}
+          <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-4 bg-neutral-900/70">
+            <div className="flex items-center mb-4">
+              <div className="h-10 w-10 rounded-lg flex items-center justify-center mr-3 bg-purple-600/20 text-purple-400">
+                <FaCog className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white heading">
+                  Environment Configuration
+                </h3>
+                <p className="text-xs text-neutral-400">
+                  System environment settings and deployment info
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                <div className="flex items-center mb-2">
+                  <FaCodeBranch className="text-purple-400 mr-2" />
+                  <h4 className="text-sm font-medium text-neutral-200">
+                    Environment
+                  </h4>
+                </div>
+                <p className="text-sm text-neutral-400 flex items-center justify-between">
+                  <span>ENV:</span>
+                  <span className="text-white bg-neutral-700 px-2 py-0.5 rounded text-xs">
+                    {envInfo.env}
+                  </span>
+                </p>
+                <p className="text-sm text-neutral-400 flex items-center justify-between mt-1">
+                  <span>Mode:</span>
+                  <span className="text-white bg-neutral-700 px-2 py-0.5 rounded text-xs">
+                    {envInfo.mode}
+                  </span>
+                </p>
+              </div>
+
+              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                <div className="flex items-center mb-2">
+                  <FaNetworkWired className="text-purple-400 mr-2" />
+                  <h4 className="text-sm font-medium text-neutral-200">
+                    API Endpoints
+                  </h4>
+                </div>
+                <p className="text-sm text-neutral-400 flex items-center justify-between">
+                  <span>Backend:</span>
+                  <span className="text-white bg-neutral-700 px-2 py-0.5 rounded text-xs font-mono">
+                    {envInfo.backendUrl}
+                  </span>
+                </p>
+                <p className="text-sm text-neutral-400 flex items-center justify-between mt-1">
+                  <span>FastAPI:</span>
+                  <span className="text-white bg-neutral-700 px-2 py-0.5 rounded text-xs font-mono">
+                    {envInfo.fastapiUrl}
+                  </span>
+                </p>
+              </div>
+
+              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                <div className="flex items-center mb-2">
+                  <FaDocker className="text-purple-400 mr-2" />
+                  <h4 className="text-sm font-medium text-neutral-200">
+                    Container Status
+                  </h4>
+                </div>
+                <p className="text-sm text-neutral-400 flex items-center justify-between">
+                  <span>In Docker Container:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs ${
+                      envInfo.inDocker
+                        ? "bg-green-900/30 text-green-300 border border-green-700/30"
+                        : "bg-yellow-900/30 text-yellow-300 border border-yellow-700/30"
+                    }`}
+                  >
+                    {String(envInfo.inDocker)}
+                  </span>
+                </p>
+              </div>
+
+              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                <div className="flex items-center mb-2">
+                  <FaInfoCircle className="text-purple-400 mr-2" />
+                  <h4 className="text-sm font-medium text-neutral-200">
+                    Build Info
+                  </h4>
+                </div>
+                <p className="text-sm text-neutral-400 flex items-center justify-between">
+                  <span>Dev Mode:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs ${
+                      envInfo.isDev
+                        ? "bg-blue-900/30 text-blue-300 border border-blue-700/30"
+                        : "bg-neutral-700/50 text-neutral-300"
+                    }`}
+                  >
+                    {String(envInfo.isDev)}
+                  </span>
+                </p>
+                <p className="text-sm text-neutral-400 flex items-center justify-between mt-1">
+                  <span>Production Mode:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs ${
+                      envInfo.isProd
+                        ? "bg-purple-900/30 text-purple-300 border border-purple-700/30"
+                        : "bg-neutral-700/50 text-neutral-300"
+                    }`}
+                  >
+                    {String(envInfo.isProd)}
+                  </span>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

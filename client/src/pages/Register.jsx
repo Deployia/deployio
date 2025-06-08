@@ -76,7 +76,7 @@ function Register() {
         {/* Left Side: Branding/Header */}
         <div className="w-1/2 flex flex-col justify-center items-center px-8 py-10 border-r border-neutral-800 text-center">
           <div className="mx-auto h-16 w-16 bg-neutral-800 rounded-full flex items-center justify-center mb-4 border border-neutral-700">
-            <span className="text-white text-2xl font-bold">F!</span>
+            <img src="/favicon.png" alt="Logo" className="h-8 w-8" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Join DeployIO</h2>
           <p className="text-neutral-400 text-sm">
