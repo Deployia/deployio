@@ -11,6 +11,7 @@
     "server": "nodemon server.js",
     "client": "npm run dev --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "docker": "docker-compose up --build",
     "prod": "NODE_ENV=production node server.js"
   },
   "keywords": [],

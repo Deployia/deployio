@@ -206,10 +206,17 @@ function Register() {
                   or continue with
                 </span>
               </div>
-            </div>
+            </div>{" "}
             <div className="grid grid-cols-3 gap-2 mt-2">
               <a
-                href="http://localhost:5000/api/v1/auth/google"
+                href={
+                  import.meta.env.VITE_APP_ENV === "production"
+                    ? "/api/v1/auth/google"
+                    : `${
+                        import.meta.env.VITE_APP_BACKEND_URL ||
+                        "http://localhost:3000"
+                      }/api/v1/auth/google`
+                }
                 className="flex items-center justify-center py-2.5 px-3 border border-neutral-700 rounded-lg bg-black text-white hover:bg-neutral-800 transition-all duration-200"
               >
                 <svg className="w-4 h-4" viewBox="0 0 48 48">
@@ -235,7 +242,14 @@ function Register() {
                 </svg>
               </a>
               <a
-                href="http://localhost:5000/api/v1/auth/github"
+                href={
+                  import.meta.env.VITE_APP_ENV === "production"
+                    ? "/api/v1/auth/github"
+                    : `${
+                        import.meta.env.VITE_APP_BACKEND_URL ||
+                        "http://localhost:3000"
+                      }/api/v1/auth/github`
+                }
                 className="flex items-center justify-center py-2.5 px-3 border border-neutral-700 rounded-lg bg-black text-white hover:bg-neutral-800 transition-all duration-200"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -246,7 +260,14 @@ function Register() {
                 </svg>
               </a>
               <a
-                href="http://localhost:5000/api/v1/auth/facebook"
+                href={
+                  import.meta.env.VITE_APP_ENV === "production"
+                    ? "/api/v1/auth/facebook"
+                    : `${
+                        import.meta.env.VITE_APP_BACKEND_URL ||
+                        "http://localhost:3000"
+                      }/api/v1/auth/facebook`
+                }
                 className="flex items-center justify-center py-2.5 px-3 border border-neutral-700 rounded-lg bg-black text-white hover:bg-neutral-800 transition-all duration-200"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">

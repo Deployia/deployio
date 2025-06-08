@@ -41,8 +41,6 @@ services:
         condition: service_healthy
       fastapi:
         condition: service_healthy
-    env_file:
-      - ./client/.env
 
   backend:
     build: .
@@ -99,16 +97,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 5s
     volumes:
       - mongodb_data:/data/db
     networks:
       - web
 
-volumes:
-  letsencrypt:
-  mongodb_data:
-
 networks:
   web:
     driver: bridge
+
+volumes:
+  letsencrypt:
+  mongodb_data:

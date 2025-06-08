@@ -21,7 +21,7 @@ export const generate2FASecret = createAsyncThunk(
   "twoFactor/generate2FASecret",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/api/v1/auth/2fa/generate");
+      const response = await api.get("/auth/2fa/generate");
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
@@ -35,7 +35,7 @@ export const enable2FA = createAsyncThunk(
   "twoFactor/enable2FA",
   async ({ token, secret }, { rejectWithValue }) => {
     try {
-      const response = await api.post("/api/v1/auth/2fa/enable", {
+      const response = await api.post("/auth/2fa/enable", {
         token,
         secret,
       });
@@ -52,7 +52,7 @@ export const verify2FALogin = createAsyncThunk(
   "twoFactor/verify2FALogin",
   async ({ token, userId, rememberDevice }, { rejectWithValue }) => {
     try {
-      const response = await api.post("/api/v1/auth/2fa/verify", {
+      const response = await api.post("/auth/2fa/verify", {
         token,
         userId,
         rememberDevice,
@@ -70,7 +70,7 @@ export const disable2FA = createAsyncThunk(
   "twoFactor/disable2FA",
   async (password, { rejectWithValue }) => {
     try {
-      const response = await api.post("/api/v1/auth/2fa/disable", { password });
+      const response = await api.post("/auth/2fa/disable", { password });
       return response.data.message;
     } catch (error) {
       return rejectWithValue(
@@ -84,7 +84,7 @@ export const get2FAStatus = createAsyncThunk(
   "twoFactor/get2FAStatus",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/api/v1/auth/2fa/status");
+      const response = await api.get("/auth/2fa/status");
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
@@ -98,7 +98,7 @@ export const generateNewBackupCodes = createAsyncThunk(
   "twoFactor/generateNewBackupCodes",
   async (password, { rejectWithValue }) => {
     try {
-      const response = await api.post("/api/v1/auth/2fa/backup-codes", {
+      const response = await api.post("/auth/2fa/backup-codes", {
         password,
       });
       return response.data.data;

@@ -6,7 +6,7 @@ export const updateProfile = createAsyncThunk(
   "user/updateProfile",
   async (formData, thunkAPI) => {
     try {
-      const response = await api.put("/api/v1/user/profile", formData, {
+      const response = await api.put("/user/profile", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data.user;
@@ -23,7 +23,7 @@ export const updatePassword = createAsyncThunk(
   "user/updatePassword",
   async (data, thunkAPI) => {
     try {
-      const response = await api.put("/api/v1/user/update-password", data);
+      const response = await api.put("/user/update-password", data);
       return response.data.message;
     } catch (error) {
       return thunkAPI.rejectWithValue(

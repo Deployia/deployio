@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../utils/api";
+import fastapi from "../utils/fastapi";
+import useEnvironmentInfo from "../utils/useEnvironmentInfo";
 import Spinner from "../components/Spinner";
 import { FaCheckCircle, FaTimesCircle, FaClock } from "react-icons/fa";
 
@@ -14,23 +16,23 @@ function Health() {
   const [fastapiDb, setFastapiDb] = useState(null);
   const [fastapiUptime, setFastapiUptime] = useState(null);
   const [error, setError] = useState(null);
-
+  const envInfo = useEnvironmentInfo();
   useEffect(() => {
     async function fetchStatuses() {
       try {
         // Backend greeting + health
-        const beHello = await axios.get("/api/v1/hello");
+        const beHello = await api.get("/hello");
         setBackendHello(beHello.data.message);
         setBackendUptime(beHello.data.uptime);
-        const beHealth = await axios.get("/api/v1/health");
+        const beHealth = await api.get("/health");
         setBackendStatus(beHealth.data.status);
         setBackendDb(beHealth.data.mongodb_status);
 
         // FastAPI greeting + health
-        const faHello = await axios.get("/service/v1/hello");
+        const faHello = await fastapi.get("/hello");
         setFastapiHello(faHello.data.message);
         setFastapiUptime(faHello.data.uptime);
-        const faHealth = await axios.get("/service/v1/health");
+        const faHealth = await fastapi.get("/health");
         setFastapiStatus(faHealth.data.status);
         setFastapiDb(faHealth.data.mongodb_status);
       } catch (err) {
@@ -43,7 +45,6 @@ function Health() {
   }, []);
 
   if (loading) return <Spinner fullScreen={true} />;
-
   return (
     <>
       <div className="h-full overflow-auto p-6 body">
@@ -51,6 +52,29 @@ function Health() {
           Health Check
         </h2>
         {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
+        {/* Environment Debug Section */}
+        <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-4">
+          <h3 className="text-lg font-semibold text-white heading mb-2">
+            Environment Variables
+          </h3>
+          <p className="text-sm text-neutral-400">
+            ENV: <span className="text-white">{envInfo.env}</span>
+          </p>
+          <p className="text-sm text-neutral-400">
+            Backend URL:{" "}
+            <span className="text-white">{envInfo.backendUrl}</span>
+          </p>
+          <p className="text-sm text-neutral-400">
+            FastAPI URL:{" "}
+            <span className="text-white">{envInfo.fastapiUrl}</span>
+          </p>
+          <p className="text-sm text-neutral-400">
+            Mode: <span className="text-white">{envInfo.mode}</span>
+            (isDev: <span className="text-white">{String(envInfo.isDev)}</span>,
+            isProd: <span className="text-white">{String(envInfo.isProd)}</span>
+            )
+          </p>
+        </div>
         <div className="grid md:grid-cols-2 gap-6">
           {/* Backend Card */}
           <div className="p-4 backdrop-blur-lg rounded-xl border border-neutral-700 body">
