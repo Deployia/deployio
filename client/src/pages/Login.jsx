@@ -122,7 +122,7 @@ function Login() {
           {/* Header - Compact */}
           <div className="px-6 py-4 text-center border-b border-neutral-800">
             <div className="mx-auto h-12 w-12 bg-neutral-800 rounded-full flex items-center justify-center mb-3 border border-neutral-700">
-              <span className="text-white text-lg font-bold">F!</span>
+              <img src="/favicon.png" alt="Logo" className="h-8 w-8" />
             </div>
             <h2 className="text-xl font-bold text-white">Welcome back</h2>
             <p className="text-neutral-400 text-xs mt-1">
