@@ -98,7 +98,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for better scanning
+          fetch-depth: 0 # Fetch full history for better scanning
 
       - name: TruffleHog OSS (Full Scan for Main Branch)
         if: github.ref == 'refs/heads/main'
