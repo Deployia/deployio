@@ -22,6 +22,7 @@ import DevHealthPage from "./pages/DevHealthPage"; // Import the new health page
 import { getMe } from "./redux/slices/authSlice";
 import Profile from "./pages/Profile";
 import VerifyOtp from "./pages/VerifyOtp";
+import Sidebar from "./components/Sidebar";
 
 function App() {
   const { loading } = useSelector((state) => state.auth);
@@ -97,6 +98,7 @@ function App() {
         </Route>
       </Routes>
       <Modal />
+      <Sidebar/>
     </>
   );
 }

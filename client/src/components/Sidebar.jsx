@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSidebar } from "../context/SidebarContext.jsx";
+import { FaTimes } from "react-icons/fa";
 
 const Sidebar = () => {
   const { isSidebarOpen, closeSidebar, sidebarContent } = useSidebar();
@@ -73,7 +74,7 @@ const Sidebar = () => {
       <aside
         ref={sidebarRef}
         // Apply themed background and border to sidebar
-        className={`ml-auto h-full w-[90vw] max-w-sm bg-[rgb(var(--bg-secondary))] border-l border-[rgb(var(--bg-tertiary))] shadow-2xl p-6 overflow-y-auto transform transition-transform duration-300 ${
+        className={`ml-auto h-full w-[90vw] max-w-sm bg-[rgb(var(--bg-secondary))] border-l border-[rgb(var(--bg-tertiary))] shadow-2xl p-4 overflow-y-auto transform transition-transform duration-300 ${
           animate ? "translate-x-0" : "translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -81,8 +82,18 @@ const Sidebar = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
+        {/* Close button */}
+        <button
+          onClick={closeSidebar}
+          className="absolute top-4 right-4 p-2 text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--bg-hover))] rounded-md transition-colors"
+          aria-label="Close sidebar"
+        >
+          <FaTimes className="h-5 w-5" />
+        </button>
         {/* Ensure sidebar content text color is themed */}
-        <div className="text-[rgb(var(--text-primary))]">{sidebarContent}</div>
+        <div className="mt-6 space-y-4 text-[rgb(var(--text-primary))]">
+          {sidebarContent}
+        </div>
       </aside>
     </div>
   );
