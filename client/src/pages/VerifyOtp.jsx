@@ -130,12 +130,17 @@ function VerifyOtp() {
                 : "Verify your account"}
             </h2>
             <p className="text-neutral-300 text-sm mt-2">
-              Enter the 6-digit code sent to <span className="text-purple-300 font-medium">{email || "your email"}</span>
+              Enter the 6-digit code sent to{" "}
+              <span className="text-purple-300 font-medium">
+                {email || "your email"}
+              </span>
             </p>
           </div>
           <div className="px-6 sm:px-10 py-10 overflow-x-hidden bg-neutral-900">
             <form onSubmit={onSubmit} className="space-y-6">
-              <div>                <label
+              <div>
+                {" "}
+                <label
                   htmlFor="otp-input-0"
                   className="flex items-center text-sm font-medium text-neutral-300 mb-2"
                 >
@@ -177,10 +182,14 @@ function VerifyOtp() {
                 disabled={loading.verifyOtp || otpArray.join("").length !== 6}
                 className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900 focus:ring-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading.verifyOtp ? <Spinner size={20} /> : "Verify & Continue"}
+                {loading.verifyOtp ? (
+                  <Spinner size={20} />
+                ) : (
+                  "Verify & Continue"
+                )}
               </button>
             </form>
-            
+
             <div className="text-center pt-6 border-t border-neutral-800 mt-6">
               {isFromLogin && (
                 <div className="mb-4 bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
