@@ -206,11 +206,11 @@ function Profile() {
   );
 
   return (
-    <div className="h-full bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 py-8 overflow-y-auto">
+    <div className="h-full bg-black py-8 overflow-y-auto">
       <div className="max-w-2xl mx-auto px-4">
-        <div className="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
+        <div className="bg-neutral-900 rounded-2xl border border-neutral-700 overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-8 py-6">
+          <div className="px-8 py-6 border-b border-neutral-800">
             <h1 className="text-2xl font-bold text-white text-center">
               Profile Settings
             </h1>
@@ -219,7 +219,6 @@ function Profile() {
           {/* Profile image and user details */}
           <div className="px-8 py-8">
             <div className="flex flex-col items-center mb-8">
-              {" "}
               <div className="relative">
                 <img
                   src={
@@ -229,28 +228,27 @@ function Profile() {
                       (authUser?.username || "User")
                   }
                   alt="Profile"
-                  className="w-24 h-24 rounded-full border-4 border-purple-100 shadow-lg mb-2"
+                  className="w-24 h-24 rounded-full border-4 border-neutral-700 mb-2"
                 />
                 <div className="absolute bottom-2 right-2 flex gap-1">
                   <button
                     type="button"
-                    className="bg-white rounded-full p-2 shadow-lg hover:bg-purple-50 border border-purple-200 transition-all duration-200"
+                    className="bg-black rounded-full p-2 border border-neutral-700 hover:bg-neutral-800 transition-all duration-200"
                     onClick={() =>
                       fileInputRef.current && fileInputRef.current.click()
                     }
                     aria-label="Change profile image"
                   >
-                    <FaPen className="text-purple-600 w-3 h-3" />
+                    <FaPen className="text-white w-3 h-3" />
                   </button>
                   {(user?.profileImage || authUser?.profileImage) && (
                     <button
                       type="button"
-                      className="bg-white rounded-full p-2 shadow-lg hover:bg-red-50 border border-red-200 transition-all duration-200"
+                      className="bg-black rounded-full p-2 border border-neutral-700 hover:bg-neutral-800 transition-all duration-200"
                       onClick={handleRemoveProfileImage}
                       aria-label="Remove profile image"
                     >
-                      {" "}
-                      <FaTrash className="text-red-500 w-3 h-3" />
+                      <FaTrash className="text-white w-3 h-3" />
                     </button>
                   )}
                 </div>
@@ -267,18 +265,18 @@ function Profile() {
                 <div className="font-bold text-xl text-white">
                   {authUser?.username || "User Name"}
                 </div>
-                <div className="text-slate-500 text-sm">
+                <div className="text-neutral-500 text-sm">
                   {authUser?.email || "user@email.com"}
                 </div>
               </div>
-            </div>{" "}
+            </div>
             {/* Tabs */}
-            <div className="flex border-b border-purple-100 mb-8">
+            <div className="flex border-b border-neutral-700 mb-8">
               <button
                 className={`px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
                   activeTab === "details"
-                    ? "border-purple-500 text-purple-600 bg-purple-50"
-                    : "border-transparent text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                    ? "border-white text-white bg-black"
+                    : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
                 }`}
                 onClick={() => handleTabChange("details")}
               >
@@ -287,8 +285,8 @@ function Profile() {
               <button
                 className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
                   activeTab === "password"
-                    ? "border-purple-500 text-purple-600 bg-purple-50"
-                    : "border-transparent text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                    ? "border-white text-white bg-black"
+                    : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
                 }`}
                 onClick={() => handleTabChange("password")}
               >
@@ -297,8 +295,8 @@ function Profile() {
               <button
                 className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
                   activeTab === "security"
-                    ? "border-purple-500 text-purple-600 bg-purple-50"
-                    : "border-transparent text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                    ? "border-white text-white bg-black"
+                    : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
                 }`}
                 onClick={() => handleTabChange("security")}
               >
