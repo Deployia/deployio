@@ -5,17 +5,26 @@ const mongoose = require("mongoose");
  * @returns {Promise} Mongoose connection promise
  */
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      // mongoose 6+ doesn't need these options anymore, they're set by default
-      // but we keep them for backward compatibility or if using an older version
-    });
-
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    return conn;
-  } catch (error) {
-    console.error(`Error connecting to MongoDB: ${error.message}`);
-    process.exit(1);
+  const maxRetries = 5;
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      const conn = await mongoose.connect(process.env.MONGODB_URI, {
+        // mongoose 6+ default options
+      });
+      console.log(`MongoDB Connected: ${conn.connection.host}`);
+      return conn;
+    } catch (error) {
+      attempt++;
+      console.error(
+        `MongoDB connection attempt ${attempt} failed: ${error.message}`
+      );
+      if (attempt >= maxRetries) {
+        console.error("Max MongoDB connection retries reached. Exiting.");
+        process.exit(1);
+      }
+      await new Promise((res) => setTimeout(res, 5000));
+    }
   }
 };
 

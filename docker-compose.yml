@@ -38,6 +38,7 @@ services:
       - web
     depends_on:
       - backend
+      - fastapi
     env_file:
       - ./client/.env
 
@@ -70,13 +71,19 @@ services:
       - "traefik.http.routers.fastapi.tls.certresolver=myresolver"
       - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
       - "traefik.http.routers.fastapi.priority=2"
-    networks:
-      - web
     depends_on:
       - mongodb
+    networks:
+      - web
 
   mongodb:
     image: mongo:latest
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     volumes:
       - mongodb_data:/data/db
     networks:
