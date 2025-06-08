@@ -47,9 +47,7 @@ def setup_cors(app):
             "https://localhost:3000",
             "https://localhost:5173",
             "https://localhost:8000",
-        ]
-
-        # Add production origins for testing
+        ]  # Add production origins for testing
         if production_url:
             allowed_origins.append(production_url)
 
