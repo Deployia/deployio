@@ -99,7 +99,7 @@ function Navbar() {
                 <li>
                   <Link
                     to="/auth/register"
-                    className="px-6 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white transition-all duration-200 font-semibold body"
+                    className="px-6 py-2 rounded-xl bg-white hover:bg-neutral-100 text-black transition-all duration-200 font-semibold body"
                   >
                     Sign Up
                   </Link>
