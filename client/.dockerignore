@@ -1,1 +1,20 @@
-node_modules
+# ignore dependencies
+node_modules/
+
+# ignore dotenv and env files
+.env
+
+# ignore build output and cache
+dist/
+build/
+
+# ignore IDE/editor directories
+.vscode/
+.idea/
+
+# ignore logs
+npm-debug.log*
+
+# ignore docker files
+Dockerfile
+docker-compose.yml
