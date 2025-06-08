@@ -50,7 +50,7 @@ export const registerUser = createAsyncThunk(
   "auth/register",
   async (userData, thunkAPI) => {
     try {
-      const response = await api.post("/api/v1/auth/register", userData);
+      const response = await api.post("/auth/register", userData);
       return response.data;
     } catch (error) {
       const message =
@@ -70,7 +70,7 @@ export const loginUser = createAsyncThunk(
   "auth/login",
   async (userData, thunkAPI) => {
     try {
-      const response = await api.post("/api/v1/auth/login", userData);
+      const response = await api.post("/auth/login", userData);
 
       // Check if 2FA is required from the response
       if (response.data.requires2FA) {
@@ -97,7 +97,7 @@ export const loginUser = createAsyncThunk(
 // Logout user
 export const logout = createAsyncThunk("auth/logout", async (_, thunkAPI) => {
   try {
-    const response = await api.get("/api/v1/auth/logout");
+    const response = await api.get("/auth/logout");
     return response.data;
   } catch (error) {
     const message =
@@ -114,7 +114,7 @@ export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
   async (email, thunkAPI) => {
     try {
-      const response = await api.post("/api/v1/auth/forgot-password", {
+      const response = await api.post("/auth/forgot-password", {
         email,
       });
       return response.data;
@@ -136,7 +136,7 @@ export const resetPassword = createAsyncThunk(
   "auth/resetPassword",
   async ({ token, password }, thunkAPI) => {
     try {
-      const response = await api.post(`/api/v1/auth/reset-password/${token}`, {
+      const response = await api.post(`/v1/auth/reset-password/${token}`, {
         password,
       });
       return response.data;
@@ -158,10 +158,7 @@ export const updatePassword = createAsyncThunk(
   "auth/updatePassword",
   async (passwordData, thunkAPI) => {
     try {
-      const response = await api.put(
-        "/api/v1/auth/update-password",
-        passwordData
-      );
+      const response = await api.put("/auth/update-password", passwordData);
       return response.data;
     } catch (error) {
       const message =
@@ -179,7 +176,7 @@ export const updatePassword = createAsyncThunk(
 // Get current user
 export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
   try {
-    const response = await api.get("/api/v1/auth/me");
+    const response = await api.get("/auth/me");
     return response.data;
   } catch (error) {
     const message =
@@ -195,7 +192,7 @@ export const refreshToken = createAsyncThunk(
   "auth/refreshToken",
   async (_, thunkAPI) => {
     try {
-      const response = await api.post("/api/v1/auth/refresh-token", {});
+      const response = await api.post("/auth/refresh-token", {});
       return response.data;
     } catch (error) {
       const message =
@@ -214,7 +211,7 @@ export const verifyOtp = createAsyncThunk(
   "auth/verifyOtp",
   async ({ email, otp }, thunkAPI) => {
     try {
-      const response = await api.post("/api/v1/auth/verify-otp", {
+      const response = await api.post("/auth/verify-otp", {
         email,
         otp,
       });
@@ -236,7 +233,7 @@ export const fetchProviders = createAsyncThunk(
   "auth/fetchProviders",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/api/v1/auth/providers");
+      const response = await api.get("/auth/providers");
       return response.data.providers;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -251,7 +248,7 @@ export const fetchSessions = createAsyncThunk(
   "auth/fetchSessions",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/api/v1/auth/sessions");
+      const response = await api.get("/auth/sessions");
       return response.data.sessions;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -266,7 +263,7 @@ export const unlinkProvider = createAsyncThunk(
   "auth/unlinkProvider",
   async (provider, thunkAPI) => {
     try {
-      await api.delete(`/api/v1/auth/unlink/${provider}`);
+      await api.delete(`/v1/auth/unlink/${provider}`);
       return provider;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -281,7 +278,7 @@ export const deleteSession = createAsyncThunk(
   "auth/deleteSession",
   async (sessionId, thunkAPI) => {
     try {
-      await api.delete(`/api/v1/auth/sessions/${sessionId}`);
+      await api.delete(`/v1/auth/sessions/${sessionId}`);
       return sessionId;
     } catch (error) {
       return thunkAPI.rejectWithValue(

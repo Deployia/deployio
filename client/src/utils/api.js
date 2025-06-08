@@ -1,10 +1,8 @@
 import axios from "axios";
+import { getApiBaseUrl } from "./apiConfig";
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_APP_ENV === "production"
-      ? ""
-      : import.meta.env.VITE_APP_BACKEND_URL || "http://localhost:5000",
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -23,7 +21,7 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true;
       try {
-        await api.post("/api/v1/auth/refresh-token", {});
+        await api.post("/auth/refresh-token", {});
         return api(originalRequest);
       } catch (refreshError) {
         return Promise.reject(refreshError);
