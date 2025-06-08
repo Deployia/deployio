@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Copy the content of the local src directory to the working directory
-COPY main.py .
+COPY . .
 
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
