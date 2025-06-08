@@ -143,28 +143,26 @@ const TwoFactorDashboard = () => {
               <FiKey className="h-4 w-4" />
               <span>{backupCodesCount} backup codes remaining</span>
             </div>
-          </div>
-
+          </div>{" "}
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setShowDisableForm(!showDisableForm)}
-              className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 text-sm sm:text-base font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
             >
               Disable 2FA
-            </button>{" "}
+            </button>
             <button
               onClick={() => {
                 // Clear any existing backup codes in the Redux store before showing the component
                 dispatch(clearBackupCodes());
                 setShowBackupCodes(true);
               }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2"
+              className="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 text-sm sm:text-base font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 gap-2 transition-colors duration-200"
             >
-              <FiRefreshCw className="h-4 w-4" />
+              <FiRefreshCw className="h-4 w-4 flex-shrink-0" />
               <span>Generate New Backup Codes</span>
             </button>
           </div>
-
           {showDisableForm && (
             <OTPVerification
               mode="disable"
@@ -196,7 +194,6 @@ const TwoFactorDashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="space-y-3">
             <h4 className="font-medium text-gray-900">How it works:</h4>
             <ul className="space-y-2 text-sm text-gray-600">
@@ -221,13 +218,12 @@ const TwoFactorDashboard = () => {
                 <span>Save your backup codes in a secure location</span>
               </li>
             </ul>
-          </div>
-
+          </div>{" "}
           <button
             onClick={handleSetup2FA}
-            className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-2"
+            className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2 transition-colors duration-200"
           >
-            <FiShield className="h-5 w-5" />
+            <FiShield className="h-5 w-5 flex-shrink-0" />
             <span>Enable Two-Factor Authentication</span>
           </button>
         </div>

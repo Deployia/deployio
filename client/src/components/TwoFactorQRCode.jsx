@@ -56,21 +56,21 @@ const TwoFactorQRCode = ({ qrCode, secret, onSuccess }) => {
       </div>
       {/* Manual Entry Option */}
       <div className="space-y-3">
+        {" "}
         <div className="text-center">
           <button
             type="button"
             onClick={() => setShowSecret(!showSecret)}
-            className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1 mx-auto"
+            className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm sm:text-base text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 gap-1 transition-colors duration-200"
           >
             {showSecret ? (
-              <FiEyeOff className="h-4 w-4" />
+              <FiEyeOff className="h-4 w-4 flex-shrink-0" />
             ) : (
-              <FiEye className="h-4 w-4" />
+              <FiEye className="h-4 w-4 flex-shrink-0" />
             )}
             <span>{showSecret ? "Hide" : "Show"} manual entry key</span>
           </button>
         </div>
-
         {showSecret && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <div className="space-y-2">
@@ -80,11 +80,11 @@ const TwoFactorQRCode = ({ qrCode, secret, onSuccess }) => {
               <div className="flex items-center space-x-2">
                 <code className="flex-1 px-3 py-2 text-sm font-mono bg-white border border-gray-300 rounded-lg break-all">
                   {secret}
-                </code>
+                </code>{" "}
                 <button
                   type="button"
                   onClick={handleCopySecret}
-                  className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="min-h-[44px] px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500/20 transition-colors duration-200"
                   title="Copy secret"
                 >
                   <FiCopy className="h-4 w-4" />
@@ -124,15 +124,13 @@ const TwoFactorQRCode = ({ qrCode, secret, onSuccess }) => {
               autoComplete="off"
             />
           </div>
-
           {error && (
             <div className="text-sm text-red-600 text-center">{error}</div>
-          )}
-
+          )}{" "}
           <button
             type="submit"
             disabled={isEnabling || verificationCode.length !== 6}
-            className="w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            className="w-full min-h-[44px] px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors duration-200"
           >
             {isEnabling ? (
               <>

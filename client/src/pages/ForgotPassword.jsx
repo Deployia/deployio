@@ -3,17 +3,24 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { forgotPassword, reset } from "../redux/slices/authSlice";
-import Spinner from "../components/Spinner"; // Import the Spinner component
+import { FaEnvelope, FaPaperPlane, FaCheck, FaArrowLeft } from "react-icons/fa";
+import AuthCard from "../components/AuthCard";
+import AuthInput from "../components/AuthInput";
+import AuthButton from "../components/AuthButton";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
+  const [formError, setFormError] = useState("");
+  const [validationError, setValidationError] = useState("");
 
   const dispatch = useDispatch();
   const { loading, error, success } = useSelector((state) => state.auth);
 
   useEffect(() => {
     if (error && error.forgotPassword) {
-      toast.error(error.forgotPassword);
+      setFormError(error.forgotPassword);
+    } else {
+      setFormError("");
     }
 
     if (success && success.forgotPassword) {
@@ -24,112 +31,104 @@ function ForgotPassword() {
     dispatch(reset());
   }, [error, success, dispatch]);
 
+  // Validate email in real-time
+  useEffect(() => {
+    if (email && !/\S+@\S+\.\S+/.test(email)) {
+      setValidationError("Please enter a valid email address");
+    } else {
+      setValidationError("");
+    }
+  }, [email]);
+
+  const onChange = (e) => {
+    setEmail(e.target.value);
+    // Clear form error when user starts typing
+    if (formError) setFormError("");
+  };
+
   const onSubmit = (e) => {
     e.preventDefault();
+    setFormError("");
+
+    if (validationError) {
+      setFormError("Please enter a valid email address");
+      return;
+    }
+
     dispatch(forgotPassword(email));
   };
+
+  const isFormValid = () => {
+    return email && !validationError;
+  };
   return (
-    <div className="min-h-[90vh] bg-black flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
-      <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
-        <div className="bg-neutral-900 rounded-2xl overflow-hidden border border-neutral-700">
-          {/* Header */}
-          <div className="px-6 py-4 text-center border-b border-neutral-800">
-            <div className="mx-auto h-12 w-12 bg-neutral-800 rounded-full flex items-center justify-center mb-3 border border-neutral-700">
-              <img src="/favicon.png" alt="Logo" className="h-8 w-8" />
-            </div>
-            <h2 className="text-xl font-bold text-white">Forgot Password</h2>
-            <p className="text-neutral-400 text-xs mt-1">
-              Enter your email to reset your password
+    <AuthCard
+      title="Forgot Password"
+      subtitle="Enter your email address and we'll send you instructions to reset your password"
+      error={formError}
+    >
+      {success?.forgotPassword ? (
+        <div className="text-center space-y-6">
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-500/10 border border-green-500/20">
+            <FaCheck className="h-8 w-8 text-green-500" />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-white">
+              Check your email
+            </h3>
+            <p className="text-sm text-neutral-400">
+              We've sent password reset instructions to your email address.
+              Check your inbox and follow the link to reset your password.
             </p>
           </div>
 
-          {/* Form Content */}
-          <div className="px-6 sm:px-10 py-10 overflow-x-hidden">
-            {success.forgotPassword ? (
-              <div className="text-center space-y-6">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-neutral-800 border border-neutral-700">
-                  <svg
-                    className="h-8 w-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M5 13l4 4L19 7"
-                    ></path>
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    Check your email
-                  </h3>
-                  <p className="mt-2 text-sm text-neutral-400">
-                    We've sent password reset instructions to your email
-                    address.
-                  </p>
-                </div>
-                <Link
-                  to="/auth/login"
-                  className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-neutral-800 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 transition-all duration-200"
-                >
-                  Back to Login
-                </Link>
-              </div>
-            ) : (
-              <form onSubmit={onSubmit} className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-semibold text-white mb-2"
-                  >
-                    Email address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all duration-200 text-white placeholder:text-neutral-400"
-                    placeholder="Enter your email address"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <button
-                    type="submit"
-                    disabled={loading.forgotPassword}
-                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-neutral-800 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                  >
-                    {loading.forgotPassword ? (
-                      <Spinner size={20} />
-                    ) : (
-                      "Send Reset Link"
-                    )}
-                  </button>
-                </div>
-
-                <div className="text-center pt-2">
-                  <span className="text-sm text-neutral-400">
-                    Remember your password?{" "}
-                    <Link
-                      to="/auth/login"
-                      className="font-semibold text-white hover:text-neutral-300 transition-colors"
-                    >
-                      Back to Login
-                    </Link>
-                  </span>
-                </div>
-              </form>
-            )}
-          </div>
+          <AuthButton
+            as="link"
+            to="/auth/login"
+            variant="secondary"
+            icon={FaArrowLeft}
+          >
+            Back to Login
+          </AuthButton>
         </div>
-      </div>
-    </div>
+      ) : (
+        <form onSubmit={onSubmit} className="space-y-6">
+          <AuthInput
+            type="email"
+            name="email"
+            label="Email Address"
+            value={email}
+            onChange={onChange}
+            placeholder="Enter your email address"
+            icon={FaEnvelope}
+            error={validationError}
+            required
+          />
+
+          <AuthButton
+            type="submit"
+            loading={loading?.forgotPassword}
+            disabled={!isFormValid() || loading?.forgotPassword}
+            icon={FaPaperPlane}
+          >
+            Send Reset Link
+          </AuthButton>
+
+          <div className="text-center pt-4">
+            <p className="text-sm text-neutral-400">
+              Remember your password?{" "}
+              <Link
+                to="/auth/login"
+                className="text-white hover:text-neutral-200 font-medium hover:underline transition-colors"
+              >
+                Back to Login
+              </Link>
+            </p>
+          </div>
+        </form>
+      )}
+    </AuthCard>
   );
 }
 
