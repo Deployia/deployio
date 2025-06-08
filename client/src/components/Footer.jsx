@@ -9,12 +9,17 @@ import {
   FaLifeRing,
   FaBug,
 } from "react-icons/fa";
+import { motion } from "framer-motion";
 
 function Footer() {
   const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="mt-auto border-t border-neutral-800 bg-black/50 backdrop-blur-sm body">
+    <motion.footer
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+      className="mt-auto border-t border-neutral-800 bg-black/50 backdrop-blur-sm body"
+    >
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
@@ -36,9 +41,11 @@ function Footer() {
               Your intelligent companion for seamless authentication and user
               management. Experience the future of secure, modern web
               applications.
-            </p>
+            </p>{" "}
             <div className="flex items-center gap-4">
-              <a
+              <motion.a
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -46,8 +53,10 @@ function Footer() {
                 aria-label="GitHub"
               >
                 <FaGithub className="w-4 h-4" />
-              </a>
-              <a
+              </motion.a>
+              <motion.a
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -55,8 +64,10 @@ function Footer() {
                 aria-label="Twitter"
               >
                 <FaTwitter className="w-4 h-4" />
-              </a>
-              <a
+              </motion.a>
+              <motion.a
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -64,7 +75,7 @@ function Footer() {
                 aria-label="LinkedIn"
               >
                 <FaLinkedin className="w-4 h-4" />
-              </a>
+              </motion.a>
             </div>
           </div>
 
@@ -156,10 +167,10 @@ function Footer() {
             <span>Made with</span>
             <FaHeart className="w-3 h-3 text-red-500 mx-1" />
             <span>for developers</span>
-          </div>
+          </div>{" "}
         </div>
       </div>
-    </footer>
+    </motion.footer>
   );
 }
 

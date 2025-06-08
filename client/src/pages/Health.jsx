@@ -58,10 +58,15 @@ function Health() {
     fetchStatuses();
   }, []);
 
-  if (loading) return <Spinner fullScreen={true} />;
+  if (loading)
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Spinner size={64} />
+      </div>
+    );
   return (
     <>
-      <div className="h-full overflow-auto p-6 body bg-gradient-to-b from-black to-neutral-900">
+      <div className="h-full overflow-auto p-6 body ">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -86,8 +91,7 @@ function Health() {
                 </span>
               </div>
             )}
-          </div>
-
+          </div>{" "}
           {/* Service Status Cards */}
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             {/* Backend Card */}
@@ -304,7 +308,6 @@ function Health() {
               </div>
             </div>
           </div>
-
           {/* Environment Debug Section */}
           <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-4 bg-neutral-900/70">
             <div className="flex items-center mb-4">
