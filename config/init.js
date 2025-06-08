@@ -10,6 +10,12 @@ const hpp = require("hpp");
 const cors = require("cors");
 
 module.exports = (app) => {
+  // Trust proxy - Only in production when behind reverse proxy (Traefik)
+  // This allows Express to properly handle X-Forwarded-For headers for rate limiting
+  if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", true);
+  }
+
   // Swagger (only in local/development)
   if (process.env.NODE_ENV === "development") {
     const swaggerOptions = {
