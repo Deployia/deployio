@@ -3,6 +3,11 @@ const userService = require("../services/userService");
 const jwt = require("jsonwebtoken");
 const { storeRefreshToken } = require("../services/authService");
 const User = require("../models/User");
+// Determine front-end URL for redirects
+const frontUrl =
+  process.env.NODE_ENV === "development"
+    ? process.env.FRONTEND_URL_DEV
+    : process.env.FRONTEND_URL_PROD;
 
 // Register a new user
 const register = async (req, res) => {
@@ -91,9 +96,9 @@ const login = async (req, res) => {
         .json({ success: false, message: "Please provide email and password" });
     }
     const result = await authService.loginUser(email, password);
-    // Handle two-factor requirement or remembered device
+    // If 2FA is required, check for remembered device
     if (result.requires2FA) {
-      // Check if this device was remembered
+      // Check for remembered device session
       const sessions = await authService.getSessions(result.userId);
       const remembered = sessions.find(
         (s) =>
@@ -103,9 +108,8 @@ const login = async (req, res) => {
           new Date(s.rememberedUntil) > new Date()
       );
       if (remembered) {
-        // Skip 2FA: fetch full user and proceed to login
+        // Skip 2FA and log in directly
         const user = await User.findById(result.userId);
-        // Record a new session or reuse
         const session = await authService.addSession(user._id, {
           ip: req.ip,
           userAgent: req.headers["user-agent"],
@@ -283,7 +287,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
         : process.env.FRONTEND_URL_PROD;
     // If user has 2FA enabled, check for remembered device
     if (user.twoFactorEnabled) {
-      // Fetch past sessions for this user
+      // Check previous sessions for rememberedUntil > now
       const sessions = await authService.getSessions(user._id);
       const remembered = sessions.find(
         (s) =>
@@ -477,7 +481,8 @@ const linkProviderCallback = (providerName) => async (req, res) => {
       providerId,
       profileImage
     );
-    res.redirect(process.env.FRONTEND_URL_DEV + "/profile");
+    // Redirect to profile on front-end
+    return res.redirect(`${frontUrl}/profile`);
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

@@ -410,7 +410,8 @@ const authSlice = createSlice({
         state.pending2FAUserId = null;
         state.needsVerification = false;
         state.pendingVerificationEmail = null;
-      }) // Logout cases
+      })
+      // Logout cases
       .addCase(logout.pending, (state) => {
         state.loading.logout = true;
         state.error.logout = null;
