@@ -1,24 +1,2 @@
-data/
-
-# Environment variables
-.env
-.env.*
-!.env.example
-node_modules/
-*.log
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+node_modules
+.env   
