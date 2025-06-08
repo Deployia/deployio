@@ -61,6 +61,8 @@ services:
     build:
       context: ./fastapi_service
       dockerfile: Dockerfile
+    env_file:
+      - ./fastapi_service/.env
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.fastapi.rule=Host(`deployio.tech`) && PathPrefix(`/service`)"
