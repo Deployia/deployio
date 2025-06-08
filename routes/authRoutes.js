@@ -64,21 +64,6 @@ router.get(
   require("../controllers/authController").googleAuthCallback
 );
 
-// Facebook OAuth
-router.get(
-  "/facebook",
-  passport.authenticate("facebook", { scope: ["email"] })
-);
-
-router.get(
-  "/facebook/callback",
-  passport.authenticate("facebook", {
-    session: false,
-    failureRedirect: `${frontUrl}/auth/login`,
-  }),
-  authController.facebookAuthCallback
-);
-
 // GitHub OAuth
 router.get(
   "/github",
@@ -115,21 +100,6 @@ router.get(
     failureRedirect: `${frontUrl}/profile`,
   }),
   authController.linkProviderCallback("google")
-);
-
-router.get(
-  "/link/facebook",
-  protect,
-  passport.authorize("facebook", { scope: ["email"], session: false })
-);
-router.get(
-  "/link/facebook/callback",
-  protect,
-  passport.authorize("facebook", {
-    session: false,
-    failureRedirect: `${frontUrl}/profile`,
-  }),
-  authController.linkProviderCallback("facebook")
 );
 
 router.get(
