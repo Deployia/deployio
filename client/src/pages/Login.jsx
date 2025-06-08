@@ -126,7 +126,7 @@ function Login() {
             </div>
             <h2 className="text-xl font-bold text-white">Welcome back</h2>
             <p className="text-neutral-400 text-xs mt-1">
-              Sign in to your Fauxigent account
+              Sign in to your DeployIO account
             </p>
           </div>
 

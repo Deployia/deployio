@@ -40,7 +40,7 @@ const BackupCodes = ({
 
   const handleDownload = () => {
     const codesText = [
-      "Fauxigent Backup Codes",
+      "DeployIO Backup Codes",
       "========================",
       "",
       "These are your backup codes for two-factor authentication.",
@@ -56,7 +56,7 @@ const BackupCodes = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "fauxigent-backup-codes.txt";
+    a.download = "DeployIO-backup-codes.txt";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

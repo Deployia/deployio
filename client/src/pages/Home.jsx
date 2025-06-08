@@ -53,7 +53,7 @@ function Home() {
             <span className="text-white text-2xl font-bold heading">F!</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold mb-3 text-white heading">
-            Welcome to Fauxigent
+            Welcome to DeployIO
           </h1>{" "}
           <p className="text-base text-neutral-400 max-w-2xl mx-auto leading-tight body">
             Your intelligent companion for seamless authentication and user
