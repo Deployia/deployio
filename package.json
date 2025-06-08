@@ -10,7 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "server": "nodemon server.js",
     "client": "npm run dev --prefix client",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "fastapi": "cd fastapi_service && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run fastapi\"",
     "docker": "docker-compose up --build",
     "prod": "NODE_ENV=production node server.js"
   },

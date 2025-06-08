@@ -8,9 +8,6 @@ const mongoose = require("mongoose");
 
 const app = express();
 
-// Trust proxy when behind Traefik/nginx
-app.set("trust proxy", true);
-
 // Init (security, cors, rate limit, docs, passport, body, cookie, logging)
 init(app);
 
