@@ -3,13 +3,16 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 import os
 import time
+import asyncio
 
 app = FastAPI()
 
 server_start = time.time()
 
 # Read MongoDB URI from environment variable
-MONGO_URI = os.getenv("MONGODB_URI", "mongodb://mongo:27017/deployio_shared_dev")
+MONGO_URI = os.getenv("MONGODB_URI", "mongodb://mongodb:27017/mern")
+MAX_RETRIES = 5
+RETRY_DELAY = 5  # seconds between retries
 
 
 def get_db_connection():
@@ -29,7 +32,30 @@ def get_db_connection():
         return None, "disconnected"
 
 
-db, mongodb_connection_status = get_db_connection()
+# Initial connection attempt with retries on startup
+async def initialize_db():
+    for attempt in range(1, MAX_RETRIES + 1):
+        print(f"MongoDB connection attempt {attempt}/{MAX_RETRIES}...")
+        db_conn, status = get_db_connection()
+        if status == "connected":
+            return db_conn, status
+
+        if attempt < MAX_RETRIES:
+            print(f"Retrying in {RETRY_DELAY} seconds...")
+            await asyncio.sleep(RETRY_DELAY)
+
+    print("Failed to connect to MongoDB after multiple attempts")
+    return None, "disconnected"
+
+
+# Initialize DB connection at startup
+db, mongodb_connection_status = None, "initializing"
+
+
+@app.on_event("startup")
+async def startup_event():
+    global db, mongodb_connection_status
+    db, mongodb_connection_status = await initialize_db()
 
 
 @app.get("/service/v1/health")  # Path for consistency
