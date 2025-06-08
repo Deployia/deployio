@@ -29,9 +29,7 @@ function Navbar() {
           <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center border border-neutral-700">
             <span className="text-white text-lg font-bold heading">F!</span>
           </div>
-          <span className="text-xl font-bold text-white heading">
-            Fauxigent
-          </span>
+          <span className="text-xl font-bold text-white heading">DeployIO</span>
         </Link>
 
         <nav>

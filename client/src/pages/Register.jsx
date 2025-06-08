@@ -78,7 +78,7 @@ function Register() {
           <div className="mx-auto h-16 w-16 bg-neutral-800 rounded-full flex items-center justify-center mb-4 border border-neutral-700">
             <span className="text-white text-2xl font-bold">F!</span>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Join Fauxigent</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Join DeployIO</h2>
           <p className="text-neutral-400 text-sm">
             Create your account to get started
           </p>
