@@ -9,9 +9,14 @@ COPY . .
 
 RUN npm run build
 
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+FROM node:18-alpine AS runtime
+WORKDIR /app
+
+# install the static-server globally
+RUN npm install -g serve
+
+# copy build artifacts
+COPY --from=build /app/dist ./dist
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["serve", "-s", "dist", "-l", "80"]

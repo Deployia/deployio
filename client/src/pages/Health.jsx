@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Spinner from "../components/Spinner";
-import Layout from "../components/Layout";
 
 function Health() {
   const [loading, setLoading] = useState(true);
@@ -45,7 +44,7 @@ function Health() {
   if (loading) return <Spinner fullScreen={true} />;
 
   return (
-    <Layout>
+    <>
       <div className="h-full overflow-auto p-6 body">
         <h2 className="text-2xl font-bold text-white mb-4 heading">
           Health Check
@@ -92,7 +91,7 @@ function Health() {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 }
 
