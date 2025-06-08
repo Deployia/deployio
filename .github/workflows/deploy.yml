@@ -30,10 +30,10 @@ jobs:
             git pull origin main # Or your specific deployment branch
 
             echo "Stopping and removing old containers (if any)..."
-            docker-compose -f docker-compose.prod.yml down --remove-orphans
+            docker-compose -f docker-compose.yml down --remove-orphans
 
             echo "Building and starting new containers..."
-            docker-compose -f docker-compose.prod.yml up --build -d
+            docker-compose -f docker-compose.yml up --build -d
 
             echo "Cleaning up unused Docker images..."
             docker image prune -af
