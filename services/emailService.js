@@ -5,7 +5,7 @@ const templates = {
   otp: ({ username, otp }) => `
     <div style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 50%, #c7d2fe 100%); padding: 32px; border-radius: 16px; max-width: 400px; margin: 0 auto; font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif; border: 1px solid #a78bfa; box-shadow: 0 8px 32px 0 rgba(80, 0, 120, 0.08);">
       <div style="background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-        <span style="display: inline-block; background: rgba(255,255,255,0.15); border-radius: 50%; width: 48px; height: 48px; line-height: 48px; color: #fff; font-size: 1.5rem; font-weight: bold;">F!</span>
+<img src="/favicon.png" alt="Logo" className="h-8 w-8" />
         <h2 style="color: #fff; font-size: 1.25rem; font-weight: bold; margin: 8px 0 0 0;">Verify your DeployIO account</h2>
       </div>
       <p style="color: #6d28d9; font-size: 1rem; margin-bottom: 16px;">Hi <b>${username}</b>,</p>
@@ -18,7 +18,7 @@ const templates = {
   passwordReset: ({ resetLink }) => `
     <div style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 50%, #c7d2fe 100%); padding: 32px; border-radius: 16px; max-width: 400px; margin: 0 auto; font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif; border: 1px solid #a78bfa; box-shadow: 0 8px 32px 0 rgba(80, 0, 120, 0.08);">
       <div style="background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-        <span style="display: inline-block; background: rgba(255,255,255,0.15); border-radius: 50%; width: 48px; height: 48px; line-height: 48px; color: #fff; font-size: 1.5rem; font-weight: bold;">F!</span>
+<img src="/favicon.png" alt="Logo" className="h-8 w-8" />
         <h2 style="color: #fff; font-size: 1.25rem; font-weight: bold; margin: 8px 0 0 0;">Reset your DeployIO password</h2>
       </div>
       <p style="color: #6d28d9; font-size: 1rem; margin-bottom: 16px;">You are receiving this email because you (or someone else) has requested the reset of a password.</p>
