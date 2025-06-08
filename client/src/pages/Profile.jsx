@@ -449,7 +449,7 @@ function Profile() {
                       <div className="text-red-500">{providersError}</div>
                     ) : (
                       <div className="flex gap-4">
-                        {["google", "facebook", "github"].map((prov) => (
+                        {["google", "github"].map((prov) => (
                           <div
                             key={prov}
                             className="flex items-center space-x-2"
