@@ -5,10 +5,13 @@ services:
     image: traefik:v2.9
     command:
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
       - --providers.docker
       - --providers.docker.exposedByDefault=false
-      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      # Use TLS-ALPN-01 challenge on port 443 for ACME
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
       - --certificatesresolvers.myresolver.acme.email=admin@deployio.tech
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
     ports:
@@ -16,7 +19,7 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./letsencrypt:/letsencrypt
+      - letsencrypt:/letsencrypt
     networks:
       - web
 
@@ -26,10 +29,11 @@ services:
       dockerfile: Dockerfile
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`deployio.tech`)"
+      - "traefik.http.routers.frontend.rule=Host(`deployio.tech`) && PathPrefix(`/`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.priority=1"
     networks:
       - web
     depends_on:
@@ -47,6 +51,7 @@ services:
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.backend.priority=2"
     depends_on:
       - mongodb
     networks:
@@ -62,6 +67,7 @@ services:
       - "traefik.http.routers.fastapi.entrypoints=websecure"
       - "traefik.http.routers.fastapi.tls.certresolver=myresolver"
       - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
+      - "traefik.http.routers.fastapi.priority=2"
     networks:
       - web
     depends_on:
@@ -69,14 +75,13 @@ services:
 
   mongodb:
     image: mongo:latest
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
       - web
 
 volumes:
+  letsencrypt:
   mongodb_data:
 
 networks:
