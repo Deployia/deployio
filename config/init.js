@@ -56,13 +56,33 @@ module.exports = (app) => {
   // Security
   app.use(helmet());
   app.use(hpp());
-
-  // CORS
+  // CORS - Environment-specific configuration for security
   const corsOptions = {
-    origin:
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD,
+    origin: function (origin, callback) {
+      // Define allowed origins based on environment
+      const allowedOrigins =
+        process.env.NODE_ENV === "development"
+          ? [
+              process.env.FRONTEND_URL_DEV,
+              "http://localhost:5173",
+              "http://localhost:3000",
+              "http://localhost:8000",
+            ]
+          : [
+              process.env.FRONTEND_URL_PROD,
+              // NEVER include localhost in production for security
+            ];
+
+      // Allow requests with no origin (mobile apps, Postman, etc.) only in development
+      if (!origin && process.env.NODE_ENV === "development")
+        return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS policy"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
