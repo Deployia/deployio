@@ -1,4 +1,29 @@
+# ignore dependencies
 node_modules/
+
+# ignore client and other non-backend services
+client/
+fastapi_service/
+
+# ignore git metadata
 .git/
 .github/
-client/
+
+# ignore env files and secrets
+.env
+.env.*
+
+# ignore let's encrypt data
+letsencrypt/
+
+# ignore logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# ignore IDE/editor directories
+.vscode/
+.idea/
+
+# ignore macOS files
+.DS_Store
