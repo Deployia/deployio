@@ -37,8 +37,10 @@ services:
     networks:
       - web
     depends_on:
-      - backend
-      - fastapi
+      backend:
+        condition: service_healthy
+      fastapi:
+        condition: service_healthy
     env_file:
       - ./client/.env
 
@@ -46,6 +48,12 @@ services:
     build: .
     env_file:
       - ./.env
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`deployio.tech`) && PathPrefix(`/api`)"
@@ -54,7 +62,8 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
       - "traefik.http.routers.backend.priority=2"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - web
 
@@ -64,6 +73,12 @@ services:
       dockerfile: Dockerfile
     env_file:
       - ./fastapi_service/.env
+    healthcheck:
+      test: curl --fail http://localhost:8000/service/v1/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.fastapi.rule=Host(`deployio.tech`) && PathPrefix(`/service`)"
@@ -72,7 +87,8 @@ services:
       - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
       - "traefik.http.routers.fastapi.priority=2"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - web
 
