@@ -45,12 +45,11 @@ jobs:
         run: |
           pip install bandit safety
           cd fastapi_service
-          bandit -r . -x tests/ -f json -o ../bandit-report.json || true
-          safety check --json --output ../safety-report.json || true
+          bandit -r . -x tests/ -f json -o ../bandit-report.json || true          safety check --json --output ../safety-report.json || true
         continue-on-error: true
 
       - name: Upload security reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-reports
           path: |
@@ -69,32 +68,24 @@ jobs:
         run: |
           docker build -t deployio/backend:scan .
           docker build -t deployio/fastapi:scan ./fastapi_service
-          docker build -t deployio/frontend:scan ./client
-
-      - name: Install Trivy
+          docker build -t deployio/frontend:scan ./client      - name: Install Trivy
         run: |
-          sudo apt-get update
-          sudo apt-get install wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
+          # Install Trivy using the official installer
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.48.3
 
       - name: Scan container images
         run: |
           trivy image --format json --output backend-scan.json deployio/backend:scan || true
-          trivy image --format json --output fastapi-scan.json deployio/fastapi:scan || true
-          trivy image --format json --output frontend-scan.json deployio/frontend:scan || true
+          trivy image --format json --output fastapi-scan.json deployio/fastapi:scan || true          trivy image --format json --output frontend-scan.json deployio/frontend:scan || true
 
       - name: Upload scan results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: trivy-scans
           path: |
             backend-scan.json
             fastapi-scan.json
             frontend-scan.json
-
   secrets-scan:
     name: Secrets Detection
     runs-on: ubuntu-latest
@@ -102,11 +93,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better scanning
 
-      - name: TruffleHog OSS
+      - name: TruffleHog OSS (Full Scan for Main Branch)
+        if: github.ref == 'refs/heads/main'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: main
+          extra_args: --debug --only-verified
+
+      - name: TruffleHog OSS (Diff Scan for PRs and other branches)
+        if: github.ref != 'refs/heads/main'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
           head: HEAD
           extra_args: --debug --only-verified
