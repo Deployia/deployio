@@ -5,10 +5,10 @@ WORKDIR /app
 RUN addgroup -g 1001 -S deployio && \
     adduser -S deployio -u 1001
 
-# Install security updates and wget for healthcheck
+# Install security updates and curl for healthcheck
 RUN apk update && \
     apk upgrade && \
-    apk add --no-cache wget && \
+    apk add --no-cache curl && \
     rm -rf /var/cache/apk/*
 
 # Copy package files and install dependencies
