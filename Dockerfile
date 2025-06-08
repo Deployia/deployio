@@ -4,10 +4,11 @@ WORKDIR /app
 
 COPY package*.json ./
 RUN npm install
-RUN npm install wait-port --no-save
+# Install wget for healthcheck
+RUN apk add --no-cache wget
 
 COPY . .
 
 EXPOSE 3000
 
-CMD ["npx", "wait-port", "mongodb:27017", "--strict", "--timeout", "30000", "--", "npm", "start"]
+CMD ["npm", "start"]

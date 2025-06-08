@@ -9,6 +9,8 @@ COPY requirements.txt .
 
 # Install any needed dependencies specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+# Install curl for healthchecks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Copy the content of the local src directory to the working directory
 COPY main.py .
