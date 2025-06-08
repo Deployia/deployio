@@ -123,7 +123,7 @@ function VerifyOtp() {
     }
     setResendLoading(true);
     try {
-      await api.post("/api/v1/auth/resend-otp", { email });
+      await api.post("/auth/resend-otp", { email });
       toast.success("OTP resent to your email");
       setResendCooldown(30); // 30s cooldown
     } catch (err) {
