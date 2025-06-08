@@ -1,0 +1,112 @@
+name: Security Scanning
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # Daily at 2 AM
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd client && npm ci
+          cd ../fastapi_service && pip install -r requirements.txt
+
+      - name: Node.js Security Audit
+        run: |
+          npm audit --audit-level=high
+          cd client && npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Python Security Scan
+        run: |
+          pip install bandit safety
+          cd fastapi_service
+          bandit -r . -x tests/ -f json -o ../bandit-report.json || true
+          safety check --json --output ../safety-report.json || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker build -t deployio/backend:scan .
+          docker build -t deployio/fastapi:scan ./fastapi_service
+          docker build -t deployio/frontend:scan ./client
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+
+      - name: Scan container images
+        run: |
+          trivy image --format json --output backend-scan.json deployio/backend:scan || true
+          trivy image --format json --output fastapi-scan.json deployio/fastapi:scan || true
+          trivy image --format json --output frontend-scan.json deployio/frontend:scan || true
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-scans
+          path: |
+            backend-scan.json
+            fastapi-scan.json
+            frontend-scan.json
+
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
