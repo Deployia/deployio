@@ -27,13 +27,12 @@ const BackupCodes = ({
   const [password, setPassword] = useState("");
   const [showRefreshForm, setShowRefreshForm] = useState(false);
   const [hasDownloaded, setHasDownloaded] = useState(false);
-
   const handleCopy = async () => {
     try {
       const codesText = backupCodes.join("\n");
       await navigator.clipboard.writeText(codesText);
       toast.success("Backup codes copied to clipboard");
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy backup codes");
     }
   };
@@ -148,28 +147,27 @@ const BackupCodes = ({
       </div>
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3 justify-center">
+        {" "}
         <button
           onClick={handleDownload}
-          className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center space-x-2"
+          className="min-h-[44px] px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2 transition-colors duration-200"
         >
-          <FiDownload className="h-4 w-4" />
+          <FiDownload className="h-4 w-4 flex-shrink-0" />
           <span>Download as Text File</span>
         </button>
-
         <button
           onClick={handleCopy}
-          className="px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2"
+          className="min-h-[44px] px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center justify-center gap-2 transition-colors duration-200"
         >
-          <FiCopy className="h-4 w-4" />
+          <FiCopy className="h-4 w-4 flex-shrink-0" />
           <span>Copy to Clipboard</span>
         </button>
-
         {showRefresh && (
           <button
             onClick={() => setShowRefreshForm(!showRefreshForm)}
-            className="px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 flex items-center space-x-2"
+            className="min-h-[44px] px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 flex items-center justify-center gap-2 transition-colors duration-200"
           >
-            <FiRefreshCw className="h-4 w-4" />
+            <FiRefreshCw className="h-4 w-4 flex-shrink-0" />
             <span>Generate New Codes</span>
           </button>
         )}
@@ -205,13 +203,12 @@ const BackupCodes = ({
                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 placeholder="Enter your password to confirm"
               />
-            </div>
-
+            </div>{" "}
             <div className="flex space-x-3">
               <button
                 type="submit"
                 disabled={isLoading || !password}
-                className="flex-1 px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                className="flex-1 min-h-[44px] px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors duration-200"
               >
                 {isLoading ? (
                   <>
@@ -226,7 +223,7 @@ const BackupCodes = ({
               <button
                 type="button"
                 onClick={() => setShowRefreshForm(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                className="min-h-[44px] px-4 py-2.5 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
               >
                 Cancel
               </button>
@@ -234,12 +231,12 @@ const BackupCodes = ({
           </form>
         </div>
       )}{" "}
-      {/* Continue Button */}
+      {/* Continue Button */}{" "}
       <div className="text-center">
         <button
           onClick={onClose}
           disabled={backupCodes.length > 0 && !hasDownloaded}
-          className="px-8 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-h-[44px] px-8 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
         >
           {backupCodes.length === 0
             ? "Return to Dashboard"

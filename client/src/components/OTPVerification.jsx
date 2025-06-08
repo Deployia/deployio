@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FiShield, FiKey, FiSmartphone } from "react-icons/fi";
 import { disable2FA, verify2FALogin } from "../redux/slices/twoFactorSlice";
-import Spinner from "./Spinner";
 import toast from "react-hot-toast";
+import AuthButton from "./AuthButton";
+import AuthInput from "./AuthInput";
 
 const OTPVerification = ({
   mode = "login", // 'login', 'disable'
@@ -153,61 +154,50 @@ const OTPVerification = ({
         return "Please complete verification";
     }
   };
-
   if (mode === "disable") {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 space-y-4">
+      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 space-y-4">
         <div className="flex items-center space-x-3">
-          <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
-            <FiShield className="h-4 w-4 text-red-600" />
+          <div className="h-8 w-8 bg-red-500/20 rounded-full flex items-center justify-center">
+            <FiShield className="h-4 w-4 text-red-400" />
           </div>
           <div>
-            <h4 className="font-semibold text-red-800">{getTitle()}</h4>
-            <p className="text-sm text-red-600">{getDescription()}</p>
+            <h4 className="font-semibold text-red-300">{getTitle()}</h4>
+            <p className="text-sm text-red-400">{getDescription()}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-              placeholder="Enter your password"
-            />
-          </div>
+          <AuthInput
+            type="password"
+            name="password"
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            className="bg-neutral-800"
+            required
+          />
 
           <div className="flex space-x-3">
-            <button
+            <AuthButton
               type="submit"
+              loading={isLoading}
               disabled={isLoading || !password}
-              className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              variant="danger"
+              className="flex-1"
             >
-              {isLoading ? (
-                <>
-                  <Spinner size="sm" />
-                  <span>Disabling...</span>
-                </>
-              ) : (
-                <span>Disable 2FA</span>
-              )}
-            </button>
+              Disable 2FA
+            </AuthButton>
 
-            <button
+            <AuthButton
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+              variant="secondary"
+              className="px-6"
             >
               Cancel
-            </button>
+            </AuthButton>
           </div>
         </form>
       </div>
@@ -216,19 +206,19 @@ const OTPVerification = ({
   return (
     <>
       <div className="w-full max-w-md mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="mx-auto h-16 w-16 bg-neutral-800 border border-neutral-700 rounded-full flex items-center justify-center">
             {useBackupCode ? (
-              <FiKey className="h-7 w-7 text-blue-600" />
+              <FiKey className="h-7 w-7 text-white" />
             ) : (
-              <FiShield className="h-7 w-7 text-blue-600" />
+              <FiShield className="h-7 w-7 text-white" />
             )}
           </div>
-          <h3 className="text-2xl font-semibold text-gray-900">{getTitle()}</h3>
-          <p className="text-sm text-gray-600">{getDescription()}</p>
+          <h3 className="text-2xl font-semibold text-white">{getTitle()}</h3>
+          <p className="text-sm text-neutral-400">{getDescription()}</p>
           {mode === "login" && (
-            <div className="flex items-center justify-center gap-2 mt-1 text-gray-700 font-medium">
-              <FiSmartphone className="text-blue-500" />
+            <div className="flex items-center justify-center gap-2 mt-2 text-neutral-300 font-medium">
+              <FiSmartphone className="text-white" />
               <span>Use your authenticator app</span>
             </div>
           )}
@@ -238,7 +228,7 @@ const OTPVerification = ({
           <div>
             <label
               htmlFor="otp-input"
-              className="block text-sm font-medium text-gray-700 mb-3 text-center"
+              className="block text-sm font-medium text-neutral-300 mb-3 text-center"
             >
               Enter {useBackupCode ? "8-character" : "6-digit"} verification
               code
@@ -259,7 +249,7 @@ const OTPVerification = ({
                   ref={(el) => (inputsRef.current[index] = el)}
                   autoFocus={index === 0}
                   inputMode={useBackupCode ? "text" : "numeric"}
-                  className="w-10 h-12 sm:w-12 sm:h-14 rounded-md border border-gray-300 text-center text-xl font-mono font-medium bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none transition-colors"
+                  className="w-10 h-12 sm:w-12 sm:h-14 rounded-lg border border-neutral-700 text-center text-xl font-mono font-medium bg-neutral-800/50 text-white focus:bg-neutral-800 focus:ring-2 focus:ring-white/20 focus:border-white focus:outline-none transition-all duration-200"
                 />
               ))}
             </div>
@@ -269,25 +259,17 @@ const OTPVerification = ({
           </div>
 
           <div className="flex flex-col space-y-3">
-            <button
+            <AuthButton
               type="submit"
+              loading={isLoading}
               disabled={
                 isLoading ||
                 !code ||
                 (useBackupCode ? code.length !== 8 : code.length !== 6)
               }
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
-                <div className="flex items-center space-x-2">
-                  <Spinner size="sm" />
-                  <span>Verifying...</span>
-                </div>
-              ) : (
-                "Verify"
-              )}
-            </button>
-
+              Verify
+            </AuthButton>{" "}
             {mode === "login" && (
               <div className="text-center">
                 <button
@@ -297,31 +279,27 @@ const OTPVerification = ({
                     setCode("");
                     setOtpArray(Array(useBackupCode ? 6 : 8).fill(""));
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm sm:text-base text-white hover:text-neutral-200 font-medium transition-colors duration-200 rounded-lg hover:bg-neutral-800/50 focus:outline-none focus:ring-2 focus:ring-white/20"
                 >
                   {useBackupCode ? "Use authenticator code" : "Use backup code"}
                 </button>
               </div>
             )}
-
             {onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="w-full px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
+              <AuthButton type="button" onClick={onCancel} variant="secondary">
                 Cancel
-              </button>
+              </AuthButton>
             )}
           </div>
         </form>
 
         {mode === "login" && (
-          <div className="text-center text-xs text-gray-500">
+          <div className="text-center text-xs text-neutral-500">
             <p>Lost your device? Contact support for assistance.</p>
           </div>
         )}
       </div>
+
       {mode === "login" && (
         <div className="mt-4 flex items-center space-x-2">
           <input
@@ -329,9 +307,9 @@ const OTPVerification = ({
             id="rememberDevice"
             checked={rememberDevice}
             onChange={(e) => setRememberDevice(e.target.checked)}
-            className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+            className="h-4 w-4 text-white focus:ring-white/20 bg-neutral-800 border-neutral-600 rounded"
           />
-          <label htmlFor="rememberDevice" className="text-sm text-gray-700">
+          <label htmlFor="rememberDevice" className="text-sm text-neutral-300">
             Remember this device for 30 days
           </label>
         </div>
