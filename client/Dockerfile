@@ -2,22 +2,25 @@ FROM node:18-alpine AS build
 
 WORKDIR /app
 
+# Define build arguments with default values - these will be overridden by docker-compose
+ARG VITE_APP_ENV=production
+ARG VITE_APP_BACKEND_URL=/api/v1
+ARG VITE_APP_FASTAPI_URL=/service/v1
+
 # Copy package files and install dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy all files including .env files
+# Copy all files
 COPY . .
 
-# Create a .env.production file for the build
-# This ensures env variables are available during build time
-RUN echo "VITE_APP_ENV=production" > .env.production
-RUN echo "VITE_APP_BACKEND_URL=/api/v1" >> .env.production
-RUN echo "VITE_APP_FASTAPI_URL=/service/v1" >> .env.production
+# Create .env file from build args
+RUN echo "VITE_APP_ENV=$VITE_APP_ENV" > .env && \
+    echo "VITE_APP_BACKEND_URL=$VITE_APP_BACKEND_URL" >> .env && \
+    echo "VITE_APP_FASTAPI_URL=$VITE_APP_FASTAPI_URL" >> .env
 
-# Add this to debug the environment
-RUN cat .env.production
-RUN echo "Building with environment variables"
+# Print environment variables for debugging
+RUN echo "Building with: VITE_APP_ENV=$VITE_APP_ENV VITE_APP_BACKEND_URL=$VITE_APP_BACKEND_URL VITE_APP_FASTAPI_URL=$VITE_APP_FASTAPI_URL"
 
 # Build the app
 RUN npm run build
@@ -31,10 +34,5 @@ RUN npm install -g serve
 # copy build artifacts
 COPY --from=build /app/dist ./dist
 
-# Copy entrypoint script
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-
 EXPOSE 80
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["serve", "-s", "dist", "-l", "80"]

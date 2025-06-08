@@ -27,6 +27,10 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        - VITE_APP_ENV=production
+        - VITE_APP_BACKEND_URL=/api/v1
+        - VITE_APP_FASTAPI_URL=/service/v1
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`deployio.tech`) && PathPrefix(`/`)"
