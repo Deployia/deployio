@@ -8,6 +8,7 @@ import Layout from "./components/Layout";
 import AuthLayout from "./components/AuthLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Modal from "./components/Modal";
+import ScrollToTop from "./components/ScrollToTop";
 
 // Auth Components
 import Login from "./pages/Login";
@@ -18,10 +19,13 @@ import ResetPassword from "./pages/ResetPassword";
 // Pages
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
-import { getMe } from "./redux/slices/authSlice";
 import Profile from "./pages/Profile";
 import VerifyOtp from "./pages/VerifyOtp";
 import Health from "./pages/Health";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
+import { getMe } from "./redux/slices/authSlice";
 
 function App() {
   const { loading } = useSelector((state) => state.auth);
@@ -50,13 +54,17 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="health" element={<Health />} />
+          <Route path="privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="terms-of-service" element={<TermsOfService />} />
+          <Route path="cookie-policy" element={<CookiePolicy />} />
           <Route element={<ProtectedRoute />}>
             <Route path="profile" element={<Profile />} />
           </Route>
           <Route path="*" element={<NotFound />} />
-        </Route>
+        </Route>{" "}
       </Routes>
       <Modal />
+      <ScrollToTop />
     </>
   );
 }

@@ -128,31 +128,31 @@ function Footer() {
 
           {/* Legal */}
           <div>
-            <h3 className="text-white font-semibold mb-4 heading">Legal</h3>
+            <h3 className="text-white font-semibold mb-4 heading">Legal</h3>{" "}
             <ul className="space-y-3">
               <li>
-                <a
-                  href="/privacy"
+                <Link
+                  to="/privacy-policy"
                   className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
                 >
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/terms"
+                <Link
+                  to="/terms-of-service"
                   className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
                 >
                   Terms of Service
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/cookies"
+                <Link
+                  to="/cookie-policy"
                   className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
                 >
                   Cookie Policy
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
