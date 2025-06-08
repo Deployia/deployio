@@ -2,8 +2,11 @@ from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 import os
+import time
 
 app = FastAPI()
+
+server_start = time.time()
 
 # Read MongoDB URI from environment variable
 MONGO_URI = os.getenv("MONGODB_URI", "mongodb://mongo:27017/deployio_shared_dev")
@@ -34,8 +37,16 @@ async def health_check():
     # Re-check status if db was None initially, or provide cached status
     # For a more robust check, you might want to ping the DB on each health request
     current_db, current_status = get_db_connection()
+    uptime = time.time() - server_start
     return {
         "service_name": "FastAPI Service",
         "status": "ok",
         "mongodb_status": current_status,
+        "uptime": uptime,
     }
+
+
+@app.get("/service/v1/hello")
+async def hello():
+    uptime = time.time() - server_start
+    return {"message": "Hello from FastAPI Service", "uptime": uptime}

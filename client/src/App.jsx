@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import { getMe } from "./redux/slices/authSlice";
 import Profile from "./pages/Profile";
 import VerifyOtp from "./pages/VerifyOtp";
+import Health from "./pages/Health";
 
 function App() {
   const { loading } = useSelector((state) => state.auth);
@@ -48,6 +49,7 @@ function App() {
         {/* Main Layout Routes */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="health" element={<Health />} />
           <Route element={<ProtectedRoute />}>
             <Route path="profile" element={<Profile />} />
           </Route>
