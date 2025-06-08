@@ -45,7 +45,8 @@ jobs:
         run: |
           pip install bandit safety
           cd fastapi_service
-          bandit -r . -x tests/ -f json -o ../bandit-report.json || true          safety check --json --output ../safety-report.json || true
+          bandit -r . -x tests/ -f json -o ../bandit-report.json || true
+          safety check --json --output ../safety-report.json || true
         continue-on-error: true
 
       - name: Upload security reports
@@ -68,7 +69,9 @@ jobs:
         run: |
           docker build -t deployio/backend:scan .
           docker build -t deployio/fastapi:scan ./fastapi_service
-          docker build -t deployio/frontend:scan ./client      - name: Install Trivy
+          docker build -t deployio/frontend:scan ./client
+
+      - name: Install Trivy
         run: |
           # Install Trivy using the official installer
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.48.3
@@ -76,7 +79,8 @@ jobs:
       - name: Scan container images
         run: |
           trivy image --format json --output backend-scan.json deployio/backend:scan || true
-          trivy image --format json --output fastapi-scan.json deployio/fastapi:scan || true          trivy image --format json --output frontend-scan.json deployio/frontend:scan || true
+          trivy image --format json --output fastapi-scan.json deployio/fastapi:scan || true
+          trivy image --format json --output frontend-scan.json deployio/frontend:scan || true
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
