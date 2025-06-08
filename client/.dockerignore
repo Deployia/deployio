@@ -18,3 +18,6 @@ npm-debug.log*
 # ignore docker files
 Dockerfile
 docker-compose.yml
+
+# ignore legacy nginx configuration
+inginx.conf
