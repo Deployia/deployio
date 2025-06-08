@@ -50,7 +50,7 @@ function Home() {
         <div className="text-center mb-4 flex-shrink-0">
           {/* Main Logo - Smaller */}
           <div className="mx-auto mb-3 w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center border border-neutral-700">
-            <span className="text-white text-2xl font-bold heading">F!</span>
+            <img src="/favicon.png" alt="logo" className="h-8 w-8" />
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold mb-3 text-white heading">
             Welcome to DeployIO
