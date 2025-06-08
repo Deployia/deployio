@@ -240,24 +240,20 @@ jobs:
             # Use your existing working deployment process
             docker-compose down --remove-orphans
             docker-compose build --no-cache
-            docker-compose up -d
-
-            # Health check using your working endpoints
+            docker-compose up -d            # Health check using your working endpoints
             sleep 60
-            if curl -f http://localhost:3000/api/v1/health && curl -f http://localhost:8000/health; then
+            if curl -f http://localhost:3000/api/v1/health && curl -f http://localhost:8000/service/v1/health; then
               echo "Health checks passed"
               docker system prune -f
             else
               echo "Health checks failed - rolling back"
               docker-compose down
               exit 1
-            fi
-
-      - name: Verify deployment
+            fi      - name: Verify deployment
         run: |
           sleep 120
           curl -f https://deployio.tech/api/v1/health || exit 1
-          curl -f https://deployio.tech/fastapi/health || exit 1
+          curl -f https://deployio.tech/service/v1/health || exit 1
 
   notify:
     name: Deployment Notification
