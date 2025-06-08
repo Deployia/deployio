@@ -235,20 +235,57 @@ jobs:
             git pull origin main
 
             # Backup current deployment
-            docker-compose ps > /tmp/deployment-backup-$(date +%Y%m%d_%H%M%S).log
-
-            # Deploy using your existing working process
+            docker-compose ps > /tmp/deployment-backup-$(date +%Y%m%d_%H%M%S).log            # Deploy using your existing working process
             docker-compose down --remove-orphans
             docker-compose build --no-cache
             docker-compose up -d
 
-            # Basic wait for containers to start
-            sleep 30
+            # Wait for containers to fully start and become healthy
+            echo "⏳ Waiting for all services to become healthy..."
+            sleep 60
 
-            # Clean up old Docker data
-            docker system prune -f
+            # Verify all services are running and healthy
+            echo "🔍 Checking service health..."
+            for i in {1..12}; do
+              if docker-compose ps | grep -q "Up.*healthy"; then
+                echo "✅ Services are healthy after $((i * 15)) seconds"
+                break
+              else
+                echo "⏳ Waiting for services to become healthy (attempt $i/12)..."
+                sleep 15
+              fi
+            done
+
+            # Final verification
+            docker-compose ps
+
+            # Verify website is responding
+            echo "🌐 Testing website response..."
+            if curl -f -s https://deployio.tech > /dev/null; then
+              echo "✅ Website is responding correctly"
+            else
+              echo "⚠️ Website check failed, but deployment may still be starting..."
+            fi
 
             echo "✅ Deployment completed successfully"
+
+      - name: Cleanup Docker Resources
+        uses: appleboy/ssh-action@master
+        with:
+          host: deployio.tech
+          username: vasudevshetty
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/deployio
+
+            # Clean up old Docker data (but keep current running containers)
+            echo "🧹 Cleaning up old Docker resources..."
+            docker image prune -f
+            docker container prune -f
+            docker network prune -f
+            docker volume prune -f
+
+            echo "✅ Docker cleanup completed successfully"
 
   notify:
     name: Deployment Notification
