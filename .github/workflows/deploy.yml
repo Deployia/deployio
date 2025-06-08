@@ -229,7 +229,7 @@ jobs:
           username: vasudevshetty
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /opt/deployio
+            cd ~/deployio
             git fetch origin
             git checkout main
             git pull origin main
