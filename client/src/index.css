@@ -44,6 +44,8 @@
   /* Add more colors from your logo.png theme here */
   /* e.g., --logo-color-1: R, G, B; */
 
+  --accent-gradient: linear-gradient(90deg, #ff3cac, #784ba0, #2b86c5, #ff3cac);
+
   scroll-behavior: smooth;
 }
 
@@ -96,13 +98,14 @@ body {
 
 /* Example link styling using theme variables */
 a {
-  color: rgb(var(--accent-primary));
-  /* text-decoration: none; */ /* Uncomment if you want to remove default underline */
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 500;
 }
 
 a:hover {
-  color: rgb(var(--accent-secondary));
-  /* text-decoration: underline; */ /* Uncomment if you want underline on hover */
+  opacity: 0.8;
 }
 
 /* Example button styling - it's often better to apply these via utility classes in components,
@@ -117,3 +120,23 @@ a:hover {
 .button-theme:hover {
   background-color: rgb(var(--accent-secondary));
 } */
+
+/* Animated gradient for action buttons */
+.btn-gradient {
+  background: var(--accent-gradient);
+  background-size: 300% 300%;
+  animation: gradient-animation 8s ease infinite;
+  color: white;
+}
+
+@keyframes gradient-animation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}

@@ -2,9 +2,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../redux/slices/authSlice";
 import { toast } from "react-hot-toast";
-import { FaSun, FaMoon } from "react-icons/fa";
+import { FaSun, FaMoon, FaBars } from "react-icons/fa";
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 function Navbar({ darkMode, toggleDarkMode }) {
+  const { openSidebar } = useSidebar();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -21,11 +23,68 @@ function Navbar({ darkMode, toggleDarkMode }) {
       });
   };
 
-  // Disable logout button while logout is processing
   const isLoggingOut = loading && loading.logout;
+
+  // Content to render inside sidebar
+  const sidebarContent = (
+    <ul className="mt-6 space-y-4 text-[rgb(var(--text-primary))]">
+      <li>
+        <button
+          onClick={toggleDarkMode}
+          className="flex items-center p-2 rounded-md text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--bg-hover))] transition-colors"
+        >
+          {darkMode ? (
+            <FaSun className="h-5 w-5 mr-2" />
+          ) : (
+            <FaMoon className="h-5 w-5 mr-2" />
+          )}
+          {darkMode ? "Light Mode" : "Dark Mode"}
+        </button>
+      </li>
+      {isAuthenticated ? (
+        <>
+          <li>
+            <Link
+              to="/profile"
+              className="block p-2 rounded-md hover:bg-[rgb(var(--bg-hover))] transition-colors"
+            >
+              Profile
+            </Link>
+          </li>
+          <li>
+            <button
+              onClick={onLogout}
+              className="w-full text-left block p-2 rounded-md text-white bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 hover:from-green-500 hover:via-yellow-500 hover:to-red-500 transition-all"
+            >
+              Logout
+            </button>
+          </li>
+        </>
+      ) : (
+        <>
+          <li>
+            <Link
+              to="/auth/login"
+              className="block p-2 rounded-md hover:bg-[rgb(var(--bg-hover))] transition-colors"
+            >
+              Login
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/auth/register"
+              className="block p-2 rounded-md text-white bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 hover:from-green-500 hover:via-yellow-500 hover:to-red-500 transition-all"
+            >
+              Sign Up
+            </Link>
+          </li>
+        </>
+      )}
+    </ul>
+  );
+
   return (
-    // Apply themed background and border to header
-    <header className="bg-[rgb(var(--bg-secondary))] shadow-lg border-b border-[rgb(var(--border-color))] flex-shrink-0">
+    <header className="bg-white dark:bg-black shadow-lg border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link to="/" className="flex items-center">
           {/* Use favicon.png as logo */}
@@ -40,7 +99,15 @@ function Navbar({ darkMode, toggleDarkMode }) {
             DeployIO
           </span>
         </Link>
-        <nav>
+        {/* Mobile hamburger button */}
+        <button
+          className="md:hidden p-2 text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--bg-hover))] rounded-md focus:outline-none"
+          onClick={() => openSidebar(sidebarContent)}
+          aria-label="Open menu"
+        >
+          <FaBars className="h-6 w-6" />
+        </button>
+        <nav className="hidden md:block">
           <ul className="flex items-center space-x-4 md:space-x-6">
             {/* Dark Mode Toggle Button - styling already updated */}
             <li>
@@ -74,8 +141,7 @@ function Navbar({ darkMode, toggleDarkMode }) {
                   <button
                     onClick={onLogout}
                     disabled={isLoggingOut}
-                    // Apply themed button styles (text color should be --text-button)
-                    className={`px-4 py-2 rounded-md text-sm font-medium text-[rgb(var(--text-button))] bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-secondary))] transition-colors duration-200 shadow-sm ${
+                    className={`btn-gradient px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-all duration-200 ${
                       isLoggingOut
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:shadow-md"
@@ -126,8 +192,7 @@ function Navbar({ darkMode, toggleDarkMode }) {
                 <li>
                   <Link
                     to="/auth/register"
-                    // Apply themed button-like link styles (text color should be --text-button)
-                    className="px-4 py-2 rounded-md text-sm font-medium text-[rgb(var(--text-button))] bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-secondary))] transition-colors duration-200 shadow-sm hover:shadow-md"
+                    className="btn-gradient px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
                   >
                     Sign Up
                   </Link>
@@ -136,6 +201,7 @@ function Navbar({ darkMode, toggleDarkMode }) {
             )}
           </ul>
         </nav>
+        {/* sidebar is managed by Sidebar component via context */}
       </div>
     </header>
   );
