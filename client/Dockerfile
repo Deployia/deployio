@@ -1,6 +1,15 @@
-FROM node:18-alpine AS build
+FROM node:20-alpine3.19 AS build
 
 WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1001 -S deployio && \
+    adduser -S deployio -u 1001
+
+# Install security updates
+RUN apk update && \
+    apk upgrade && \
+    rm -rf /var/cache/apk/*
 
 # Define build arguments with default values - these will be overridden by docker-compose
 ARG VITE_APP_ENV=production
@@ -9,7 +18,8 @@ ARG VITE_APP_FASTAPI_URL=/service/v1
 
 # Copy package files and install dependencies
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --only=production && \
+    npm cache clean --force
 
 # Copy all files
 COPY . .
@@ -25,14 +35,26 @@ RUN echo "Building with: VITE_APP_ENV=$VITE_APP_ENV VITE_APP_BACKEND_URL=$VITE_A
 # Build the app
 RUN npm run build
 
-FROM node:18-alpine AS runtime
+FROM node:20-alpine3.19 AS runtime
 WORKDIR /app
 
-# install the static-server globally
-RUN npm install -g serve
+# Create non-root user
+RUN addgroup -g 1001 -S deployio && \
+    adduser -S deployio -u 1001
+
+# Install security updates and serve
+RUN apk update && \
+    apk upgrade && \
+    rm -rf /var/cache/apk/* && \
+    npm install -g serve@14 && \
+    npm cache clean --force
 
 # copy build artifacts
 COPY --from=build /app/dist ./dist
+
+# Change ownership to non-root user
+RUN chown -R deployio:deployio /app
+USER deployio
 
 EXPOSE 80
 CMD ["serve", "-s", "dist", "-l", "80"]
