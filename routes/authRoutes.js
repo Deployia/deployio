@@ -5,6 +5,11 @@ const passport = require("passport");
 const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
+// Determine front-end URL for redirects
+const frontUrl =
+  process.env.NODE_ENV === "development"
+    ? process.env.FRONTEND_URL_DEV
+    : process.env.FRONTEND_URL_PROD;
 
 // Rate limiters for sensitive auth routes
 const loginLimiter = rateLimit({
@@ -54,7 +59,7 @@ router.get(
   "/google/callback",
   passport.authenticate("google", {
     session: false,
-    failureRedirect: "/login",
+    failureRedirect: `${frontUrl}/auth/login`,
   }),
   require("../controllers/authController").googleAuthCallback
 );
@@ -69,7 +74,7 @@ router.get(
   "/facebook/callback",
   passport.authenticate("facebook", {
     session: false,
-    failureRedirect: "/login",
+    failureRedirect: `${frontUrl}/auth/login`,
   }),
   authController.facebookAuthCallback
 );
@@ -84,7 +89,7 @@ router.get(
   "/github/callback",
   passport.authenticate("github", {
     session: false,
-    failureRedirect: "/login",
+    failureRedirect: `${frontUrl}/auth/login`,
   }),
   authController.githubAuthCallback
 );
@@ -104,9 +109,10 @@ router.get(
 router.get(
   "/link/google/callback",
   protect,
+  passport.authorize("google", { scope: ["profile", "email"], session: false }),
   passport.authorize("google", {
     session: false,
-    failureRedirect: "/profile",
+    failureRedirect: `${frontUrl}/profile`,
   }),
   authController.linkProviderCallback("google")
 );
@@ -121,7 +127,7 @@ router.get(
   protect,
   passport.authorize("facebook", {
     session: false,
-    failureRedirect: "/profile",
+    failureRedirect: `${frontUrl}/profile`,
   }),
   authController.linkProviderCallback("facebook")
 );
@@ -136,7 +142,7 @@ router.get(
   protect,
   passport.authorize("github", {
     session: false,
-    failureRedirect: "/profile",
+    failureRedirect: `${frontUrl}/profile`,
   }),
   authController.linkProviderCallback("github")
 );

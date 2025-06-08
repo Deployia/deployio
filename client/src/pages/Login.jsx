@@ -105,6 +105,8 @@ function Login() {
               onCancel={() => {
                 setSearchParams({});
                 dispatch(reset2FA());
+                // Navigate back to login page
+                navigate("/auth/login");
               }}
             />
           </div>
@@ -249,7 +251,7 @@ function Login() {
                     />
                   </svg>
                 </a>
-              </div>{" "}
+              </div>
               <div className="text-center pt-3">
                 <span className="text-xs text-slate-600">
                   Don't have an account?{" "}
