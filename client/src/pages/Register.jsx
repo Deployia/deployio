@@ -71,16 +71,16 @@ function Register() {
     return <Spinner />;
   }
   return (
-    <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+    <div className="min-h-[90vh] bg-black flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
       <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
+        <div className="bg-neutral-900 rounded-2xl overflow-hidden border border-neutral-700">
           {/* Header - Compact */}
-          <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
-            <div className="mx-auto h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3">
+          <div className="px-6 py-4 text-center border-b border-neutral-800">
+            <div className="mx-auto h-12 w-12 bg-neutral-800 rounded-full flex items-center justify-center mb-3 border border-neutral-700">
               <span className="text-white text-lg font-bold">F!</span>
             </div>
             <h2 className="text-xl font-bold text-white">Join Fauxigent</h2>
-            <p className="text-purple-100 text-xs mt-1">
+            <p className="text-neutral-400 text-xs mt-1">
               Create your account to get started
             </p>
           </div>
@@ -91,7 +91,7 @@ function Register() {
               <div>
                 <label
                   htmlFor="username"
-                  className="block text-sm font-semibold text-slate-700 mb-1"
+                  className="block text-sm font-semibold text-neutral-300 mb-1"
                 >
                   Username
                 </label>
@@ -101,7 +101,7 @@ function Register() {
                   name="username"
                   value={username}
                   onChange={onChange}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                  className="w-full px-3 py-2.5 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all duration-200 bg-black text-white placeholder-neutral-500"
                   placeholder="Choose a username"
                   required
                 />
@@ -109,7 +109,7 @@ function Register() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-semibold text-slate-700 mb-1"
+                  className="block text-sm font-semibold text-neutral-300 mb-1"
                 >
                   Email address
                 </label>
@@ -119,7 +119,7 @@ function Register() {
                   name="email"
                   value={email}
                   onChange={onChange}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                  className="w-full px-3 py-2.5 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all duration-200 bg-black text-white placeholder-neutral-500"
                   placeholder="Enter your email"
                   required
                 />
@@ -127,7 +127,7 @@ function Register() {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-semibold text-slate-700 mb-1"
+                  className="block text-sm font-semibold text-neutral-300 mb-1"
                 >
                   Password
                 </label>
@@ -137,29 +137,21 @@ function Register() {
                   name="password"
                   value={password}
                   onChange={onChange}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                  className="w-full px-3 py-2.5 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all duration-200 bg-black text-white placeholder-neutral-500"
                   placeholder="Create a password"
                   required
                 />
                 {/* Password strength meter */}
-                <div className="mt-1 h-2 bg-gray-200 rounded">
+                <div className="mt-1 h-2 bg-neutral-800 rounded">
                   <div
-                    className={`h-full rounded ${
-                      [
-                        "bg-red-500",
-                        "bg-orange-500",
-                        "bg-yellow-400",
-                        "bg-blue-500",
-                        "bg-green-500",
-                      ][passwordScore]
-                    }`}
+                    className={`h-full rounded bg-white`}
                     style={{
                       width: `${((passwordScore + 1) / 5) * 100}%`,
                     }}
                   />
                 </div>
                 <p
-                  className="mt-1 text-xs font-medium capitalize"
+                  className="mt-1 text-xs font-medium capitalize text-neutral-400"
                   aria-live="polite"
                 >
                   {
@@ -172,7 +164,7 @@ function Register() {
               <div>
                 <label
                   htmlFor="confirmPassword"
-                  className="block text-sm font-semibold text-slate-700 mb-1"
+                  className="block text-sm font-semibold text-neutral-300 mb-1"
                 >
                   Confirm Password
                 </label>
@@ -182,7 +174,7 @@ function Register() {
                   name="confirmPassword"
                   value={confirmPassword}
                   onChange={onChange}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                  className="w-full px-3 py-2.5 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all duration-200 bg-black text-white placeholder-neutral-500"
                   placeholder="Confirm your password"
                   aria-invalid={confirmPassword && password !== confirmPassword}
                   aria-describedby={
@@ -205,18 +197,18 @@ function Register() {
                 <button
                   type="submit"
                   disabled={loading.signup || password !== confirmPassword}
-                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="w-full flex justify-center items-center py-2.5 px-4 border border-neutral-700 text-sm font-semibold rounded-lg text-white bg-neutral-800 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   {loading.signup ? <Spinner size={20} /> : "Create Account"}
                 </button>
-              </div>{" "}
+              </div>
               {/* OAuth Buttons - Compact */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
+                  <div className="w-full border-t border-neutral-700" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="px-3 bg-white text-slate-500">
+                  <span className="px-3 bg-black text-neutral-500">
                     or continue with
                   </span>
                 </div>
@@ -224,7 +216,7 @@ function Register() {
               <div className="grid grid-cols-3 gap-2 mt-2">
                 <a
                   href="http://localhost:5000/api/v1/auth/google"
-                  className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center justify-center py-2.5 px-3 border border-neutral-700 rounded-lg bg-black text-white hover:bg-neutral-800 transition-all duration-200"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 48 48">
                     <g>
@@ -250,7 +242,7 @@ function Register() {
                 </a>
                 <a
                   href="http://localhost:5000/api/v1/auth/github"
-                  className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center justify-center py-2.5 px-3 border border-neutral-700 rounded-lg bg-black text-white hover:bg-neutral-800 transition-all duration-200"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -261,7 +253,7 @@ function Register() {
                 </a>
                 <a
                   href="http://localhost:5000/api/v1/auth/facebook"
-                  className="flex items-center justify-center py-2.5 px-3 border border-slate-200 rounded-lg shadow-sm bg-white text-slate-700 hover:bg-slate-50 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center justify-center py-2.5 px-3 border border-neutral-700 rounded-lg bg-black text-white hover:bg-neutral-800 transition-all duration-200"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -272,11 +264,11 @@ function Register() {
                 </a>
               </div>
               <div className="text-center pt-3">
-                <span className="text-xs text-slate-600">
+                <span className="text-xs text-neutral-500">
                   Already have an account?{" "}
                   <Link
                     to="/auth/login"
-                    className="font-semibold text-purple-600 hover:text-purple-700 transition-colors"
+                    className="font-semibold text-white hover:underline"
                   >
                     Sign in here
                   </Link>

@@ -5,10 +5,12 @@ import Sidebar from "./Sidebar";
 
 function Layout({ children }) {
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gray-900 flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-black flex flex-col body">
       <Navbar />
       <Sidebar />
-      <main className="flex-1 overflow-hidden">{children || <Outlet />}</main>
+      <main className="flex-1 overflow-hidden body">
+        {children || <Outlet />}
+      </main>
       {/* <Footer /> */}
     </div>
   );

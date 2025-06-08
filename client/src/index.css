@@ -1,1 +1,20 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Raleway:ital,wght@0,100..900;1,100..900&family=Space+Grotesk:wght@300..700&display=swap");
 @import "tailwindcss";
+
+.font-grotesk {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.font-dm-sans {
+  font-family: "DM Sans", sans-serif;
+}
+
+.heading {
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.body {
+  font-family: "DM Sans", sans-serif;
+  letter-spacing: -0.04em;
+}

@@ -117,20 +117,20 @@ function VerifyOtp() {
   };
 
   return (
-    <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+    <div className="min-h-[90vh] bg-black flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
       <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
-          <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4 text-center">
-            <div className="mx-auto h-12 w-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3">
+        <div className="bg-neutral-900 rounded-2xl overflow-hidden border border-neutral-700">
+          <div className="px-6 py-4 text-center border-b border-neutral-800">
+            <div className="mx-auto h-12 w-12 bg-neutral-800 rounded-full flex items-center justify-center mb-3 border border-neutral-700">
               <span className="text-white text-lg font-bold">F!</span>
-            </div>{" "}
+            </div>
             <h2 className="text-xl font-bold text-white">
               {isFromLogin
                 ? "Account Verification Required"
                 : "Verify your account"}
             </h2>
-            <p className="text-purple-100 text-xs mt-1">
-              Enter the OTP sent to {email || "your email"}
+            <p className="text-neutral-400 text-xs mt-1">
+              Enter the code sent to your email
             </p>
           </div>
           <div className="px-6 sm:px-10 py-10 overflow-x-hidden">

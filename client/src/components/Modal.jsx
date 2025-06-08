@@ -41,20 +41,19 @@ const Modal = () => {
 
   return (
     <div
-      className={`fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+      className={`fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 body ${
         animate ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
       onClick={handleOverlayClick}
     >
-      {" "}
       <div
         ref={modalRef}
-        className={`bg-gray-800 border border-gray-700 rounded-xl min-w-[320px] max-w-[90vw] md:max-w-lg p-8 shadow-2xl relative transform transition-all duration-300 ${
+        className={`bg-neutral-900 border border-neutral-700 rounded-xl min-w-[320px] max-w-[90vw] md:max-w-lg p-8 relative transform transition-all duration-300 ${
           animate ? "scale-100 opacity-100" : "scale-0 opacity-0"
-        }`}
+        } body`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-white">{modalContent}</div>
+        <div className="text-white body">{modalContent}</div>
       </div>
     </div>
   );

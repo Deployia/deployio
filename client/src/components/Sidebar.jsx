@@ -64,14 +64,14 @@ const Sidebar = () => {
   if (!shouldRender) return null;
   return (
     <div
-      className={`fixed inset-0 z-[1000] flex items-stretch bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+      className={`fixed inset-0 z-[1000] flex items-stretch bg-black/60 backdrop-blur-sm transition-opacity duration-300 body ${
         animate ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
       onClick={handleOverlayClick}
     >
       <aside
         ref={sidebarRef}
-        className={`ml-auto h-full w-[90vw] max-w-sm bg-gray-800 border-l border-gray-700 shadow-2xl p-6 overflow-y-auto transform transition-transform duration-300 ${
+        className={`ml-auto h-full w-[90vw] max-w-sm bg-neutral-900 border-l border-neutral-700 p-6 overflow-y-auto transform transition-transform duration-300 ${
           animate ? "translate-x-0" : "translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -79,7 +79,7 @@ const Sidebar = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="text-white">{sidebarContent}</div>
+        <div className="text-white body">{sidebarContent}</div>
       </aside>
     </div>
   );

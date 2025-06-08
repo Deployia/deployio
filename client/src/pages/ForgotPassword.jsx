@@ -29,17 +29,17 @@ function ForgotPassword() {
     dispatch(forgotPassword(email));
   };
   return (
-    <div className="min-h-[90vh] bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
+    <div className="min-h-[90vh] bg-black flex items-center justify-center py-10 px-2 sm:px-6 lg:px-8">
       <div className="max-w-xl min-w-[320px] sm:min-w-[380px] md:min-w-[420px] w-full">
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-purple-100">
+        <div className="bg-neutral-900 rounded-2xl overflow-hidden border border-neutral-700">
           {/* Header */}
-          <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-8 py-6 text-center">
-            <div className="mx-auto h-16 w-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
-              <span className="text-white text-2xl font-bold">F!</span>
+          <div className="px-6 py-4 text-center border-b border-neutral-800">
+            <div className="mx-auto h-12 w-12 bg-neutral-800 rounded-full flex items-center justify-center mb-3 border border-neutral-700">
+              <span className="text-white text-lg font-bold">F!</span>
             </div>
-            <h2 className="text-2xl font-bold text-white">Reset Password</h2>
-            <p className="text-purple-100 text-sm mt-1">
-              We'll send you a link to reset your password
+            <h2 className="text-xl font-bold text-white">Forgot Password</h2>
+            <p className="text-neutral-400 text-xs mt-1">
+              Enter your email to reset your password
             </p>
           </div>
 
@@ -47,9 +47,9 @@ function ForgotPassword() {
           <div className="px-6 sm:px-10 py-10 overflow-x-hidden">
             {success.forgotPassword ? (
               <div className="text-center space-y-6">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-purple-100">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-neutral-800 border border-neutral-700">
                   <svg
-                    className="h-8 w-8 text-purple-600"
+                    className="h-8 w-8 text-white"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -63,17 +63,17 @@ function ForgotPassword() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-lg font-semibold text-white">
                     Check your email
                   </h3>
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-neutral-400">
                     We've sent password reset instructions to your email
                     address.
                   </p>
                 </div>
                 <Link
                   to="/auth/login"
-                  className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-neutral-800 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 transition-all duration-200"
                 >
                   Back to Login
                 </Link>
@@ -83,7 +83,7 @@ function ForgotPassword() {
                 <div>
                   <label
                     htmlFor="email"
-                    className="block text-sm font-semibold text-slate-700 mb-2"
+                    className="block text-sm font-semibold text-white mb-2"
                   >
                     Email address
                   </label>
@@ -93,7 +93,7 @@ function ForgotPassword() {
                     name="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-slate-900 placeholder-slate-400"
+                    className="w-full px-4 py-3 border border-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all duration-200 text-white placeholder:text-neutral-400"
                     placeholder="Enter your email address"
                     required
                   />
@@ -103,7 +103,7 @@ function ForgotPassword() {
                   <button
                     type="submit"
                     disabled={loading.forgotPassword}
-                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-neutral-800 hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     {loading.forgotPassword ? (
                       <Spinner size={20} />
@@ -114,11 +114,11 @@ function ForgotPassword() {
                 </div>
 
                 <div className="text-center pt-2">
-                  <span className="text-sm text-slate-600">
+                  <span className="text-sm text-neutral-400">
                     Remember your password?{" "}
                     <Link
                       to="/auth/login"
-                      className="font-semibold text-purple-600 hover:text-purple-700 transition-colors"
+                      className="font-semibold text-white hover:text-neutral-300 transition-colors"
                     >
                       Back to Login
                     </Link>
