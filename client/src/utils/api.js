@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL:
-    import.meta.env.NODE_ENV === "production"
+    import.meta.env.VITE_APP_ENV === "production"
       ? ""
       : import.meta.env.VITE_APP_BACKEND_URL || "http://localhost:5000",
   withCredentials: true,
