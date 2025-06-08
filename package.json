@@ -6,10 +6,10 @@
   "homepage": "https://deployio.tech",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vasudevshetty/deployio.git"
+    "url": "git+https://github.com/deployio/deployio.git"
   },
   "bugs": {
-    "url": "https://github.com/vasudevshetty/deployio/issues"
+    "url": "https://github.com/deployio/deployio/issues"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

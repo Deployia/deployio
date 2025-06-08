@@ -1,5 +1,5 @@
 {
-  "name": "@DeployIO/client",
+  "name": "@deployio/client",
   "version": "0.0.0",
   "type": "module",
   "publishConfig": {
@@ -12,7 +12,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@DeployIO/server": "file:..",
     "@reduxjs/toolkit": "^2.8.2",
     "@tailwindcss/vite": "^4.1.7",
     "axios": "^1.9.0",
