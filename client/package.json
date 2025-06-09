@@ -1,6 +1,7 @@
 {
-  "name": "@deployio/client",
-  "version": "0.0.0",
+  "name": "@deployio/dashboard",
+  "version": "1.0.0",
+  "description": "Deployio Dashboard - AI-powered DevOps automation platform frontend",
   "type": "module",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

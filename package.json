@@ -1,7 +1,7 @@
 {
-  "name": "@deployio/server",
+  "name": "@deployio/platform",
   "version": "1.0.0",
-  "description": "DeployIO - Automated Deployment Platform with complete CI/CD pipeline, authentication, and security features",
+  "description": "Deployio - AI-powered DevOps automation platform that simplifies and accelerates deployment processes for developers with intelligent automation from GitHub repository to production deployment",
   "main": "server.js",
   "homepage": "https://deployio.tech",
   "repository": {

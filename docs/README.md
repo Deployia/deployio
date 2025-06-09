@@ -6,13 +6,17 @@ Welcome to DeployIO's comprehensive documentation! This directory contains all g
 
 ### 🚀 Getting Started
 
-- **[⚡ Quick Start Guide](../README.md#quick-start)** - Get up and running in minutes
+- **[⚡ Quick Start Guide](QUICK-START-GUIDE.md)** - 3-step deployment process
 - **[🔧 Environment Setup](ENV-CONFIG.md)** - Configure your development environment
+- **[📋 Deployment Status](DEPLOYMENT-STATUS.md)** - Current production readiness status
 - **[🐳 Docker Configuration](../docker-compose.yml)** - Container orchestration setup
 
 ### 🔄 CI/CD & Deployment
 
 - **[🚀 CI/CD Complete Guide](CI-CD-COMPLETE.md)** - Complete pipeline documentation and setup
+- **[🚀 Platform Deployment](PLATFORM-DEPLOYMENT.md)** - Platform infrastructure setup
+- **[⚡ Quick Start Guide](QUICK-START-GUIDE.md)** - 3-step production deployment
+- **[📋 Deployment Status](DEPLOYMENT-STATUS.md)** - Production readiness checklist
 - **[📊 GitHub Badges](GitHub-Badges.md)** - Status badges for your repository
 
 ### 🔐 Security & Authentication
@@ -21,6 +25,12 @@ Welcome to DeployIO's comprehensive documentation! This directory contains all g
 - **[🛡️ Docker Security](DOCKER-SECURITY.md)** - Container security best practices
 - **[☁️ EC2 Security](EC2-DEPLOYMENT-SECURITY.md)** - Cloud deployment security guide
 - **[🔐 Traefik Configuration](TRAEFIK-CONFIG.md)** - Reverse proxy and SSL setup
+
+### 🤖 AI Services & Platform
+
+- **[🤖 AI Service Guide](AI-SERVICE.md)** - AI processing and automation engine
+- **[📊 Performance Optimization](PERFORMANCE-OPTIMIZATION.md)** - Platform optimization guide
+- **[🔍 SEO Implementation](SEO-IMPLEMENTATION.md)** - Search engine optimization guide
 
 ### 📖 API Documentation
 
@@ -32,14 +42,20 @@ Welcome to DeployIO's comprehensive documentation! This directory contains all g
 
 ```
 docs/
+├── 🚀 AI-SERVICE.md                    # AI processing and automation
 ├── 🚀 CI-CD-COMPLETE.md               # Complete CI/CD guide
 ├── 🔐 2FA-IMPLEMENTATION-COMPLETE.md  # 2FA setup guide
+├── 📋 DEPLOYMENT-STATUS.md            # Production readiness status
 ├── 🐳 DOCKER-SECURITY.md              # Docker security practices
 ├── ☁️ EC2-DEPLOYMENT-SECURITY.md      # EC2 security configuration
 ├── ⚙️ ENV-CONFIG.md                   # Environment configuration
 ├── 📊 GitHub-Badges.md                # Status badges
-├── 🔒 TRAEFIK-CONFIG.md               # Traefik proxy configuration
+├── 📊 PERFORMANCE-OPTIMIZATION.md     # Platform optimization
+├── 🚀 PLATFORM-DEPLOYMENT.md          # Platform infrastructure
+├── ⚡ QUICK-START-GUIDE.md            # 3-step deployment guide
 ├── 📚 README.md                       # This documentation index
+├── 🔍 SEO-IMPLEMENTATION.md           # SEO optimization
+├── 🔒 TRAEFIK-CONFIG.md               # Traefik proxy configuration
 └── backend/                           # Backend API Documentation
     ├── 📚 README.md                   # Backend docs index
     ├── 🔑 auth.swagger.js             # Authentication API spec
