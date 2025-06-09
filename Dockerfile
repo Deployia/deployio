@@ -13,7 +13,7 @@ RUN apk update && \
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm ci --only=production && \
+RUN npm ci --only=production --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy application code
