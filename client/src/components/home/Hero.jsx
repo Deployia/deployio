@@ -26,7 +26,6 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
           <FaStar className="w-4 h-4 mr-2" />
           AI-Powered DevOps Platform
         </motion.div>
-
         {/* Main Heading */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
@@ -39,7 +38,6 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
             Not Harder
           </span>
         </motion.h1>
-
         {/* Subtitle */}
         <motion.p
           initial={{ opacity: 0, y: 30 }}
@@ -49,9 +47,8 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
         >
           Transform your deployment process with AI-powered automation. From
           code analysis to production deployment in minutes, not hours.
-        </motion.p>
-
-        {/* Stats */}
+        </motion.p>{" "}
+        {/* Key Benefits */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -60,18 +57,17 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
         >
           <div className="flex items-center">
             <div className="w-2 h-2 bg-green-400 rounded-full mr-2" />
-            99.9% Uptime
+            Zero Configuration
           </div>
           <div className="flex items-center">
             <div className="w-2 h-2 bg-blue-400 rounded-full mr-2" />
-            10x Faster Deployments
+            AI-Powered Analysis
           </div>
           <div className="flex items-center">
             <div className="w-2 h-2 bg-purple-400 rounded-full mr-2" />
-            1000+ Happy Developers
+            Enterprise Ready
           </div>
         </motion.div>
-
         {/* CTA Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -106,22 +102,29 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
             <FaPlay className="mr-2 w-5 h-5" />
             Watch Demo
           </button>
-        </motion.div>
-
+        </motion.div>{" "}
         {/* Trusted By */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.8 }}
-          className="mt-16 pt-8 border-t border-gray-800"
+          className="mt-16 pt-8 border-t border-gray-800/50"
         >
-          <p className="text-gray-500 text-sm mb-6">Trusted by developers at</p>
-          <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
+          <p className="text-gray-400 text-sm mb-6 font-medium">
+            Trusted by developers at
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-8">
             {["Tech Corp", "StartupXYZ", "DevCorp", "CloudCo", "DataLabs"].map(
               (company, index) => (
-                <div key={index} className="text-gray-400 font-medium">
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 + index * 0.1, duration: 0.3 }}
+                  className="text-gray-400 hover:text-gray-300 font-medium transition-colors duration-200 px-3 py-1 rounded-lg hover:bg-gray-800/30"
+                >
                   {company}
-                </div>
+                </motion.div>
               )
             )}
           </div>

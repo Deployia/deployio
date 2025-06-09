@@ -144,40 +144,7 @@ const Testimonials = () => {
                 </div>
               </div>
             </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
-        >
-          <div>
-            <div className="text-3xl md:text-4xl font-bold text-blue-400 mb-2">
-              4.9/5
-            </div>
-            <div className="text-gray-400 text-sm">Average Rating</div>
-          </div>
-          <div>
-            <div className="text-3xl md:text-4xl font-bold text-green-400 mb-2">
-              1000+
-            </div>
-            <div className="text-gray-400 text-sm">Happy Customers</div>
-          </div>
-          <div>
-            <div className="text-3xl md:text-4xl font-bold text-purple-400 mb-2">
-              50K+
-            </div>
-            <div className="text-gray-400 text-sm">Deployments</div>
-          </div>
-          <div>
-            <div className="text-3xl md:text-4xl font-bold text-yellow-400 mb-2">
-              99.9%
-            </div>
-            <div className="text-gray-400 text-sm">Uptime</div>
-          </div>
+          ))}{" "}
         </motion.div>
       </div>
     </section>
