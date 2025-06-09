@@ -240,20 +240,18 @@ jobs:
             # Deploy using your existing working process
             docker-compose down --remove-orphans
             docker-compose build --no-cache
-            docker-compose up -d
+            docker-compose up -d            # Wait for containers to start
+            echo "⏳ Waiting for services to start..."
+            sleep 20
 
-            # Wait for containers to fully start and become healthy
-            echo "⏳ Waiting for all services to become healthy..."
-            sleep 60
-
-            # Verify all services are running and healthy
+            # Quick health check with 2 cycles
             echo "🔍 Checking service health..."
-            for i in {1..12}; do
+            for i in {1..2}; do
               if docker-compose ps | grep -q "Up.*healthy"; then
                 echo "✅ Services are healthy after $((i * 15)) seconds"
                 break
               else
-                echo "⏳ Waiting for services to become healthy (attempt $i/12)..."
+                echo "⏳ Waiting for services to become healthy (attempt $i/2)..."
                 sleep 15
               fi
             done
