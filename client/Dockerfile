@@ -18,7 +18,7 @@ ARG VITE_APP_FASTAPI_URL=/service/v1
 
 # Copy package files and install dependencies
 COPY package.json package-lock.json ./
-RUN npm ci && \
+RUN npm ci --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy all files
