@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{title}}</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #0a0a0a;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+        Roboto, sans-serif;
+    "
+  >
+    <div
+      style="background-color: #0a0a0a; padding: 40px 20px; min-height: 100vh"
+    >
+      <div
+        style="
+          max-width: 500px;
+          margin: 0 auto;
+          background: linear-gradient(145deg, #171717 0%, #262626 100%);
+          border-radius: 20px;
+          border: 1px solid #404040;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          overflow: hidden;
+        "
+      >
+        <!-- Header -->
+        <div
+          style="background: {{headerGradient}}; padding: 32px 24px; text-align: center; position: relative;"
+        >
+          <div
+            style="
+              background: rgba(255, 255, 255, 0.1);
+              backdrop-filter: blur(10px);
+              border-radius: 16px;
+              padding: 16px;
+              display: inline-block;
+              border: 1px solid rgba(255, 255, 255, 0.2);
+            "
+          >
+            <div
+              style="
+                width: 48px;
+                height: 48px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 12px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 8px;
+              "
+            >
+              <span
+                style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: {{iconColor}};"
+                >{{icon}}</span
+              >
+            </div>
+            <h1
+              style="
+                font-family: 'Space Grotesk', sans-serif;
+                color: #ffffff;
+                font-size: 28px;
+                font-weight: 700;
+                margin: 0;
+                letter-spacing: -0.02em;
+              "
+            >
+              DeployIO
+            </h1>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 40px 32px">{{content}}</div>
+
+        <!-- Footer -->
+        <div
+          style="
+            background: #171717;
+            border-top: 1px solid #404040;
+            padding: 24px 32px;
+            text-align: center;
+          "
+        >
+          <p
+            style="color: #737373; font-size: 13px; margin: 0; line-height: 1.5"
+          >
+            &copy; {{currentYear}}
+            <strong style="color: {{brandColor}};">DeployIO</strong>. All rights
+            reserved.
+          </p>
+          <p style="color: #525252; font-size: 12px; margin: 8px 0 0 0">
+            Secure deployment platform for modern applications
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

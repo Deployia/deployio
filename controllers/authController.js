@@ -1,5 +1,4 @@
 const authService = require("../services/authService");
-const userService = require("../services/userService");
 const jwt = require("jsonwebtoken");
 const { storeRefreshToken } = require("../services/authService");
 const User = require("../models/User");
@@ -13,29 +12,66 @@ const frontUrl =
 const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+
+    // Validate required fields
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
         message: "Please provide username, email, and password",
       });
     }
+
+    // Basic validation
+    if (username.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Username must be at least 3 characters long",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long",
+      });
+    }
+
     const result = await authService.registerUser({
-      username,
-      email,
+      username: username.trim(),
+      email: email.toLowerCase().trim(),
       password,
     });
+
     // Do not set cookies yet, require OTP verification
     res.status(201).json({
       success: true,
-      otpSent: true,
+      otpSent: result.otpSent || true,
       user: result.user,
       message:
+        result.message ||
         "OTP sent to your email. Please verify to activate your account.",
     });
   } catch (error) {
-    res.status(400).json({
+    let statusCode = 400;
+    let message = error.message;
+
+    if (error.message.includes("Email already registered")) {
+      statusCode = 409; // Conflict
+      message =
+        "An account with this email already exists. Please use a different email or try logging in.";
+    } else if (error.message.includes("duplicate key")) {
+      statusCode = 409;
+      if (error.message.includes("username")) {
+        message =
+          "This username is already taken. Please choose a different username.";
+      } else if (error.message.includes("email")) {
+        message = "An account with this email already exists.";
+      }
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: error.message,
+      message: message,
     });
   }
 };
@@ -49,7 +85,16 @@ const verifyOtp = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email and OTP required" });
     }
+
     const result = await authService.verifyOtp(email, otp);
+
+    if (!result.user) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP verification failed",
+      });
+    }
+
     // Record user session and get session record
     const session = await authService.addSession(result.user.id, {
       ip: req.ip,
@@ -80,9 +125,11 @@ const verifyOtp = async (req, res) => {
       success: true,
       user: result.user,
       sessionId: session._id.toString(),
+      message: "Account verified successfully",
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    const statusCode = error.message.includes("User not found") ? 404 : 400;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -95,7 +142,20 @@ const login = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please provide email and password" });
     }
+
     const result = await authService.loginUser(email, password);
+
+    // Handle unverified user case
+    if (result.needsVerification) {
+      return res.status(200).json({
+        success: false,
+        needsVerification: true,
+        userId: result.userId,
+        email: result.email,
+        message: result.message,
+      });
+    }
+
     // If 2FA is required, check for remembered device
     if (result.requires2FA) {
       // Check for remembered device session
@@ -110,6 +170,13 @@ const login = async (req, res) => {
       if (remembered) {
         // Skip 2FA and log in directly
         const user = await User.findById(result.userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
         const session = await authService.addSession(user._id, {
           ip: req.ip,
           userAgent: req.headers["user-agent"],
@@ -158,6 +225,14 @@ const login = async (req, res) => {
       });
     }
 
+    // Normal login flow
+    if (!result.user) {
+      return res.status(400).json({
+        success: false,
+        message: "Login failed",
+      });
+    }
+
     const { user } = result;
     // Record user session and get session record
     const session = await authService.addSession(user._id, {
@@ -191,7 +266,11 @@ const login = async (req, res) => {
       sessionId: session._id.toString(),
     });
   } catch (error) {
-    res.status(401).json({ success: false, message: error.message });
+    // Only send 401 for actual authentication failures
+    const statusCode = error.message.includes("Invalid email or password")
+      ? 401
+      : 400;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -211,6 +290,14 @@ const forgotPassword = async (req, res) => {
     const result = await authService.forgotPassword(email, frontendUrl);
     res.status(200).json({ success: true, message: result });
   } catch (error) {
+    // Don't reveal if email exists or not for security reasons
+    if (error.message.includes("User with this email does not exist")) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
+      });
+    }
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -236,27 +323,62 @@ const resetPassword = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const userId = req.user?._id;
-    // Remove current session record based on IP and user-agent
-    const sessions = await authService.getSessions(userId);
-    const currentAgent = req.headers["user-agent"];
-    const currentSession = sessions.find(
-      (s) => s.userAgent === currentAgent && s.ip === req.ip
-    );
-    if (currentSession) {
-      await authService.deleteSession(userId, currentSession._id.toString());
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User not authenticated",
+      });
     }
+
+    // Remove current session record based on IP and user-agent
+    try {
+      const sessions = await authService.getSessions(userId);
+      const currentAgent = req.headers["user-agent"];
+      const currentSession = sessions.find(
+        (s) => s.userAgent === currentAgent && s.ip === req.ip
+      );
+
+      if (currentSession) {
+        await authService.deleteSession(userId, currentSession._id.toString());
+      }
+    } catch (sessionError) {
+      console.error("Error removing session:", sessionError);
+      // Continue with logout even if session removal fails
+    }
+
+    // Call logout service
     const result = await authService.logoutUser(userId);
+
     // Clear authentication cookies
-    res.cookie("token", "none", {
+    const cookieOptions = {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+
+    res.cookie("token", "none", cookieOptions);
+    res.cookie("refreshToken", "none", cookieOptions);
+
+    res.status(200).json({
+      success: true,
+      message: result || "Logged out successfully",
     });
-    res.cookie("refreshToken", "none", {
-      expires: new Date(Date.now() + 10 * 1000),
-      httpOnly: true,
-    });
-    res.status(200).json({ success: true, message: result });
   } catch (error) {
+    console.error("Logout error:", error);
+
+    // Still clear cookies even if there's an error
+    const cookieOptions = {
+      expires: new Date(Date.now() + 10 * 1000),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+
+    res.cookie("token", "none", cookieOptions);
+    res.cookie("refreshToken", "none", cookieOptions);
+
     res.status(500).json({
       success: false,
       message: error.message || "An error occurred during logout",
@@ -373,68 +495,104 @@ const githubAuthCallback = handleOAuthCallback("github");
 const refreshToken = async (req, res) => {
   try {
     const incomingToken = req.cookies.refreshToken;
-    if (!incomingToken)
-      return res
-        .status(401)
-        .json({ success: false, message: "No refresh token" });
+
+    if (!incomingToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token not found. Please log in again.",
+      });
+    }
+
     // Verify token signature and get payload
-    jwt.verify(
-      incomingToken,
-      process.env.JWT_REFRESH_SECRET,
-      async (err, decoded) => {
-        if (err)
-          return res
-            .status(403)
-            .json({ success: false, message: "Invalid refresh token" });
-        // Find user and check token rotation list
-        const user = await require("../models/User").findById(decoded.id);
-        if (!user)
-          return res
-            .status(404)
-            .json({ success: false, message: "User not found" });
-        const tokenIndex = user.refreshTokens.findIndex(
-          (rt) => rt.token === incomingToken
-        );
-        if (tokenIndex === -1)
-          return res.status(403).json({
-            success: false,
-            message: "Refresh token revoked or not found",
-          });
-        // Remove the used refresh token (rotation)
-        user.refreshTokens.splice(tokenIndex, 1);
-        await user.save();
-        // Generate new tokens with same sessionId
-        const payload = { id: decoded.id, sessionId: decoded.sessionId };
-        const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-          expiresIn: process.env.JWT_EXPIRES_IN || "1d",
-        });
-        const newRefreshToken = jwt.sign(
-          payload,
-          process.env.JWT_REFRESH_SECRET,
-          {
-            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-          }
-        );
-        // Store the new refresh token for rotation
-        await storeRefreshToken(decoded.id, newRefreshToken);
-        // Set cookies
-        res.cookie("token", newAccessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          maxAge: 24 * 60 * 60 * 1000,
-        });
-        res.cookie("refreshToken", newRefreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-        res.json({ success: true });
-      }
+    let decoded;
+    try {
+      decoded = jwt.verify(incomingToken, process.env.JWT_REFRESH_SECRET);
+    } catch (err) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid or expired refresh token. Please log in again.",
+      });
+    }
+
+    // Find user and check token rotation list
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found. Please register or log in again.",
+      });
+    }
+
+    // Check if refresh token exists in user's token list
+    const tokenIndex = user.refreshTokens.findIndex(
+      (rt) => rt.token === incomingToken
     );
+
+    if (tokenIndex === -1) {
+      // Token not found - could be revoked or expired
+      return res.status(403).json({
+        success: false,
+        message:
+          "Refresh token has been revoked or is invalid. Please log in again.",
+      });
+    }
+
+    // Check if token is expired
+    const tokenData = user.refreshTokens[tokenIndex];
+    if (tokenData.expiresAt && new Date() > tokenData.expiresAt) {
+      // Remove expired token
+      user.refreshTokens.splice(tokenIndex, 1);
+      await user.save();
+      return res.status(403).json({
+        success: false,
+        message: "Refresh token has expired. Please log in again.",
+      });
+    }
+
+    // Remove the used refresh token (rotation)
+    user.refreshTokens.splice(tokenIndex, 1);
+    await user.save();
+
+    // Generate new tokens with same sessionId if it exists
+    const sessionId = decoded.sessionId || new Date().getTime().toString();
+    const payload = { id: decoded.id, sessionId: sessionId };
+
+    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    });
+    const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+    });
+
+    // Store the new refresh token for rotation
+    await storeRefreshToken(decoded.id, newRefreshToken);
+
+    // Set cookies
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+
+    res.cookie("token", newAccessToken, {
+      ...cookieOptions,
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+    res.cookie("refreshToken", newRefreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      success: true,
+      message: "Tokens refreshed successfully",
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Refresh token error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during token refresh. Please try again.",
+    });
   }
 };
 
@@ -447,10 +605,21 @@ const resendOtp = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email required" });
     }
+
     const result = await authService.resendOtp(email);
     res.status(200).json({ success: true, message: result });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    let statusCode = 400;
+
+    if (error.message.includes("User not found")) {
+      statusCode = 404;
+    } else if (error.message.includes("already verified")) {
+      statusCode = 409; // Conflict
+    } else if (error.message.includes("Failed to send")) {
+      statusCode = 500; // Server error
+    }
+
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -526,12 +695,14 @@ const deleteSession = async (req, res) => {
   }
 };
 
-// 2FA Controller Functions
+// =============================================================================
+// 2FA (Two-Factor Authentication) Controller Functions
+// =============================================================================
 
 // Generate 2FA secret
 const generate2FASecret = async (req, res) => {
   try {
-    const result = await userService.generate2FASecret(req.user.id);
+    const result = await authService.generate2FASecret(req.user.id);
     res.status(200).json({
       success: true,
       data: result,
@@ -552,10 +723,12 @@ const enable2FA = async (req, res) => {
         message: "Please provide verification token and secret",
       });
     }
-    const result = await userService.enable2FA(req.user.id, token, secret);
-    res
-      .status(200)
-      .json({ success: true, data: result, message: result.message });
+    const result = await authService.enable2FA(req.user.id, token, secret);
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: result.message,
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -564,78 +737,47 @@ const enable2FA = async (req, res) => {
 // Verify 2FA during login
 const verify2FALogin = async (req, res) => {
   try {
-    const { token, userId, rememberDevice } = req.body;
+    const { token, userId } = req.body;
     if (!token || !userId) {
       return res.status(400).json({
         success: false,
         message: "Please provide verification token and user ID",
       });
     }
-    const verificationResult = await userService.verify2FALogin(userId, token);
+
+    const verificationResult = await authService.verify2FALogin(userId, token);
     if (!verificationResult.verified) {
       return res.status(400).json({
         success: false,
         message: verificationResult.error || "Invalid verification code",
       });
     }
-    // Register session (with optional "remember this device")
-    const rememberUntil = rememberDevice
-      ? new Date(
-          Date.now() +
-            (parseInt(process.env.REMEMBER_DAYS, 10) || 30) *
-              24 *
-              60 *
-              60 *
-              1000
-        )
-      : undefined;
-    const session = await authService.addSession(userId, {
-      ip: req.ip,
-      userAgent: req.headers["user-agent"],
-      rememberedUntil: rememberUntil,
-    });
-    // Generate tokens for this session
-    const payload = { id: userId, sessionId: session._id.toString() };
-    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
-    const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-    });
-    // Store and rotate refresh token
-    await storeRefreshToken(userId, newRefreshToken);
-    // Set cookies
-    const opts = {
+
+    // Complete login by generating tokens
+    const loginResult = await authService.complete2FALogin(userId);
+
+    // Set cookies (using same names as regular login)
+    const cookieOptions = {
+      expires: new Date(
+        Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+      ),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge:
-        parseInt(process.env.JWT_COOKIE_EXPIRES_IN, 10) * 24 * 60 * 60 * 1000,
     };
-    res.cookie("token", newAccessToken, opts);
-    res.cookie("refreshToken", newRefreshToken, {
-      ...opts,
-      maxAge:
-        (parseInt(process.env.JWT_REFRESH_EXPIRES_IN, 10) || 7) *
-        24 *
-        60 *
-        60 *
-        1000,
+    res.cookie("token", loginResult.token, cookieOptions);
+    res.cookie("refreshToken", loginResult.refreshToken, {
+      ...cookieOptions,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
-    // Return user, method, and sessionId for client-side authentication
-    // Fetch user details (exclude sensitive fields)
-    const user = await User.findById(userId).select("username email");
+
     res.status(200).json({
       success: true,
       data: {
-        user: {
-          id: user._id.toString(),
-          username: user.username,
-          email: user.email,
-        },
+        user: loginResult.user,
         method: verificationResult.method,
-        sessionId: session._id.toString(),
       },
+      message: "2FA verification successful",
     });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -647,12 +789,16 @@ const disable2FA = async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Please provide your password" });
+      return res.status(400).json({
+        success: false,
+        message: "Please provide your password",
+      });
     }
-    const result = await userService.disable2FA(req.user.id, password);
-    res.status(200).json({ success: true, message: result });
+    const result = await authService.disable2FA(req.user.id, password);
+    res.status(200).json({
+      success: true,
+      message: result,
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -661,8 +807,11 @@ const disable2FA = async (req, res) => {
 // Get 2FA status
 const get2FAStatus = async (req, res) => {
   try {
-    const result = await userService.get2FAStatus(req.user.id);
-    res.status(200).json({ success: true, data: result });
+    const result = await authService.get2FAStatus(req.user.id);
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -673,17 +822,20 @@ const generateNewBackupCodes = async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Please provide your password" });
+      return res.status(400).json({
+        success: false,
+        message: "Please provide your password",
+      });
     }
-    const result = await userService.generateNewBackupCodes(
+    const result = await authService.generateNewBackupCodes(
       req.user.id,
       password
     );
-    res
-      .status(200)
-      .json({ success: true, data: result, message: result.message });
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: result.message,
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
