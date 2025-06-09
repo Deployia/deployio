@@ -1,8 +1,7 @@
 import axios from "axios";
-import { getFastApiBaseUrl } from "./apiConfig";
 
 const fastapi = axios.create({
-  baseURL: getFastApiBaseUrl(),
+  baseURL: import.meta.env.VITE_APP_FASTAPI_URL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

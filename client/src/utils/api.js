@@ -1,8 +1,7 @@
 import axios from "axios";
-import { getApiBaseUrl } from "./apiConfig";
 
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: import.meta.env.VITE_APP_BACKEND_URL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

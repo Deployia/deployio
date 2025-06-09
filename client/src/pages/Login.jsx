@@ -7,15 +7,15 @@ import {
   FaLock,
   FaSignInAlt,
   FaExclamationTriangle,
-  FaCheckCircle,
   FaUserPlus,
 } from "react-icons/fa";
-import AuthCard from "../components/AuthCard";
-import AuthInput from "../components/AuthInput";
-import AuthButton from "../components/AuthButton";
-import AuthDivider from "../components/AuthDivider";
-import OAuthSection from "../components/OAuthSection";
-import OTPVerification from "../components/OTPVerification";
+import AuthCard from "../components/auth/Card";
+import AuthInput from "../components/auth/Input";
+import AuthButton from "../components/auth/Button";
+import AuthDivider from "../components/auth/Divider";
+import OAuthSection from "../components/auth/OAuthSection";
+import OTPVerification from "../components/auth/OTPVerification";
+import SEO from "../components/SEO.jsx";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -122,86 +122,88 @@ function Login() {
   }
 
   const isFormValid = email && password;
-
   return (
-    <AuthCard
-      title="Welcome Back"
-      subtitle="Sign in to your DeployIO account"
-      icon={FaSignInAlt}
-      error={error?.login}
-      maxWidth="max-w-lg"
-    >
-      <form onSubmit={onSubmit} className="space-y-4">
-        <AuthInput
-          label="Email Address"
-          type="email"
-          name="email"
-          value={email}
-          onChange={onChange}
-          placeholder="Enter your email"
-          required
-          icon={FaUser}
-        />
+    <>
+      <SEO page="login" />
+      <AuthCard
+        title="Welcome Back"
+        subtitle="Sign in to your DeployIO account"
+        icon={FaSignInAlt}
+        error={error?.login}
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={onSubmit} className="space-y-4">
+          <AuthInput
+            label="Email Address"
+            type="email"
+            name="email"
+            value={email}
+            onChange={onChange}
+            placeholder="Enter your email"
+            required
+            icon={FaUser}
+          />
 
-        <AuthInput
-          label="Password"
-          type="password"
-          name="password"
-          value={password}
-          onChange={onChange}
-          placeholder="Enter your password"
-          required
-          icon={FaLock}
-        />
+          <AuthInput
+            label="Password"
+            type="password"
+            name="password"
+            value={password}
+            onChange={onChange}
+            placeholder="Enter your password"
+            required
+            icon={FaLock}
+          />
 
-        <div className="flex items-center justify-end">
-          <Link
-            to="/auth/forgot-password"
-            className="text-xs text-neutral-400 hover:text-purple-400 transition-colors"
-          >
-            Forgot password?
-          </Link>
-        </div>
-
-        <AuthButton
-          type="submit"
-          variant="primary"
-          size="md"
-          loading={loading.login}
-          disabled={!isFormValid}
-          className="w-full"
-        >
-          Sign In
-        </AuthButton>
-
-        {!isFormValid && (
-          <div className="flex items-center justify-center p-2 bg-neutral-800/30 border border-neutral-700 rounded-lg">
-            <FaExclamationTriangle className="text-yellow-400 mr-2 text-sm" />
-            <span className="text-neutral-400 text-xs">
-              Please fill in all required fields
-            </span>
-          </div>
-        )}
-      </form>
-
-      <AuthDivider />
-      <OAuthSection />
-
-      <div className="mt-6 text-center">
-        <div className="flex items-center justify-center p-3 bg-neutral-800/30 border border-neutral-700 rounded-lg">
-          <FaUserPlus className="text-purple-400 mr-2" />
-          <span className="text-neutral-400 text-sm">
-            Don't have an account?{" "}
+          <div className="flex items-center justify-end">
             <Link
-              to="/auth/register"
-              className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
+              to="/auth/forgot-password"
+              className="text-xs text-neutral-400 hover:text-purple-400 transition-colors"
             >
-              Create one here
+              Forgot password?
             </Link>
-          </span>
+          </div>
+
+          <AuthButton
+            type="submit"
+            variant="primary"
+            size="md"
+            loading={loading.login}
+            disabled={!isFormValid}
+            className="w-full"
+          >
+            Sign In
+          </AuthButton>
+
+          {!isFormValid && (
+            <div className="flex items-center justify-center p-2 bg-neutral-800/30 border border-neutral-700 rounded-lg">
+              <FaExclamationTriangle className="text-yellow-400 mr-2 text-sm" />
+              <span className="text-neutral-400 text-xs">
+                Please fill in all required fields
+              </span>
+            </div>
+          )}
+        </form>
+
+        <AuthDivider />
+        <OAuthSection />
+
+        <div className="mt-6 text-center">
+          <div className="flex items-center justify-center p-3 bg-neutral-800/30 border border-neutral-700 rounded-lg">
+            <FaUserPlus className="text-purple-400 mr-2" />{" "}
+            <span className="text-neutral-400 text-sm">
+              Don&apos;t have an account?{" "}
+              <Link
+                to="/auth/register"
+                className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
+              >
+                Create one here
+              </Link>
+            </span>{" "}
+          </div>
         </div>
-      </div>
-    </AuthCard>
+      </AuthCard>
+    </>
   );
 }
 

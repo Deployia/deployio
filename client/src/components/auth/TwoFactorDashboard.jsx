@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { FiShield, FiKey, FiDownload, FiRefreshCw } from "react-icons/fi";
+import { FiShield, FiKey, FiRefreshCw } from "react-icons/fi";
 import {
   get2FAStatus,
   generate2FASecret,
   clearError,
   clearQRCode,
   clearBackupCodes,
-} from "../redux/slices/twoFactorSlice";
+} from "../../redux/slices/twoFactorSlice";
 import TwoFactorQRCode from "./TwoFactorQRCode";
 import OTPVerification from "./OTPVerification";
 import BackupCodes from "./BackupCodes";
-import Spinner from "./Spinner";
+import Spinner from "../Spinner";
 import toast from "react-hot-toast";
 
 const TwoFactorDashboard = () => {
@@ -188,8 +188,8 @@ const TwoFactorDashboard = () => {
                 </p>
                 <p className="text-sm text-yellow-600 mt-1">
                   Enable 2FA to add an extra layer of security to your account.
-                  You'll need to enter a code from your authenticator app when
-                  signing in.
+                  You&apos;ll need to enter a code from your authenticator app
+                  when signing in.
                 </p>
               </div>
             </div>

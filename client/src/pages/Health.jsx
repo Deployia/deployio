@@ -3,6 +3,7 @@ import api from "../utils/api";
 import fastapi from "../utils/fastapi";
 import useEnvironmentInfo from "../utils/useEnvironmentInfo";
 import Spinner from "../components/Spinner";
+import SEO from "../components/SEO.jsx";
 import {
   FaCheckCircle,
   FaTimesCircle,
@@ -66,6 +67,7 @@ function Health() {
     );
   return (
     <>
+      <SEO page="health" />
       <div className="h-full overflow-auto p-6 body ">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-6">
@@ -192,8 +194,9 @@ function Health() {
                     Response
                   </div>
                   <div>
+                    {" "}
                     <span className="text-white text-sm italic">
-                      "{backendHello}"
+                      &quot;{backendHello}&quot;
                     </span>
                   </div>
                 </div>
@@ -298,10 +301,10 @@ function Health() {
                   <div className="flex items-center text-sm text-neutral-400">
                     <FaCode className="mr-2 text-neutral-500" />
                     Response
-                  </div>
+                  </div>{" "}
                   <div>
                     <span className="text-white text-sm italic">
-                      "{fastapiHello}"
+                      &quot;{fastapiHello}&quot;
                     </span>
                   </div>
                 </div>

@@ -40,6 +40,7 @@ export default [
         },
       ],
       "react/react-in-jsx-scope": "off", // Not needed in React 17+
+      'react/prop-types': 'off', // PropTypes are not used in this project
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

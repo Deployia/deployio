@@ -12,10 +12,11 @@ import {
 } from "../redux/slices/authSlice";
 import { useEffect, useRef, useState } from "react";
 import Spinner from "../components/Spinner";
-import TwoFactorDashboard from "../components/TwoFactorDashboard";
+import TwoFactorDashboard from "../components/auth/TwoFactorDashboard";
 import { useSearchParams } from "react-router-dom";
 import { FaPen, FaTrash } from "react-icons/fa";
 import toast from "react-hot-toast";
+import SEO from "../components/SEO.jsx";
 
 // Get backend URL for OAuth link redirects
 const BACKEND_URL = import.meta.env.VITE_APP_BACKEND_URL || "";
@@ -206,327 +207,331 @@ function Profile() {
   );
 
   return (
-    <div className="h-full bg-black py-8 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-4">
-        <div className="bg-neutral-900 rounded-2xl border border-neutral-700 overflow-hidden">
-          {/* Header */}
-          <div className="px-8 py-6 border-b border-neutral-800">
-            <h1 className="text-2xl font-bold text-white text-center">
-              Profile Settings
-            </h1>
-          </div>
+    <>
+      <SEO page="profile" />
+      <div className="h-full bg-black py-8 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="bg-neutral-900 rounded-2xl border border-neutral-700 overflow-hidden">
+            {/* Header */}
+            <div className="px-8 py-6 border-b border-neutral-800">
+              <h1 className="text-2xl font-bold text-white text-center">
+                Profile Settings
+              </h1>
+            </div>
 
-          {/* Profile image and user details */}
-          <div className="px-8 py-8">
-            <div className="flex flex-col items-center mb-8">
-              <div className="relative">
-                <img
-                  src={
-                    user?.profileImage ||
-                    authUser?.profileImage ||
-                    "https://ui-avatars.com/api/?name=" +
-                      (authUser?.username || "User")
-                  }
-                  alt="Profile"
-                  className="w-24 h-24 rounded-full border-4 border-neutral-700 mb-2"
-                />
-                <div className="absolute bottom-2 right-2 flex gap-1">
-                  <button
-                    type="button"
-                    className="bg-black rounded-full p-2 border border-neutral-700 hover:bg-neutral-800 transition-all duration-200"
-                    onClick={() =>
-                      fileInputRef.current && fileInputRef.current.click()
+            {/* Profile image and user details */}
+            <div className="px-8 py-8">
+              <div className="flex flex-col items-center mb-8">
+                <div className="relative">
+                  <img
+                    src={
+                      user?.profileImage ||
+                      authUser?.profileImage ||
+                      "https://ui-avatars.com/api/?name=" +
+                        (authUser?.username || "User")
                     }
-                    aria-label="Change profile image"
-                  >
-                    <FaPen className="text-white w-3 h-3" />
-                  </button>
-                  {(user?.profileImage || authUser?.profileImage) && (
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full border-4 border-neutral-700 mb-2"
+                  />
+                  <div className="absolute bottom-2 right-2 flex gap-1">
                     <button
                       type="button"
                       className="bg-black rounded-full p-2 border border-neutral-700 hover:bg-neutral-800 transition-all duration-200"
-                      onClick={handleRemoveProfileImage}
-                      aria-label="Remove profile image"
+                      onClick={() =>
+                        fileInputRef.current && fileInputRef.current.click()
+                      }
+                      aria-label="Change profile image"
                     >
-                      <FaTrash className="text-white w-3 h-3" />
+                      <FaPen className="text-white w-3 h-3" />
                     </button>
-                  )}
+                    {(user?.profileImage || authUser?.profileImage) && (
+                      <button
+                        type="button"
+                        className="bg-black rounded-full p-2 border border-neutral-700 hover:bg-neutral-800 transition-all duration-200"
+                        onClick={handleRemoveProfileImage}
+                        aria-label="Remove profile image"
+                      >
+                        <FaTrash className="text-white w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    name="profileImage"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={handleProfileChange}
+                    className="hidden"
+                  />
                 </div>
-                <input
-                  type="file"
-                  name="profileImage"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  onChange={handleProfileChange}
-                  className="hidden"
-                />
+                <div className="text-center">
+                  <div className="font-bold text-xl text-white">
+                    {authUser?.username || "User Name"}
+                  </div>
+                  <div className="text-neutral-500 text-sm">
+                    {authUser?.email || "user@email.com"}
+                  </div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="font-bold text-xl text-white">
-                  {authUser?.username || "User Name"}
-                </div>
-                <div className="text-neutral-500 text-sm">
-                  {authUser?.email || "user@email.com"}
-                </div>
+              {/* Tabs */}
+              <div className="flex border-b border-neutral-700 mb-8">
+                <button
+                  className={`px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
+                    activeTab === "details"
+                      ? "border-white text-white bg-black"
+                      : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
+                  }`}
+                  onClick={() => handleTabChange("details")}
+                >
+                  Profile Details
+                </button>
+                <button
+                  className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
+                    activeTab === "password"
+                      ? "border-white text-white bg-black"
+                      : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
+                  }`}
+                  onClick={() => handleTabChange("password")}
+                >
+                  Update Password
+                </button>
+                <button
+                  className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
+                    activeTab === "security"
+                      ? "border-white text-white bg-black"
+                      : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
+                  }`}
+                  onClick={() => handleTabChange("security")}
+                >
+                  Security
+                </button>
               </div>
-            </div>
-            {/* Tabs */}
-            <div className="flex border-b border-neutral-700 mb-8">
-              <button
-                className={`px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
-                  activeTab === "details"
-                    ? "border-white text-white bg-black"
-                    : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
-                }`}
-                onClick={() => handleTabChange("details")}
-              >
-                Profile Details
-              </button>
-              <button
-                className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
-                  activeTab === "password"
-                    ? "border-white text-white bg-black"
-                    : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
-                }`}
-                onClick={() => handleTabChange("password")}
-              >
-                Update Password
-              </button>
-              <button
-                className={`ml-4 px-6 py-3 font-semibold focus:outline-none border-b-2 transition-all duration-200 rounded-t-lg ${
-                  activeTab === "security"
-                    ? "border-white text-white bg-black"
-                    : "border-transparent text-neutral-500 hover:text-white hover:bg-neutral-800"
-                }`}
-                onClick={() => handleTabChange("security")}
-              >
-                Security
-              </button>
-            </div>
-            <div>
-              {activeTab === "details" && (
-                <form onSubmit={handleProfileSubmit} className="space-y-6">
-                  <h2 className="text-xl font-bold mb-6 text-white">
-                    Update Profile Details
-                  </h2>
-                  <div>
-                    {" "}
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={profileForm.firstName}
-                      onChange={handleProfileChange}
-                      className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={profileForm.lastName}
-                      onChange={handleProfileChange}
-                      className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                      Bio
-                    </label>{" "}
-                    <textarea
-                      name="bio"
-                      value={profileForm.bio}
-                      onChange={handleProfileChange}
-                      className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none"
-                      rows={3}
-                    />
-                  </div>
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
-                      {error}
+              <div>
+                {activeTab === "details" && (
+                  <form onSubmit={handleProfileSubmit} className="space-y-6">
+                    <h2 className="text-xl font-bold mb-6 text-white">
+                      Update Profile Details
+                    </h2>
+                    <div>
+                      {" "}
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={profileForm.firstName}
+                        onChange={handleProfileChange}
+                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      />
                     </div>
-                  )}
-                  {success && (
-                    <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl">
-                      {success}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={profileForm.lastName}
+                        onChange={handleProfileChange}
+                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      />
                     </div>
-                  )}
-                  <button
-                    type="submit"
-                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-                    disabled={loading}
-                  >
-                    {loading ? <Spinner size={20} /> : "Update Profile"}
-                  </button>
-                </form>
-              )}
-              {activeTab === "password" && (
-                <form onSubmit={handlePasswordSubmit} className="space-y-6">
-                  <h2 className="text-xl font-bold mb-6 text-white">
-                    Update Password
-                  </h2>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                      Current Password
-                    </label>
-                    <input
-                      type="password"
-                      name="currentPassword"
-                      value={passwordForm.currentPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                      New Password
-                    </label>
-                    <input
-                      type="password"
-                      name="newPassword"
-                      value={passwordForm.newPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                      Confirm New Password
-                    </label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      value={passwordForm.confirmPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      required
-                    />
-                  </div>
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
-                      {error}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        Bio
+                      </label>{" "}
+                      <textarea
+                        name="bio"
+                        value={profileForm.bio}
+                        onChange={handleProfileChange}
+                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none"
+                        rows={3}
+                      />
                     </div>
-                  )}
-                  {passwordSuccess && (
-                    <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl">
-                      {passwordSuccess}
-                    </div>
-                  )}{" "}
-                  <button
-                    type="submit"
-                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-                    disabled={loading}
-                  >
-                    {loading ? <Spinner size={20} /> : "Update Password"}
-                  </button>
-                </form>
-              )}
-
-              {activeTab === "security" && (
-                <div>
-                  <h2 className="text-xl font-bold mb-4 text-white">
-                    Security Settings
-                  </h2>
-                  {/* Two-Factor Authentication */}
-                  <div className="mb-6">
-                    <TwoFactorDashboard />
-                  </div>
-                  {/* OAuth Providers */}
-                  <div className="mb-6">
-                    <h3 className="font-semibold text-white mb-2">
-                      Linked OAuth Providers
-                    </h3>
-                    {providersLoading ? (
-                      <Spinner />
-                    ) : providersError ? (
-                      <div className="text-red-500">{providersError}</div>
-                    ) : (
-                      <div className="flex gap-4">
-                        {["google", "github"].map((prov) => (
-                          <div
-                            key={prov}
-                            className="flex items-center space-x-2"
-                          >
-                            <span className="capitalize text-white">
-                              {prov}
-                            </span>
-                            {providers[prov] ? (
-                              <button
-                                className="px-2 py-1 bg-red-600 text-white rounded"
-                                onClick={() => dispatch(unlinkProvider(prov))}
-                              >
-                                Unlink
-                              </button>
-                            ) : (
-                              <a
-                                className="px-2 py-1 bg-green-600 text-white rounded"
-                                href={`${BACKEND_URL}/api/v1/auth/link/${prov}`}
-                              >
-                                Link
-                              </a>
-                            )}
-                          </div>
-                        ))}
+                    {error && (
+                      <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
+                        {error}
                       </div>
                     )}
-                  </div>
-                  {/* Active Sessions */}
+                    {success && (
+                      <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl">
+                        {success}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                      disabled={loading}
+                    >
+                      {loading ? <Spinner size={20} /> : "Update Profile"}
+                    </button>
+                  </form>
+                )}
+                {activeTab === "password" && (
+                  <form onSubmit={handlePasswordSubmit} className="space-y-6">
+                    <h2 className="text-xl font-bold mb-6 text-white">
+                      Update Password
+                    </h2>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        Current Password
+                      </label>
+                      <input
+                        type="password"
+                        name="currentPassword"
+                        value={passwordForm.currentPassword}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        name="newPassword"
+                        value={passwordForm.newPassword}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        Confirm New Password
+                      </label>
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        value={passwordForm.confirmPassword}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                        required
+                      />
+                    </div>
+                    {error && (
+                      <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
+                        {error}
+                      </div>
+                    )}
+                    {passwordSuccess && (
+                      <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl">
+                        {passwordSuccess}
+                      </div>
+                    )}{" "}
+                    <button
+                      type="submit"
+                      className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                      disabled={loading}
+                    >
+                      {loading ? <Spinner size={20} /> : "Update Password"}
+                    </button>
+                  </form>
+                )}
+
+                {activeTab === "security" && (
                   <div>
-                    <h3 className="font-semibold text-white mb-2">
-                      Active Sessions
-                    </h3>
-                    {sessionsLoading ? (
-                      <Spinner />
-                    ) : sessionsError ? (
-                      <div className="text-red-500">{sessionsError}</div>
-                    ) : (
-                      <ul className="space-y-2">
-                        {uniqueSessions.map((s) => (
-                          <li
-                            key={s._id}
-                            data-cy="session-item"
-                            className="flex justify-between items-center bg-gray-700 p-2 rounded"
-                          >
-                            <div className="text-white text-sm">
-                              {new Date(s.createdAt).toLocaleString()} — {s.ip}
-                              {s._id === currentSessionId && (
-                                <span className="ml-2 text-xs text-green-300">
-                                  (Current device)
-                                </span>
+                    <h2 className="text-xl font-bold mb-4 text-white">
+                      Security Settings
+                    </h2>
+                    {/* Two-Factor Authentication */}
+                    <div className="mb-6">
+                      <TwoFactorDashboard />
+                    </div>
+                    {/* OAuth Providers */}
+                    <div className="mb-6">
+                      <h3 className="font-semibold text-white mb-2">
+                        Linked OAuth Providers
+                      </h3>
+                      {providersLoading ? (
+                        <Spinner />
+                      ) : providersError ? (
+                        <div className="text-red-500">{providersError}</div>
+                      ) : (
+                        <div className="flex gap-4">
+                          {["google", "github"].map((prov) => (
+                            <div
+                              key={prov}
+                              className="flex items-center space-x-2"
+                            >
+                              <span className="capitalize text-white">
+                                {prov}
+                              </span>
+                              {providers[prov] ? (
+                                <button
+                                  className="px-2 py-1 bg-red-600 text-white rounded"
+                                  onClick={() => dispatch(unlinkProvider(prov))}
+                                >
+                                  Unlink
+                                </button>
+                              ) : (
+                                <a
+                                  className="px-2 py-1 bg-green-600 text-white rounded"
+                                  href={`${BACKEND_URL}/api/v1/auth/link/${prov}`}
+                                >
+                                  Link
+                                </a>
                               )}
                             </div>
-                            <button
-                              data-cy="session-signout"
-                              className="px-2 py-1 bg-red-600 text-white rounded text-sm disabled:bg-gray-500"
-                              disabled={s._id === currentSessionId}
-                              title={
-                                s._id === currentSessionId
-                                  ? "Cannot sign out current session"
-                                  : "Sign out"
-                              }
-                              onClick={() => dispatch(deleteSession(s._id))}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Active Sessions */}
+                    <div>
+                      <h3 className="font-semibold text-white mb-2">
+                        Active Sessions
+                      </h3>
+                      {sessionsLoading ? (
+                        <Spinner />
+                      ) : sessionsError ? (
+                        <div className="text-red-500">{sessionsError}</div>
+                      ) : (
+                        <ul className="space-y-2">
+                          {uniqueSessions.map((s) => (
+                            <li
+                              key={s._id}
+                              data-cy="session-item"
+                              className="flex justify-between items-center bg-gray-700 p-2 rounded"
                             >
-                              Sign out
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                              <div className="text-white text-sm">
+                                {new Date(s.createdAt).toLocaleString()} —{" "}
+                                {s.ip}
+                                {s._id === currentSessionId && (
+                                  <span className="ml-2 text-xs text-green-300">
+                                    (Current device)
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                data-cy="session-signout"
+                                className="px-2 py-1 bg-red-600 text-white rounded text-sm disabled:bg-gray-500"
+                                disabled={s._id === currentSessionId}
+                                title={
+                                  s._id === currentSessionId
+                                    ? "Cannot sign out current session"
+                                    : "Sign out"
+                                }
+                                onClick={() => dispatch(deleteSession(s._id))}
+                              >
+                                Sign out
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -5,7 +5,7 @@ import { useEffect } from "react";
 // Components
 import Spinner from "./components/Spinner";
 import Layout from "./components/Layout";
-import AuthLayout from "./components/AuthLayout";
+import AuthLayout from "./components/auth/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Modal from "./components/Modal";
 import ScrollToTop from "./components/ScrollToTop";

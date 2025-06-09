@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://deployio.com/sitemap.xml
+
+# Disallow admin and auth-related pages from search engines
+Disallow: /auth/
+Disallow: /profile/
+Disallow: /admin/
+
+# Allow all other pages
+Allow: /
+Allow: /privacy-policy
+Allow: /terms-of-service
+Allow: /cookie-policy
+
+# Crawl delay (optional)
+Crawl-delay: 1
