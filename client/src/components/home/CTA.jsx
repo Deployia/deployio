@@ -120,43 +120,8 @@ const CTA = ({ onGetStarted }) => {
                 to="/auth/login"
                 className="inline-flex items-center px-10 py-4 bg-transparent border-2 border-gray-600 text-white font-semibold text-lg rounded-lg hover:border-blue-400 hover:text-blue-400 transition-all duration-300"
               >
-                Sign In
+                Sign In{" "}
               </Link>
-            </motion.div>
-
-            {/* Trust Indicators */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={inView ? { opacity: 1 } : { opacity: 0 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-              className="mt-12 pt-8 border-t border-gray-700/50"
-            >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                <div>
-                  <div className="text-2xl font-bold text-blue-400 mb-1">
-                    50K+
-                  </div>
-                  <div className="text-gray-400 text-sm">Deployments</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-400 mb-1">
-                    99.9%
-                  </div>
-                  <div className="text-gray-400 text-sm">Uptime</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-purple-400 mb-1">
-                    1000+
-                  </div>
-                  <div className="text-gray-400 text-sm">Happy Users</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-yellow-400 mb-1">
-                    24/7
-                  </div>
-                  <div className="text-gray-400 text-sm">Support</div>
-                </div>
-              </div>
             </motion.div>
           </div>
         </motion.div>

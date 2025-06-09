@@ -4,55 +4,66 @@ import {
   FaTwitter,
   FaLinkedin,
   FaHeart,
-  FaShieldAlt,
-  FaBook,
   FaLifeRing,
-  FaBug,
+  FaRocket,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 
 function Footer() {
   const currentYear = new Date().getFullYear();
+
+  // Smooth scroll to section
+  const scrollToSection = (sectionId) => {
+    const element = document.querySelector(sectionId);
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
   return (
     <motion.footer
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.2 }}
-      className="mt-auto border-t border-neutral-800 bg-black/50 backdrop-blur-sm body"
+      className="mt-auto bg-neutral-900 border-t border-neutral-800/50 body"
     >
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand Section */}
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center border border-neutral-700">
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                 <img
                   src="/favicon.png"
-                  alt="DeployIO Logo"
-                  className="w-6 h-6"
+                  alt="Deployio Logo"
+                  className="w-7 h-7"
                 />
               </div>
-              <span className="text-xl font-bold text-white heading">
-                DeployIO
+              <span className="text-2xl font-bold text-white heading">
+                Deployio
               </span>
-            </div>{" "}
-            <p className="text-neutral-400 text-sm max-w-md mb-4 body">
-              Your AI-powered companion for seamless DevOps automation and
-              intelligent deployment. Transform your development workflow with
-              automated CI/CD, stack detection, and real-time monitoring.
-            </p>{" "}
-            <div className="flex items-center gap-4">
+            </div>
+
+            <p className="text-gray-300 text-lg mb-6 body leading-relaxed max-w-md">
+              Transform your deployment process with AI-powered automation. From
+              code analysis to production deployment in minutes, not hours.
+            </p>
+
+            <div className="flex items-center gap-4 mb-6">
               <motion.a
                 whileHover={{ scale: 1.1, y: -2 }}
                 whileTap={{ scale: 0.9 }}
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-neutral-900 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-neutral-600 transition-colors duration-200"
+                className="w-10 h-10 bg-neutral-800 hover:bg-blue-600 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
                 aria-label="GitHub"
               >
-                <FaGithub className="w-4 h-4" />
+                <FaGithub className="w-5 h-5" />
               </motion.a>
               <motion.a
                 whileHover={{ scale: 1.1, y: -2 }}
@@ -60,10 +71,10 @@ function Footer() {
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-neutral-900 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-neutral-600 transition-colors duration-200"
+                className="w-10 h-10 bg-neutral-800 hover:bg-blue-500 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
                 aria-label="Twitter"
               >
-                <FaTwitter className="w-4 h-4" />
+                <FaTwitter className="w-5 h-5" />
               </motion.a>
               <motion.a
                 whileHover={{ scale: 1.1, y: -2 }}
@@ -71,103 +82,139 @@ function Footer() {
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-neutral-900 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-neutral-600 transition-colors duration-200"
+                className="w-10 h-10 bg-neutral-800 hover:bg-blue-700 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
                 aria-label="LinkedIn"
               >
-                <FaLinkedin className="w-4 h-4" />
+                <FaLinkedin className="w-5 h-5" />
               </motion.a>
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Product Section */}
           <div>
-            <h3 className="text-white font-semibold mb-4 heading">
-              Quick Links
-            </h3>
-            <ul className="space-y-3">
+            <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
+              <FaRocket className="w-5 h-5 text-blue-400" />
+              Product
+            </h3>{" "}
+            <ul className="space-y-4">
               <li>
-                <Link
-                  to="/health"
-                  className="inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
+                <button
+                  onClick={() => scrollToSection("#features")}
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                 >
-                  <FaShieldAlt className="w-3 h-3 flex-shrink-0" />
-                  System Health
-                </Link>
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
+                  Features
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => scrollToSection("#pricing")}
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
+                  Pricing
+                </button>
               </li>
               <li>
                 <Link
-                  to="/profile"
-                  className="inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
+                  to="/health"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                 >
-                  <FaBook className="w-3 h-3 flex-shrink-0" />
-                  Documentation
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
+                  System Status
                 </Link>
               </li>
               <li>
                 <a
-                  href="mailto:support@deployio.com"
-                  className="inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                 >
-                  <FaLifeRing className="w-3 h-3 flex-shrink-0" />
-                  Support
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-purple-400 transition-colors" />
+                  API Documentation
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Support Section */}
+          <div>
+            <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
+              <FaLifeRing className="w-5 h-5 text-green-400" />
+              Support
+            </h3>
+            <ul className="space-y-4">
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
+                  Documentation
                 </a>
               </li>
               <li>
                 <a
-                  href="https://github.com/issues"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                 >
-                  <FaBug className="w-3 h-3 flex-shrink-0" />
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
+                  Help Center
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-yellow-400 transition-colors" />
+                  Community
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-red-400 transition-colors" />
                   Report Bug
                 </a>
               </li>
             </ul>
           </div>
-
-          {/* Legal */}
-          <div>
-            <h3 className="text-white font-semibold mb-4 heading">Legal</h3>{" "}
-            <ul className="space-y-3">
-              <li>
-                <Link
-                  to="/privacy-policy"
-                  className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
-                >
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/terms-of-service"
-                  className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
-                >
-                  Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/cookie-policy"
-                  className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm body"
-                >
-                  Cookie Policy
-                </Link>
-              </li>
-            </ul>
-          </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-6 border-t border-neutral-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-neutral-500 text-xs body">
-            © {currentYear} DeployIO. All rights reserved.
-          </p>
-          <div className="flex items-center gap-1 text-neutral-500 text-xs body">
-            <span>Made with</span>
-            <FaHeart className="w-3 h-3 text-red-500 mx-1" />
-            <span>for developers</span>
-          </div>{" "}
+        {/* Bottom Section */}
+        <div className="pt-8 border-t border-neutral-800/50">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            {/* Copyright */}
+            <div className="flex items-center gap-2 text-gray-400 body">
+              <span>© {currentYear} Deployio. Made with</span>
+              <FaHeart className="w-4 h-4 text-red-500 animate-pulse" />
+              <span>for developers worldwide</span>
+            </div>
+
+            {/* Legal Links */}
+            <div className="flex items-center gap-6">
+              <Link
+                to="/privacy-policy"
+                className="text-gray-400 hover:text-white transition-colors duration-200 body text-sm"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                to="/terms-of-service"
+                className="text-gray-400 hover:text-white transition-colors duration-200 body text-sm"
+              >
+                Terms of Service
+              </Link>
+              <Link
+                to="/cookie-policy"
+                className="text-gray-400 hover:text-white transition-colors duration-200 body text-sm"
+              >
+                Cookie Policy
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </motion.footer>
