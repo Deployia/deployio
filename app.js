@@ -8,6 +8,12 @@ const mongoose = require("mongoose");
 
 const app = express();
 
+// Init (security, cors, rate limit, docs, passport, body, cookie, logging)
+init(app);
+
+// Routes
+app.use("/api/v1", routes);
+
 // Health check endpoint - defined before CORS to avoid issues with health checks
 app.get("/api/v1/health", (req, res) => {
   const uptime = process.uptime();
@@ -21,19 +27,13 @@ app.get("/api/v1/health", (req, res) => {
   });
 });
 
-// Init (security, cors, rate limit, docs, passport, body, cookie, logging)
-init(app);
-
-// Routes
-app.use("/api/v1", routes);
-
 // Greeting endpoint
 app.get("/api/v1/hello", (req, res) => {
   res.json({ message: "Hello from Backend Service", uptime: process.uptime() });
 });
 
 // Cookie test
-app.get("/api/cookie-test", (req, res) => {
+app.get("/api/v1/cookie-test", (req, res) => {
   res.json({
     message: "Cookie testing endpoint",
     cookies: req.cookies,

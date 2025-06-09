@@ -9,14 +9,12 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from .cors import setup_cors
 from .settings import settings
+from .logging import setup_logging 
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO if not settings.debug else logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# Setup logging configuration
+setup_logging(debug=settings.debug)
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -37,11 +35,10 @@ def create_app() -> FastAPI:
     )
 
     # Add compression middleware
-    app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-    # Setup CORS
+    app.add_middleware(GZipMiddleware, minimum_size=1000)  # Setup CORS
     setup_cors(app)
 
     logger.info(f"FastAPI app created: {settings.app_name} v{settings.version}")
+    logger.info("Logging configured via config.logging module")
 
     return app

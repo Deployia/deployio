@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -20,6 +20,8 @@ function ResetPassword() {
   const [formError, setFormError] = useState("");
   const [validationErrors, setValidationErrors] = useState({});
   const [passwordScore, setPasswordScore] = useState(0);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { password, confirmPassword } = formData;
   const { token } = useParams();
@@ -27,22 +29,68 @@ function ResetPassword() {
   const dispatch = useDispatch();
   const { loading, error, success } = useSelector((state) => state.auth);
 
+  // Validation function
+  const validateForm = useCallback(() => {
+    const errors = {};
+
+    // Password validation
+    if (!password || password.length === 0) {
+      errors.password = "Password is required";
+    } else if (password.length < 8) {
+      errors.password = "Password must be at least 8 characters long";
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      errors.password =
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+    }
+
+    // Confirm password validation
+    if (!confirmPassword || confirmPassword.length === 0) {
+      errors.confirmPassword = "Please confirm your password";
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+    }
+
+    return errors;
+  }, [password, confirmPassword]);
+
+  // Update validation errors when form data changes (only show after first submit attempt)
   useEffect(() => {
-    if (error && error.resetPassword) {
-      setFormError(error.resetPassword);
-    } else {
-      setFormError("");
+    if (hasSubmitted) {
+      const errors = validateForm();
+      setValidationErrors(errors);
+    }
+  }, [validateForm, hasSubmitted]);
+
+  // Handle reset password success/error
+  useEffect(() => {
+    if (isSubmitting) {
+      if (error?.resetPassword) {
+        setFormError(error.resetPassword);
+        toast.error(error.resetPassword);
+        setIsSubmitting(false);
+      } else if (success?.resetPassword) {
+        toast.success("Password has been reset successfully!");
+        setIsSubmitting(false);
+        // Redirect after a short delay
+        setTimeout(() => {
+          navigate("/auth/login", {
+            state: {
+              message:
+                "Password reset successful. Please log in with your new password.",
+            },
+          });
+        }, 2000);
+        return;
+      }
     }
 
-    if (success && success.resetPassword) {
-      toast.success("Password has been reset successfully");
-      setTimeout(() => {
-        navigate("/auth/login");
-      }, 2000);
-    }
-
-    dispatch(reset());
-  }, [error, success, navigate, dispatch]);
+    // Clean up on unmount
+    return () => {
+      if (error || success) {
+        dispatch(reset());
+      }
+    };
+  }, [error, success, navigate, dispatch, isSubmitting]);
 
   // Update password strength score whenever password changes
   useEffect(() => {
@@ -50,28 +98,32 @@ function ResetPassword() {
     setPasswordScore(score);
   }, [password]);
 
-  // Validate form fields in real-time
+  // Validate token on mount
   useEffect(() => {
-    const errors = {};
-
-    if (password && password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+    if (!token) {
+      toast.error("Invalid reset link. Please request a new password reset.");
+      navigate("/auth/forgot-password");
     }
-
-    if (confirmPassword && password !== confirmPassword) {
-      errors.confirmPassword = "Passwords do not match";
-    }
-
-    setValidationErrors(errors);
-  }, [password, confirmPassword]);
+  }, [token, navigate]);
 
   const onChange = (e) => {
+    const { name, value } = e.target;
+
     setFormData((prevState) => ({
       ...prevState,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
-    // Clear form error when user starts typing
+
+    // Clear form-level error when user starts typing
     if (formError) setFormError("");
+
+    // Clear field-specific error when user starts typing (only if we've already shown errors)
+    if (hasSubmitted && validationErrors[name]) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
   };
 
   const getPasswordStrengthInfo = () => {
@@ -90,27 +142,35 @@ function ResetPassword() {
     };
   };
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
+    setHasSubmitted(true);
     setFormError("");
 
-    // Final validation check
-    if (Object.keys(validationErrors).length > 0) {
-      setFormError("Please fix the errors below");
+    // Validate form
+    const errors = validateForm();
+    setValidationErrors(errors);
+
+    // If there are validation errors, don't submit
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      setFormError(firstError);
+      toast.error("Please fix the form errors");
       return;
     }
 
-    if (password !== confirmPassword) {
-      setFormError("Passwords do not match");
-      return;
-    }
+    setIsSubmitting(true);
 
-    dispatch(resetPassword({ token, password }));
+    try {
+      await dispatch(resetPassword({ token, password })).unwrap();
+    } catch (err) {
+      // Error handling is done in useEffect
+      console.error("Reset password error:", err);
+    }
   };
-
   const isFormValid = () => {
     return (
-      password && confirmPassword && Object.keys(validationErrors).length === 0
+      password && confirmPassword && Object.keys(validateForm()).length === 0
     );
   };
 
@@ -156,13 +216,13 @@ function ResetPassword() {
                 icon={FaLock}
                 rightIcon={showPassword ? FaEyeSlash : FaEye}
                 onRightIconClick={() => setShowPassword(!showPassword)}
-                error={validationErrors.password}
+                error={hasSubmitted ? validationErrors.password : ""}
                 required
               />
 
               {/* Password strength meter */}
               {password && (
-                <div className="space-y-2">
+                <div className="space-y-2 mt-2">
                   <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${passwordStrength.color}`}
@@ -171,7 +231,15 @@ function ResetPassword() {
                   </div>
                   <p className="text-xs text-neutral-400">
                     Password strength:{" "}
-                    <span className="font-medium">
+                    <span
+                      className={`font-medium ${
+                        passwordScore >= 3
+                          ? "text-green-400"
+                          : passwordScore >= 2
+                          ? "text-yellow-400"
+                          : "text-red-400"
+                      }`}
+                    >
                       {passwordStrength.label}
                     </span>
                   </p>
@@ -191,17 +259,24 @@ function ResetPassword() {
               onRightIconClick={() =>
                 setShowConfirmPassword(!showConfirmPassword)
               }
-              error={validationErrors.confirmPassword}
+              error={hasSubmitted ? validationErrors.confirmPassword : ""}
               required
             />
 
             <AuthButton
               type="submit"
-              loading={loading?.resetPassword}
-              disabled={!isFormValid() || loading?.resetPassword}
+              loading={loading?.resetPassword || isSubmitting}
+              disabled={loading?.resetPassword || isSubmitting}
               icon={FaKey}
+              className={`w-full transition-all duration-200 ${
+                isFormValid() && !loading?.resetPassword && !isSubmitting
+                  ? "bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                  : ""
+              }`}
             >
-              Reset Password
+              {loading?.resetPassword || isSubmitting
+                ? "Resetting Password..."
+                : "Reset Password"}
             </AuthButton>
 
             <div className="text-center pt-4">

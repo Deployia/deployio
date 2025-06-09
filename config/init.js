@@ -34,20 +34,28 @@ module.exports = (app) => {
         return compression.filter(req, res);
       },
     })
-  );
-
-  // Response time header for performance monitoring
+  ); // Response time header for performance monitoring
   app.use((req, res, next) => {
     const start = Date.now();
-    res.on("finish", () => {
+
+    // Override res.end to set header before response is sent
+    const originalEnd = res.end;
+    res.end = function (chunk, encoding) {
       const duration = Date.now() - start;
-      res.set("X-Response-Time", `${duration}ms`);
+
+      // Only set header if not already sent
+      if (!res.headersSent) {
+        res.set("X-Response-Time", `${duration}ms`);
+      }
 
       // Log slow requests in development
       if (process.env.NODE_ENV === "development" && duration > 500) {
         console.log(`Slow request: ${req.method} ${req.path} - ${duration}ms`);
       }
-    });
+
+      return originalEnd.call(this, chunk, encoding);
+    };
+
     next();
   });
 
@@ -108,18 +116,31 @@ module.exports = (app) => {
   const corsOptions = {
     origin: function (origin, callback) {
       // Define allowed origins based on environment
-      const allowedOrigins =
-        process.env.NODE_ENV === "development"
-          ? [
-              process.env.FRONTEND_URL_DEV,
-              "http://localhost:5173",
-              "http://localhost:3000",
-              "http://localhost:8000",
-            ]
-          : [
-              process.env.FRONTEND_URL_PROD,
-              // NEVER include localhost in production for security
-            ];
+      // More robust environment detection - handle various edge cases
+      const nodeEnv = String(process.env.NODE_ENV || "development")
+        .toLowerCase()
+        .trim()
+        .replace(/['"#\s].*/g, ""); // Remove comments and quotes
+
+      const isDevelopment =
+        nodeEnv === "development" ||
+        nodeEnv === "dev" ||
+        nodeEnv !== "production";
+
+      const allowedOrigins = isDevelopment
+        ? [
+            process.env.FRONTEND_URL_DEV || "http://localhost:5173",
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://localhost:8000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:8000",
+          ]
+        : [
+            process.env.FRONTEND_URL_PROD,
+            // NEVER include localhost in production for security
+          ];
 
       // Allow requests with no origin (mobile apps, Postman, health checks, etc.)
       // In development: allow all no-origin requests
@@ -127,10 +148,14 @@ module.exports = (app) => {
       if (!origin) {
         return callback(null, true);
       }
-
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        // Log blocked origins in development for debugging
+        if (isDevelopment) {
+          console.log(`CORS blocked origin: ${origin}`);
+          console.log(`Allowed origins: ${allowedOrigins.join(", ")}`);
+        }
         callback(new Error("Not allowed by CORS policy"));
       }
     },

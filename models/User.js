@@ -129,18 +129,55 @@ const userSchema = new mongoose.Schema(
 
 // Hash the password before saving
 userSchema.pre("save", async function (next) {
-  // Only run if password was modified
-  if (!this.isModified("password")) return next();
+  try {
+    // Only run if password was modified
+    if (!this.isModified("password")) return next();
 
-  // Hash password with cost of 12
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
+    // Hash password with cost of 12
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clean up expired tokens before saving
+userSchema.pre("save", function (next) {
+  try {
+    const now = new Date();
+
+    // Clean up expired refresh tokens
+    if (this.refreshTokens && this.refreshTokens.length > 0) {
+      this.refreshTokens = this.refreshTokens.filter(
+        (rt) => rt.expiresAt && rt.expiresAt > now
+      );
+    }
+
+    // Clean up expired remembered sessions
+    if (this.sessions && this.sessions.length > 0) {
+      this.sessions = this.sessions.filter(
+        (s) => !s.rememberedUntil || s.rememberedUntil > now
+      );
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Method to check if password is correct
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  try {
+    if (!candidatePassword || !this.password) {
+      return false;
+    }
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    console.error("Password comparison error:", error);
+    return false;
+  }
 };
 
 // Method to generate password reset token
@@ -161,10 +198,7 @@ userSchema.methods.createPasswordResetToken = function () {
 };
 
 // Performance optimizations: Add database indexes
-userSchema.index({ email: 1 }); // Single field index for email lookups
-userSchema.index({ username: 1 }); // Single field index for username lookups
-userSchema.index({ googleId: 1 }, { sparse: true }); // Sparse index for OAuth
-userSchema.index({ githubId: 1 }, { sparse: true }); // Sparse index for OAuth
+// email, username, googleId, and githubId indexes are already created by unique: true in schema definition
 userSchema.index({ resetPasswordToken: 1 }, { sparse: true }); // For password reset
 userSchema.index({ createdAt: 1 }); // For sorting/filtering by creation date
 userSchema.index({ isVerified: 1, createdAt: -1 }); // Compound index for verified users

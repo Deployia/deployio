@@ -1,69 +1,131 @@
 const nodemailer = require("nodemailer");
+const EmailTemplateRenderer = require("../utils/EmailTemplateRenderer");
 
-// Common HTML email templates
-const templates = {
-  otp: ({ username, otp }) => `
-    <div style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 50%, #c7d2fe 100%); padding: 32px; border-radius: 16px; max-width: 400px; margin: 0 auto; font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif; border: 1px solid #a78bfa; box-shadow: 0 8px 32px 0 rgba(80, 0, 120, 0.08);">
-      <div style="background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-<img src="/favicon.png" alt="Logo" className="h-8 w-8" />
-        <h2 style="color: #fff; font-size: 1.25rem; font-weight: bold; margin: 8px 0 0 0;">Verify your DeployIO account</h2>
-      </div>
-      <p style="color: #6d28d9; font-size: 1rem; margin-bottom: 16px;">Hi <b>${username}</b>,</p>
-      <p style="color: #4b5563; font-size: 1rem; margin-bottom: 16px;">Your One-Time Password (OTP) for account verification is:</p>
-      <div style="background: #ede9fe; color: #7c3aed; font-size: 2rem; font-weight: bold; text-align: center; padding: 16px; border-radius: 8px; letter-spacing: 4px; margin-bottom: 16px;">${otp}</div>
-      <p style="color: #6b7280; font-size: 0.95rem;">This OTP is valid for 10 minutes. If you did not sign up, please ignore this email.</p>
-      <p style="color: #a78bfa; font-size: 0.85rem; margin-top: 24px; text-align: center;">&copy; ${new Date().getFullYear()} DeployIO</p>
-    </div>
-  `,
-  passwordReset: ({ resetLink }) => `
-    <div style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 50%, #c7d2fe 100%); padding: 32px; border-radius: 16px; max-width: 400px; margin: 0 auto; font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif; border: 1px solid #a78bfa; box-shadow: 0 8px 32px 0 rgba(80, 0, 120, 0.08);">
-      <div style="background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-<img src="/favicon.png" alt="Logo" className="h-8 w-8" />
-        <h2 style="color: #fff; font-size: 1.25rem; font-weight: bold; margin: 8px 0 0 0;">Reset your DeployIO password</h2>
-      </div>
-      <p style="color: #6d28d9; font-size: 1rem; margin-bottom: 16px;">You are receiving this email because you (or someone else) has requested the reset of a password.</p>
-      <p style="color: #4b5563; font-size: 1rem; margin-bottom: 16px;">Please click on the following link to reset your password:</p>
-      <div style="background: #ede9fe; color: #7c3aed; font-size: 1rem; font-weight: bold; text-align: center; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-        <a href="${resetLink}" style="color: #7c3aed; text-decoration: underline;">Reset Password</a>
-      </div>
-      <p style="color: #6b7280; font-size: 0.95rem;">This link is valid for 30 minutes only. If you did not request this, please ignore this email and your password will remain unchanged.</p>
-      <p style="color: #a78bfa; font-size: 0.85rem; margin-top: 24px; text-align: center;">&copy; ${new Date().getFullYear()} DeployIO</p>
-    </div>
-  `,
-};
+// Initialize template renderer
+const templateRenderer = new EmailTemplateRenderer();
 
 /**
  * Send email using nodemailer
  * @param {Object} options - Email options (to, subject, template, variables, text, html)
- * @returns {Promise} Result of sending email
+ * @returns {Promise<Object>} Result of sending email
  */
 const sendEmail = async (options) => {
-  // Create transporter
-  const transporter = nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
+  try {
+    // Validate required options
+    if (!options || typeof options !== "object") {
+      throw new Error("Email options are required");
+    }
 
-  // If a template is specified, generate HTML from template and variables
-  let html = options.html;
-  if (options.template && templates[options.template]) {
-    html = templates[options.template](options.variables || {});
+    if (!options.to) {
+      throw new Error("Recipient email address is required");
+    }
+
+    if (!options.subject) {
+      throw new Error("Email subject is required");
+    }
+
+    // Validate email environment variables
+    if (
+      !process.env.EMAIL_SERVICE ||
+      !process.env.EMAIL_USER ||
+      !process.env.EMAIL_PASSWORD
+    ) {
+      throw new Error(
+        "Email service configuration is incomplete. Check environment variables."
+      );
+    }
+
+    // Create transporter with connection pooling and timeout settings
+    const transporter = nodemailer.createTransporter({
+      service: process.env.EMAIL_SERVICE,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 5,
+      connectionTimeout: 60000,
+      greetingTimeout: 30000,
+      socketTimeout: 60000,
+    }); // If a template is specified, generate HTML from template and variables
+    let html = options.html;
+    if (options.template) {
+      try {
+        html = templateRenderer.render(
+          options.template,
+          options.variables || {}
+        );
+      } catch (templateError) {
+        throw new Error(
+          `Error rendering email template: ${templateError.message}`
+        );
+      }
+    }
+
+    // Ensure we have either HTML or text content
+    if (!html && !options.text) {
+      throw new Error("Email must have either HTML or text content");
+    }
+
+    // Define email options
+    const mailOptions = {
+      from: process.env.EMAIL_FROM
+        ? `DeployIO <${process.env.EMAIL_FROM}>`
+        : process.env.EMAIL_USER,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html,
+      // Add additional security headers
+      headers: {
+        "X-Priority": "3",
+        "X-Mailer": "DeployIO Email Service",
+        "X-Auto-Response-Suppress": "All",
+      },
+    };
+
+    // Send email with retry logic
+    const result = await transporter.sendMail(mailOptions);
+
+    // Close the transporter connection
+    transporter.close();
+
+    // Return success result
+    return {
+      success: true,
+      messageId: result.messageId,
+      response: result.response,
+      to: options.to,
+      subject: options.subject,
+    };
+  } catch (error) {
+    // Log the error for debugging (but don't expose sensitive details to the caller)
+    console.error("Email service error:", {
+      error: error.message,
+      to: options?.to,
+      subject: options?.subject,
+      template: options?.template,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Throw a more user-friendly error
+    if (error.code === "EAUTH") {
+      throw new Error(
+        "Email authentication failed. Please check email service configuration."
+      );
+    } else if (error.code === "ECONNECTION") {
+      throw new Error(
+        "Failed to connect to email service. Please try again later."
+      );
+    } else if (error.code === "EMESSAGE") {
+      throw new Error("Invalid email message format.");
+    } else {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
   }
-
-  // Define email options
-  const mailOptions = {
-    from: `DeployIO <${process.env.EMAIL_FROM}>`,
-    to: options.to,
-    subject: options.subject,
-    text: options.text,
-    html,
-  };
-
-  // Send email
-  await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendEmail, templates };
+module.exports = { sendEmail };

@@ -1,265 +1,212 @@
 const userService = require("../services/userService");
+const cloudinary = require("../config/cloudinary");
+const stream = require("stream");
 
-// Update user profile (including image upload)
+/**
+ * Update user profile (including image upload)
+ */
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const updateData = req.body;
     let profileImageUrl = undefined;
     const removeProfileImage = req.body.removeProfileImage === "true";
+
+    // Handle file upload if present
     if (req.file) {
-      // Check if file size is too large (limit to 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (req.file.size > maxSize) {
-        throw new Error("Image file size must be less than 5MB");
-      }
-
-      // Check valid image MIME types
-      const validMimeTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ];
-      if (!validMimeTypes.includes(req.file.mimetype)) {
-        throw new Error(
-          "Only JPEG, PNG, GIF and WebP image formats are supported"
-        );
-      }
-
-      // Upload image to Cloudinary
-      const cloudinary = require("../config/cloudinary");
-
-      try {
-        // Validate Cloudinary configuration
-        if (
-          !process.env.CLOUDINARY_CLOUD_NAME ||
-          !process.env.CLOUDINARY_API_KEY ||
-          !process.env.CLOUDINARY_API_SECRET
-        ) {
-          throw new Error(
-            "Cloudinary configuration is missing. Please check your environment variables."
-          );
-        }
-
-        // Create a promise to handle the upload stream
-        const uploadPromise = new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: "profile_images",
-              width: 300,
-              height: 300,
-              crop: "fill",
-              quality: "auto",
-              fetch_format: "auto",
-            },
-            (error, result) => {
-              if (error) {
-                console.error("Cloudinary upload error:", error);
-                reject(new Error(error.message || "Image upload failed"));
-              } else resolve(result);
-            }
-          );
-
-          // Create buffer from file and pipe to upload stream
-          const buffer = req.file.buffer;
-          const stream = require("stream");
-          const bufferStream = new stream.PassThrough();
-          bufferStream.end(buffer);
-          bufferStream.pipe(uploadStream);
-        });
-
-        // Wait for upload to complete and get result
-        const uploadResult = await uploadPromise;
-        profileImageUrl = uploadResult.secure_url;
-      } catch (error) {
-        console.error("Image upload error:", error);
-        throw new Error("Failed to upload profile image");
-      }
+      profileImageUrl = await handleImageUpload(req.file);
     }
 
+    // Update user profile in database
     const updatedUser = await userService.updateProfile(
       userId,
       updateData,
       profileImageUrl,
       removeProfileImage
     );
-    res.status(200).json({ success: true, user: updatedUser });
+
+    res.status(200).json({
+      success: true,
+      user: updatedUser,
+    });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error("Update profile error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-// Update password
+/**
+ * Update user password
+ */
 const updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
+
+    // Validate required fields
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
         message: "Please provide current and new password",
       });
     }
+
+    // Update password
     const result = await userService.updatePassword(
       req.user.id,
       currentPassword,
       newPassword
     );
-    res.status(200).json({ success: true, message: result });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
 
-// 2FA Controller Functions
-
-// Generate 2FA secret
-const generate2FASecret = async (req, res) => {
-  try {
-    const result = await userService.generate2FASecret(req.user.id);
-    res.status(200).json({
-      success: true,
-      data: result,
-      message: "2FA secret generated successfully",
-    });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-// Enable 2FA
-const enable2FA = async (req, res) => {
-  try {
-    const { token, secret } = req.body;
-    if (!token || !secret) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide verification token and secret",
-      });
-    }
-    const result = await userService.enable2FA(req.user.id, token, secret);
-    res.status(200).json({
-      success: true,
-      data: result,
-      message: result.message,
-    });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-// Verify 2FA during login
-const verify2FALogin = async (req, res) => {
-  try {
-    const { token, userId } = req.body;
-    if (!token || !userId) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide verification token and user ID",
-      });
-    }
-
-    const verificationResult = await userService.verify2FALogin(userId, token);
-    if (!verificationResult.verified) {
-      return res.status(400).json({
-        success: false,
-        message: verificationResult.error || "Invalid verification code",
-      });
-    }
-
-    // Complete login by generating tokens
-    const loginResult = await userService.complete2FALogin(userId); // Set cookies (using same names as regular login)
-    const cookieOptions = {
-      expires: new Date(
-        Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
-      ),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    };
-    res.cookie("token", loginResult.token, cookieOptions);
-    res.cookie("refreshToken", loginResult.refreshToken, {
-      ...cookieOptions,
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        user: loginResult.user,
-        method: verificationResult.method,
-      },
-      message: "2FA verification successful",
-    });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-// Disable 2FA
-const disable2FA = async (req, res) => {
-  try {
-    const { password } = req.body;
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide your password",
-      });
-    }
-    const result = await userService.disable2FA(req.user.id, password);
     res.status(200).json({
       success: true,
       message: result,
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error("Update password error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-// Get 2FA status
-const get2FAStatus = async (req, res) => {
+/**
+ * Handle image upload to Cloudinary
+ * @param {Object} file - The uploaded file object
+ * @returns {Promise<string>} - The secure URL of the uploaded image
+ */
+const handleImageUpload = async (file) => {
   try {
-    const result = await userService.get2FAStatus(req.user.id);
+    // Validate file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new Error("Image file size must be less than 5MB");
+    }
+
+    // Validate file type
+    const validMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!validMimeTypes.includes(file.mimetype)) {
+      throw new Error(
+        "Only JPEG, PNG, GIF and WebP image formats are supported"
+      );
+    }
+
+    // Validate Cloudinary configuration
+    if (
+      !process.env.CLOUDINARY_CLOUD_NAME ||
+      !process.env.CLOUDINARY_API_KEY ||
+      !process.env.CLOUDINARY_API_SECRET
+    ) {
+      throw new Error(
+        "Cloudinary configuration is missing. Please check your environment variables."
+      );
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "profile_images",
+          width: 300,
+          height: 300,
+          crop: "fill",
+          quality: "auto",
+          fetch_format: "auto",
+          resource_type: "image",
+        },
+        (error, result) => {
+          if (error) {
+            console.error("Cloudinary upload error:", error);
+            reject(new Error(error.message || "Image upload failed"));
+          } else {
+            resolve(result);
+          }
+        }
+      );
+
+      // Create buffer stream and pipe to upload
+      const bufferStream = new stream.PassThrough();
+      bufferStream.end(file.buffer);
+      bufferStream.pipe(uploadStream);
+    });
+
+    return uploadResult.secure_url;
+  } catch (error) {
+    console.error("Image upload error:", error);
+    throw new Error("Failed to upload profile image: " + error.message);
+  }
+};
+
+/**
+ * Get user profile
+ */
+const getProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await userService.getUserById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
     res.status(200).json({
       success: true,
-      data: result,
+      user: user,
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error("Get profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get user profile",
+    });
   }
 };
 
-// Generate new backup codes
-const generateNewBackupCodes = async (req, res) => {
+/**
+ * Delete user account
+ */
+const deleteAccount = async (req, res) => {
   try {
+    const userId = req.user.id;
     const { password } = req.body;
+
     if (!password) {
       return res.status(400).json({
         success: false,
-        message: "Please provide your password",
+        message: "Password is required to delete account",
       });
     }
-    const result = await userService.generateNewBackupCodes(
-      req.user.id,
-      password
-    );
+
+    await userService.deleteUser(userId, password);
+
     res.status(200).json({
       success: true,
-      data: result,
-      message: result.message,
+      message: "Account deleted successfully",
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error("Delete account error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
 module.exports = {
   updateProfile,
   updatePassword,
-  generate2FASecret,
-  enable2FA,
-  verify2FALogin,
-  disable2FA,
-  get2FAStatus,
-  generateNewBackupCodes,
+  getProfile,
+  deleteAccount,
+  handleImageUpload,
 };

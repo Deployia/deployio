@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -21,6 +21,8 @@ function VerifyOtp() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [formError, setFormError] = useState("");
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputsRef = useRef([]);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -34,28 +36,74 @@ function VerifyOtp() {
   const email = location.state?.email || pendingVerificationEmail || "";
 
   // Track the verification source (login or register)
-  const isFromLogin = !!pendingVerificationEmail;
+  const isFromLogin = location.state?.fromLogin || !!pendingVerificationEmail;
+  const isFromRegistration = location.state?.fromRegistration;
 
-  useEffect(() => {
-    if (error && error.verifyOtp) {
-      setFormError(error.verifyOtp);
-    } else {
-      setFormError("");
+  // Validation function
+  const validateOtp = useCallback(() => {
+    const otp = otpArray.join("");
+    const errors = {};
+
+    if (!email || email.trim().length === 0) {
+      errors.email = "Email is required for verification";
     }
 
-    if (isAuthenticated) {
-      toast.success("Account verified and logged in!");
-      navigate("/profile");
+    if (!otp || otp.length === 0) {
+      errors.otp = "Please enter the verification code";
+    } else if (otp.length !== 6) {
+      errors.otp = "Please enter all 6 digits of the verification code";
+    } else if (!/^\d{6}$/.test(otp)) {
+      errors.otp = "Verification code must contain only numbers";
+    }
 
-      // Clear verification state if coming from login flow
-      if (isFromLogin) {
-        dispatch(resetVerification());
+    return errors;
+  }, [otpArray, email]);
+
+  // Handle verification success/error
+  useEffect(() => {
+    if (isSubmitting) {
+      if (error?.verifyOtp) {
+        setFormError(error.verifyOtp);
+        toast.error(error.verifyOtp);
+        setIsSubmitting(false);
+
+        // Clear OTP on error for security
+        setOtpArray(["", "", "", "", "", ""]);
+        if (inputsRef.current[0]) {
+          inputsRef.current[0].focus();
+        }
+      } else if (isAuthenticated) {
+        toast.success(
+          isFromRegistration
+            ? "Account verified successfully! Welcome to DeployIO!"
+            : "Account verified and logged in!"
+        );
+        navigate("/profile");
+        setIsSubmitting(false);
+
+        // Clear verification state if coming from login flow
+        if (isFromLogin) {
+          dispatch(resetVerification());
+        }
+        return;
       }
     }
 
-    // Clean up - only reset errors, not the verification state
-    return () => dispatch(reset());
-  }, [error, isAuthenticated, isFromLogin, navigate, dispatch]);
+    // Clean up on unmount or error reset
+    return () => {
+      if (error) {
+        dispatch(reset());
+      }
+    };
+  }, [
+    error,
+    isAuthenticated,
+    isFromLogin,
+    isFromRegistration,
+    navigate,
+    dispatch,
+    isSubmitting,
+  ]);
 
   // Cooldown timer for resend
   useEffect(() => {
@@ -66,55 +114,98 @@ function VerifyOtp() {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
+  // Auto-focus first input on mount
+  useEffect(() => {
+    if (inputsRef.current[0]) {
+      inputsRef.current[0].focus();
+    }
+  }, []);
+
   // Handle OTP input change
   const handleOtpChange = (e, idx) => {
     const value = e.target.value.replace(/[^0-9]/g, "");
-    if (!value) return;
+    if (value.length > 1) return; // Prevent multiple characters
 
     const newOtp = [...otpArray];
-    newOtp[idx] = value[0]; // Take only first digit
+    newOtp[idx] = value;
     setOtpArray(newOtp);
 
-    // Clear any previous errors
+    // Clear any previous errors when user types
     if (otpError) setOtpError("");
     if (formError) setFormError("");
 
-    // Move to next input if available
+    // Move to next input if available and value is entered
     if (value && idx < 5) {
-      inputsRef.current[idx + 1].focus();
+      inputsRef.current[idx + 1]?.focus();
     }
   };
 
-  // Handle backspace
+  // Handle backspace and other navigation keys
   const handleOtpKeyDown = (e, idx) => {
     if (e.key === "Backspace") {
-      // Always clear current input first
+      e.preventDefault();
       const newOtp = [...otpArray];
-      newOtp[idx] = "";
-      setOtpArray(newOtp);
 
-      // Always move to previous input if not the first block
-      if (idx > 0) {
-        inputsRef.current[idx - 1].focus();
+      if (otpArray[idx]) {
+        // Clear current digit
+        newOtp[idx] = "";
+        setOtpArray(newOtp);
+      } else if (idx > 0) {
+        // Move to previous input and clear it
+        newOtp[idx - 1] = "";
+        setOtpArray(newOtp);
+        inputsRef.current[idx - 1]?.focus();
       }
+    } else if (e.key === "ArrowLeft" && idx > 0) {
+      inputsRef.current[idx - 1]?.focus();
+    } else if (e.key === "ArrowRight" && idx < 5) {
+      inputsRef.current[idx + 1]?.focus();
     }
   };
 
-  const onSubmit = (e) => {
+  // Handle paste
+  const handlePaste = (e) => {
     e.preventDefault();
-    const otp = otpArray.join("");
+    const pasteData = e.clipboardData.getData("text").replace(/[^0-9]/g, "");
+
+    if (pasteData.length === 6) {
+      const newOtp = pasteData.split("");
+      setOtpArray(newOtp);
+
+      // Focus the last input
+      inputsRef.current[5]?.focus();
+
+      // Clear errors
+      if (otpError) setOtpError("");
+      if (formError) setFormError("");
+    }
+  };
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setHasSubmitted(true);
     setOtpError("");
     setFormError("");
 
-    if (!email) {
-      setFormError("Email is required");
+    // Validate form
+    const errors = validateOtp();
+
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      setFormError(firstError);
+      setOtpError(errors.otp || "");
+      toast.error(firstError);
       return;
     }
-    if (otp.length !== 6) {
-      setOtpError("Please enter all 6 digits of the OTP");
-      return;
+
+    setIsSubmitting(true);
+
+    try {
+      const otp = otpArray.join("");
+      await dispatch(verifyOtp({ email, otp })).unwrap();
+    } catch (err) {
+      // Error handling is done in useEffect
+      console.error("OTP verification error:", err);
     }
-    dispatch(verifyOtp({ email, otp }));
   };
 
   const handleResendOtp = async () => {
@@ -122,22 +213,24 @@ function VerifyOtp() {
       toast.error("No email found for resend");
       return;
     }
+
     setResendLoading(true);
     try {
       await api.post("/auth/resend-otp", { email });
       toast.success("OTP resent to your email");
-      setResendCooldown(30); // 30s cooldown
+      setResendCooldown(60); // 60s cooldown for better UX
     } catch (err) {
-      toast.error(
-        err?.response?.data?.message || err.message || "Failed to resend OTP"
-      );
+      const message =
+        err?.response?.data?.message || err.message || "Failed to resend OTP";
+      toast.error(message);
     } finally {
       setResendLoading(false);
     }
   };
 
   const isFormValid = () => {
-    return otpArray.join("").length === 6;
+    const otp = otpArray.join("");
+    return email && otp.length === 6 && /^\d{6}$/.test(otp);
   };
   return (
     <>
@@ -164,7 +257,7 @@ function VerifyOtp() {
               className="flex items-center text-sm font-medium text-neutral-300"
             >
               <FaLock className="mr-2 text-neutral-400" /> Verification Code
-            </label>{" "}
+            </label>
             <div className="flex justify-center gap-1.5 sm:gap-2 md:gap-3">
               {otpArray.map((digit, idx) => (
                 <input
@@ -178,14 +271,16 @@ function VerifyOtp() {
                   value={digit}
                   onChange={(e) => handleOtpChange(e, idx)}
                   onKeyDown={(e) => handleOtpKeyDown(e, idx)}
+                  onPaste={idx === 0 ? handlePaste : undefined}
                   aria-invalid={otpError ? true : false}
                   aria-describedby={otpError ? "otp-error" : undefined}
                   className={`w-10 h-12 xs:w-12 xs:h-14 sm:w-14 sm:h-16 text-center text-lg xs:text-xl sm:text-2xl border rounded-lg transition-all duration-200 text-white bg-neutral-800/50 focus:bg-neutral-800 ${
-                    otpError
+                    otpError ||
+                    (hasSubmitted && !digit && otpArray.join("").length < 6)
                       ? "border-red-500 focus:border-red-400 focus:ring-red-400/20"
                       : "border-neutral-700 focus:border-white focus:ring-white/20"
                   } focus:outline-none focus:ring-2`}
-                  autoFocus={idx === 0}
+                  autoComplete="one-time-code"
                 />
               ))}
             </div>
@@ -203,12 +298,18 @@ function VerifyOtp() {
 
           <AuthButton
             type="submit"
-            loading={loading?.verifyOtp}
-            disabled={!isFormValid() || loading?.verifyOtp}
+            loading={loading?.verifyOtp || isSubmitting}
+            disabled={!isFormValid() || loading?.verifyOtp || isSubmitting}
             icon={FaCheck}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className={`w-full transition-all duration-200 ${
+              isFormValid() && !loading?.verifyOtp && !isSubmitting
+                ? "bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                : ""
+            }`}
           >
-            Verify & Continue
+            {loading?.verifyOtp || isSubmitting
+              ? "Verifying..."
+              : "Verify & Continue"}
           </AuthButton>
         </form>
 
@@ -224,10 +325,22 @@ function VerifyOtp() {
             </div>
           )}
 
+          {isFromRegistration && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+              <p className="text-xs text-blue-300 flex items-center">
+                <span className="flex-shrink-0 w-4 h-4 bg-blue-500/20 rounded-full flex items-center justify-center mr-2">
+                  <span className="text-blue-300 text-xs">✓</span>
+                </span>
+                Account created successfully! Please verify your email to
+                complete setup.
+              </p>
+            </div>
+          )}
+
           <div className="text-center space-y-3">
             <p className="text-sm text-neutral-400">
               Didn&apos;t receive the code? Check your spam folder or try again.
-            </p>{" "}
+            </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 type="button"
@@ -235,7 +348,11 @@ function VerifyOtp() {
                 disabled={resendLoading || resendCooldown > 0}
                 className="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 text-sm sm:text-base text-white hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium rounded-lg hover:bg-neutral-800/50 focus:outline-none focus:ring-2 focus:ring-white/20"
               >
-                <FaRedoAlt className="mr-2 h-3 w-3 flex-shrink-0" />
+                <FaRedoAlt
+                  className={`mr-2 h-3 w-3 flex-shrink-0 ${
+                    resendLoading ? "animate-spin" : ""
+                  }`}
+                />
                 {resendLoading
                   ? "Resending..."
                   : resendCooldown > 0
@@ -266,4 +383,3 @@ function VerifyOtp() {
 }
 
 export default VerifyOtp;
-// No navigation changes needed unless you want to add a login link.
