@@ -6,7 +6,7 @@
   
   <!-- Homepage -->
   <url>
-    <loc>https://deployio.com/</loc>
+    <loc>https://deployio.tech/</loc>
     <lastmod>2025-06-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -14,29 +14,56 @@
   
   <!-- Legal Pages -->
   <url>
-    <loc>https://deployio.com/privacy-policy</loc>
+    <loc>https://deployio.tech/privacy-policy</loc>
     <lastmod>2025-06-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
-    <loc>https://deployio.com/terms-of-service</loc>
+    <loc>https://deployio.tech/terms-of-service</loc>
     <lastmod>2025-06-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
-    <loc>https://deployio.com/cookie-policy</loc>
+    <loc>https://deployio.tech/cookie-policy</loc>
     <lastmod>2025-06-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
+  </url>  <!-- Auth Pages -->
+  <url>
+    <loc>https://deployio.tech/auth/login</loc>
+    <lastmod>2025-06-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   
+  <url>
+    <loc>https://deployio.tech/auth/register</loc>
+    <lastmod>2025-06-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://deployio.tech/auth/forgot-password</loc>
+    <lastmod>2025-06-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  
+  <url>
+    <loc>https://deployio.tech/auth/verify-otp</loc>
+    <lastmod>2025-06-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
   <!-- System Pages -->
   <url>
-    <loc>https://deployio.com/health</loc>
+    <loc>https://deployio.tech/health</loc>
     <lastmod>2025-06-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.3</priority>
