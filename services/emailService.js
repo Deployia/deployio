@@ -33,10 +33,8 @@ const sendEmail = async (options) => {
       throw new Error(
         "Email service configuration is incomplete. Check environment variables."
       );
-    }
-
-    // Create transporter with connection pooling and timeout settings
-    const transporter = nodemailer.createTransporter({
+    } // Create transporter with connection pooling and timeout settings
+    const transporter = nodemailer.createTransport({
       service: process.env.EMAIL_SERVICE,
       auth: {
         user: process.env.EMAIL_USER,

@@ -1,52 +1,47 @@
 {
   "otp": {
     "title": "Verify your DeployIO account",
-    "headerGradient": "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6366f1 100%)",
-    "icon": "D",
-    "iconColor": "#7c3aed",
-    "brandColor": "#8b5cf6",
     "content": {
-      "heading": "Verify your account",
-      "greeting": "Hi <strong style=\"color: #e5e5e5;\">{{username}}</strong>,",
-      "message": "Your One-Time Password (OTP) for account verification is:",
+      "heading": "🔐 Account Verification",
+      "greeting": "Hello {{username}},",
+      "message": "Thank you for registering with DeployIO. To complete your account verification, please use the following One-Time Password (OTP):",
       "mainAction": {
         "type": "otp",
         "value": "{{otp}}",
-        "style": "background: linear-gradient(145deg, #262626 0%, #171717 100%); border: 2px solid #404040; border-radius: 16px; padding: 32px; text-align: center; margin: 0 0 32px 0; position: relative; overflow: hidden;",
-        "innerStyle": "font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 700; color: #8b5cf6; letter-spacing: 8px; text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);",
-        "topBar": "position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 50%, #6366f1 100%);",
-        "subtitle": "Enter this code to complete verification"
+        "style": "background-color: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0; backdrop-filter: blur(8px);",
+        "innerStyle": "font-family: 'Space Grotesk', sans-serif; font-size: 36px; font-weight: 600; color: #a855f7; letter-spacing: 6px;",
+        "subtitle": "📱 Enter this code in the verification form"
       },
       "warning": {
-        "icon": "⚡",
-        "text": "<strong style=\"color: #e5e5e5;\">Important:</strong> This OTP expires in <strong style=\"color: #8b5cf6;\">10 minutes</strong>. If you didn't request this verification, please ignore this email."
+        "text": "⚠️ <strong style='color: #ffffff;'>Important:</strong> This OTP expires in <strong style='color: #a855f7;'>10 minutes</strong>. For security reasons, do not share this code with anyone. If you didn't request this verification, please ignore this email."
+      },
+      "support": {
+        "text": "💬 If you need assistance, please contact our support team."
       }
     }
   },
   "passwordReset": {
     "title": "Reset your DeployIO password",
-    "headerGradient": "linear-gradient(135deg, #dc2626 0%, #b91c1c 50%, #991b1b 100%)",
-    "icon": "🔒",
-    "iconColor": "#dc2626",
-    "brandColor": "#dc2626",
     "content": {
-      "heading": "Reset your password",
-      "message": "You are receiving this email because you (or someone else) requested to reset your DeployIO account password.",
-      "instruction": "Click the button below to create a new password:",
+      "heading": "🔑 Password Reset Request",
+      "greeting": "Hello,",
+      "message": "We received a request to reset the password for your DeployIO account. If you made this request, please click the button below to create a new password:",
       "mainAction": {
         "type": "button",
         "url": "{{resetLink}}",
-        "text": "🔑 Reset Password",
-        "style": "display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px; padding: 16px 32px; border-radius: 12px; box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.3); transition: all 0.2s ease; font-family: 'DM Sans', sans-serif;"
+        "text": "🔓 Reset Password",
+        "style": "display: inline-block; background-color: #a855f7; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px; padding: 12px 24px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; transition: all 0.3s ease; box-shadow: 0 4px 14px 0 rgba(168, 85, 247, 0.3);"
       },
       "warning": {
-        "icon": "⚡",
-        "text": "<strong style=\"color: #e5e5e5;\">Security Notice:</strong> This reset link expires in <strong style=\"color: #dc2626;\">30 minutes</strong>. If you didn't request this, please ignore this email and your password will remain unchanged."
+        "text": "🛡️ <strong style='color: #ffffff;'>Security Notice:</strong> This reset link expires in <strong style='color: #a855f7;'>30 minutes</strong>. If you didn't request this password reset, please ignore this email and your password will remain unchanged."
       },
       "fallback": {
-        "title": "Can't click the button?",
+        "title": "🔧 Having trouble with the button?",
         "text": "Copy and paste this link into your browser:",
         "url": "{{resetLink}}"
+      },
+      "support": {
+        "text": "💬 If you continue to have problems, please contact our support team for assistance."
       }
     }
   }

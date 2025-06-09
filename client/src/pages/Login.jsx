@@ -84,7 +84,7 @@ function Login() {
 
     // Redirect to OTP verification if needed
     if (needsVerification && pendingVerificationEmail) {
-      toast.info("Please verify your account to continue");
+      toast.success("Please verify your account to continue");
       navigate("/auth/verify-otp", {
         state: { email: pendingVerificationEmail, fromLogin: true },
       });
