@@ -2,11 +2,11 @@
 // This file contains SEO metadata for all pages in the application
 
 const defaultSEO = {
-  title: "Deployio - Modern Deployment Platform",
+  title: "Deployio - AI-Powered DevOps Automation Platform",
   description:
-    "Deployio is a modern, secure deployment platform that helps you deploy your applications with ease. Features include automated CI/CD, Docker support, and enterprise-grade security.",
+    "Transform your deployment process with Deployio's AI-powered automation. Submit a GitHub URL and get instant stack detection, Dockerfiles, CI/CD pipelines, and production deployments with real-time monitoring.",
   keywords:
-    "deployment, CI/CD, Docker, DevOps, automated deployment, continuous integration, continuous deployment, cloud deployment",
+    "AI DevOps automation, intelligent deployment, automated CI/CD, GitHub deployment, Docker generation, MERN stack deployment, cloud deployment automation, DevOps platform, deployment pipeline, infrastructure automation",
   author: "Deployio Team",
   type: "website",
   url: "https://deployio.com",
@@ -22,11 +22,12 @@ const defaultSEO = {
 export const seoConfig = {
   // Home page
   home: {
-    title: "Deployio - Modern Deployment Platform | Automated CI/CD Solutions",
+    title:
+      "Deployio - AI-Powered DevOps Automation Platform | Intelligent Deployment Solutions",
     description:
-      "Deploy your applications with confidence using Deployio's modern deployment platform. Get automated CI/CD, Docker support, and enterprise security out of the box.",
+      "Transform your deployment process with Deployio's AI-powered automation. Submit a GitHub URL and get instant stack detection, Dockerfiles, CI/CD pipelines, and production deployments with real-time monitoring.",
     keywords:
-      "deployment platform, automated deployment, CI/CD pipeline, Docker deployment, DevOps tools, continuous deployment, cloud hosting",
+      "AI deployment automation, intelligent DevOps, automated CI/CD, GitHub to production, Docker generation, MERN deployment, cloud automation, DevOps AI assistant",
     url: `${defaultSEO.url}/`,
     structuredData: {
       "@context": "https://schema.org",
@@ -34,7 +35,8 @@ export const seoConfig = {
       name: "Deployio",
       applicationCategory: "DeveloperApplication",
       operatingSystem: "Web",
-      description: "Modern deployment platform with automated CI/CD",
+      description:
+        "AI-powered DevOps automation platform that transforms deployment processes",
       url: defaultSEO.url,
       author: {
         "@type": "Organization",
@@ -45,21 +47,20 @@ export const seoConfig = {
 
   // Authentication pages
   login: {
-    title: "Login | Deployio - Access Your Deployment Dashboard",
+    title: "Login | Deployio - Access Your AI DevOps Dashboard",
     description:
-      "Sign in to your Deployio account to access your deployment dashboard, manage projects, and monitor your applications.",
+      "Sign in to your Deployio account to access your AI-powered deployment dashboard, manage automated deployments with intelligent stack detection, and monitor your applications with real-time insights.",
     keywords:
-      "login, sign in, authentication, deployment dashboard, user access",
+      "login AI DevOps, sign in deployment automation, authentication, AI deployment dashboard, automated CI/CD access, intelligent deployment management",
     url: `${defaultSEO.url}/auth/login`,
     robots: "noindex, nofollow",
   },
-
   register: {
-    title: "Sign Up | Deployio - Start Deploying Today",
+    title: "Sign Up | Deployio - Start AI-Powered DevOps Automation",
     description:
-      "Create your Deployio account and start deploying applications in minutes. Join thousands of developers using our platform.",
+      "Create your Deployio account and start deploying applications with AI automation in minutes. Join developers experiencing intelligent DevOps workflows with automated stack detection and CI/CD generation.",
     keywords:
-      "sign up, register, create account, join deployio, start deploying",
+      "sign up AI DevOps, register deployment automation, create account, join deployio, AI deployment platform, automated deployment",
     url: `${defaultSEO.url}/auth/register`,
     robots: "noindex, nofollow",
   },

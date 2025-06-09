@@ -36,11 +36,11 @@ function Footer() {
               <span className="text-xl font-bold text-white heading">
                 DeployIO
               </span>
-            </div>
+            </div>{" "}
             <p className="text-neutral-400 text-sm max-w-md mb-4 body">
-              Your intelligent companion for seamless authentication and user
-              management. Experience the future of secure, modern web
-              applications.
+              Your AI-powered companion for seamless DevOps automation and
+              intelligent deployment. Transform your development workflow with
+              automated CI/CD, stack detection, and real-time monitoring.
             </p>{" "}
             <div className="flex items-center gap-4">
               <motion.a

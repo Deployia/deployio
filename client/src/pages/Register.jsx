@@ -207,10 +207,10 @@ function Register() {
   const passwordStrength = getPasswordStrengthInfo();
   return (
     <>
-      <SEO page="register" />
+      <SEO page="register" />{" "}
       <AuthCard
         title="Create Account"
-        subtitle="Join DeployIO and start deploying your projects"
+        subtitle="Join Deployio and experience AI-powered DevOps automation"
         error={formError}
       >
         <form onSubmit={onSubmit} className="space-y-6">
