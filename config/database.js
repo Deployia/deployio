@@ -10,8 +10,24 @@ const connectDB = async () => {
   while (attempt < maxRetries) {
     try {
       const conn = await mongoose.connect(process.env.MONGODB_URI, {
-        // mongoose 6+ default options
+        // Performance optimizations
+        maxPoolSize: 10, // Maintain up to 10 socket connections
+        serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+        socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+        bufferMaxEntries: 0, // Disable mongoose buffering
+        bufferCommands: false, // Disable mongoose buffering
+        maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+        family: 4, // Use IPv4, skip trying IPv6
+        // Enable compression for better network performance
+        compressors: ["zlib"],
+        zlibCompressionLevel: 6,
       });
+
+      // Enable query performance monitoring in development
+      if (process.env.NODE_ENV === "development") {
+        mongoose.set("debug", true);
+      }
+
       console.log(`MongoDB Connected: ${conn.connection.host}`);
       return conn;
     } catch (error) {

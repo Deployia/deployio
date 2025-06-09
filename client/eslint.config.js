@@ -6,8 +6,25 @@ import reactRefresh from "eslint-plugin-react-refresh";
 
 export default [
   { ignores: ["dist"] },
+  // Configuration for Vite config files (Node.js environment)
+  {
+    files: ["vite.config.js", "vite.config.ts"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+    },
+  },
+  // Configuration for React files
   {
     files: ["**/*.{js,jsx}"],
+    ignores: ["vite.config.js", "vite.config.ts"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -40,7 +57,7 @@ export default [
         },
       ],
       "react/react-in-jsx-scope": "off", // Not needed in React 17+
-      'react/prop-types': 'off', // PropTypes are not used in this project
+      "react/prop-types": "off", // PropTypes are not used in this project
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

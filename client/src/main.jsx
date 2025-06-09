@@ -10,6 +10,7 @@ import App from "./App.jsx";
 import { store } from "./redux/store";
 import { SidebarProvider } from "./context/SidebarContext.jsx";
 import { ModalProvider } from "./context/ModalContext.jsx";
+import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 
 // Initialize SEO optimizations before React renders
 initializeSEOOptimizations();
@@ -21,6 +22,7 @@ createRoot(document.getElementById("root")).render(
         <BrowserRouter>
           <SidebarProvider>
             <ModalProvider>
+              <PerformanceMonitor />
               <App />
               <Toaster
                 position="top-right"
@@ -28,40 +30,20 @@ createRoot(document.getElementById("root")).render(
                   duration: 3000,
                   style: {
                     background: "rgba(31, 41, 55, 0.95)",
-                    color: "#f9fafb",
-                    border: "1px solid rgba(55, 65, 81, 0.5)",
-                    borderRadius: "0.75rem",
-                    fontSize: "0.875rem",
-                    fontWeight: "500",
+                    color: "#fff",
+                    border: "1px rgba(75, 85, 99, 0.3)",
                     backdropFilter: "blur(10px)",
-                    boxShadow:
-                      "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
                   },
                   success: {
                     iconTheme: {
                       primary: "#10b981",
-                      secondary: "#f9fafb",
-                    },
-                    style: {
-                      border: "1px solid rgba(16, 185, 129, 0.3)",
+                      secondary: "#fff",
                     },
                   },
                   error: {
                     iconTheme: {
                       primary: "#ef4444",
-                      secondary: "#f9fafb",
-                    },
-                    style: {
-                      border: "1px solid rgba(239, 68, 68, 0.3)",
-                    },
-                  },
-                  loading: {
-                    iconTheme: {
-                      primary: "#3b82f6",
-                      secondary: "#f9fafb",
-                    },
-                    style: {
-                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      secondary: "#fff",
                     },
                   },
                 }}

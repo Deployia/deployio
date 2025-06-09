@@ -12,6 +12,18 @@ const rootReducer = combineReducers({
 
 export const store = configureStore({
   reducer: rootReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      // Performance optimizations
+      serializableCheck: {
+        ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
+        ignoredActionsPaths: ["meta.arg", "payload.timestamp"],
+        ignoredPaths: ["items.dates"],
+      },
+      // Improve performance by reducing immutable checks in production
+      immutableCheck: import.meta.env.MODE !== "production",
+    }),
+  devTools: import.meta.env.MODE !== "production",
 });
 
 export default store;

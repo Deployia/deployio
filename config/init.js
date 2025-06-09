@@ -8,6 +8,7 @@ const swaggerJsdoc = require("swagger-jsdoc");
 const helmet = require("helmet");
 const hpp = require("hpp");
 const cors = require("cors");
+const compression = require("compression");
 
 module.exports = (app) => {
   // Trust proxy - Only in production when behind reverse proxy (Traefik)
@@ -15,6 +16,48 @@ module.exports = (app) => {
   if (process.env.NODE_ENV === "production") {
     app.set("trust proxy", true);
   }
+
+  // Enable gzip compression for better performance
+  app.use(
+    compression({
+      threshold: 1024, // Only compress files larger than 1KB
+      level: 6, // Compression level (1-9, 6 is good balance)
+      filter: (req, res) => {
+        // Don't compress responses if the cache control is 'no-transform'
+        if (
+          res.getHeader("Cache-Control") &&
+          res.getHeader("Cache-Control").includes("no-transform")
+        ) {
+          return false;
+        }
+        // Default compression
+        return compression.filter(req, res);
+      },
+    })
+  );
+
+  // Response time header for performance monitoring
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      res.set("X-Response-Time", `${duration}ms`);
+
+      // Log slow requests in development
+      if (process.env.NODE_ENV === "development" && duration > 500) {
+        console.log(`Slow request: ${req.method} ${req.path} - ${duration}ms`);
+      }
+    });
+    next();
+  });
+
+  // Cache headers for static content
+  app.use((req, res, next) => {
+    if (req.url.match(/\.(css|js|png|jpg|jpeg|gif|ico|svg)$/)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000"); // 1 year
+    }
+    next();
+  });
 
   // Swagger (only in local/development)
   if (process.env.NODE_ENV === "development") {

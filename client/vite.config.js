@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current directory.
   const env = loadEnv(mode, process.cwd(), "");
 
@@ -27,6 +27,58 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+
+    // Performance optimizations
+    build: {
+      // Enable code splitting
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Separate vendor chunks
+            "react-vendor": ["react", "react-dom"],
+            "redux-vendor": ["@reduxjs/toolkit", "react-redux"],
+            "router-vendor": ["react-router-dom"],
+            "ui-vendor": ["framer-motion", "react-hot-toast", "react-icons"],
+            "auth-vendor": ["qrcode.react", "zxcvbn"],
+          },
+        },
+      },
+      // Optimize chunk size
+      chunkSizeWarningLimit: 1000,
+      // Enable minification
+      minify: "terser",
+      terserOptions: {
+        compress: {
+          drop_console: mode === "production",
+          drop_debugger: mode === "production",
+        },
+      },
+      // Source maps only in development
+      sourcemap: mode === "development",
+    },
+
+    // Development server optimizations
+    server: {
+      // Enable hot reload optimization
+      hmr: {
+        overlay: false,
+      },
+    },
+
+    // Dependency optimization
+    optimizeDeps: {
+      include: [
+        "react",
+        "react-dom",
+        "react-router-dom",
+        "@reduxjs/toolkit",
+        "react-redux",
+        "framer-motion",
+        "axios",
+      ],
+      exclude: ["@vite/client", "@vite/env"],
+    },
+
     define: {
       // Use the provided env variables with fallback to defaults
       __APP_ENV__: JSON.stringify({
