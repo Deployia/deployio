@@ -15,8 +15,8 @@ const OAuthSection = () => {
       import.meta.env.VITE_APP_ENV === "production"
         ? "/api/v1/auth"
         : `${
-            import.meta.env.VITE_APP_BACKEND_URL || "http://localhost:3000"
-          }/api/v1/auth`;
+            import.meta.env.VITE_APP_BACKEND_URL || "http://localhost:3000/api/v1"
+          }/auth`;
     return `${baseUrl}/${provider}`;
   };
   return (
