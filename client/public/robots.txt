@@ -2,10 +2,9 @@ User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://deployio.com/sitemap.xml
+Sitemap: https://deployio.tech/sitemap.xml
 
-# Disallow admin and auth-related pages from search engines
-Disallow: /auth/
+# Disallow admin pages from search engines (auth pages are now allowed)
 Disallow: /profile/
 Disallow: /admin/
 
