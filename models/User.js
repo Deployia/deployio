@@ -160,6 +160,26 @@ userSchema.methods.createPasswordResetToken = function () {
   return resetToken;
 };
 
+// Performance optimizations: Add database indexes
+userSchema.index({ email: 1 }); // Single field index for email lookups
+userSchema.index({ username: 1 }); // Single field index for username lookups
+userSchema.index({ googleId: 1 }, { sparse: true }); // Sparse index for OAuth
+userSchema.index({ githubId: 1 }, { sparse: true }); // Sparse index for OAuth
+userSchema.index({ resetPasswordToken: 1 }, { sparse: true }); // For password reset
+userSchema.index({ createdAt: 1 }); // For sorting/filtering by creation date
+userSchema.index({ isVerified: 1, createdAt: -1 }); // Compound index for verified users
+
+// Text index for search functionality (if needed)
+userSchema.index(
+  {
+    username: "text",
+    email: "text",
+  },
+  {
+    weights: { username: 10, email: 5 },
+  }
+);
+
 const User = mongoose.model("User", userSchema);
 
 module.exports = User;

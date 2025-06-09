@@ -2,17 +2,19 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../redux/slices/authSlice";
 import { toast } from "react-hot-toast";
-import { useState } from "react";
+import { useState, memo, useCallback } from "react";
 import { FaBars, FaTimes, FaSpinner } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
-function Navbar() {
+// Memoize the component to prevent unnecessary re-renders
+const Navbar = memo(() => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
 
-  const onLogout = () => {
+  // Memoize event handlers to prevent re-creation on every render
+  const onLogout = useCallback(() => {
     dispatch(logout())
       .unwrap()
       .then(() => {
@@ -23,15 +25,15 @@ function Navbar() {
       .catch((error) => {
         toast.error(error);
       });
-  };
+  }, [dispatch, navigate]);
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+  const toggleMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen((prev) => !prev);
+  }, []);
 
-  const closeMobileMenu = () => {
+  const closeMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(false);
-  };
+  }, []);
 
   // Disable logout button while logout is processing
   const isLoggingOut = loading && loading.logout;
@@ -248,6 +250,8 @@ function Navbar() {
       </div>
     </header>
   );
-}
+});
+
+Navbar.displayName = "Navbar";
 
 export default Navbar;

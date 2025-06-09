@@ -28,7 +28,11 @@
     "health": "curl -f http://localhost:3000/api/v1/health && curl -f http://localhost:8000/health",
     "health:full": "bash scripts/verify-cicd.sh",
     "backup": "bash scripts/backup-production.sh",
-    "security": "bash scripts/security-check.sh"
+    "security": "bash scripts/security-check.sh",
+    "benchmark": "node scripts/benchmark-test.js",
+    "benchmark:build": "node scripts/build-benchmark.js",
+    "benchmark:network": "node scripts/network-benchmark.js",
+    "benchmark:all": "npm run benchmark && npm run benchmark:network"
   },
   "keywords": [
     "deployment",
@@ -50,6 +54,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.6.1",
+    "compression": "^1.8.0",
     "concurrently": "^9.1.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
