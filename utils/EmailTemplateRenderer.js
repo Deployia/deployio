@@ -50,17 +50,15 @@ class EmailTemplateRenderer {
    */
   renderMainAction(actionConfig, variables) {
     if (actionConfig.type === "otp") {
-      return `
-        <div style="${actionConfig.style}">
-          <div style="${actionConfig.topBar}"></div>
+      return `        <div style="${actionConfig.style}">
           <div style="${actionConfig.innerStyle}">${variables.otp}</div>
-          <p style="color: #737373; font-size: 14px; margin: 16px 0 0 0; font-weight: 500;">${actionConfig.subtitle}</p>
+          <p style="color: #737373; font-size: 14px; margin: 10px 0 0 0; text-align: center; font-family: 'DM Sans', sans-serif;">${actionConfig.subtitle}</p>
         </div>
       `;
     } else if (actionConfig.type === "button") {
       const url = this.replaceVariables(actionConfig.url, variables);
       return `
-        <div style="text-align: center; margin: 0 0 32px 0;">
+        <div style="text-align: center; margin: 20px 0;">
           <a href="${url}" style="${actionConfig.style}">
             ${actionConfig.text}
           </a>
@@ -69,7 +67,6 @@ class EmailTemplateRenderer {
     }
     return "";
   }
-
   /**
    * Render warning box
    * @param {Object} warningConfig - Warning configuration
@@ -77,15 +74,13 @@ class EmailTemplateRenderer {
    */
   renderWarning(warningConfig) {
     return `
-      <div style="background: #1f1f1f; border: 1px solid #404040; border-radius: 12px; padding: 20px; margin: 0 0 32px 0;">
-        <p style="color: #a3a3a3; font-size: 14px; line-height: 1.5; margin: 0; display: flex; align-items: flex-start; gap: 8px;">
-          <span style="color: #fbbf24; font-size: 16px; margin-top: 1px;">${warningConfig.icon}</span>
-          <span>${warningConfig.text}</span>
+      <div style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin: 20px 0; backdrop-filter: blur(8px);">
+        <p style="font-size: 14px; line-height: 1.5; margin: 0; color: #a3a3a3;">
+          ${warningConfig.text}
         </p>
       </div>
     `;
   }
-
   /**
    * Render fallback section for password reset
    * @param {Object} fallbackConfig - Fallback configuration
@@ -97,11 +92,11 @@ class EmailTemplateRenderer {
 
     const url = this.replaceVariables(fallbackConfig.url, variables);
     return `
-      <div style="background: #0f1419; border: 1px solid #374151; border-radius: 8px; padding: 16px;">
-        <p style="color: #9ca3af; font-size: 13px; margin: 0; line-height: 1.4;">
-          <strong style="color: #d1d5db;">${fallbackConfig.title}</strong><br>
+      <div style="background-color: rgba(23, 23, 23, 0.5); border: 1px solid #404040; border-radius: 8px; padding: 16px; margin: 20px 0; backdrop-filter: blur(8px);">
+        <p style="color: #a3a3a3; font-size: 14px; margin: 0; line-height: 1.4;">
+          <strong style="color: #ffffff;">${fallbackConfig.title}</strong><br>
           ${fallbackConfig.text} <br>
-          <span style="color: #dc2626; word-break: break-all; font-family: monospace; font-size: 12px;">${url}</span>
+          <span style="color: #a855f7; word-break: break-all; font-family: 'Space Grotesk', monospace; font-size: 12px;">${url}</span>
         </p>
       </div>
     `;
@@ -120,34 +115,23 @@ class EmailTemplateRenderer {
       }
 
       const templateConfig = this.config[templateName];
-      const content = templateConfig.content;
-
-      // Build content HTML
+      const content = templateConfig.content; // Build content HTML
       let contentHtml = `
-        <h2 style="font-family: 'Space Grotesk', sans-serif; color: #f5f5f5; font-size: 24px; font-weight: 600; margin: 0 0 ${
-          templateName === "otp" ? "8px" : "24px"
-        } 0; letter-spacing: -0.02em;">${content.heading}</h2>
+        <h2 style="font-family: 'Space Grotesk', sans-serif; color: #ffffff; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; letter-spacing: -0.04em;">${content.heading}</h2>
       `;
 
-      // Add greeting for OTP
+      // Add greeting
       if (content.greeting) {
         const greeting = this.replaceVariables(content.greeting, variables);
         contentHtml += `
-          <p style="color: #a3a3a3; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">${greeting}</p>
+          <p style="color: #a3a3a3; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0; font-family: 'DM Sans', sans-serif;">${greeting}</p>
         `;
       }
 
       // Add message
       if (content.message) {
         contentHtml += `
-          <p style="color: #d4d4d4; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">${content.message}</p>
-        `;
-      }
-
-      // Add instruction (for password reset)
-      if (content.instruction) {
-        contentHtml += `
-          <p style="color: #a3a3a3; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">${content.instruction}</p>
+          <p style="color: #d4d4d4; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0; font-family: 'DM Sans', sans-serif;">${content.message}</p>
         `;
       }
 
@@ -164,15 +148,16 @@ class EmailTemplateRenderer {
       // Add fallback (for password reset)
       if (content.fallback) {
         contentHtml += this.renderFallback(content.fallback, variables);
+      } // Add support text if available
+      if (content.support) {
+        contentHtml += `
+          <p style="color: #737373; font-size: 14px; line-height: 1.5; margin: 20px 0 0 0; text-align: center; font-family: 'DM Sans', sans-serif;">${content.support.text}</p>
+        `;
       }
 
       // Prepare template variables
       const templateVariables = {
         title: templateConfig.title,
-        headerGradient: templateConfig.headerGradient,
-        icon: templateConfig.icon,
-        iconColor: templateConfig.iconColor,
-        brandColor: templateConfig.brandColor,
         content: contentHtml,
         currentYear: new Date().getFullYear(),
       };

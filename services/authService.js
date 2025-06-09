@@ -40,25 +40,34 @@ const registerUser = async (userData) => {
     throw new Error("Email already registered");
   }
 
-  // Create new user
+  // Generate OTP for email verification
+  const otp = generateOtp();
+  const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  // First, try to send the email BEFORE creating the user
+  // This prevents orphaned accounts if email service fails
+  try {
+    await sendEmail({
+      to: email,
+      subject: "Verify your DeployIO account (OTP)",
+      template: "otp",
+      variables: { username, otp },
+    });
+  } catch (emailError) {
+    console.error(`Failed to send registration email to ${email}:`, emailError);
+    // If email fails, don't create the user account
+    throw new Error(
+      "Unable to send verification email. Please try again later or contact support if the problem persists."
+    );
+  }
+
+  // Only create user after email is successfully sent
   const user = await User.create({
     username,
     email,
     password,
-  });
-
-  // Generate OTP for 2FA
-  const otp = generateOtp();
-  user.otp = otp;
-  user.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  await user.save();
-
-  // Send OTP email
-  await sendEmail({
-    to: user?.email,
-    subject: "Verify your DeployIO account (OTP)",
-    template: "otp",
-    variables: { username, otp },
+    otp,
+    otpExpire,
   });
 
   // Do not authenticate yet, require OTP verification
@@ -84,27 +93,33 @@ const loginUser = async (email, password) => {
   if (!user || !(await user.comparePassword(password))) {
     throw new Error("Invalid email or password");
   }
-
   // Check if user is verified - return verification status instead of throwing error
   if (!user.isVerified) {
     // Generate OTP if user is not verified
     const otp = generateOtp();
-    user.otp = otp;
-    user.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-    await user.save();
+    const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     try {
-      // Send OTP email
+      // Try to send OTP email first
       await sendEmail({
         to: user.email,
         subject: "Verify your DeployIO account (OTP)",
         template: "otp",
         variables: { username: user.username, otp },
       });
+
+      // Only save OTP to database if email was sent successfully
+      user.otp = otp;
+      user.otpExpire = otpExpire;
+      await user.save();
+
       console.log(`OTP email sent to ${user.email}`);
     } catch (error) {
       console.error(`Failed to send OTP email to ${user.email}:`, error);
-      // Don't fail the login, just log the error
+      // If email fails, throw an error instead of proceeding
+      throw new Error(
+        "Unable to send verification email. Please try again later or contact support if the problem persists."
+      );
     }
 
     return {
@@ -283,22 +298,28 @@ const resendOtp = async (email) => {
 
   // Generate new OTP
   const otp = generateOtp();
-  user.otp = otp;
-  user.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  await user.save();
+  const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
   try {
-    // Send OTP email
+    // Try to send OTP email first
     await sendEmail({
       to: user.email,
       subject: "Your DeployIO OTP (Resend)",
       template: "otp",
       variables: { username: user.username, otp },
     });
+
+    // Only save OTP to database if email was sent successfully
+    user.otp = otp;
+    user.otpExpire = otpExpire;
+    await user.save();
+
     console.log(`OTP resent to ${user.email}`);
   } catch (error) {
     console.error(`Failed to resend OTP email to ${user.email}:`, error);
-    throw new Error("Failed to send OTP email. Please try again later.");
+    throw new Error(
+      "Unable to send verification email. Please try again later or contact support if the problem persists."
+    );
   }
 
   return "OTP resent to your email";

@@ -266,11 +266,9 @@ const login = async (req, res) => {
       sessionId: session._id.toString(),
     });
   } catch (error) {
-    // Only send 401 for actual authentication failures
-    const statusCode = error.message.includes("Invalid email or password")
-      ? 401
-      : 400;
-    res.status(statusCode).json({ success: false, message: error.message });
+    // Return 400 for login validation errors to avoid triggering refresh token interceptor
+    // 401 should only be used for expired/invalid tokens, not login failures
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
