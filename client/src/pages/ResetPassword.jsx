@@ -3,18 +3,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { reset, resetPassword } from "../redux/slices/authSlice";
-import {
-  FaLock,
-  FaEye,
-  FaEyeSlash,
-  FaCheck,
-  FaKey,
-  FaArrowLeft,
-} from "react-icons/fa";
-import AuthCard from "../components/AuthCard";
-import AuthInput from "../components/AuthInput";
-import AuthButton from "../components/AuthButton";
+import { FaLock, FaEye, FaEyeSlash, FaCheck, FaKey } from "react-icons/fa";
+import AuthCard from "../components/auth/Card";
+import AuthInput from "../components/auth/Input";
+import AuthButton from "../components/auth/Button";
 import zxcvbn from "zxcvbn";
+import SEO from "../components/SEO.jsx";
 
 function ResetPassword() {
   const [formData, setFormData] = useState({
@@ -122,104 +116,109 @@ function ResetPassword() {
 
   const passwordStrength = getPasswordStrengthInfo();
   return (
-    <AuthCard
-      title="Create New Password"
-      subtitle="Your password must be at least 6 characters long and contain a mix of characters"
-      error={formError}
-    >
-      {success?.resetPassword ? (
-        <div className="text-center space-y-6">
-          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-500/10 border border-green-500/20">
-            <FaCheck className="h-8 w-8 text-green-500" />
-          </div>
+    <>
+      <SEO page="resetPassword" />
+      <AuthCard
+        title="Create New Password"
+        subtitle="Your password must be at least 6 characters long and contain a mix of characters"
+        error={formError}
+      >
+        {success?.resetPassword ? (
+          <div className="text-center space-y-6">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-500/10 border border-green-500/20">
+              <FaCheck className="h-8 w-8 text-green-500" />
+            </div>
 
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white">
-              Password reset successful!
-            </h3>
-            <p className="text-sm text-neutral-400">
-              Your password has been updated successfully. You will be
-              redirected to the login page shortly.
-            </p>
-          </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">
+                Password reset successful!
+              </h3>
+              <p className="text-sm text-neutral-400">
+                Your password has been updated successfully. You will be
+                redirected to the login page shortly.
+              </p>
+            </div>
 
-          <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden">
-            <div className="h-full bg-white rounded-full w-0 animate-pulse"></div>
+            <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden">
+              <div className="h-full bg-white rounded-full w-0 animate-pulse"></div>
+            </div>
           </div>
-        </div>
-      ) : (
-        <form onSubmit={onSubmit} className="space-y-6">
-          <div className="space-y-1">
+        ) : (
+          <form onSubmit={onSubmit} className="space-y-6">
+            <div className="space-y-1">
+              <AuthInput
+                type={showPassword ? "text" : "password"}
+                name="password"
+                label="New Password"
+                value={password}
+                onChange={onChange}
+                placeholder="Enter your new password"
+                icon={FaLock}
+                rightIcon={showPassword ? FaEyeSlash : FaEye}
+                onRightIconClick={() => setShowPassword(!showPassword)}
+                error={validationErrors.password}
+                required
+              />
+
+              {/* Password strength meter */}
+              {password && (
+                <div className="space-y-2">
+                  <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                      style={{ width: `${passwordStrength.width}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-neutral-400">
+                    Password strength:{" "}
+                    <span className="font-medium">
+                      {passwordStrength.label}
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
+
             <AuthInput
-              type={showPassword ? "text" : "password"}
-              name="password"
-              label="New Password"
-              value={password}
+              type={showConfirmPassword ? "text" : "password"}
+              name="confirmPassword"
+              label="Confirm New Password"
+              value={confirmPassword}
               onChange={onChange}
-              placeholder="Enter your new password"
+              placeholder="Confirm your new password"
               icon={FaLock}
-              rightIcon={showPassword ? FaEyeSlash : FaEye}
-              onRightIconClick={() => setShowPassword(!showPassword)}
-              error={validationErrors.password}
+              rightIcon={showConfirmPassword ? FaEyeSlash : FaEye}
+              onRightIconClick={() =>
+                setShowConfirmPassword(!showConfirmPassword)
+              }
+              error={validationErrors.confirmPassword}
               required
             />
 
-            {/* Password strength meter */}
-            {password && (
-              <div className="space-y-2">
-                <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-                    style={{ width: `${passwordStrength.width}%` }}
-                  />
-                </div>
-                <p className="text-xs text-neutral-400">
-                  Password strength:{" "}
-                  <span className="font-medium">{passwordStrength.label}</span>
-                </p>
-              </div>
-            )}
-          </div>
+            <AuthButton
+              type="submit"
+              loading={loading?.resetPassword}
+              disabled={!isFormValid() || loading?.resetPassword}
+              icon={FaKey}
+            >
+              Reset Password
+            </AuthButton>
 
-          <AuthInput
-            type={showConfirmPassword ? "text" : "password"}
-            name="confirmPassword"
-            label="Confirm New Password"
-            value={confirmPassword}
-            onChange={onChange}
-            placeholder="Confirm your new password"
-            icon={FaLock}
-            rightIcon={showConfirmPassword ? FaEyeSlash : FaEye}
-            onRightIconClick={() =>
-              setShowConfirmPassword(!showConfirmPassword)
-            }
-            error={validationErrors.confirmPassword}
-            required
-          />
-
-          <AuthButton
-            type="submit"
-            loading={loading?.resetPassword}
-            disabled={!isFormValid() || loading?.resetPassword}
-            icon={FaKey}
-          >
-            Reset Password
-          </AuthButton>
-
-          <div className="text-center pt-4">
-            <p className="text-sm text-neutral-400">
-              Remember your password?{" "}
-              <Link
-                to="/auth/login"
-                className="text-white hover:text-neutral-200 font-medium hover:underline transition-colors"
-              >
-                Back to Login
-              </Link>
-            </p>
-          </div>
-        </form>
-      )}
-    </AuthCard>
+            <div className="text-center pt-4">
+              <p className="text-sm text-neutral-400">
+                Remember your password?{" "}
+                <Link
+                  to="/auth/login"
+                  className="text-white hover:text-neutral-200 font-medium hover:underline transition-colors"
+                >
+                  Back to Login
+                </Link>
+              </p>
+            </div>
+          </form>
+        )}
+      </AuthCard>
+    </>
   );
 }
 

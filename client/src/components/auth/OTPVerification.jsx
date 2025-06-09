@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FiShield, FiKey, FiSmartphone } from "react-icons/fi";
-import { disable2FA, verify2FALogin } from "../redux/slices/twoFactorSlice";
+import { disable2FA, verify2FALogin } from "../../redux/slices/twoFactorSlice";
 import toast from "react-hot-toast";
-import AuthButton from "./AuthButton";
-import AuthInput from "./AuthInput";
+import AuthButton from "./Button";
+import AuthInput from "./Input";
 
 const OTPVerification = ({
   mode = "login", // 'login', 'disable'

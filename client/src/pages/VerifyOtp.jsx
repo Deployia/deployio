@@ -11,8 +11,9 @@ import {
   FaRedoAlt,
   FaCheck,
 } from "react-icons/fa";
-import AuthCard from "../components/AuthCard";
-import AuthButton from "../components/AuthButton";
+import AuthCard from "../components/auth/Card";
+import AuthButton from "../components/auth/Button";
+import SEO from "../components/SEO.jsx";
 
 function VerifyOtp() {
   const [otpError, setOtpError] = useState("");
@@ -139,125 +140,128 @@ function VerifyOtp() {
     return otpArray.join("").length === 6;
   };
   return (
-    <AuthCard
-      title={
-        isFromLogin ? "Account Verification Required" : "Verify Your Account"
-      }
-      subtitle={
-        <>
-          Enter the 6-digit code sent to{" "}
-          <span className="text-white font-medium">
-            {email || "your email"}
-          </span>
-        </>
-      }
-      error={formError}
-      icon={FaEnvelopeOpen}
-    >
-      <form onSubmit={onSubmit} className="space-y-6">
-        <div className="space-y-3">
-          <label
-            htmlFor="otp-input-0"
-            className="flex items-center text-sm font-medium text-neutral-300"
+    <>
+      <SEO page="verifyOtp" />
+      <AuthCard
+        title={
+          isFromLogin ? "Account Verification Required" : "Verify Your Account"
+        }
+        subtitle={
+          <>
+            Enter the 6-digit code sent to{" "}
+            <span className="text-white font-medium">
+              {email || "your email"}
+            </span>
+          </>
+        }
+        error={formError}
+        icon={FaEnvelopeOpen}
+      >
+        <form onSubmit={onSubmit} className="space-y-6">
+          <div className="space-y-3">
+            <label
+              htmlFor="otp-input-0"
+              className="flex items-center text-sm font-medium text-neutral-300"
+            >
+              <FaLock className="mr-2 text-neutral-400" /> Verification Code
+            </label>{" "}
+            <div className="flex justify-center gap-1.5 sm:gap-2 md:gap-3">
+              {otpArray.map((digit, idx) => (
+                <input
+                  key={idx}
+                  id={`otp-input-${idx}`}
+                  ref={(el) => (inputsRef.current[idx] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(e, idx)}
+                  onKeyDown={(e) => handleOtpKeyDown(e, idx)}
+                  aria-invalid={otpError ? true : false}
+                  aria-describedby={otpError ? "otp-error" : undefined}
+                  className={`w-10 h-12 xs:w-12 xs:h-14 sm:w-14 sm:h-16 text-center text-lg xs:text-xl sm:text-2xl border rounded-lg transition-all duration-200 text-white bg-neutral-800/50 focus:bg-neutral-800 ${
+                    otpError
+                      ? "border-red-500 focus:border-red-400 focus:ring-red-400/20"
+                      : "border-neutral-700 focus:border-white focus:ring-white/20"
+                  } focus:outline-none focus:ring-2`}
+                  autoFocus={idx === 0}
+                />
+              ))}
+            </div>
+            {otpError && (
+              <p
+                id="otp-error"
+                className="text-xs text-red-400 text-center"
+                role="alert"
+                aria-live="assertive"
+              >
+                {otpError}
+              </p>
+            )}
+          </div>
+
+          <AuthButton
+            type="submit"
+            loading={loading?.verifyOtp}
+            disabled={!isFormValid() || loading?.verifyOtp}
+            icon={FaCheck}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
-            <FaLock className="mr-2 text-neutral-400" /> Verification Code
-          </label>{" "}
-          <div className="flex justify-center gap-1.5 sm:gap-2 md:gap-3">
-            {otpArray.map((digit, idx) => (
-              <input
-                key={idx}
-                id={`otp-input-${idx}`}
-                ref={(el) => (inputsRef.current[idx] = el)}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleOtpChange(e, idx)}
-                onKeyDown={(e) => handleOtpKeyDown(e, idx)}
-                aria-invalid={otpError ? true : false}
-                aria-describedby={otpError ? "otp-error" : undefined}
-                className={`w-10 h-12 xs:w-12 xs:h-14 sm:w-14 sm:h-16 text-center text-lg xs:text-xl sm:text-2xl border rounded-lg transition-all duration-200 text-white bg-neutral-800/50 focus:bg-neutral-800 ${
-                  otpError
-                    ? "border-red-500 focus:border-red-400 focus:ring-red-400/20"
-                    : "border-neutral-700 focus:border-white focus:ring-white/20"
-                } focus:outline-none focus:ring-2`}
-                autoFocus={idx === 0}
-              />
-            ))}
-          </div>
-          {otpError && (
-            <p
-              id="otp-error"
-              className="text-xs text-red-400 text-center"
-              role="alert"
-              aria-live="assertive"
-            >
-              {otpError}
-            </p>
+            Verify & Continue
+          </AuthButton>
+        </form>
+
+        <div className="space-y-4 pt-6 border-t border-neutral-800">
+          {isFromLogin && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+              <p className="text-xs text-amber-300 flex items-center">
+                <span className="flex-shrink-0 w-4 h-4 bg-amber-500/20 rounded-full flex items-center justify-center mr-2">
+                  <span className="text-amber-300 text-xs">!</span>
+                </span>
+                Your account requires verification before you can log in.
+              </p>
+            </div>
           )}
-        </div>
 
-        <AuthButton
-          type="submit"
-          loading={loading?.verifyOtp}
-          disabled={!isFormValid() || loading?.verifyOtp}
-          icon={FaCheck}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-        >
-          Verify & Continue
-        </AuthButton>
-      </form>
+          <div className="text-center space-y-3">
+            <p className="text-sm text-neutral-400">
+              Didn&apos;t receive the code? Check your spam folder or try again.
+            </p>{" "}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={resendLoading || resendCooldown > 0}
+                className="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 text-sm sm:text-base text-white hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium rounded-lg hover:bg-neutral-800/50 focus:outline-none focus:ring-2 focus:ring-white/20"
+              >
+                <FaRedoAlt className="mr-2 h-3 w-3 flex-shrink-0" />
+                {resendLoading
+                  ? "Resending..."
+                  : resendCooldown > 0
+                  ? `Resend Code (${resendCooldown}s)`
+                  : "Resend Code"}
+              </button>
 
-      <div className="space-y-4 pt-6 border-t border-neutral-800">
-        {isFromLogin && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-            <p className="text-xs text-amber-300 flex items-center">
-              <span className="flex-shrink-0 w-4 h-4 bg-amber-500/20 rounded-full flex items-center justify-center mr-2">
-                <span className="text-amber-300 text-xs">!</span>
-              </span>
-              Your account requires verification before you can log in.
-            </p>
-          </div>
-        )}
-
-        <div className="text-center space-y-3">
-          <p className="text-sm text-neutral-400">
-            Didn't receive the code? Check your spam folder or try again.
-          </p>{" "}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              type="button"
-              onClick={handleResendOtp}
-              disabled={resendLoading || resendCooldown > 0}
-              className="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 text-sm sm:text-base text-white hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium rounded-lg hover:bg-neutral-800/50 focus:outline-none focus:ring-2 focus:ring-white/20"
-            >
-              <FaRedoAlt className="mr-2 h-3 w-3 flex-shrink-0" />
-              {resendLoading
-                ? "Resending..."
-                : resendCooldown > 0
-                ? `Resend Code (${resendCooldown}s)`
-                : "Resend Code"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                // If from login, reset verification state and go back to login
-                if (isFromLogin) {
-                  dispatch(resetVerification());
-                }
-                navigate("/auth/login");
-              }}
-              className="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 text-sm sm:text-base text-neutral-400 hover:text-neutral-200 transition-colors duration-200 rounded-lg hover:bg-neutral-800/50 focus:outline-none focus:ring-2 focus:ring-white/20"
-            >
-              <FaArrowLeft className="mr-2 h-3 w-3 flex-shrink-0" />
-              Back to Login
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // If from login, reset verification state and go back to login
+                  if (isFromLogin) {
+                    dispatch(resetVerification());
+                  }
+                  navigate("/auth/login");
+                }}
+                className="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 text-sm sm:text-base text-neutral-400 hover:text-neutral-200 transition-colors duration-200 rounded-lg hover:bg-neutral-800/50 focus:outline-none focus:ring-2 focus:ring-white/20"
+              >
+                <FaArrowLeft className="mr-2 h-3 w-3 flex-shrink-0" />
+                Back to Login
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </AuthCard>
+      </AuthCard>
+    </>
   );
 }
 

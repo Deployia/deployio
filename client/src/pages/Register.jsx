@@ -12,11 +12,12 @@ import {
   FaEyeSlash,
   FaUserPlus,
 } from "react-icons/fa";
-import AuthCard from "../components/AuthCard";
-import AuthInput from "../components/AuthInput";
-import AuthButton from "../components/AuthButton";
-import AuthDivider from "../components/AuthDivider";
-import OAuthSection from "../components/OAuthSection";
+import AuthCard from "../components/auth/Card";
+import AuthInput from "../components/auth/Input";
+import AuthButton from "../components/auth/Button";
+import AuthDivider from "../components/auth/Divider";
+import OAuthSection from "../components/auth/OAuthSection";
+import SEO from "../components/SEO.jsx";
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -141,111 +142,115 @@ function Register() {
       Object.keys(validationErrors).length === 0
     );
   };
-
   const passwordStrength = getPasswordStrengthInfo();
   return (
-    <AuthCard
-      title="Create Account"
-      subtitle="Join DeployIO and start deploying your projects"
-      error={formError}
-    >
-      <form onSubmit={onSubmit} className="space-y-6">
-        <AuthInput
-          type="text"
-          name="username"
-          label="Username"
-          value={username}
-          onChange={onChange}
-          placeholder="Choose a username"
-          icon={FaUser}
-          error={validationErrors.username}
-          required
-        />
-
-        <AuthInput
-          type="email"
-          name="email"
-          label="Email Address"
-          value={email}
-          onChange={onChange}
-          placeholder="Enter your email"
-          icon={FaEnvelope}
-          error={validationErrors.email}
-          required
-        />
-
-        <div className="space-y-1">
+    <>
+      <SEO page="register" />
+      <AuthCard
+        title="Create Account"
+        subtitle="Join DeployIO and start deploying your projects"
+        error={formError}
+      >
+        <form onSubmit={onSubmit} className="space-y-6">
           <AuthInput
-            type={showPassword ? "text" : "password"}
-            name="password"
-            label="Password"
-            value={password}
+            type="text"
+            name="username"
+            label="Username"
+            value={username}
             onChange={onChange}
-            placeholder="Create a strong password"
-            icon={FaLock}
-            rightIcon={showPassword ? FaEyeSlash : FaEye}
-            onRightIconClick={() => setShowPassword(!showPassword)}
-            error={validationErrors.password}
+            placeholder="Choose a username"
+            icon={FaUser}
+            error={validationErrors.username}
             required
           />
 
-          {/* Password strength meter */}
-          {password && (
-            <div className="space-y-2">
-              <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-                  style={{ width: `${passwordStrength.width}%` }}
-                />
+          <AuthInput
+            type="email"
+            name="email"
+            label="Email Address"
+            value={email}
+            onChange={onChange}
+            placeholder="Enter your email"
+            icon={FaEnvelope}
+            error={validationErrors.email}
+            required
+          />
+
+          <div className="space-y-1">
+            <AuthInput
+              type={showPassword ? "text" : "password"}
+              name="password"
+              label="Password"
+              value={password}
+              onChange={onChange}
+              placeholder="Create a strong password"
+              icon={FaLock}
+              rightIcon={showPassword ? FaEyeSlash : FaEye}
+              onRightIconClick={() => setShowPassword(!showPassword)}
+              error={validationErrors.password}
+              required
+            />
+
+            {/* Password strength meter */}
+            {password && (
+              <div className="space-y-2">
+                <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                    style={{ width: `${passwordStrength.width}%` }}
+                  />
+                </div>
+                <p className="text-xs text-neutral-400">
+                  Password strength:{" "}
+                  <span className="font-medium">{passwordStrength.label}</span>
+                </p>
               </div>
-              <p className="text-xs text-neutral-400">
-                Password strength:{" "}
-                <span className="font-medium">{passwordStrength.label}</span>
-              </p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <AuthInput
-          type={showConfirmPassword ? "text" : "password"}
-          name="confirmPassword"
-          label="Confirm Password"
-          value={confirmPassword}
-          onChange={onChange}
-          placeholder="Confirm your password"
-          icon={FaLock}
-          rightIcon={showConfirmPassword ? FaEyeSlash : FaEye}
-          onRightIconClick={() => setShowConfirmPassword(!showConfirmPassword)}
-          error={validationErrors.confirmPassword}
-          required
-        />
+          <AuthInput
+            type={showConfirmPassword ? "text" : "password"}
+            name="confirmPassword"
+            label="Confirm Password"
+            value={confirmPassword}
+            onChange={onChange}
+            placeholder="Confirm your password"
+            icon={FaLock}
+            rightIcon={showConfirmPassword ? FaEyeSlash : FaEye}
+            onRightIconClick={() =>
+              setShowConfirmPassword(!showConfirmPassword)
+            }
+            error={validationErrors.confirmPassword}
+            required
+          />
 
-        <AuthButton
-          type="submit"
-          loading={loading?.signup}
-          disabled={!isFormValid() || loading?.signup}
-          icon={FaUserPlus}
-        >
-          Create Account
-        </AuthButton>
+          <AuthButton
+            type="submit"
+            loading={loading?.signup}
+            disabled={!isFormValid() || loading?.signup}
+            icon={FaUserPlus}
+          >
+            Create Account
+          </AuthButton>
 
-        <AuthDivider text="or continue with" />
+          <AuthDivider text="or continue with" />
 
-        <OAuthSection />
+          <OAuthSection />
 
-        <div className="text-center pt-4">
-          <p className="text-sm text-neutral-400">
-            Already have an account?{" "}
-            <Link
-              to="/auth/login"
-              className="text-white hover:text-neutral-200 font-medium hover:underline transition-colors"
-            >
-              Sign in here
-            </Link>
-          </p>
-        </div>
-      </form>
-    </AuthCard>
+          <div className="text-center pt-4">
+            <p className="text-sm text-neutral-400">
+              Already have an account?{" "}
+              <Link
+                to="/auth/login"
+                className="text-white hover:text-neutral-200 font-medium hover:underline transition-colors"
+              >
+                Sign in here
+              </Link>
+            </p>{" "}
+          </div>
+        </form>
+      </AuthCard>
+    </>
   );
 }
 
