@@ -46,14 +46,19 @@ const protect = async (req, res, next) => {
           message:
             "User account not found. Please register or contact support.",
         });
-      }
-
-      // Check if user account is still verified/active
+      }      // Check if user account is still verified/active
       if (!user.isVerified) {
-        return res.status(403).json({
-          success: false,
-          message: "Account not verified. Please verify your email.",
-        });
+        // Auto-verify OAuth users who might have been created before the fix
+        if (user.googleId || user.githubId) {
+          user.isVerified = true;
+          await user.save();
+          console.log(`Auto-verified OAuth user: ${user.email}`);
+        } else {
+          return res.status(403).json({
+            success: false,
+            message: "Account not verified. Please verify your email.",
+          });
+        }
       }
 
       // Check that sessionId exists in user's sessions (if sessionId is provided)
