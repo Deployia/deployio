@@ -22,7 +22,6 @@ const OverviewTab = ({
   securityScore = 0,
   loading: _loading = false,
 }) => {
-  console.log(authUser, dashboardStats, activities, apiKeys, linkedProviders);
   // Calculate profile completion dynamically
   const profileComplete = useMemo(() => {
     if (!authUser) return false;
@@ -147,7 +146,6 @@ const OverviewTab = ({
     const oauthConnections = linkedProviders
       ? Object.values(linkedProviders).filter(Boolean).length
       : 0;
-    console.log(linkedProviders, oauthConnections);
 
     if (oauthConnections === 0) {
       items.push({

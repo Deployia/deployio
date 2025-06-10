@@ -12,12 +12,12 @@ class ActivityLogger {
     }
     return ActivityLogger.instance;
   }
-
   /**
    * Log a user activity
    * @param {string} action - The action performed
    * @param {string} type - The type of activity (auth, security, profile, system)
    * @param {string|object} details - Additional details about the activity
+   * @returns {Promise} - The dispatch promise
    */
   log(action, type = "system", details = null) {
     try {
@@ -29,80 +29,81 @@ class ActivityLogger {
         timestamp: new Date().toISOString(),
       };
 
-      // Dispatch to Redux store
-      store.dispatch(logUserActivity(activityData));
+      // Dispatch to Redux store and return the promise
+      return store.dispatch(logUserActivity(activityData));
     } catch (error) {
       console.warn("Failed to log activity:", error);
+      return Promise.reject(error);
     }
   }
-
   // Convenience methods for different activity types
   auth(action, details = null) {
-    this.log(action, "auth", details);
+    return this.log(action, "auth", details);
   }
 
   security(action, details = null) {
-    this.log(action, "security", details);
+    return this.log(action, "security", details);
   }
 
   profile(action, details = null) {
-    this.log(action, "profile", details);
+    return this.log(action, "profile", details);
   }
 
   system(action, details = null) {
-    this.log(action, "system", details);
+    return this.log(action, "system", details);
   }
 
   // Common activity shortcuts
   login(method = "email") {
-    this.auth("User logged in", { method });
+    return this.auth("User logged in", { method });
   }
 
   logout() {
-    this.auth("User logged out");
+    return this.auth("User logged out");
   }
 
   profileUpdate(fields = []) {
-    this.profile("Profile updated", { updatedFields: fields });
+    return this.profile("Profile updated", { updatedFields: fields });
   }
 
   passwordChange() {
-    this.security("Password changed");
+    return this.security("Password changed");
   }
 
   enable2FA() {
-    this.security("Two-factor authentication enabled");
+    return this.security("Two-factor authentication enabled");
   }
 
   disable2FA() {
-    this.security("Two-factor authentication disabled");
+    return this.security("Two-factor authentication disabled");
   }
 
   sessionTerminated(sessionId) {
-    this.security("Session terminated", { sessionId });
+    return this.security("Session terminated", { sessionId });
   }
 
   notificationSettingsChanged(changes = {}) {
-    this.profile("Notification settings updated", changes);
+    return this.profile("Notification settings updated", changes);
   }
 
   apiKeyGenerated() {
-    this.security("API key generated");
+    return this.security("API key generated");
   }
 
   apiKeyRevoked(keyId) {
-    this.security("API key revoked", { keyId });
+    return this.security("API key revoked", { keyId });
   }
 
   deploymentCreated(deploymentId, projectId) {
-    this.system("Deployment created", { deploymentId, projectId });
+    return this.system("Deployment created", { deploymentId, projectId });
   }
+
   projectCreated(projectId, projectName) {
-    this.system("Project created", { projectId, projectName });
+    return this.system("Project created", { projectId, projectName });
   }
 
   projectDeleted(projectId, projectName) {
-    this.system("Project deleted", { projectId, projectName });
+    return this.system("Project deleted", { projectId, projectName });
   }
 }
 

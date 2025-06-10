@@ -13,6 +13,7 @@ import {
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { updateNotificationPreferences } from "@redux/slices/userSlice";
+import activityLogger from "@/utils/activityLogger";
 
 const AdvancedNotificationsTab = ({
   notificationPreferences = {},
@@ -59,6 +60,12 @@ const AdvancedNotificationsTab = ({
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
       toast.success("Notification settings updated");
+
+      // Log activity and wait for completion
+      await activityLogger.notificationSettingsChanged({
+        [key]: !localPreferences[key],
+      });
+
       if (onRefresh) onRefresh();
     } catch {
       // Revert local state on error
@@ -79,6 +86,12 @@ const AdvancedNotificationsTab = ({
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
       toast.success("Quiet hours updated");
+
+      // Log activity and wait for completion
+      await activityLogger.notificationSettingsChanged({
+        quietHours: newQuietHours,
+      });
+
       if (onRefresh) onRefresh();
     } catch {
       setQuietHours(quietHours);
@@ -98,6 +111,12 @@ const AdvancedNotificationsTab = ({
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
       toast.success("Digest settings updated");
+
+      // Log activity and wait for completion
+      await activityLogger.notificationSettingsChanged({
+        digestSettings: newDigestSettings,
+      });
+
       if (onRefresh) onRefresh();
     } catch {
       setDigestSettings(digestSettings);

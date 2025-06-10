@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { updateProfile } from "@redux/slices/userSlice";
+import activityLogger from "@/utils/activityLogger";
 import { FaCamera, FaSave } from "react-icons/fa";
 import toast from "react-hot-toast";
 import Spinner from "@components/Spinner";
@@ -31,13 +32,14 @@ const ProfileTab = ({
       Object.entries(profileForm).forEach(([key, val]) => {
         if (key !== "profileImage" && val) formData.append(key, val);
       });
-
       dispatch(updateProfile(formData))
         .unwrap()
-        .then(() => {
+        .then(async () => {
           toast.success("Profile image updated successfully", {
             id: loadingToastId,
           });
+          // Log activity
+          await activityLogger.profileUpdate(["profileImage"]);
         })
         .catch((error) => {
           toast.error(`Failed to update image: ${error}`, {
@@ -57,11 +59,15 @@ const ProfileTab = ({
     });
 
     const loadingToastId = toast.loading("Updating profile...");
-
     dispatch(updateProfile(formData))
       .unwrap()
-      .then(() => {
+      .then(async () => {
         toast.success("Profile updated successfully", { id: loadingToastId });
+        // Log activity with updated fields
+        const updatedFields = Object.keys(profileForm).filter(
+          (key) => profileForm[key] && key !== "profileImage"
+        );
+        await activityLogger.profileUpdate(updatedFields);
       })
       .catch((error) => {
         toast.error(`Failed to update profile: ${error}`, {
