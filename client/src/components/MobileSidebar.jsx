@@ -118,13 +118,10 @@ const MobileSidebar = memo(
               {" "}
               {/* Header - Consistent with desktop navbar */}
               <div className="flex items-center justify-between p-4 border-b border-neutral-800/50">
+                {" "}
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg">
-                    <img
-                      src="/favicon.png"
-                      alt="Deployio Logo"
-                      className="w-6 h-6"
-                    />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                    <img src="/favicon.png" alt="Deployio Logo" />
                   </div>
                   <span className="text-2xl font-bold text-white heading">
                     Deployio
