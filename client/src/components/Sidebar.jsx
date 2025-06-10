@@ -71,7 +71,7 @@ const Sidebar = () => {
     >
       <aside
         ref={sidebarRef}
-        className={`ml-auto h-full w-[90vw] max-w-sm bg-neutral-900 border-l border-neutral-700 p-6 overflow-y-auto transform transition-transform duration-300 ${
+        className={`ml-auto h-full w-[90vw] max-w-sm bg-neutral-900 border-l border-neutral-700 overflow-y-auto transform transition-transform duration-300 ${
           animate ? "translate-x-0" : "translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}
