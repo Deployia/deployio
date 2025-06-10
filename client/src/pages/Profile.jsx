@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { updateProfile, resetUserState } from "../redux/slices/userSlice";
+import { updateProfile } from "../redux/slices/userSlice";
 import { useEffect, useRef, useState } from "react";
 import Spinner from "../components/Spinner";
 import { useSearchParams } from "react-router-dom";
@@ -24,6 +24,70 @@ import toast from "react-hot-toast";
 import SEO from "../components/SEO.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Mock data - moved outside component to prevent re-creation
+const mockSessions = [
+  {
+    id: 1,
+    device: "Chrome on Windows",
+    location: "New York, US",
+    lastActive: "Active now",
+    current: true,
+  },
+  {
+    id: 2,
+    device: "Safari on MacBook Pro",
+    location: "San Francisco, US",
+    lastActive: "2 hours ago",
+    current: false,
+  },
+  {
+    id: 3,
+    device: "Mobile App",
+    location: "Los Angeles, US",
+    lastActive: "1 day ago",
+    current: false,
+  },
+];
+
+const mockActivity = [
+  {
+    id: 1,
+    action: "Profile updated",
+    time: "2 hours ago",
+    type: "profile",
+  },
+  {
+    id: 2,
+    action: "Password changed",
+    time: "1 week ago",
+    type: "security",
+  },
+  {
+    id: 3,
+    action: "Two-factor authentication enabled",
+    time: "2 weeks ago",
+    type: "security",
+  },
+  {
+    id: 4,
+    action: "New device login detected",
+    time: "1 month ago",
+    type: "security",
+  },
+];
+
+const dashboardStats = {
+  deployments: {
+    total: 247,
+    successful: 239,
+    failed: 8,
+    pending: 3,
+  },
+  projects: 12,
+  apiCalls: 15420,
+  uptime: "99.9%",
+};
+
 function Profile() {
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "overview";
@@ -47,75 +111,10 @@ function Profile() {
     marketing: false,
     updates: true,
   });
-
   const fileInputRef = useRef();
   const dispatch = useDispatch();
   const { user, loading, error, success } = useSelector((state) => state.user);
   const authUser = useSelector((state) => state.auth.user);
-
-  // Mock data
-  const mockSessions = [
-    {
-      id: 1,
-      device: "Chrome on Windows",
-      location: "New York, US",
-      lastActive: "Active now",
-      current: true,
-    },
-    {
-      id: 2,
-      device: "Safari on MacBook Pro",
-      location: "San Francisco, US",
-      lastActive: "2 hours ago",
-      current: false,
-    },
-    {
-      id: 3,
-      device: "Mobile App",
-      location: "Los Angeles, US",
-      lastActive: "1 day ago",
-      current: false,
-    },
-  ];
-
-  const mockActivity = [
-    {
-      id: 1,
-      action: "Profile updated",
-      time: "2 hours ago",
-      type: "profile",
-    },
-    {
-      id: 2,
-      action: "Password changed",
-      time: "1 week ago",
-      type: "security",
-    },
-    {
-      id: 3,
-      action: "Two-factor authentication enabled",
-      time: "2 weeks ago",
-      type: "security",
-    },
-    {
-      id: 4,
-      action: "New device login detected",
-      time: "1 month ago",
-      type: "security",
-    },
-  ];
-
-  const dashboardStats = {
-    deployments: {
-      total: 247,
-      successful: 239,
-      failed: 8,
-      pending: 3,
-    },
-    projects: 12,
-    apiCalls: 15420,
-    uptime: "99.9%",
-  };
 
   const tabs = [
     { id: "overview", label: "Overview", icon: FaUser },
@@ -135,7 +134,7 @@ function Profile() {
       }));
     }
     setSessions(mockSessions);
-  }, [authUser, mockSessions]);
+  }, [authUser]);
 
   useEffect(() => {
     if (user) {
@@ -147,12 +146,6 @@ function Profile() {
       }));
     }
   }, [user]);
-
-  useEffect(() => {
-    return () => {
-      dispatch(resetUserState());
-    };
-  }, [dispatch]);
 
   const handleProfileChange = (e) => {
     const { name, value, files } = e.target;
@@ -186,30 +179,59 @@ function Profile() {
       setProfileForm((prev) => ({ ...prev, [name]: value }));
     }
   };
-
   const handleRemoveProfileImage = () => {
-    if (!confirm("Are you sure you want to remove your profile image?")) {
-      return;
-    }
+    // Use a toast confirmation instead of blocking confirm dialog
+    const confirmRemove = () => {
+      const loadingToastId = toast.loading("Removing profile image...");
+      const formData = new FormData();
+      formData.append("removeProfileImage", "true");
 
-    const loadingToastId = toast.loading("Removing profile image...");
-    const formData = new FormData();
-    formData.append("removeProfileImage", "true");
-
-    Object.entries(profileForm).forEach(([key, val]) => {
-      if (key !== "profileImage" && val) formData.append(key, val);
-    });
-
-    dispatch(updateProfile(formData))
-      .unwrap()
-      .then(() => {
-        toast.success("Profile image removed successfully", {
-          id: loadingToastId,
-        });
-      })
-      .catch((error) => {
-        toast.error(`Failed to remove image: ${error}`, { id: loadingToastId });
+      Object.entries(profileForm).forEach(([key, val]) => {
+        if (key !== "profileImage" && val) formData.append(key, val);
       });
+
+      dispatch(updateProfile(formData))
+        .unwrap()
+        .then(() => {
+          toast.success("Profile image removed successfully", {
+            id: loadingToastId,
+          });
+        })
+        .catch((error) => {
+          toast.error(`Failed to remove image: ${error}`, {
+            id: loadingToastId,
+          });
+        });
+    };
+
+    // Show a toast with action buttons instead of blocking confirm
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-2">
+          <span>Are you sure you want to remove your profile image?</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                confirmRemove();
+                toast.dismiss(t.id);
+              }}
+              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+            >
+              Remove
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 10000,
+      }
+    );
   };
 
   const handleProfileSubmit = (e) => {

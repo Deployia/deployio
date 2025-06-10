@@ -1,4 +1,5 @@
-import { useSidebar } from "../context/SidebarContext.jsx";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { useModal } from "../context/ModalContext.jsx";
 import SEO from "../components/SEO.jsx";
 import {
@@ -11,32 +12,16 @@ import {
 } from "../components/home";
 
 function Home() {
-  const { openSidebar } = useSidebar();
+  const navigate = useNavigate();
   const { openModal } = useModal();
+  const { isAuthenticated } = useSelector((state) => state.auth);
 
-  const handleOpenSidebar = () => {
-    openSidebar(
-      <div>
-        <h2 className="text-xl font-bold mb-4 text-white">
-          AI DevOps Assistant
-        </h2>
-        <p className="text-gray-300 mb-4">
-          Get instant help with deployment configurations, troubleshooting, and
-          best practices.
-        </p>
-        <div className="space-y-3">
-          <div className="p-3 bg-neutral-800 rounded-lg">
-            <h3 className="text-white font-semibold mb-2">Quick Actions</h3>
-            <ul className="text-sm text-gray-300 space-y-1">
-              <li>• Analyze Repository</li>
-              <li>• Generate Dockerfile</li>
-              <li>• Setup CI/CD Pipeline</li>
-              <li>• Deploy to Cloud</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    } else {
+      navigate("/auth/login");
+    }
   };
 
   const handleOpenModal = () => {
@@ -77,10 +62,6 @@ function Home() {
 
   const handleWatchDemo = () => {
     handleOpenModal();
-  };
-
-  const handleGetStarted = () => {
-    handleOpenSidebar();
   };
 
   return (
