@@ -24,25 +24,25 @@ const ProfileAvatar = memo(
     const profileMenuItems = [
       {
         label: "Profile",
-        href: "/profile",
+        href: "/dashboard/profile",
         icon: FaUser,
         description: "View and edit your profile",
       },
       {
         label: "Settings",
-        href: "/profile?tab=settings",
+        href: "/dashboard/profile?tab=settings",
         icon: FaCog,
         description: "Account settings and preferences",
       },
       {
         label: "Security",
-        href: "/profile?tab=security",
+        href: "/dashboard/profile?tab=security",
         icon: FaShieldAlt,
         description: "Password and 2FA settings",
       },
       {
         label: "Sessions",
-        href: "/profile?tab=sessions",
+        href: "/dashboard/profile?tab=sessions",
         icon: FaHistory,
         description: "Manage active sessions",
       },

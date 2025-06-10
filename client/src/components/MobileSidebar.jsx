@@ -263,9 +263,9 @@ const MobileSidebar = memo(
                   className="p-4 border-t border-neutral-800/50 bg-neutral-900/50"
                 >
                   <div className="flex items-center gap-3">
-                    {/* Profile Avatar and Info */}
+                    {/* Profile Avatar and Info */}{" "}
                     <Link
-                      to="/profile"
+                      to="/dashboard/profile"
                       onClick={onClose}
                       className="flex items-center gap-3 flex-1 p-2 rounded-lg hover:bg-neutral-800/50 transition-all duration-200 group"
                     >
@@ -283,7 +283,6 @@ const MobileSidebar = memo(
                         </p>
                       </div>
                     </Link>
-
                     {/* Logout Icon Button */}
                     <button
                       onClick={() => {
