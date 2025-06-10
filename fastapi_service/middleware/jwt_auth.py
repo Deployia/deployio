@@ -53,6 +53,7 @@ class JWTAuth(HTTPBearer):
             user_data = await self._validate_session(
                 jwt_payload.id, jwt_payload.sessionId
             )
+
             if not user_data:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,21 +66,25 @@ class JWTAuth(HTTPBearer):
                 username=user_data.get("username"),
                 email=user_data.get("email"),
             )
-
         except jwt.ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired. Please log in again.",
             )
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token. Please log in again.",
+                detail=f"Invalid token: {str(e)}",
             )
-        except Exception:
+        except Exception as e:
+            # Enhanced error reporting for development
+            if os.getenv("DEBUG", "false").lower() == "true":
+                detail = f"Auth error: {str(e)}"
+            else:
+                detail = "Not authorized to access this route"
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authorized to access this route",
+                detail=detail,
             )
 
     async def _validate_session(self, user_id: str, session_id: str) -> Optional[dict]:
@@ -90,7 +95,7 @@ class JWTAuth(HTTPBearer):
 
             # Get sync database connection for validation
             db, status = get_sync_db_connection()
-            if status != "connected" or not db:
+            if status != "connected" or db is None:
                 return None
 
             # Find user and validate session
