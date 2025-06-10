@@ -33,7 +33,7 @@ const OAuthAccountsSection = () => {
       bgColor: "bg-gray-500/20",
       borderColor: "border-gray-500/30",
       description: "Connect your Google account for seamless login",
-      linkUrl: "/api/v1/auth/link/google",
+      linkUrl: "/auth/link/google",
     },
     {
       id: "github",
@@ -43,7 +43,7 @@ const OAuthAccountsSection = () => {
       bgColor: "bg-gray-500/20",
       borderColor: "border-gray-500/30",
       description: "Link your GitHub account for repository integration",
-      linkUrl: "/api/v1/auth/link/github",
+      linkUrl: "/auth/link/github",
     },
   ];
 
