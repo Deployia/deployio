@@ -103,22 +103,130 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false, // Don't include in queries by default
     },
+    // Security and account protection fields
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+    },
+    lastLogin: {
+      type: Date,
+    },
+    lastLoginIP: {
+      type: String,
+    },
+    // Account role and permissions
+    role: {
+      type: String,
+      enum: ["user", "admin", "moderator"],
+      default: "user",
+    },
+    // Notification preferences
+    notificationPreferences: {
+      deployments: {
+        type: Boolean,
+        default: true,
+      },
+      security: {
+        type: Boolean,
+        default: true,
+      },
+      marketing: {
+        type: Boolean,
+        default: false,
+      },
+      updates: {
+        type: Boolean,
+        default: true,
+      },
+      email: {
+        type: Boolean,
+        default: true,
+      },
+      inApp: {
+        type: Boolean,
+        default: true,
+      },
+    },
     // Track user sessions for multi-session management
     sessions: [
       {
         ip: { type: String },
         userAgent: { type: String },
+        location: { type: String, default: "Unknown" },
         createdAt: { type: Date, default: Date.now },
         // If user opts to remember device, skip 2FA until this date
         rememberedUntil: { type: Date },
       },
-    ],
-    // Store valid refresh tokens for rotation protection
+    ], // Store valid refresh tokens for rotation protection
     refreshTokens: [
       {
         token: { type: String, required: true },
         createdAt: { type: Date, default: Date.now },
         expiresAt: { type: Date },
+      },
+    ],
+    // User activity log
+    activities: [
+      {
+        action: {
+          type: String,
+          required: true,
+        },
+        type: {
+          type: String,
+          enum: ["auth", "security", "profile", "general", "system"],
+          default: "general",
+        },
+        details: {
+          type: String,
+        },
+        ip: {
+          type: String,
+        },
+        userAgent: {
+          type: String,
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    // API Keys for programmatic access
+    apiKeys: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        key: {
+          type: String,
+          required: true,
+          unique: true,
+        },
+        keyType: {
+          type: String,
+          enum: ["live", "test"],
+          default: "test",
+        },
+        permissions: [
+          {
+            type: String,
+            enum: ["read", "write"],
+            default: "read",
+          },
+        ],
+        lastUsed: {
+          type: Date,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
   },
