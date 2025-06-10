@@ -46,8 +46,9 @@ const SecurityTab = ({
         setNewApiKeyName("");
         setShowCreateApiKey(false);
         toast.success("API key generated successfully");
-        // Log activity
-        activityLogger.apiKeyGenerated();
+
+        // Log activity and wait for completion
+        await activityLogger.apiKeyGenerated();
 
         // Refresh data through parent component
         if (onRefresh) await onRefresh();
@@ -66,8 +67,10 @@ const SecurityTab = ({
               onClick={async () => {
                 try {
                   await dispatch(deleteApiKey(keyId));
-                  toast.success("API key deleted"); // Log activity
-                  activityLogger.apiKeyRevoked(keyId);
+                  toast.success("API key deleted");
+
+                  // Log activity and wait for completion
+                  await activityLogger.apiKeyRevoked(keyId);
 
                   // Refresh data through parent component
                   if (onRefresh) await onRefresh();

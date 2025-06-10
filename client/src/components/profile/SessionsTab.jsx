@@ -2,6 +2,7 @@ import { FaDesktop, FaMobile, FaSpinner } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { deleteSession } from "@redux/slices/authSlice";
+import activityLogger from "@/utils/activityLogger";
 
 const SessionsTab = ({ sessions = [], loading = false, onRefresh }) => {
   const dispatch = useDispatch();
@@ -12,6 +13,10 @@ const SessionsTab = ({ sessions = [], loading = false, onRefresh }) => {
     try {
       await dispatch(deleteSession(sessionId)).unwrap();
       toast.success("Session terminated successfully");
+
+      // Log activity and wait for completion
+      await activityLogger.sessionTerminated(sessionId);
+
       // Refresh data through parent component
       if (onRefresh) await onRefresh();
     } catch (error) {
