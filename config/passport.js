@@ -20,6 +20,7 @@ passport.use(
           user = await User.findOne({ email: profile.emails[0].value });
           if (user) {
             user.googleId = profile.id;
+            user.isVerified = true; // Verify existing user when linking OAuth account
             if (profile.photos && profile.photos[0]) {
               user.profileImage = profile.photos[0].value;
             }
@@ -37,7 +38,7 @@ passport.use(
             profileImage:
               profile.photos && profile.photos[0]
                 ? profile.photos[0].value
-                : "",
+                : "",            isVerified: true, // OAuth users are automatically verified
           });
         } else {
           // Update profile image if changed
@@ -72,9 +73,9 @@ passport.use(
         let user = await User.findOne({ githubId: profile.id });
         // Try to find by email for account linking
         if (!user && profile.emails && profile.emails[0]) {
-          user = await User.findOne({ email: profile.emails[0].value });
-          if (user) {
+          user = await User.findOne({ email: profile.emails[0].value });          if (user) {
             user.githubId = profile.id;
+            user.isVerified = true; // Verify existing user when linking OAuth account
             if (profile.photos && profile.photos[0]) {
               user.profileImage = profile.photos[0].value;
             }
@@ -96,7 +97,7 @@ passport.use(
             profileImage:
               profile.photos && profile.photos[0]
                 ? profile.photos[0].value
-                : "",
+                : "",            isVerified: true, // OAuth users are automatically verified
           });
         } else {
           if (
