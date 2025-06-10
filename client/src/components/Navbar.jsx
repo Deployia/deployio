@@ -63,25 +63,25 @@ const homeNavigationItems = [
     items: [
       {
         label: "Documentation",
-        href: "/docs",
+        href: "/resources/docs",
         icon: FaBook,
         description: "Complete guides and API docs",
       },
       {
         label: "Support Center",
-        href: "/support",
+        href: "/resources/support",
         icon: FaLifeRing,
         description: "24/7 developer support",
       },
       {
         label: "Community",
-        href: "/community",
+        href: "/resources/community",
         icon: FaUsers,
         description: "Join our developer community",
       },
       {
         label: "Blog",
-        href: "/blog",
+        href: "/resources/blog",
         icon: FaBlog,
         description: "Latest updates and tutorials",
       },
@@ -187,13 +187,13 @@ const dashboardNavigationItems = [
       },
       {
         label: "Support Center",
-        href: "/support",
+        href: "/resources/support",
         icon: FaLifeRing,
         description: "24/7 developer support",
       },
       {
         label: "Community",
-        href: "/community",
+        href: "/resources/community",
         icon: FaUsers,
         description: "Join our developer community",
       },
@@ -217,16 +217,26 @@ const Navbar = memo(() => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { isAuthenticated, loading, user } = useSelector((state) => state.auth);
   const dropdownRef = useRef(null);
-
-  // Determine which navigation items to use based on current page and authentication
+  // Determine which navigation items to use based on current route
   const navigationItems = useMemo(() => {
-    // If user is authenticated and not on home page, show dashboard navigation
-    if (isAuthenticated && location.pathname !== "/") {
+    // If user is on dashboard routes, show dashboard navigation
+    if (location.pathname.startsWith("/dashboard")) {
       return dashboardNavigationItems;
     }
     // Otherwise show home navigation
     return homeNavigationItems;
-  }, [isAuthenticated, location.pathname]); // Close dropdown when clicking outside or on mobile screen resize
+  }, [location.pathname]);
+
+  // Close dropdowns when location changes
+  useEffect(() => {
+    setOpenDropdown(null);
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+  }, [location.pathname, hoverTimeout]);
+
+  // Close dropdown when clicking outside or on mobile screen resize
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
