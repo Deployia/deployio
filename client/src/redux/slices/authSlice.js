@@ -136,7 +136,7 @@ export const resetPassword = createAsyncThunk(
   "auth/resetPassword",
   async ({ token, password }, thunkAPI) => {
     try {
-      const response = await api.post(`/v1/auth/reset-password/${token}`, {
+      const response = await api.post(`/auth/reset-password/${token}`, {
         password,
       });
       return response.data;
@@ -263,7 +263,7 @@ export const unlinkProvider = createAsyncThunk(
   "auth/unlinkProvider",
   async (provider, thunkAPI) => {
     try {
-      await api.delete(`/v1/auth/unlink/${provider}`);
+      await api.delete(`/auth/unlink/${provider}`);
       return provider;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -278,7 +278,7 @@ export const deleteSession = createAsyncThunk(
   "auth/deleteSession",
   async (sessionId, thunkAPI) => {
     try {
-      await api.delete(`/v1/auth/sessions/${sessionId}`);
+      await api.delete(`/auth/sessions/${sessionId}`);
       return sessionId;
     } catch (error) {
       return thunkAPI.rejectWithValue(

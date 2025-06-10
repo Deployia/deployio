@@ -75,11 +75,10 @@ function Login() {
       validateForm();
     }
   }, [email, password, hasSubmitted, validateForm]);
-
   useEffect(() => {
     if (isAuthenticated) {
       toast.success("Welcome back!");
-      navigate("/profile");
+      navigate("/dashboard");
     }
 
     // Redirect to OTP verification if needed
@@ -163,7 +162,7 @@ function Login() {
             setSearchParams({});
             dispatch(reset2FA());
             toast.success("Login successful!");
-            navigate("/profile");
+            navigate("/dashboard");
           }}
           onCancel={() => {
             setSearchParams({});
