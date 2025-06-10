@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -24,9 +25,29 @@ export default defineConfig(({ mode }) => {
   // Use environment default if value is not provided
   const currentDefaults =
     defaults[env.VITE_APP_ENV || mode] || defaults.development;
-
   return {
     plugins: [react(), tailwindcss()],
+
+    // Path aliases for cleaner imports
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+        "@components": path.resolve(__dirname, "./src/components"),
+        "@pages": path.resolve(__dirname, "./src/pages"),
+        "@auth": path.resolve(__dirname, "./src/pages/auth"),
+        "@dashboard": path.resolve(__dirname, "./src/pages/dashboard"),
+        "@marketing": path.resolve(__dirname, "./src/pages/marketing"),
+        "@legal": path.resolve(__dirname, "./src/pages/legal"),
+        "@support": path.resolve(__dirname, "./src/pages/support"),
+        "@products": path.resolve(__dirname, "./src/pages/products"),
+        "@downloads": path.resolve(__dirname, "./src/pages/downloads"),
+        "@redux": path.resolve(__dirname, "./src/redux"),
+        "@utils": path.resolve(__dirname, "./src/utils"),
+        "@constants": path.resolve(__dirname, "./src/constants"),
+        "@context": path.resolve(__dirname, "./src/context"),
+        "@assets": path.resolve(__dirname, "./src/assets"),
+      },
+    },
 
     // Performance optimizations
     build: {

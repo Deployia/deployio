@@ -7,7 +7,7 @@ import {
   clearError,
   clearQRCode,
   clearBackupCodes,
-} from "../../redux/slices/twoFactorSlice";
+} from "@redux/slices/twoFactorSlice";
 import TwoFactorQRCode from "./TwoFactorQRCode";
 import OTPVerification from "./OTPVerification";
 import BackupCodes from "./BackupCodes";

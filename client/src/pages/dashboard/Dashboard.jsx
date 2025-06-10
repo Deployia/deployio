@@ -10,7 +10,7 @@ import {
   FaCode,
   FaUsers,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const Dashboard = () => {
   // Mock data for dashboard

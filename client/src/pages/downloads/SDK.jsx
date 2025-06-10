@@ -17,7 +17,7 @@ import {
   FaChartLine,
 } from "react-icons/fa";
 import { SiGo, SiRuby, SiDotnet } from "react-icons/si";
-import SEO from "../../components/SEO";
+import SEO from "@components/SEO";
 
 const SDKDownload = () => {
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");

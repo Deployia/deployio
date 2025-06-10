@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { forgotPassword, reset } from "../redux/slices/authSlice";
+import { forgotPassword, reset } from "@redux/slices/authSlice";
 import { FaEnvelope, FaPaperPlane, FaCheck, FaArrowLeft } from "react-icons/fa";
-import AuthCard from "../components/auth/Card";
-import AuthInput from "../components/auth/Input";
-import AuthButton from "../components/auth/Button";
-import SEO from "../components/SEO.jsx";
+import AuthCard from "@components/auth/Card";
+import AuthInput from "@components/auth/Input";
+import AuthButton from "@components/auth/Button";
+import SEO from "@components/SEO.jsx";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");

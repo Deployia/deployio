@@ -19,7 +19,7 @@ import {
   FaComments,
   FaUserFriends,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const Community = () => {
   const communityStats = [

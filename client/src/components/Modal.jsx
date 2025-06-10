@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useModal } from "../context/ModalContext.jsx";
+import { useModal } from "@context/ModalContext.jsx";
 
 const Modal = () => {
   const { isModalOpen, closeModal, modalContent } = useModal();

@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { reset, resetPassword } from "../redux/slices/authSlice";
+import { reset, resetPassword } from "@redux/slices/authSlice";
 import { FaLock, FaEye, FaEyeSlash, FaCheck, FaKey } from "react-icons/fa";
-import AuthCard from "../components/auth/Card";
-import AuthInput from "../components/auth/Input";
-import AuthButton from "../components/auth/Button";
+import AuthCard from "@components/auth/Card";
+import AuthInput from "@components/auth/Input";
+import AuthButton from "@components/auth/Button";
 import zxcvbn from "zxcvbn";
-import SEO from "../components/SEO.jsx";
+import SEO from "@components/SEO.jsx";
 
 function ResetPassword() {
   const [formData, setFormData] = useState({

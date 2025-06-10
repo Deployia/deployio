@@ -12,7 +12,7 @@ import {
   FaExclamationTriangle,
   FaCheckCircle,
 } from "react-icons/fa";
-import SEO from "../../components/SEO";
+import SEO from "@components/SEO";
 
 const SecurityShield = () => {
   const securityFeatures = [

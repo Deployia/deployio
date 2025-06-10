@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
-import Spinner from "../components/Spinner";
+import Spinner from "@components/Spinner";
 
 const ProtectedRoute = () => {
   const { isAuthenticated, loading } = useSelector((state) => state.auth);

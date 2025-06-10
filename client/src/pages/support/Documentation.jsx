@@ -17,7 +17,7 @@ import {
   FaGithub,
   FaDiscord,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 import { Link } from "react-router-dom";
 
 const Documentation = () => {

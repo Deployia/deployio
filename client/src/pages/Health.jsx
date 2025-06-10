@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import api from "../utils/api";
-import fastapi from "../utils/fastapi";
-import useEnvironmentInfo from "../utils/useEnvironmentInfo";
-import Spinner from "../components/Spinner";
-import SEO from "../components/SEO.jsx";
+import api from "@utils/api";
+import fastapi from "@utils/fastapi";
+import useEnvironmentInfo from "@utils/useEnvironmentInfo";
+import Spinner from "@components/Spinner";
+import SEO from "@components/SEO.jsx";
 import {
   FaCheckCircle,
   FaTimesCircle,

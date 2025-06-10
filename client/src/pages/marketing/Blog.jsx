@@ -13,7 +13,7 @@ import {
   FaShare,
   FaComment,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const Blog = () => {
   const [searchQuery, setSearchQuery] = useState("");

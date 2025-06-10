@@ -11,7 +11,7 @@ import {
   FaFilter,
   FaSyncAlt,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const Analytics = () => {
   const [timeRange, setTimeRange] = useState("7d");

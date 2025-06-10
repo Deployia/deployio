@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../utils/api";
+import api from "@utils/api";
 import { verify2FALogin } from "./twoFactorSlice";
 
 // Initial State

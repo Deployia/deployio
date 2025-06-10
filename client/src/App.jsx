@@ -3,71 +3,74 @@ import { useSelector, useDispatch } from "react-redux";
 import { useEffect, lazy, Suspense } from "react";
 
 // Components
-import Spinner from "./components/Spinner";
-import Layout from "./components/Layout";
-import AuthLayout from "./components/auth/Layout";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Modal from "./components/Modal";
-import ScrollToTop from "./components/ScrollToTop";
+import Spinner from "@components/Spinner";
+import Layout from "@components/Layout";
+import AuthLayout from "@components/auth/Layout";
+import ProtectedRoute from "@components/ProtectedRoute";
+import Modal from "@components/Modal";
+import ScrollToTop from "@components/ScrollToTop";
 
 // Lazy load heavy components for better performance
-const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const VerifyOtp = lazy(() => import("./pages/VerifyOtp"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Health = lazy(() => import("./pages/Health"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
-const TermsOfService = lazy(() => import("./pages/TermsOfService"));
-const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+// Auth Pages
+const Login = lazy(() => import("@auth/Login"));
+const Register = lazy(() => import("@auth/Register"));
+const ForgotPassword = lazy(() => import("@auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("@auth/ResetPassword"));
+const VerifyOtp = lazy(() => import("@auth/VerifyOtp"));
 
 // Dashboard Pages
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Projects = lazy(() => import("./pages/Projects"));
-const Deployments = lazy(() => import("./pages/Deployments"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const CLI = lazy(() => import("./pages/CLI"));
-const APITester = lazy(() => import("./pages/APITester"));
-const Monitoring = lazy(() => import("./pages/Monitoring"));
-const Integrations = lazy(() => import("./pages/Integrations"));
+const Dashboard = lazy(() => import("@dashboard/Dashboard"));
+const Projects = lazy(() => import("@dashboard/Projects"));
+const Deployments = lazy(() => import("@dashboard/Deployments"));
+const Analytics = lazy(() => import("@dashboard/Analytics"));
+const Monitoring = lazy(() => import("@dashboard/Monitoring"));
+const Integrations = lazy(() => import("@dashboard/Integrations"));
+const Profile = lazy(() => import("@dashboard/Profile"));
+
+// Support Pages
+const CLI = lazy(() => import("@support/CLI"));
+const APITester = lazy(() => import("@support/APITester"));
+const Documentation = lazy(() => import("@support/Documentation"));
+const SupportCenter = lazy(() => import("@support/SupportCenter"));
+
+// Marketing Pages
+const Community = lazy(() => import("@marketing/Community"));
+const Blog = lazy(() => import("@marketing/Blog"));
+
+// Legal Pages
+const PrivacyPolicy = lazy(() => import("@legal/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("@legal/TermsOfService"));
+const CookiePolicy = lazy(() => import("@legal/CookiePolicy"));
 
 // Product Pages
-const AIDeployment = lazy(() => import("./pages/products/AIDeployment"));
-const CodeAnalysis = lazy(() => import("./pages/products/CodeAnalysis"));
-const CloudIntegration = lazy(() =>
-  import("./pages/products/CloudIntegration")
-);
-const SecurityShield = lazy(() => import("./pages/products/SecurityShield"));
-
-// Resource Pages
-const Documentation = lazy(() => import("./pages/Documentation"));
-const SupportCenter = lazy(() => import("./pages/SupportCenter"));
-const Community = lazy(() => import("./pages/Community"));
-const Blog = lazy(() => import("./pages/Blog"));
+const AIDeployment = lazy(() => import("@products/AIDeployment"));
+const CodeAnalysis = lazy(() => import("@products/CodeAnalysis"));
+const CloudIntegration = lazy(() => import("@products/CloudIntegration"));
+const SecurityShield = lazy(() => import("@products/SecurityShield"));
 
 // Download Pages
-const CLITool = lazy(() => import("./pages/downloads/CLITool"));
-const SDK = lazy(() => import("./pages/downloads/SDK"));
+const CLITool = lazy(() => import("@downloads/CLITool"));
+const SDK = lazy(() => import("@downloads/SDK"));
 
 // Keep frequently accessed pages non-lazy
-import Home from "./pages/Home";
-import NotFound from "./pages/NotFound";
-import { getMe } from "./redux/slices/authSlice";
+import Home from "@marketing/Home";
+import NotFound from "@pages/NotFound";
+import { getMe } from "@redux/slices/authSlice";
+
+// Other utility pages
+const Health = lazy(() => import("@pages/Health"));
 
 // Layout Components
 const DashboardLayout = lazy(() =>
-  import("./components/layouts/DashboardLayout")
+  import("@components/layouts/DashboardLayout")
 );
 const ResourcesLayout = lazy(() =>
-  import("./components/layouts/ResourcesLayout")
+  import("@components/layouts/ResourcesLayout")
 );
 const DownloadsLayout = lazy(() =>
-  import("./components/layouts/DownloadsLayout")
+  import("@components/layouts/DownloadsLayout")
 );
-const ProductsLayout = lazy(() =>
-  import("./components/layouts/ProductsLayout")
-);
+const ProductsLayout = lazy(() => import("@components/layouts/ProductsLayout"));
 
 function App() {
   const { loading } = useSelector((state) => state.auth);

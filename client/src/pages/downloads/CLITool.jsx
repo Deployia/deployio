@@ -14,7 +14,7 @@ import {
   FaGithub,
   FaExternalLinkAlt,
 } from "react-icons/fa";
-import SEO from "../../components/SEO";
+import SEO from "@components/SEO";
 
 const CLIDownload = () => {
   const [copiedCommand, setCopiedCommand] = useState("");

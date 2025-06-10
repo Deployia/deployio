@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSidebar } from "../context/SidebarContext.jsx";
+import { useSidebar } from "@context/SidebarContext.jsx";
 
 const Sidebar = () => {
   const { isSidebarOpen, closeSidebar, sidebarContent } = useSidebar();
