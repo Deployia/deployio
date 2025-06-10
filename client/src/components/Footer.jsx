@@ -12,23 +12,12 @@ import { motion } from "framer-motion";
 function Footer() {
   const currentYear = new Date().getFullYear();
 
-  // Smooth scroll to section
-  const scrollToSection = (sectionId) => {
-    const element = document.querySelector(sectionId);
-    if (element) {
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-  };
-
   return (
     <motion.footer
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.2 }}
-      className="mt-auto bg-neutral-900 border-t border-neutral-800/50 body"
+      className="mt-auto bg-neutral-900/70 backdrop-blur-lg border-t border-neutral-800/30 body"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Main Footer Content */}
@@ -83,32 +72,103 @@ function Footer() {
                 <FaLinkedin className="w-5 h-5" />
               </motion.a>
             </div>
-          </div>
-
+          </div>{" "}
           {/* Product Section */}
           <div>
             <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
               <FaRocket className="w-5 h-5 text-blue-400" />
               Product
-            </h3>{" "}
+            </h3>
             <ul className="space-y-4">
               <li>
-                <button
-                  onClick={() => scrollToSection("#features")}
+                <Link
+                  to="/products/ai-deployment"
                   className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                 >
                   <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
-                  Features
-                </button>
+                  AI Deployment
+                </Link>
               </li>
               <li>
-                <button
-                  onClick={() => scrollToSection("#pricing")}
+                <Link
+                  to="/products/code-analysis"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
+                  Code Analysis
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/products/cloud-integration"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-cyan-400 transition-colors" />
+                  Cloud Integration
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/products/security"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-red-400 transition-colors" />
+                  Security Shield
+                </Link>
+              </li>
+            </ul>
+          </div>
+          {/* Resources Section */}
+          <div>
+            <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
+              <FaLifeRing className="w-5 h-5 text-green-400" />
+              Resources
+            </h3>
+            <ul className="space-y-4">
+              <li>
+                <Link
+                  to="/resources/docs"
                   className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                 >
                   <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
-                  Pricing
-                </button>
+                  Documentation
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/resources/support"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
+                  Support Center
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/resources/community"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-yellow-400 transition-colors" />
+                  Community
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/resources/blog"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-purple-400 transition-colors" />
+                  Blog
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/downloads/cli"
+                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                >
+                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-orange-400 transition-colors" />
+                  CLI Tool
+                </Link>
               </li>
               <li>
                 <Link
@@ -118,61 +178,6 @@ function Footer() {
                   <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
                   System Status
                 </Link>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-purple-400 transition-colors" />
-                  API Documentation
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Support Section */}
-          <div>
-            <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
-              <FaLifeRing className="w-5 h-5 text-green-400" />
-              Support
-            </h3>
-            <ul className="space-y-4">
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
-                  Documentation
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
-                  Help Center
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-yellow-400 transition-colors" />
-                  Community
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-red-400 transition-colors" />
-                  Report Bug
-                </a>
               </li>
             </ul>
           </div>

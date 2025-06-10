@@ -337,7 +337,7 @@ const Navbar = memo(() => {
   }, []);
   return (
     <>
-      <header className="bg-neutral-900/95 backdrop-blur-md border-b border-neutral-800/50 sticky top-0 z-50 body shadow-xl">
+      <header className="bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-800/30 sticky top-0 z-50 body shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             {/* Logo */}{" "}
@@ -384,7 +384,7 @@ const Navbar = memo(() => {
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
                           transition={{ duration: 0.15, ease: "easeOut" }}
-                          className={`absolute top-full mt-2 w-80 bg-neutral-800/95 backdrop-blur-md border border-neutral-700/50 rounded-xl shadow-2xl overflow-hidden z-50 ${
+                          className={`absolute top-full mt-2 w-80 bg-neutral-800/70 backdrop-blur-lg border border-neutral-700/30 rounded-xl shadow-2xl overflow-hidden z-50 ${
                             item.id === "downloads" ? "right-0" : "left-0"
                           }`}
                         >
