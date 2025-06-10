@@ -21,7 +21,7 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-8"
+          className="inline-flex items-center px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium m-8"
         >
           <FaStar className="w-4 h-4 mr-2" />
           AI-Powered DevOps Platform
