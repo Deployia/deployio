@@ -35,24 +35,19 @@ function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand Section */}
           <div className="lg:col-span-2">
+            {" "}
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <img
-                  src="/favicon.png"
-                  alt="Deployio Logo"
-                  className="w-7 h-7"
-                />
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center">
+                <img src="/favicon.png" alt="Deployio Logo" />
               </div>
               <span className="text-2xl font-bold text-white heading">
                 Deployio
               </span>
             </div>
-
             <p className="text-gray-300 text-lg mb-6 body leading-relaxed max-w-md">
               Transform your deployment process with AI-powered automation. From
               code analysis to production deployment in minutes, not hours.
             </p>
-
             <div className="flex items-center gap-4 mb-6">
               <motion.a
                 whileHover={{ scale: 1.1, y: -2 }}
