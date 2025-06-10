@@ -889,65 +889,59 @@ function Profile() {
         keywords="profile, settings, account, security, notifications"
       />
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-8"
-          >
-            {/* Header */}
-            <motion.div variants={itemVariants}>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Account Settings
-              </h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Manage your profile, security, and notification preferences
-              </p>
-            </motion.div>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-8"
+      >
+        {/* Header */}
+        <motion.div variants={itemVariants}>
+          <h1 className="text-3xl font-bold text-white">Account Settings</h1>
+          <p className="mt-2 text-gray-400">
+            Manage your profile, security, and notification preferences
+          </p>
+        </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              {/* Sidebar Navigation */}
-              <motion.div variants={itemVariants} className="lg:col-span-1">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-8">
-                  <nav className="space-y-2">
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                          activeTab === tab.id
-                            ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        <tab.icon className="flex-shrink-0" />
-                        <span>{tab.label}</span>
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-              </motion.div>
-
-              {/* Main Content */}
-              <motion.div variants={itemVariants} className="lg:col-span-3">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar Navigation */}
+          <motion.div variants={itemVariants} className="lg:col-span-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-8">
+              <nav className="space-y-2">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                      activeTab === tab.id
+                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
                   >
-                    {renderTabContent()}
-                  </motion.div>
-                </AnimatePresence>
-              </motion.div>
+                    <tab.icon className="flex-shrink-0" />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </nav>
             </div>
           </motion.div>
+
+          {/* Main Content */}
+          <motion.div variants={itemVariants} className="lg:col-span-3">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {renderTabContent()}
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }
