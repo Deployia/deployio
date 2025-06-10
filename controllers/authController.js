@@ -446,7 +446,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
           ...cookieOptions,
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
-        return res.redirect(`${front}/profile`);
+        return res.redirect(`${front}/dashboard/profile`);
       }
       // Otherwise require 2FA
       return res.redirect(
@@ -480,7 +480,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return res.redirect(`${front}/profile`);
+    return res.redirect(`${front}/dashboard/profile`);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -648,7 +648,7 @@ const linkProviderCallback = (providerName) => async (req, res) => {
       profileImage
     );
     // Redirect to profile on front-end
-    return res.redirect(`${frontUrl}/profile`);
+    return res.redirect(`${frontUrl}/dashboard/profile`);
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

@@ -97,7 +97,7 @@ router.get(
   passport.authorize("google", { scope: ["profile", "email"], session: false }),
   passport.authorize("google", {
     session: false,
-    failureRedirect: `${frontUrl}/profile`,
+    failureRedirect: `${frontUrl}/dashboard/profile`,
   }),
   authController.linkProviderCallback("google")
 );
@@ -112,7 +112,7 @@ router.get(
   protect,
   passport.authorize("github", {
     session: false,
-    failureRedirect: `${frontUrl}/profile`,
+    failureRedirect: `${frontUrl}/dashboard/profile`,
   }),
   authController.linkProviderCallback("github")
 );

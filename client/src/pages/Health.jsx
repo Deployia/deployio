@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import api from "../utils/api";
 import fastapi from "../utils/fastapi";
 import useEnvironmentInfo from "../utils/useEnvironmentInfo";
@@ -18,9 +19,11 @@ import {
   FaNetworkWired,
   FaCodeBranch,
   FaInfoCircle,
+  FaShieldAlt,
 } from "react-icons/fa";
 
 function Health() {
+  const { isAuthenticated } = useSelector((state) => state.auth);
   const [loading, setLoading] = useState(true);
   const [backendHello, setBackendHello] = useState(null);
   const [backendStatus, setBackendStatus] = useState(null);
@@ -30,6 +33,8 @@ function Health() {
   const [fastapiStatus, setFastapiStatus] = useState(null);
   const [fastapiDb, setFastapiDb] = useState(null);
   const [fastapiUptime, setFastapiUptime] = useState(null);
+  const [fastapiProtectedData, setFastapiProtectedData] = useState(null);
+  const [fastapiProtectedError, setFastapiProtectedError] = useState(null);
   const [error, setError] = useState(null);
   const envInfo = useEnvironmentInfo();
   useEffect(() => {
@@ -50,6 +55,20 @@ function Health() {
         const faHealth = await fastapi.get("/health");
         setFastapiStatus(faHealth.data.status);
         setFastapiDb(faHealth.data.mongodb_status);
+
+        // Test FastAPI protected endpoint if authenticated
+        if (isAuthenticated) {
+          try {
+            const protectedResponse = await fastapi.get("/protected/data");
+            setFastapiProtectedData(protectedResponse.data);
+            setFastapiProtectedError(null);
+          } catch (protectedErr) {
+            setFastapiProtectedError(
+              protectedErr.response?.data?.detail || protectedErr.message
+            );
+            setFastapiProtectedData(null);
+          }
+        }
       } catch (err) {
         setError(err.message || "Error fetching statuses");
       } finally {
@@ -57,7 +76,7 @@ function Health() {
       }
     }
     fetchStatuses();
-  }, []);
+  }, [isAuthenticated]);
 
   if (loading)
     return (
@@ -261,7 +280,6 @@ function Health() {
                     </span>
                   </div>
                 </div>
-
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-sm text-neutral-400">
                     <FaDatabase className="mr-2 text-neutral-500" />
@@ -284,7 +302,6 @@ function Health() {
                     </span>
                   </div>
                 </div>
-
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-sm text-neutral-400">
                     <FaClock className="mr-2 text-neutral-500" />
@@ -296,7 +313,6 @@ function Health() {
                     </span>
                   </div>
                 </div>
-
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-sm text-neutral-400">
                     <FaCode className="mr-2 text-neutral-500" />
@@ -307,10 +323,78 @@ function Health() {
                       &quot;{fastapiHello}&quot;
                     </span>
                   </div>
-                </div>
+                </div>{" "}
               </div>
             </div>
           </div>
+          {/* Protected Endpoint Testing Section */}
+          {isAuthenticated && (
+            <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-6 bg-neutral-900/70">
+              <div className="flex items-center mb-4">
+                <div className="h-10 w-10 rounded-lg flex items-center justify-center mr-3 bg-orange-600/20 text-orange-400">
+                  <FaShieldAlt className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white heading">
+                    Protected Endpoint Testing
+                  </h3>
+                  <p className="text-xs text-neutral-400">
+                    Testing FastAPI protected routes with authentication
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaShieldAlt className="mr-2 text-neutral-500" />
+                    Authentication Status
+                  </div>
+                  <div className="flex items-center">
+                    <FaCheckCircle className="text-green-400 mr-2" />
+                    <span className="text-green-400">Authenticated</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-neutral-400">
+                    <FaCode className="mr-2 text-neutral-500" />
+                    Protected Data Request
+                  </div>
+                  <div className="flex items-center">
+                    {fastapiProtectedError ? (
+                      <>
+                        <FaTimesCircle className="text-red-400 mr-2" />
+                        <span className="text-red-400 text-xs">
+                          {fastapiProtectedError}
+                        </span>
+                      </>
+                    ) : fastapiProtectedData ? (
+                      <>
+                        <FaCheckCircle className="text-green-400 mr-2" />
+                        <span className="text-green-400 text-xs">Success</span>
+                      </>
+                    ) : (
+                      <span className="text-yellow-400 text-xs">
+                        Testing...
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {fastapiProtectedData && (
+                  <div className="bg-neutral-800/50 rounded-lg p-3 border border-neutral-700">
+                    <div className="text-xs text-neutral-400 mb-2">
+                      Response Data:
+                    </div>
+                    <pre className="text-xs text-green-400 overflow-x-auto">
+                      {JSON.stringify(fastapiProtectedData, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {/* Environment Debug Section */}
           <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-4 bg-neutral-900/70">
             <div className="flex items-center mb-4">
