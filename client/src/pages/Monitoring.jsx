@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   FaChartLine,
-  FaCpu,
   FaMemory,
   FaHdd,
   FaWifi,
@@ -14,7 +13,8 @@ import {
   FaBell,
   FaCog,
   FaDownload,
-  FaRefresh,
+  FaSyncAlt,
+  FaMicrochip,
 } from "react-icons/fa";
 import SEO from "../components/SEO";
 
@@ -109,15 +109,15 @@ const Monitoring = () => {
       resolved: true,
     },
   ];
-
   const metrics = [
     {
       name: "CPU Usage",
       value: realTimeData.cpu || 45,
       unit: "%",
-      icon: FaCpu,
+      icon: FaMicrochip,
       color: "blue",
       trend: "+2.1%",
+      maxValue: 100,
     },
     {
       name: "Memory Usage",
@@ -126,6 +126,7 @@ const Monitoring = () => {
       icon: FaMemory,
       color: "green",
       trend: "-1.4%",
+      maxValue: 100,
     },
     {
       name: "Disk Usage",
@@ -134,6 +135,7 @@ const Monitoring = () => {
       icon: FaHdd,
       color: "purple",
       trend: "+0.8%",
+      maxValue: 100,
     },
     {
       name: "Network I/O",
@@ -142,6 +144,7 @@ const Monitoring = () => {
       icon: FaWifi,
       color: "orange",
       trend: "+5.2%",
+      maxValue: 1000,
     },
   ];
 
@@ -244,7 +247,7 @@ const Monitoring = () => {
             </select>
 
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-              <FaRefresh />
+              <FaSyncAlt />
               Refresh
             </button>
           </div>
@@ -262,12 +265,14 @@ const Monitoring = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
+                  {" "}
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     {metric.name}
                   </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {metric.value}
-                    {metric.unit}
+                    {metric.name === "Network I/O"
+                      ? `${metric.value.toFixed(1)}${metric.unit}`
+                      : `${metric.value}${metric.unit}`}
                   </p>
                 </div>
                 <metric.icon className={`text-2xl text-${metric.color}-600`} />
@@ -285,14 +290,18 @@ const Monitoring = () => {
                 <span className="text-sm text-gray-500 ml-1">
                   from last hour
                 </span>
-              </div>
-
+              </div>{" "}
               {/* Real-time indicator */}
               <div className="mt-3">
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
                     className={`bg-${metric.color}-600 h-2 rounded-full transition-all duration-1000`}
-                    style={{ width: `${metric.value}%` }}
+                    style={{
+                      width: `${Math.min(
+                        (metric.value / metric.maxValue) * 100,
+                        100
+                      )}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -349,7 +358,6 @@ const Monitoring = () => {
                     <FaEye />
                   </button>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500">Uptime:</span>
@@ -375,8 +383,7 @@ const Monitoring = () => {
                       {service.cpu}%
                     </span>
                   </div>
-                </div>
-
+                </div>{" "}
                 {/* Resource usage bars */}
                 <div className="mt-3 space-y-2">
                   <div>
@@ -387,7 +394,7 @@ const Monitoring = () => {
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                       <div
                         className="bg-blue-600 h-1.5 rounded-full transition-all duration-1000"
-                        style={{ width: `${service.cpu}%` }}
+                        style={{ width: `${Math.min(service.cpu, 100)}%` }}
                       />
                     </div>
                   </div>
@@ -399,7 +406,7 @@ const Monitoring = () => {
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                       <div
                         className="bg-green-600 h-1.5 rounded-full transition-all duration-1000"
-                        style={{ width: `${service.memory}%` }}
+                        style={{ width: `${Math.min(service.memory, 100)}%` }}
                       />
                     </div>
                   </div>
