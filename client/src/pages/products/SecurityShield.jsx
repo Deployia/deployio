@@ -7,7 +7,6 @@ import {
   FaUserShield,
   FaCloud,
   FaServer,
-  FaFileShield,
   FaCheck,
   FaBug,
   FaExclamationTriangle,

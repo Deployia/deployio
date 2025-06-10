@@ -300,236 +300,221 @@ const Integrations = () => {
         keywords="integrations, GitHub, Slack, AWS, Docker, CI/CD, automation"
       />
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-8"
-          >
-            {/* Header */}
-            <motion.div variants={itemVariants} className="text-center">
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-3">
-                <FaTools className="text-blue-600" />
-                Integrations
-              </h1>
-              <p className="mt-4 text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-                Connect your favorite tools and services to streamline your
-                deployment workflow
-              </p>
-            </motion.div>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-8"
+      >
+        {/* Header */}
+        <motion.div variants={itemVariants} className="text-center">
+          <h1 className="text-4xl font-bold text-white flex items-center justify-center gap-3">
+            <FaTools className="text-blue-400" />
+            Integrations
+          </h1>
+          <p className="mt-4 text-xl text-gray-400 max-w-3xl mx-auto">
+            Connect your favorite tools and services to streamline your
+            deployment workflow
+          </p>
+        </motion.div>
 
-            {/* Connected Integrations Summary */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Connected Integrations
-                </h3>
-                <span className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-sm font-medium">
-                  {
-                    connectedIntegrations.filter((conn) => conn.connected)
-                      .length
-                  }{" "}
-                  Active
-                </span>
-              </div>
+        {/* Connected Integrations Summary */}
+        <motion.div
+          variants={itemVariants}
+          className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">
+              Connected Integrations
+            </h3>
+            <span className="px-3 py-1 bg-green-900 text-green-200 rounded-full text-sm font-medium">
+              {connectedIntegrations.filter((conn) => conn.connected).length}{" "}
+              Active
+            </span>
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {connectedIntegrations
-                  .filter((conn) => conn.connected)
-                  .map((integration) => {
-                    const integrationData = availableIntegrations.find(
-                      (i) => i.id === integration.id
-                    );
-                    return (
-                      <div
-                        key={integration.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          {integrationData && (
-                            <integrationData.icon className="text-2xl text-gray-700 dark:text-gray-300" />
-                          )}
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">
-                              {integration.name}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              Last sync: {integration.lastSync}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-600" />
-                          <button
-                            onClick={() =>
-                              disconnectIntegration(integration.id)
-                            }
-                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-
-              {connectedIntegrations.filter((conn) => conn.connected).length ===
-                0 && (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                  No integrations connected yet. Browse available integrations
-                  below.
-                </p>
-              )}
-            </motion.div>
-
-            {/* Category Filter */}
-            <motion.div variants={itemVariants} className="flex justify-center">
-              <div className="bg-white dark:bg-gray-800 p-1 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-wrap gap-1">
-                {integrationCategories.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => setActiveCategory(category.id)}
-                    className={`px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${
-                      activeCategory === category.id
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-                    }`}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {connectedIntegrations
+              .filter((conn) => conn.connected)
+              .map((integration) => {
+                const integrationData = availableIntegrations.find(
+                  (i) => i.id === integration.id
+                );
+                return (
+                  <div
+                    key={integration.id}
+                    className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
                   >
-                    <category.icon />
-                    {category.name}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Available Integrations */}
-            <motion.div
-              variants={itemVariants}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            >
-              {filteredIntegrations.map((integration) => (
-                <div
-                  key={integration.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <integration.icon className="text-3xl text-gray-700 dark:text-gray-300" />
+                      {integrationData && (
+                        <integrationData.icon className="text-2xl text-gray-300" />
+                      )}
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <p className="font-medium text-white">
                           {integration.name}
-                          {integration.popular && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs rounded-full">
-                              Popular
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          {integration.setup}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Last sync: {integration.lastSync}
                         </p>
                       </div>
                     </div>
-
-                    {isConnected(integration.id) ? (
-                      <div className="flex items-center gap-2">
-                        <FaCheck className="text-green-600" />
-                        <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                          <FaCog />
-                        </button>
-                      </div>
-                    ) : (
+                    <div className="flex items-center gap-2">
+                      <FaCheck className="text-green-400" />
                       <button
-                        onClick={() => handleConnect(integration)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        onClick={() => disconnectIntegration(integration.id)}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                       >
-                        <FaPlus />
-                        Connect
+                        <FaTrash />
                       </button>
-                    )}
+                    </div>
                   </div>
+                );
+              })}
+          </div>
 
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    {integration.description}
-                  </p>
+          {connectedIntegrations.filter((conn) => conn.connected).length ===
+            0 && (
+            <p className="text-gray-400 text-center py-8">
+              No integrations connected yet. Browse available integrations
+              below.
+            </p>
+          )}
+        </motion.div>
 
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                      Features:
-                    </h4>
-                    <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                      {integration.features.map((feature, index) => (
-                        <li key={index} className="flex items-center gap-2">
-                          <FaCheck className="text-green-600 text-xs" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
+        {/* Category Filter */}
+        <motion.div variants={itemVariants} className="flex justify-center">
+          <div className="bg-gray-800 p-1 rounded-lg shadow-sm border border-gray-700 flex flex-wrap gap-1">
+            {integrationCategories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={`px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${
+                  activeCategory === category.id
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-700"
+                }`}
+              >
+                <category.icon />
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Available Integrations */}
+        <motion.div
+          variants={itemVariants}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {filteredIntegrations.map((integration) => (
+            <div
+              key={integration.id}
+              className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <integration.icon className="text-3xl text-gray-300" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      {integration.name}
+                      {integration.popular && (
+                        <span className="px-2 py-1 bg-blue-900 text-blue-200 text-xs rounded-full">
+                          Popular
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-gray-400">{integration.setup}</p>
                   </div>
                 </div>
-              ))}
-            </motion.div>
 
-            {/* Help Section */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 text-center"
-            >
-              <FaShieldAlt className="text-3xl text-blue-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Need Help with Integrations?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Our team is here to help you set up and configure your
-                integrations for optimal performance.
-              </p>
-              <div className="flex justify-center gap-4">
-                <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-                  <FaExternalLinkAlt />
-                  View Documentation
-                </button>
-                <button className="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
-                  Contact Support
-                </button>
+                {isConnected(integration.id) ? (
+                  <div className="flex items-center gap-2">
+                    <FaCheck className="text-green-400" />
+                    <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      <FaCog />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleConnect(integration)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <FaPlus />
+                    Connect
+                  </button>
+                )}
               </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </div>
 
-      {/* Connect Integration Modal */}
+              <p className="text-gray-400 mb-4">{integration.description}</p>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-white">Features:</h4>
+                <ul className="text-sm text-gray-400 space-y-1">
+                  {integration.features.map((feature, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <FaCheck className="text-green-400 text-xs" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Help Section */}
+        <motion.div
+          variants={itemVariants}
+          className="bg-blue-900/10 rounded-xl p-6 text-center"
+        >
+          <FaShieldAlt className="text-3xl text-blue-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">
+            Need Help with Integrations?
+          </h3>
+          <p className="text-gray-400 mb-4">
+            Our team is here to help you set up and configure your integrations
+            for optimal performance.
+          </p>
+          <div className="flex justify-center gap-4">
+            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+              <FaExternalLinkAlt />
+              View Documentation
+            </button>
+            <button className="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-900/20 transition-colors">
+              Contact Support
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* Modal for connecting integrations */}
       {showConnectModal && selectedIntegration && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
+            className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
           >
             <div className="text-center mb-6">
-              <selectedIntegration.icon className="text-4xl text-gray-700 dark:text-gray-300 mx-auto mb-3" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <selectedIntegration.icon className="text-4xl text-gray-300 mx-auto mb-3" />
+              <h3 className="text-xl font-semibold text-white">
                 Connect {selectedIntegration.name}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
-                You'll be redirected to {selectedIntegration.name} to authorize
-                the connection.
+              </h3>{" "}
+              <p className="text-gray-400 mt-2">
+                You&apos;ll be redirected to {selectedIntegration.name} to
+                authorize the connection.
               </p>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
-              <h4 className="font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                <FaKey className="text-blue-600" />
+            <div className="bg-gray-700 rounded-lg p-4 mb-6">
+              <h4 className="font-medium text-white mb-2 flex items-center gap-2">
+                <FaKey className="text-blue-400" />
                 Permissions Required:
               </h4>
-              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+              <ul className="text-sm text-gray-400 space-y-1">
                 {selectedIntegration.features.map((feature, index) => (
                   <li key={index} className="flex items-center gap-2">
-                    <FaCheck className="text-green-600 text-xs" />
+                    <FaCheck className="text-green-400 text-xs" />
                     {feature}
                   </li>
                 ))}
@@ -539,7 +524,7 @@ const Integrations = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowConnectModal(false)}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-400 hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>
