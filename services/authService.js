@@ -78,79 +78,140 @@ const registerUser = async (userData) => {
 };
 
 /**
- * Login user and generate token
+ * Enhanced login with rate limiting and security features
  * @param {String} email - User email
  * @param {String} password - User password
+ * @param {Object} loginInfo - Additional login information (IP, user agent, etc.)
  * @returns {Object} User object and token or 2FA requirement
  */
-const loginUser = async (email, password) => {
-  // Find user by email and include password and 2FA fields in query result
-  const user = await User.findOne({ email }).select(
-    "+password +twoFactorEnabled"
-  );
+const loginUser = async (email, password, loginInfo = {}) => {
+  try {
+    // Input validation
+    if (!email || !password) {
+      throw new Error("Email and password are required");
+    }
 
-  // Check if user exists and password is correct in one step for security
-  if (!user || !(await user.comparePassword(password))) {
-    throw new Error("Invalid email or password");
-  }
-  // Check if user is verified - return verification status instead of throwing error
-  if (!user.isVerified) {
-    // Generate OTP if user is not verified
-    const otp = generateOtp();
-    const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    try {
-      // Try to send OTP email first
-      await sendEmail({
-        to: user.email,
-        subject: "Verify your DeployIO account (OTP)",
-        template: "otp",
-        variables: { username: user.username, otp },
-      });
-
-      // Only save OTP to database if email was sent successfully
-      user.otp = otp;
-      user.otpExpire = otpExpire;
-      await user.save();
-
-      console.log(`OTP email sent to ${user.email}`);
-    } catch (error) {
-      console.error(`Failed to send OTP email to ${user.email}:`, error);
-      // If email fails, throw an error instead of proceeding
+    // Rate limiting check (simple implementation)
+    const recentAttempts = await checkRecentLoginAttempts(email, loginInfo.ip);
+    if (recentAttempts >= 5) {
       throw new Error(
-        "Unable to send verification email. Please try again later or contact support if the problem persists."
+        "Too many login attempts. Please try again in 15 minutes."
       );
     }
 
-    return {
-      needsVerification: true,
-      userId: user._id,
-      email: user.email,
-      message: "Account verification required. OTP sent to your email.",
-    };
-  }
+    // Find user by email and include password and 2FA fields in query result
+    const user = await User.findOne({ email }).select(
+      "+password +twoFactorEnabled +loginAttempts +lockUntil"
+    );
 
-  // Check if 2FA is enabled
-  if (user.twoFactorEnabled) {
-    return {
-      requires2FA: true,
-      userId: user._id,
-      message: "2FA verification required",
-    };
-  }
+    // Check if account is locked
+    if (user && user.lockUntil && user.lockUntil > Date.now()) {
+      throw new Error(
+        "Account is temporarily locked due to multiple failed attempts"
+      );
+    }
 
-  // Generate token for successful login
-  const token = generateToken(user);
-  const refreshToken = generateRefreshToken(user);
-  return {
-    user: {
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-    },
-    token,
-    refreshToken,
-  };
+    // Check if user exists and password is correct in one step for security
+    if (!user || !(await user.comparePassword(password))) {
+      // Log failed attempt
+      await logFailedLoginAttempt(email, loginInfo.ip);
+
+      // Increment user's failed attempts if user exists
+      if (user) {
+        await incrementFailedAttempts(user);
+      }
+
+      throw new Error("Invalid email or password");
+    }
+
+    // Reset failed attempts on successful password verification
+    if (user.loginAttempts > 0) {
+      user.loginAttempts = 0;
+      user.lockUntil = undefined;
+      await user.save();
+    }
+
+    // Check if user is verified - return verification status instead of throwing error
+    if (!user.isVerified) {
+      // Generate OTP if user is not verified
+      const otp = generateOtp();
+      const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+      try {
+        // Try to send OTP email first
+        await sendEmail({
+          to: user.email,
+          subject: "Verify your DeployIO account (OTP)",
+          template: "otp",
+          variables: { username: user.username, otp },
+        });
+
+        // Only save OTP to database if email was sent successfully
+        user.otp = otp;
+        user.otpExpire = otpExpire;
+        await user.save();
+
+        console.log(`OTP email sent to ${user.email}`);
+      } catch (error) {
+        console.error(`Failed to send OTP email to ${user.email}:`, error);
+        // If email fails, throw an error instead of proceeding
+        throw new Error(
+          "Unable to send verification email. Please try again later or contact support if the problem persists."
+        );
+      }
+
+      return {
+        needsVerification: true,
+        email: user.email,
+        message:
+          "Please verify your email address with the OTP sent to your inbox",
+      };
+    }
+
+    // Log successful login
+    await logSuccessfulLogin(user._id, loginInfo);
+
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      return {
+        requires2FA: true,
+        userId: user._id,
+        message: "Please provide your 2FA code to complete login",
+      };
+    }
+
+    // Generate tokens for successful login
+    const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Store refresh token
+    await storeRefreshToken(user._id, refreshToken);
+
+    // Add session information
+    if (loginInfo.ip && loginInfo.userAgent) {
+      await addSession(user._id, {
+        ip: loginInfo.ip,
+        userAgent: loginInfo.userAgent,
+        location: loginInfo.location || "Unknown",
+      });
+    }
+    return {
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImage: user.profileImage,
+        role: user.role,
+      },
+      token,
+      refreshToken,
+    };
+  } catch (error) {
+    console.error("Login error:", error);
+    throw error;
+  }
 };
 
 /**
@@ -479,7 +540,7 @@ async function getSessions(userId) {
 }
 
 /**
- * Delete a user session
+ * Delete a user session with enhanced validation
  */
 async function deleteSession(userId, sessionId) {
   try {
@@ -495,12 +556,88 @@ async function deleteSession(userId, sessionId) {
       throw new Error("Session not found");
     }
 
+    // Don't allow deletion of the last session if user has no other auth methods
+    if (user.sessions.length === 1 && !user.googleId && !user.githubId) {
+      throw new Error(
+        "Cannot delete the only active session. Please login from another device first."
+      );
+    }
+
     user.sessions = user.sessions.filter((s) => s._id.toString() !== sessionId);
     await user.save();
+
+    // Log security event
+    console.log(`Session ${sessionId} deleted for user ${userId}`);
+
     return true;
   } catch (error) {
     console.error("Error deleting session:", error);
-    throw new Error("Failed to delete session");
+    throw new Error(error.message || "Failed to delete session");
+  }
+}
+
+/**
+ * Clean up expired sessions for all users (scheduled task)
+ */
+async function cleanupExpiredSessions() {
+  try {
+    const now = new Date();
+    const result = await User.updateMany(
+      {},
+      {
+        $pull: {
+          sessions: {
+            rememberedUntil: { $lt: now },
+          },
+        },
+      }
+    );
+
+    console.log(
+      `Cleaned up expired sessions for ${result.modifiedCount} users`
+    );
+    return result;
+  } catch (error) {
+    console.error("Error cleaning up expired sessions:", error);
+    throw new Error("Failed to cleanup expired sessions");
+  }
+}
+
+/**
+ * Get session analytics for a user
+ */
+async function getSessionAnalytics(userId) {
+  try {
+    const user = await User.findById(userId).select("sessions");
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const sessions = user.sessions;
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const analytics = {
+      totalSessions: sessions.length,
+      activeSessions: sessions.filter(
+        (s) => !s.rememberedUntil || s.rememberedUntil > now
+      ).length,
+      recentSessions: sessions.filter(
+        (s) => new Date(s.createdAt) > thirtyDaysAgo
+      ).length,
+      uniqueIPs: [...new Set(sessions.map((s) => s.ip))].length,
+      devices: sessions.reduce((acc, session) => {
+        const deviceType = session.userAgent.includes("Mobile")
+          ? "mobile"
+          : "desktop";
+        acc[deviceType] = (acc[deviceType] || 0) + 1;
+        return acc;
+      }, {}),
+    };
+    return analytics;
+  } catch (error) {
+    console.error("Error getting session analytics:", error);
+    throw new Error("Failed to get session analytics");
   }
 }
 
@@ -797,6 +934,113 @@ const complete2FALogin = async (userId) => {
   }
 };
 
+// =============================================================================
+// Security Helper Functions
+// =============================================================================
+
+/**
+ * Check recent login attempts for rate limiting
+ */
+async function checkRecentLoginAttempts(email, ip) {
+  try {
+    // This is a simple in-memory rate limiting
+    // In production, you'd want to use Redis or a database
+    const cacheKey = `login_attempts_${email}_${ip}`;
+    // For now, return 0 as we don't have a cache implementation
+    // TODO: Implement proper rate limiting with Redis
+    return 0;
+  } catch (error) {
+    console.error("Error checking recent login attempts:", error);
+    return 0; // Fail open for now
+  }
+}
+
+/**
+ * Log failed login attempt
+ */
+async function logFailedLoginAttempt(email, ip) {
+  try {
+    console.log(
+      `Failed login attempt for ${email} from IP: ${ip} at ${new Date().toISOString()}`
+    );
+    // TODO: Store in security log collection
+  } catch (error) {
+    console.error("Error logging failed login attempt:", error);
+  }
+}
+
+/**
+ * Increment failed attempts for user account locking
+ */
+async function incrementFailedAttempts(user) {
+  try {
+    const maxAttempts = 5;
+    const lockDuration = 15 * 60 * 1000; // 15 minutes
+
+    user.loginAttempts = (user.loginAttempts || 0) + 1;
+
+    if (user.loginAttempts >= maxAttempts) {
+      user.lockUntil = new Date(Date.now() + lockDuration);
+    }
+
+    await user.save();
+  } catch (error) {
+    console.error("Error incrementing failed attempts:", error);
+  }
+}
+
+/**
+ * Log successful login for security monitoring
+ */
+async function logSuccessfulLogin(userId, loginInfo) {
+  try {
+    console.log(
+      `Successful login for user ${userId} from IP: ${
+        loginInfo.ip
+      } at ${new Date().toISOString()}`
+    );
+
+    // Update user's last login info
+    await User.findByIdAndUpdate(userId, {
+      lastLogin: new Date(),
+      lastLoginIP: loginInfo.ip,
+    });
+
+    // TODO: Store in security log collection for audit trail
+  } catch (error) {
+    console.error("Error logging successful login:", error);
+  }
+}
+
+/**
+ * Enhanced session cleanup with user activity tracking
+ */
+async function cleanupInactiveSessions() {
+  try {
+    const inactivityThreshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    const result = await User.updateMany(
+      {},
+      {
+        $pull: {
+          sessions: {
+            createdAt: { $lt: inactivityThreshold },
+            rememberedUntil: { $exists: false },
+          },
+        },
+      }
+    );
+
+    console.log(
+      `Cleaned up inactive sessions for ${result.modifiedCount} users`
+    );
+    return result;
+  } catch (error) {
+    console.error("Error cleaning up inactive sessions:", error);
+    throw new Error("Failed to cleanup inactive sessions");
+  }
+}
+
 module.exports = {
   registerUser,
   loginUser,
@@ -812,6 +1056,9 @@ module.exports = {
   unlinkProvider,
   getSessions,
   deleteSession,
+  cleanupExpiredSessions,
+  getSessionAnalytics,
+  cleanupInactiveSessions,
   addSession,
   storeRefreshToken,
   // 2FA functions

@@ -84,49 +84,50 @@ const BackupCodes = ({
       console.error("Failed to generate new backup codes", error);
     }
   };
-
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <div className="mx-auto h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-          <FiAlertTriangle className="h-6 w-6 text-green-600" />
+        <div className="mx-auto h-12 w-12 bg-green-500/20 rounded-full flex items-center justify-center">
+          <FiAlertTriangle className="h-6 w-6 text-green-400" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-xl font-semibold text-white">
           Save Your Backup Codes
         </h3>
-        <p className="text-sm text-gray-600 max-w-md mx-auto">
+        <p className="text-sm text-gray-400 max-w-md mx-auto">
           Store these backup codes in a safe place. Each code can only be used
           once and will help you regain access if you lose your authenticator
           device.
         </p>
       </div>
+
       {/* Warning */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
         <div className="flex items-start space-x-3">
-          <FiAlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-yellow-800">
+          <FiAlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-yellow-300">
             <p className="font-medium">Important:</p>
             <ul className="mt-1 list-disc list-inside space-y-1">
               <li>Each backup code can only be used once</li>
               <li>
                 Store them in a secure location (password manager recommended)
               </li>
-              <li>Don't share these codes with anyone</li>
+              <li>Do not share these codes with anyone</li>
               <li>
-                Generate new codes if you suspect they've been compromised
+                Generate new codes if you suspect they have been compromised
               </li>
             </ul>
           </div>
         </div>
-      </div>{" "}
+      </div>
+
       {/* Backup Codes Grid */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+      <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-6">
         {backupCodes.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {backupCodes.map((code, index) => (
               <div
                 key={index}
-                className="bg-white border border-gray-300 rounded-lg p-3 text-center font-mono text-sm"
+                className="bg-neutral-900/50 border border-neutral-600 rounded-lg p-3 text-center font-mono text-sm text-gray-300"
               >
                 {code}
               </div>
@@ -134,30 +135,31 @@ const BackupCodes = ({
           </div>
         ) : showRefresh ? (
           <div className="text-center py-6">
-            <p className="text-gray-600">
-              Use the "Generate New Codes" button to create new backup codes
+            <p className="text-gray-400">
+              Use the &quot;Generate New Codes&quot; button to create new backup
+              codes
             </p>
           </div>
         ) : (
           <div className="text-center py-6">
             <Spinner />
-            <p className="text-gray-600 mt-2">Loading backup codes...</p>
+            <p className="text-gray-400 mt-2">Loading backup codes...</p>
           </div>
         )}
       </div>
+
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3 justify-center">
-        {" "}
         <button
           onClick={handleDownload}
-          className="min-h-[44px] px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2 transition-colors duration-200"
+          className="min-h-[44px] px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
         >
           <FiDownload className="h-4 w-4 flex-shrink-0" />
           <span>Download as Text File</span>
         </button>
         <button
           onClick={handleCopy}
-          className="min-h-[44px] px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center justify-center gap-2 transition-colors duration-200"
+          className="min-h-[44px] px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
         >
           <FiCopy className="h-4 w-4 flex-shrink-0" />
           <span>Copy to Clipboard</span>
@@ -165,23 +167,24 @@ const BackupCodes = ({
         {showRefresh && (
           <button
             onClick={() => setShowRefreshForm(!showRefreshForm)}
-            className="min-h-[44px] px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 flex items-center justify-center gap-2 transition-colors duration-200"
+            className="min-h-[44px] px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
           >
             <FiRefreshCw className="h-4 w-4 flex-shrink-0" />
             <span>Generate New Codes</span>
           </button>
         )}
       </div>
+
       {/* Generate New Codes Form */}
       {showRefreshForm && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-4">
+        <div className="bg-orange-500/20 border border-orange-500/30 rounded-lg p-6 space-y-4">
           <div className="flex items-center space-x-3">
-            <FiRefreshCw className="h-5 w-5 text-orange-600" />
+            <FiRefreshCw className="h-5 w-5 text-orange-400" />
             <div>
-              <h4 className="font-medium text-orange-800">
+              <h4 className="font-medium text-orange-300">
                 Generate New Backup Codes
               </h4>
-              <p className="text-sm text-orange-600">
+              <p className="text-sm text-orange-400">
                 This will invalidate all current backup codes
               </p>
             </div>
@@ -191,7 +194,7 @@ const BackupCodes = ({
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-300"
               >
                 Password
               </label>
@@ -200,15 +203,16 @@ const BackupCodes = ({
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="mt-1 w-full px-3 py-2 border border-neutral-600 bg-neutral-800/50 text-white rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 placeholder-gray-500"
                 placeholder="Enter your password to confirm"
               />
-            </div>{" "}
+            </div>
+
             <div className="flex space-x-3">
               <button
                 type="submit"
                 disabled={isLoading || !password}
-                className="flex-1 min-h-[44px] px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors duration-200"
+                className="flex-1 min-h-[44px] px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors duration-200"
               >
                 {isLoading ? (
                   <>
@@ -223,20 +227,21 @@ const BackupCodes = ({
               <button
                 type="button"
                 onClick={() => setShowRefreshForm(false)}
-                className="min-h-[44px] px-4 py-2.5 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
+                className="min-h-[44px] px-4 py-2.5 text-gray-300 bg-gray-500/20 border border-gray-500/30 rounded-lg hover:bg-gray-500/30 focus:outline-none focus:ring-2 focus:ring-gray-500/20 transition-colors duration-200"
               >
                 Cancel
               </button>
             </div>
           </form>
         </div>
-      )}{" "}
-      {/* Continue Button */}{" "}
+      )}
+
+      {/* Continue Button */}
       <div className="text-center">
         <button
           onClick={onClose}
           disabled={backupCodes.length > 0 && !hasDownloaded}
-          className="min-h-[44px] px-8 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+          className="min-h-[44px] px-8 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
         >
           {backupCodes.length === 0
             ? "Return to Dashboard"
@@ -245,6 +250,7 @@ const BackupCodes = ({
             : "Download codes first to continue"}
         </button>
       </div>
+
       {backupCodes.length > 0 && !hasDownloaded && (
         <div className="text-center text-sm text-gray-500">
           Please download or copy your backup codes before continuing

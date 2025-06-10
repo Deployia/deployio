@@ -20,4 +20,28 @@ router.put(
 // Update password
 router.put("/update-password", protect, userController.updatePassword);
 
+// Notification preferences
+router.get(
+  "/notification-preferences",
+  protect,
+  userController.getNotificationPreferences
+);
+router.put(
+  "/notification-preferences",
+  protect,
+  userController.updateNotificationPreferences
+);
+
+// User activity
+router.get("/activity", protect, userController.getUserActivity);
+router.post("/activity", protect, userController.logUserActivity);
+
+// Dashboard stats
+router.get("/dashboard-stats", protect, userController.getDashboardStats);
+
+// API Keys management
+router.get("/api-keys", protect, userController.getApiKeys);
+router.post("/api-keys", protect, userController.createApiKey);
+router.delete("/api-keys/:keyId", protect, userController.deleteApiKey);
+
 module.exports = router;
