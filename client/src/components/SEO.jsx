@@ -5,7 +5,7 @@ import {
   getSEOConfig,
   generateStructuredData,
   generateMetaTags,
-} from "../utils/seo.js";
+} from "@utils/seo.js";
 
 /**
  * SEO Component - Handles meta tags, structured data, and SEO optimization

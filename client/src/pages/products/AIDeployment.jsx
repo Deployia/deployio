@@ -13,7 +13,7 @@ import {
   FaUsers,
   FaStar,
 } from "react-icons/fa";
-import SEO from "../../components/SEO";
+import SEO from "@components/SEO";
 import { Link } from "react-router-dom";
 
 const AIDeployment = () => {

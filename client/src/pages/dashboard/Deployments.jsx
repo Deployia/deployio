@@ -15,7 +15,7 @@ import {
   FaFilter,
   FaSearch,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const Deployments = () => {
   const [filter, setFilter] = useState("all");

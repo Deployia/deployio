@@ -13,7 +13,7 @@ import {
   FaUsers,
   FaCloud,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const Projects = () => {
   const [projects] = useState([

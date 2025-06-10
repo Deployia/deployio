@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { logout } from "../redux/slices/authSlice";
+import { logout } from "@redux/slices/authSlice";
 import { toast } from "react-hot-toast";
 import { useState, memo, useCallback, useRef, useEffect, useMemo } from "react";
 import {

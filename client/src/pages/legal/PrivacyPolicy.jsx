@@ -5,7 +5,7 @@ import {
   FaCookie,
   FaDatabase,
 } from "react-icons/fa";
-import SEO from "../components/SEO.jsx";
+import SEO from "@components/SEO.jsx";
 
 function PrivacyPolicy() {
   return (

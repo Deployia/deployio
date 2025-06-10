@@ -6,7 +6,7 @@ import {
   FiRefreshCw,
   FiAlertTriangle,
 } from "react-icons/fi";
-import { generateNewBackupCodes } from "../../redux/slices/twoFactorSlice";
+import { generateNewBackupCodes } from "@redux/slices/twoFactorSlice";
 import Spinner from "../Spinner";
 import toast from "react-hot-toast";
 

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { verifyOtp, reset, resetVerification } from "../redux/slices/authSlice";
-import api from "../utils/api";
+import { verifyOtp, reset, resetVerification } from "@redux/slices/authSlice";
+import api from "@utils/api";
 import {
   FaEnvelopeOpen,
   FaLock,
@@ -11,9 +11,9 @@ import {
   FaRedoAlt,
   FaCheck,
 } from "react-icons/fa";
-import AuthCard from "../components/auth/Card";
-import AuthButton from "../components/auth/Button";
-import SEO from "../components/SEO.jsx";
+import AuthCard from "@components/auth/Card";
+import AuthButton from "@components/auth/Button";
+import SEO from "@components/SEO.jsx";
 
 function VerifyOtp() {
   const [otpError, setOtpError] = useState("");

@@ -1,7 +1,7 @@
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { useModal } from "../context/ModalContext.jsx";
-import SEO from "../components/SEO.jsx";
+import { useModal } from "@context/ModalContext.jsx";
+import SEO from "@components/SEO.jsx";
 import {
   Hero,
   About,
@@ -9,7 +9,7 @@ import {
   Testimonials,
   Pricing,
   CTA,
-} from "../components/home";
+} from "@components/home";
 
 function Home() {
   const navigate = useNavigate();

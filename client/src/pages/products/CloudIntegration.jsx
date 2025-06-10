@@ -11,7 +11,7 @@ import {
   FaCheck,
 } from "react-icons/fa";
 import { SiDigitalocean, SiVercel, SiNetlify, SiHeroku } from "react-icons/si";
-import SEO from "../../components/SEO";
+import SEO from "@components/SEO";
 
 const CloudIntegration = () => {
   const cloudProviders = [

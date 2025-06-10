@@ -9,7 +9,7 @@ import {
   FaGithub,
   FaCog,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 import { toast } from "react-hot-toast";
 
 const CLI = () => {

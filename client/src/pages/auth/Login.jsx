@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { loginUser, reset, reset2FA } from "../redux/slices/authSlice";
+import { loginUser, reset, reset2FA } from "@redux/slices/authSlice";
 import {
   FaUser,
   FaLock,
@@ -11,13 +11,13 @@ import {
   FaEye,
   FaEyeSlash,
 } from "react-icons/fa";
-import AuthCard from "../components/auth/Card";
-import AuthInput from "../components/auth/Input";
-import AuthButton from "../components/auth/Button";
-import AuthDivider from "../components/auth/Divider";
-import OAuthSection from "../components/auth/OAuthSection";
-import OTPVerification from "../components/auth/OTPVerification";
-import SEO from "../components/SEO.jsx";
+import AuthCard from "@components/auth/Card";
+import AuthInput from "@components/auth/Input";
+import AuthButton from "@components/auth/Button";
+import AuthDivider from "@components/auth/Divider";
+import OAuthSection from "@components/auth/OAuthSection";
+import OTPVerification from "@components/auth/OTPVerification";
+import SEO from "@components/SEO.jsx";
 import { toast } from "react-hot-toast";
 
 function Login() {

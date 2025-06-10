@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { QRCodeSVG } from "qrcode.react";
 import { FiCopy, FiEye, FiEyeOff } from "react-icons/fi";
-import { enable2FA } from "../../redux/slices/twoFactorSlice";
+import { enable2FA } from "@redux/slices/twoFactorSlice";
 import Spinner from "../Spinner";
 import toast from "react-hot-toast";
 

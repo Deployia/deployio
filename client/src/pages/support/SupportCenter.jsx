@@ -17,7 +17,7 @@ import {
   FaCheckCircle,
   FaArrowRight,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const SupportCenter = () => {
   const [searchQuery, setSearchQuery] = useState("");

@@ -16,7 +16,7 @@ import {
   FaSyncAlt,
   FaMicrochip,
 } from "react-icons/fa";
-import SEO from "../components/SEO";
+import SEO from "@components/SEO";
 
 const Monitoring = () => {
   const [timeRange, setTimeRange] = useState("1h");

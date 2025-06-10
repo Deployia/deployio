@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
-import { updateProfile } from "../redux/slices/userSlice";
+import { updateProfile } from "@redux/slices/userSlice";
 import { useEffect, useRef, useState } from "react";
-import Spinner from "../components/Spinner";
+import Spinner from "@components/Spinner";
 import { useSearchParams } from "react-router-dom";
 import {
   FaRocket,
@@ -21,7 +21,7 @@ import {
   FaSave,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
-import SEO from "../components/SEO.jsx";
+import SEO from "@components/SEO.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Mock data - moved outside component to prevent re-creation

@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"],
+      "@components/*": ["components/*"],
+      "@pages/*": ["pages/*"],
+      "@auth/*": ["pages/auth/*"],
+      "@dashboard/*": ["pages/dashboard/*"],
+      "@marketing/*": ["pages/marketing/*"],
+      "@legal/*": ["pages/legal/*"],
+      "@support/*": ["pages/support/*"],
+      "@products/*": ["pages/products/*"],
+      "@downloads/*": ["pages/downloads/*"],
+      "@redux/*": ["redux/*"],
+      "@utils/*": ["utils/*"],
+      "@constants/*": ["constants/*"],
+      "@context/*": ["context/*"],
+      "@assets/*": ["assets/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

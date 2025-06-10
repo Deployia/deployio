@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { FaCookie, FaCog, FaChartLine, FaShieldAlt } from "react-icons/fa";
-import SEO from "../components/SEO.jsx";
+import SEO from "@components/SEO.jsx";
 
 function CookiePolicy() {
   return (
