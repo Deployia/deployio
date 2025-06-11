@@ -16,7 +16,7 @@ import AuthInput from "@components/auth/Input";
 import AuthButton from "@components/auth/Button";
 import AuthDivider from "@components/auth/Divider";
 import OAuthSection from "@components/auth/OAuthSection";
-import OTPVerification from "@components/auth/OTPVerification";
+import OTPInput from "@components/auth/OTPInput";
 import SEO from "@components/SEO.jsx";
 import { toast } from "react-hot-toast";
 
@@ -154,8 +154,8 @@ function Login() {
         iconColor="text-blue-400"
         maxWidth="max-w-md"
       >
-        <OTPVerification
-          mode="login"
+        {" "}
+        <OTPInput
           userId={twoFAUserId}
           onSuccess={() => {
             // Clear 2FA state and params, then redirect to profile

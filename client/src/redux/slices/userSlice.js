@@ -1,41 +1,10 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "@utils/api";
-
-// Update profile
-export const updateProfile = createAsyncThunk(
-  "user/updateProfile",
-  async (formData, thunkAPI) => {
-    try {
-      const response = await api.put("/user/profile", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      return response.data.user;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
-
-// Update password
-export const updatePassword = createAsyncThunk(
-  "user/updatePassword",
-  async (data, thunkAPI) => {
-    try {
-      const response = await api.put("/user/update-password", data);
-      return response.data.message;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
+import { updateProfile } from "./authSlice";
 
 // Fetch notification preferences
 export const fetchNotificationPreferences = createAsyncThunk(
-  "user/fetchNotificationPreferences",
+  "userProfile/fetchNotificationPreferences",
   async (_, thunkAPI) => {
     try {
       const response = await api.get("/user/notification-preferences");
@@ -50,7 +19,7 @@ export const fetchNotificationPreferences = createAsyncThunk(
 
 // Update notification preferences
 export const updateNotificationPreferences = createAsyncThunk(
-  "user/updateNotificationPreferences",
+  "userProfile/updateNotificationPreferences",
   async (preferences, thunkAPI) => {
     try {
       const response = await api.put(
@@ -68,7 +37,7 @@ export const updateNotificationPreferences = createAsyncThunk(
 
 // Fetch user activity
 export const fetchUserActivity = createAsyncThunk(
-  "user/fetchUserActivity",
+  "userProfile/fetchUserActivity",
   async (params, thunkAPI) => {
     try {
       const queryParams = new URLSearchParams(params).toString();
@@ -84,7 +53,7 @@ export const fetchUserActivity = createAsyncThunk(
 
 // Log user activity
 export const logUserActivity = createAsyncThunk(
-  "user/logUserActivity",
+  "userProfile/logUserActivity",
   async (activityData, thunkAPI) => {
     try {
       const response = await api.post("/user/activity", activityData);
@@ -99,7 +68,7 @@ export const logUserActivity = createAsyncThunk(
 
 // Fetch API keys
 export const fetchApiKeys = createAsyncThunk(
-  "user/fetchApiKeys",
+  "userProfile/fetchApiKeys",
   async (_, thunkAPI) => {
     try {
       const response = await api.get("/user/api-keys");
@@ -114,7 +83,7 @@ export const fetchApiKeys = createAsyncThunk(
 
 // Create API key
 export const createApiKey = createAsyncThunk(
-  "user/createApiKey",
+  "userProfile/createApiKey",
   async (keyData, thunkAPI) => {
     try {
       const response = await api.post("/user/api-keys", keyData);
@@ -129,7 +98,7 @@ export const createApiKey = createAsyncThunk(
 
 // Delete API key
 export const deleteApiKey = createAsyncThunk(
-  "user/deleteApiKey",
+  "userProfile/deleteApiKey",
   async (keyId, thunkAPI) => {
     try {
       await api.delete(`/user/api-keys/${keyId}`);
@@ -144,7 +113,7 @@ export const deleteApiKey = createAsyncThunk(
 
 // Fetch dashboard stats
 export const fetchDashboardStats = createAsyncThunk(
-  "user/fetchDashboardStats",
+  "userProfile/fetchDashboardStats",
   async (_, thunkAPI) => {
     try {
       const response = await api.get("/user/dashboard-stats");
@@ -157,57 +126,83 @@ export const fetchDashboardStats = createAsyncThunk(
   }
 );
 
-const userSlice = createSlice({
-  name: "user",
+const userProfileSlice = createSlice({
+  name: "userProfile",
   initialState: {
-    loading: false,
-    error: null,
-    success: null,
-    user: null,
-    passwordSuccess: null,
+    // Loading states following auth slice pattern
+    loading: {
+      notificationPreferences: false,
+      updateNotificationPreferences: false,
+      userActivity: false,
+      logActivity: false,
+      apiKeys: false,
+      createApiKey: false,
+      deleteApiKey: false,
+      dashboardStats: false,
+    },
+
+    // Error states
+    error: {
+      notificationPreferences: null,
+      updateNotificationPreferences: null,
+      userActivity: null,
+      logActivity: null,
+      apiKeys: null,
+      createApiKey: null,
+      deleteApiKey: null,
+      dashboardStats: null,
+    },
+
+    // Success states
+    success: {
+      updateNotificationPreferences: false,
+      createApiKey: false,
+      deleteApiKey: false,
+    },
+
+    // Data
     notificationPreferences: null,
-    notificationsLoading: false,
-    notificationsError: null,
     activities: [],
-    activitiesLoading: false,
-    activitiesError: null,
     activityPagination: null,
     apiKeys: [],
-    apiKeysLoading: false,
-    apiKeysError: null,
     dashboardStats: null,
-    dashboardStatsLoading: false,
-    dashboardStatsError: null,
   },
   reducers: {
-    resetUserState: (state) => {
-      state.loading = false;
-      state.error = null;
-      state.success = null;
-      state.passwordSuccess = null;
+    reset: (state) => {
+      // Reset all loading, error and success states
+      Object.keys(state.loading).forEach((key) => {
+        state.loading[key] = false;
+      });
+
+      Object.keys(state.error).forEach((key) => {
+        state.error[key] = null;
+      });
+
+      Object.keys(state.success).forEach((key) => {
+        state.success[key] = false;
+      });
     },
-    setUser: (state, action) => {
-      state.user = action.payload;
+
+    clearError: (state, action) => {
+      if (action.payload) {
+        state.error[action.payload] = null;
+      } else {
+        Object.keys(state.error).forEach((key) => {
+          state.error[key] = null;
+        });
+      }
     },
-    clearUserError: (state) => {
-      state.error = null;
+
+    clearSuccess: (state, action) => {
+      if (action.payload) {
+        state.success[action.payload] = false;
+      } else {
+        Object.keys(state.success).forEach((key) => {
+          state.success[key] = false;
+        });
+      }
     },
-    clearUserSuccess: (state) => {
-      state.success = null;
-      state.passwordSuccess = null;
-    },
-    clearNotificationsError: (state) => {
-      state.notificationsError = null;
-    },
-    clearActivitiesError: (state) => {
-      state.activitiesError = null;
-    },
-    clearApiKeysError: (state) => {
-      state.apiKeysError = null;
-    },
-    clearDashboardStatsError: (state) => {
-      state.dashboardStatsError = null;
-    },
+
     resetActivities: (state) => {
       state.activities = [];
       state.activityPagination = null;
@@ -215,151 +210,133 @@ const userSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Profile updates
-      .addCase(updateProfile.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-        state.success = null;
-      })
-      .addCase(updateProfile.fulfilled, (state, action) => {
-        state.loading = false;
-        state.success = "Profile updated successfully";
-        state.user = action.payload;
-      })
-      .addCase(updateProfile.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Password updates
-      .addCase(updatePassword.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-        state.passwordSuccess = null;
-      })
-      .addCase(updatePassword.fulfilled, (state, action) => {
-        state.loading = false;
-        state.passwordSuccess = action.payload;
-      })
-      .addCase(updatePassword.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
       // Notification preferences
       .addCase(fetchNotificationPreferences.pending, (state) => {
-        state.notificationsLoading = true;
-        state.notificationsError = null;
+        state.loading.notificationPreferences = true;
+        state.error.notificationPreferences = null;
       })
       .addCase(fetchNotificationPreferences.fulfilled, (state, action) => {
-        state.notificationsLoading = false;
+        state.loading.notificationPreferences = false;
         state.notificationPreferences = action.payload;
       })
       .addCase(fetchNotificationPreferences.rejected, (state, action) => {
-        state.notificationsLoading = false;
-        state.notificationsError = action.payload;
+        state.loading.notificationPreferences = false;
+        state.error.notificationPreferences = action.payload;
       })
+
       .addCase(updateNotificationPreferences.pending, (state) => {
-        state.notificationsLoading = true;
-        state.notificationsError = null;
+        state.loading.updateNotificationPreferences = true;
+        state.error.updateNotificationPreferences = null;
+        state.success.updateNotificationPreferences = false;
       })
       .addCase(updateNotificationPreferences.fulfilled, (state, action) => {
-        state.notificationsLoading = false;
+        state.loading.updateNotificationPreferences = false;
+        state.success.updateNotificationPreferences = true;
         state.notificationPreferences = action.payload;
-        state.success = "Notification preferences updated successfully";
       })
       .addCase(updateNotificationPreferences.rejected, (state, action) => {
-        state.notificationsLoading = false;
-        state.notificationsError = action.payload;
+        state.loading.updateNotificationPreferences = false;
+        state.error.updateNotificationPreferences = action.payload;
       })
+
       // User activity
       .addCase(fetchUserActivity.pending, (state) => {
-        state.activitiesLoading = true;
-        state.activitiesError = null;
+        state.loading.userActivity = true;
+        state.error.userActivity = null;
       })
       .addCase(fetchUserActivity.fulfilled, (state, action) => {
-        state.activitiesLoading = false;
+        state.loading.userActivity = false;
         state.activities = action.payload.activities;
         state.activityPagination = action.payload.pagination;
       })
       .addCase(fetchUserActivity.rejected, (state, action) => {
-        state.activitiesLoading = false;
-        state.activitiesError = action.payload;
+        state.loading.userActivity = false;
+        state.error.userActivity = action.payload;
       })
-      .addCase(logUserActivity.pending, () => {
-        // Optional: show loading for activity logging
+
+      .addCase(logUserActivity.pending, (state) => {
+        state.loading.logActivity = true;
+        state.error.logActivity = null;
       })
       .addCase(logUserActivity.fulfilled, (state, action) => {
+        state.loading.logActivity = false;
         // Add new activity to the beginning of the list
         state.activities.unshift(action.payload);
       })
       .addCase(logUserActivity.rejected, (state, action) => {
-        // Optional: handle activity logging errors
-        console.error("Failed to log activity:", action.payload);
+        state.loading.logActivity = false;
+        state.error.logActivity = action.payload;
       })
+
       // API Keys
       .addCase(fetchApiKeys.pending, (state) => {
-        state.apiKeysLoading = true;
-        state.apiKeysError = null;
+        state.loading.apiKeys = true;
+        state.error.apiKeys = null;
       })
       .addCase(fetchApiKeys.fulfilled, (state, action) => {
-        state.apiKeysLoading = false;
+        state.loading.apiKeys = false;
         state.apiKeys = action.payload;
       })
       .addCase(fetchApiKeys.rejected, (state, action) => {
-        state.apiKeysLoading = false;
-        state.apiKeysError = action.payload;
+        state.loading.apiKeys = false;
+        state.error.apiKeys = action.payload;
       })
+
       .addCase(createApiKey.pending, (state) => {
-        state.apiKeysLoading = true;
-        state.apiKeysError = null;
+        state.loading.createApiKey = true;
+        state.error.createApiKey = null;
+        state.success.createApiKey = false;
       })
       .addCase(createApiKey.fulfilled, (state, action) => {
-        state.apiKeysLoading = false;
+        state.loading.createApiKey = false;
+        state.success.createApiKey = true;
         state.apiKeys.push(action.payload);
-        state.success = "API key created successfully";
       })
       .addCase(createApiKey.rejected, (state, action) => {
-        state.apiKeysLoading = false;
-        state.apiKeysError = action.payload;
+        state.loading.createApiKey = false;
+        state.error.createApiKey = action.payload;
       })
+
       .addCase(deleteApiKey.pending, (state) => {
-        state.apiKeysLoading = true;
-        state.apiKeysError = null;
+        state.loading.deleteApiKey = true;
+        state.error.deleteApiKey = null;
+        state.success.deleteApiKey = false;
       })
       .addCase(deleteApiKey.fulfilled, (state, action) => {
-        state.apiKeysLoading = false;
+        state.loading.deleteApiKey = false;
+        state.success.deleteApiKey = true;
         state.apiKeys = state.apiKeys.filter(
-          (key) => key.id !== action.payload
+          (key) => key._id !== action.payload
         );
-        state.success = "API key deleted successfully";
       })
       .addCase(deleteApiKey.rejected, (state, action) => {
-        state.apiKeysLoading = false;
-        state.apiKeysError = action.payload;
+        state.loading.deleteApiKey = false;
+        state.error.deleteApiKey = action.payload;
       })
+
       // Dashboard Stats
       .addCase(fetchDashboardStats.pending, (state) => {
-        state.dashboardStatsLoading = true;
-        state.dashboardStatsError = null;
+        state.loading.dashboardStats = true;
+        state.error.dashboardStats = null;
       })
       .addCase(fetchDashboardStats.fulfilled, (state, action) => {
-        state.dashboardStatsLoading = false;
+        state.loading.dashboardStats = false;
         state.dashboardStats = action.payload;
       })
       .addCase(fetchDashboardStats.rejected, (state, action) => {
-        state.dashboardStatsLoading = false;
-        state.dashboardStatsError = action.payload;
+        state.loading.dashboardStats = false;
+        state.error.dashboardStats = action.payload;
+      })
+
+      // Listen to profile updates from authSlice to keep data in sync
+      .addCase(updateProfile.fulfilled, (state) => {
+        // Force refresh of notification preferences and other data when profile is updated
+        // This ensures all user-related data stays in sync
+        state.loading.notificationPreferences = true;
       });
   },
 });
 
-export const {
-  resetUserState,
-  setUser,
-  clearUserError,
-  clearUserSuccess,
-  clearNotificationsError,
-  clearActivitiesError,
-  clearApiKeysError,
-  clearDashboardStatsError,
-} = userSlice.actions;
-export default userSlice.reducer;
+export const { reset, clearError, clearSuccess, resetActivities } =
+  userProfileSlice.actions;
+export default userProfileSlice.reducer;

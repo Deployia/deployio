@@ -1,15 +1,19 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "@utils/api";
-import { verify2FALogin } from "./twoFactorSlice";
+import { verify2FALogin, enable2FA, disable2FA } from "./twoFactorSlice";
 
-// Initial State
+// Initial State - Focus only on authentication
 const initialState = {
+  // Core authentication state
   user: null,
   isAuthenticated: false,
   requires2FA: false,
   pending2FAUserId: null,
   needsVerification: false,
   pendingVerificationEmail: null,
+  currentSessionId: null,
+
+  // Loading states
   loading: {
     me: true,
     signup: false,
@@ -19,7 +23,15 @@ const initialState = {
     forgotPassword: false,
     resetPassword: false,
     updatePassword: false,
+    updateProfile: false,
+    refreshToken: false,
+    providers: false,
+    sessions: false,
+    unlinkProvider: false,
+    deleteSession: false,
   },
+
+  // Error states
   error: {
     me: null,
     signup: null,
@@ -29,20 +41,27 @@ const initialState = {
     forgotPassword: null,
     resetPassword: null,
     updatePassword: null,
+    updateProfile: null,
+    refreshToken: null,
+    providers: null,
+    sessions: null,
+    unlinkProvider: null,
+    deleteSession: null,
   },
+
+  // Success states
   success: {
     forgotPassword: false,
     resetPassword: false,
     updatePassword: false,
+    updateProfile: false,
+    unlinkProvider: false,
+    deleteSession: false,
   },
+
   // OAuth providers and session management state
   providers: {},
-  providersLoading: false,
-  providersError: null,
   sessions: [],
-  sessionsLoading: false,
-  sessionsError: null,
-  currentSessionId: null,
 };
 
 // Register user
@@ -158,7 +177,7 @@ export const updatePassword = createAsyncThunk(
   "auth/updatePassword",
   async (passwordData, thunkAPI) => {
     try {
-      const response = await api.put("/auth/update-password", passwordData);
+      const response = await api.put("/user/update-password", passwordData);
       return response.data;
     } catch (error) {
       const message =
@@ -169,6 +188,23 @@ export const updatePassword = createAsyncThunk(
         error.toString();
 
       return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Update profile - Keep in auth since it affects the user object in auth state
+export const updateProfile = createAsyncThunk(
+  "auth/updateProfile",
+  async (formData, thunkAPI) => {
+    try {
+      const response = await api.put("/user/profile", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.user;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
     }
   }
 );
@@ -307,7 +343,9 @@ const authSlice = createSlice({
       Object.keys(state.success).forEach((key) => {
         state.success[key] = false;
       });
-    }, // Add a separate action to reset 2FA state
+    },
+
+    // Add a separate action to reset 2FA state
     reset2FA: (state) => {
       state.requires2FA = false;
       state.pending2FAUserId = null;
@@ -317,7 +355,9 @@ const authSlice = createSlice({
     resetVerification: (state) => {
       state.needsVerification = false;
       state.pendingVerificationEmail = null;
-    }, // Add a comprehensive logout reset
+    },
+
+    // Add a comprehensive logout reset
     logoutReset: (state) => {
       state.user = null;
       state.isAuthenticated = false;
@@ -326,6 +366,8 @@ const authSlice = createSlice({
       state.needsVerification = false;
       state.pendingVerificationEmail = null;
       state.currentSessionId = null;
+      state.providers = {};
+      state.sessions = [];
 
       Object.keys(state.loading).forEach((key) => {
         if (key !== "me") {
@@ -340,6 +382,13 @@ const authSlice = createSlice({
       Object.keys(state.success).forEach((key) => {
         state.success[key] = false;
       });
+    },
+
+    // Action to update user data in place (for real-time updates)
+    updateUserData: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
     },
   },
   extraReducers: (builder) => {
@@ -359,7 +408,9 @@ const authSlice = createSlice({
         state.error.signup = action.payload;
         state.user = null;
         state.isAuthenticated = false;
-      }) // Login cases
+      })
+
+      // Login cases
       .addCase(loginUser.pending, (state) => {
         state.loading.login = true;
         state.error.login = null;
@@ -408,6 +459,7 @@ const authSlice = createSlice({
         state.needsVerification = false;
         state.pendingVerificationEmail = null;
       })
+
       // Logout cases
       .addCase(logout.pending, (state) => {
         state.loading.logout = true;
@@ -421,6 +473,8 @@ const authSlice = createSlice({
         state.requires2FA = false;
         state.pending2FAUserId = null;
         state.currentSessionId = null;
+        state.providers = {};
+        state.sessions = [];
       })
       .addCase(logout.rejected, (state, action) => {
         state.loading.logout = false;
@@ -478,6 +532,27 @@ const authSlice = createSlice({
         state.success.updatePassword = false;
       })
 
+      // Update profile cases
+      .addCase(updateProfile.pending, (state) => {
+        state.loading.updateProfile = true;
+        state.error.updateProfile = null;
+        state.success.updateProfile = false;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading.updateProfile = false;
+        state.success.updateProfile = true;
+        state.error.updateProfile = null;
+        // Update user data in auth state for real-time UI updates
+        if (state.user) {
+          state.user = { ...state.user, ...action.payload };
+        }
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading.updateProfile = false;
+        state.error.updateProfile = action.payload;
+        state.success.updateProfile = false;
+      })
+
       // GetMe cases
       .addCase(getMe.pending, (state) => {
         state.loading.me = true;
@@ -494,7 +569,28 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.error.me = action.payload;
-      }) // Verify OTP cases
+      })
+
+      // Refresh token cases
+      .addCase(refreshToken.pending, (state) => {
+        state.loading.refreshToken = true;
+        state.error.refreshToken = null;
+      })
+      .addCase(refreshToken.fulfilled, (state, action) => {
+        state.loading.refreshToken = false;
+        if (action.payload.user) {
+          state.user = action.payload.user;
+        }
+        state.isAuthenticated = true;
+      })
+      .addCase(refreshToken.rejected, (state, action) => {
+        state.loading.refreshToken = false;
+        state.error.refreshToken = action.payload;
+        state.user = null;
+        state.isAuthenticated = false;
+      })
+
+      // Verify OTP cases
       .addCase(verifyOtp.pending, (state) => {
         state.loading.verifyOtp = true;
         state.error.verifyOtp = null;
@@ -509,7 +605,9 @@ const authSlice = createSlice({
         state.error.verifyOtp = action.payload;
         state.user = null;
         state.isAuthenticated = false;
-      }) // Handle 2FA login completion
+      })
+
+      // Handle 2FA login completion
       .addCase(verify2FALogin.fulfilled, (state, action) => {
         // Populate auth state after successful 2FA verification
         state.loading.login = false;
@@ -531,51 +629,97 @@ const authSlice = createSlice({
       })
       // Handle rejected states for verify2FALogin
       .addCase(verify2FALogin.rejected, (state, action) => {
-        state.isVerifying = false;
+        state.loading.login = false;
         state.error.login = action.payload;
         // Don't reset requires2FA here so the user can try again
       })
-      // providers
+
+      // OAuth providers cases
       .addCase(fetchProviders.pending, (state) => {
-        state.providersLoading = true;
-        state.providersError = null;
+        state.loading.providers = true;
+        state.error.providers = null;
       })
       .addCase(fetchProviders.fulfilled, (state, action) => {
-        state.providersLoading = false;
+        state.loading.providers = false;
         state.providers = action.payload;
       })
       .addCase(fetchProviders.rejected, (state, action) => {
-        state.providersLoading = false;
-        state.providersError = action.payload;
+        state.loading.providers = false;
+        state.error.providers = action.payload;
       })
 
-      // sessions
+      // Sessions cases
       .addCase(fetchSessions.pending, (state) => {
-        state.sessionsLoading = true;
-        state.sessionsError = null;
+        state.loading.sessions = true;
+        state.error.sessions = null;
       })
       .addCase(fetchSessions.fulfilled, (state, action) => {
-        state.sessionsLoading = false;
+        state.loading.sessions = false;
         state.sessions = action.payload;
       })
       .addCase(fetchSessions.rejected, (state, action) => {
-        state.sessionsLoading = false;
-        state.sessionsError = action.payload;
+        state.loading.sessions = false;
+        state.error.sessions = action.payload;
       })
 
-      // unlink provider
+      // Unlink provider cases
+      .addCase(unlinkProvider.pending, (state) => {
+        state.loading.unlinkProvider = true;
+        state.error.unlinkProvider = null;
+        state.success.unlinkProvider = false;
+      })
       .addCase(unlinkProvider.fulfilled, (state, action) => {
+        state.loading.unlinkProvider = false;
+        state.success.unlinkProvider = true;
+        state.error.unlinkProvider = null;
         const prov = action.payload;
         state.providers[prov] = false;
       })
+      .addCase(unlinkProvider.rejected, (state, action) => {
+        state.loading.unlinkProvider = false;
+        state.error.unlinkProvider = action.payload;
+        state.success.unlinkProvider = false;
+      })
 
-      // delete session
+      // Delete session cases
+      .addCase(deleteSession.pending, (state) => {
+        state.loading.deleteSession = true;
+        state.error.deleteSession = null;
+        state.success.deleteSession = false;
+      })
       .addCase(deleteSession.fulfilled, (state, action) => {
+        state.loading.deleteSession = false;
+        state.success.deleteSession = true;
+        state.error.deleteSession = null;
         state.sessions = state.sessions.filter((s) => s._id !== action.payload);
+      })
+      .addCase(deleteSession.rejected, (state, action) => {
+        state.loading.deleteSession = false;
+        state.error.deleteSession = action.payload;
+        state.success.deleteSession = false;
+      })
+
+      // Listen to 2FA actions to update user state in real-time
+      .addCase(enable2FA.fulfilled, (state) => {
+        // Update user's 2FA status in auth state for real-time UI updates
+        if (state.user) {
+          state.user.twoFactorEnabled = true;
+        }
+      })
+      .addCase(disable2FA.fulfilled, (state) => {
+        // Update user's 2FA status in auth state for real-time UI updates
+        if (state.user) {
+          state.user.twoFactorEnabled = false;
+        }
       });
   },
 });
 
-export const { reset, reset2FA, resetVerification, logoutReset } =
-  authSlice.actions;
+export const {
+  reset,
+  reset2FA,
+  resetVerification,
+  logoutReset,
+  updateUserData,
+} = authSlice.actions;
 export default authSlice.reducer;
