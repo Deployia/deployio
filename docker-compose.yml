@@ -36,9 +36,11 @@ services:
       - /tmp:noexec,nosuid,size=50m
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`deployio.tech`) && PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      - "traefik.http.routers.frontend.tls.domains[0].main=deployio.tech"
+      - "traefik.http.routers.frontend.tls.domains[0].sans=www.deployio.tech"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
       - "traefik.http.routers.frontend.priority=1"
     networks:
@@ -66,9 +68,11 @@ services:
       start_period: 10s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`deployio.tech`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
+      - "traefik.http.routers.backend.tls.domains[0].main=deployio.tech"
+      - "traefik.http.routers.backend.tls.domains[0].sans=www.deployio.tech"
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
       - "traefik.http.routers.backend.priority=2"
     depends_on:
@@ -96,9 +100,11 @@ services:
       start_period: 10s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.fastapi.rule=Host(`deployio.tech`) && PathPrefix(`/service`)"
+      - "traefik.http.routers.fastapi.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/service`)"
       - "traefik.http.routers.fastapi.entrypoints=websecure"
       - "traefik.http.routers.fastapi.tls.certresolver=myresolver"
+      - "traefik.http.routers.fastapi.tls.domains[0].main=deployio.tech"
+      - "traefik.http.routers.fastapi.tls.domains[0].sans=www.deployio.tech"
       - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
       - "traefik.http.routers.fastapi.priority=2"
     depends_on:
