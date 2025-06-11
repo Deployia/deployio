@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -12,16 +13,80 @@ import {
   FaExclamationTriangle,
   FaKey,
 } from "react-icons/fa";
+import {
+  fetchUserActivity,
+  fetchDashboardStats,
+  fetchApiKeys,
+} from "@redux/slices/userSlice";
+import { fetchProviders } from "@redux/slices/authSlice";
+import LoadingState from "./LoadingState";
+import ProfileErrorBoundary from "./ProfileErrorBoundary";
 
-const OverviewTab = ({
-  authUser,
-  dashboardStats,
-  activities,
-  apiKeys,
-  linkedProviders,
-  securityScore = 0,
-  loading: _loading = false,
-}) => {
+const OverviewTab = () => {
+  const dispatch = useDispatch();
+
+  // Get data from Redux state
+  const { user: authUser, providers: linkedProviders } = useSelector(
+    (state) => state.auth
+  );
+  const { activities, dashboardStats, apiKeys } = useSelector(
+    (state) => state.userProfile
+  );
+  const { twoFactorEnabled } = useSelector((state) => state.twoFactor);
+
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Load overview data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.allSettled([
+          dispatch(fetchUserActivity({ page: 1, limit: 10 })),
+          dispatch(fetchDashboardStats()),
+          dispatch(fetchApiKeys()),
+          dispatch(fetchProviders()),
+        ]);
+      } catch (error) {
+        console.error("Error loading overview data:", error);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    loadData();
+  }, [dispatch]);
+
+  // Calculate security score locally
+  const securityScore = useMemo(() => {
+    let score = 0;
+    if (authUser?.twoFactorEnabled || twoFactorEnabled) score += 40;
+    if (authUser?.email && authUser.emailVerified) score += 20;
+    if (
+      authUser?.lastPasswordChange &&
+      new Date() - new Date(authUser.lastPasswordChange) <
+        90 * 24 * 60 * 60 * 1000
+    ) {
+      score += 20;
+    }
+    if (apiKeys && apiKeys.length > 0) score += 10;
+
+    const profileComplete = (() => {
+      if (!authUser) return false;
+      const requiredFields = ["firstName", "lastName", "email", "bio"];
+      const completedFields = requiredFields.filter(
+        (field) => authUser[field] && authUser[field].trim() !== ""
+      );
+      return completedFields.length >= Math.ceil(requiredFields.length * 0.75);
+    })();
+
+    if (profileComplete) score += 10;
+    const oauthConnections = linkedProviders
+      ? Object.values(linkedProviders).filter(Boolean).length
+      : 0;
+    if (oauthConnections > 0) score += 10;
+    return Math.min(score, 100);
+  }, [authUser, apiKeys, linkedProviders, twoFactorEnabled]);
+
   // Calculate profile completion dynamically
   const profileComplete = useMemo(() => {
     if (!authUser) return false;
@@ -172,304 +237,316 @@ const OverviewTab = ({
         href: "/dashboard/profile?tab=security",
       });
     }
-
     return items;
   }, [authUser, activityMetrics, apiKeys, linkedProviders, profileComplete]);
 
+  // Show loading state during initial load
+  if (isInitialLoading) {
+    return <LoadingState message="Loading overview..." />;
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Welcome Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-md border border-neutral-800/50 rounded-xl p-8"
-      >
-        <div className="flex items-center gap-6">
-          {" "}
-          <div className="relative">
-            <img
-              src={
-                authUser?.profileImage ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  authUser?.username || "User"
-                )}&background=4F46E5&color=ffffff&size=120`
-              }
-              alt="Profile"
-              className="w-24 h-24 rounded-full border-4 border-white/20"
-            />
-            <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full border-4 border-neutral-900"></div>
-          </div>
-          <div className="flex-1">
-            <h2 className="text-3xl font-bold text-white mb-1">
-              Welcome back,{" "}
-              {authUser?.firstName || authUser?.username || "Developer"}!
-            </h2>
-            <p className="text-blue-200 mb-2">
-              {authUser?.email || "user@example.com"}
-            </p>{" "}
-            <p className="text-white/80">
-              {authUser?.bio ||
-                "Full-stack developer passionate about DevOps and automation."}
-            </p>
-            <div className="flex items-center gap-4 mt-4 text-sm text-white/60">
-              <div className="flex items-center gap-1">
-                <FaCalendarAlt />
-                Member since{" "}
-                {new Date(authUser?.createdAt || Date.now()).toLocaleDateString(
-                  "en-US",
-                  { month: "long", year: "numeric" }
-                )}
-              </div>{" "}
-              <div className="flex items-center gap-1">
-                <FaRocket />
-                {dashboardStats?.projects || 0} Projects
+    <ProfileErrorBoundary fallbackMessage="Failed to load overview">
+      <div className="space-y-6">
+        {/* Welcome Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-md border border-neutral-800/50 rounded-xl p-8"
+        >
+          <div className="flex items-center gap-6">
+            {" "}
+            <div className="relative">
+              <img
+                src={
+                  authUser?.profileImage ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    authUser?.username || "User"
+                  )}&background=4F46E5&color=ffffff&size=120`
+                }
+                alt="Profile"
+                className="w-24 h-24 rounded-full border-4 border-white/20"
+              />
+              <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full border-4 border-neutral-900"></div>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold text-white mb-1">
+                Welcome back,{" "}
+                {authUser?.firstName || authUser?.username || "Developer"}!
+              </h2>
+              <p className="text-blue-200 mb-2">
+                {authUser?.email || "user@example.com"}
+              </p>{" "}
+              <p className="text-white/80">
+                {authUser?.bio ||
+                  "Full-stack developer passionate about DevOps and automation."}
+              </p>
+              <div className="flex items-center gap-4 mt-4 text-sm text-white/60">
+                <div className="flex items-center gap-1">
+                  <FaCalendarAlt />
+                  Member since{" "}
+                  {new Date(
+                    authUser?.createdAt || Date.now()
+                  ).toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </div>{" "}
+                <div className="flex items-center gap-1">
+                  <FaRocket />
+                  {dashboardStats?.projects || 0} Projects
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </motion.div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Security Score</p>
-              <p className="text-2xl font-bold text-white">{securityScore}%</p>
-            </div>
-            <div
-              className={`p-3 rounded-full ${getSecurityScoreColor(
-                securityScore
-              )}`}
-            >
-              <FaShieldAlt className="text-xl" />
-            </div>
-          </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
-        >
-          <div className="flex items-center justify-between">
-            {" "}
-            <div>
-              <p className="text-sm text-gray-400">Deployments</p>
-              <p className="text-2xl font-bold text-white">
-                {dashboardStats?.deployments?.total || 0}
-              </p>
-            </div>
-            <FaRocket className="text-2xl text-blue-400" />
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="text-green-400">
-              {dashboardStats?.deployments?.successful || 0} successful
-            </span>
-            <span className="text-red-400">
-              {dashboardStats?.deployments?.failed || 0} failed
-            </span>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Activity (7d)</p>
-              <p className="text-2xl font-bold text-white">
-                {activityMetrics?.totalThisWeek || 0}
-              </p>
-            </div>
-            <FaChartLine className="text-2xl text-purple-400" />
-          </div>
-          {activityMetrics && (
-            <div className="mt-2 text-xs text-gray-400">
-              Avg {activityMetrics.avgDaily}/day
-            </div>
-          )}
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
-        >
-          <div className="flex items-center justify-between">
-            {" "}
-            <div>
-              <p className="text-sm text-gray-400">Uptime</p>
-              <p className="text-2xl font-bold text-white">
-                {dashboardStats?.uptime || "99.9%"}
-              </p>
-            </div>
-            <FaServer className="text-2xl text-green-400" />
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
-      >
-        <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>{" "}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {quickActions.map((action) => (
-            <Link
-              key={action.label}
-              to={action.href}
-              className="flex flex-col items-center gap-3 p-4 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors group"
-            >
-              <div
-                className={`p-3 rounded-full ${action.color} group-hover:scale-110 transition-transform`}
-              >
-                <action.icon className="w-5 h-5" />
-              </div>
-              <span className="text-sm text-white group-hover:text-blue-400 transition-colors">
-                {action.label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </motion.div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recommendations */}
-        {recommendations.length > 0 && (
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+            transition={{ delay: 0.1 }}
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
           >
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Recommendations
-            </h3>
-            <div className="space-y-4">
-              {recommendations.map((rec, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg border ${
-                    rec.priority === "high"
-                      ? "border-red-500/30 bg-red-500/10"
-                      : "border-yellow-500/30 bg-yellow-500/10"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`p-2 rounded-full ${
-                        rec.priority === "high"
-                          ? "bg-red-500/20 text-red-400"
-                          : "bg-yellow-500/20 text-yellow-400"
-                      }`}
-                    >
-                      <rec.icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-white mb-1">
-                        {rec.title}
-                      </h4>{" "}
-                      <p className="text-sm text-gray-400 mb-3">
-                        {rec.description}
-                      </p>
-                      <Link
-                        to={rec.href}
-                        className={`inline-flex items-center gap-2 px-3 py-1 text-sm rounded-lg transition-colors ${
-                          rec.priority === "high"
-                            ? "bg-red-600 text-white hover:bg-red-700"
-                            : "bg-yellow-600 text-white hover:bg-yellow-700"
-                        }`}
-                      >
-                        {rec.action}
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Security Score</p>
+                <p className="text-2xl font-bold text-white">
+                  {securityScore}%
+                </p>
+              </div>
+              <div
+                className={`p-3 rounded-full ${getSecurityScoreColor(
+                  securityScore
+                )}`}
+              >
+                <FaShieldAlt className="text-xl" />
+              </div>
             </div>
           </motion.div>
-        )}
 
-        {/* Recent Activity */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
+          >
+            <div className="flex items-center justify-between">
+              {" "}
+              <div>
+                <p className="text-sm text-gray-400">Deployments</p>
+                <p className="text-2xl font-bold text-white">
+                  {dashboardStats?.deployments?.total || 0}
+                </p>
+              </div>
+              <FaRocket className="text-2xl text-blue-400" />
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              <span className="text-green-400">
+                {dashboardStats?.deployments?.successful || 0} successful
+              </span>
+              <span className="text-red-400">
+                {dashboardStats?.deployments?.failed || 0} failed
+              </span>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Activity (7d)</p>
+                <p className="text-2xl font-bold text-white">
+                  {activityMetrics?.totalThisWeek || 0}
+                </p>
+              </div>
+              <FaChartLine className="text-2xl text-purple-400" />
+            </div>
+            {activityMetrics && (
+              <div className="mt-2 text-xs text-gray-400">
+                Avg {activityMetrics.avgDaily}/day
+              </div>
+            )}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-6 rounded-xl"
+          >
+            <div className="flex items-center justify-between">
+              {" "}
+              <div>
+                <p className="text-sm text-gray-400">Uptime</p>
+                <p className="text-2xl font-bold text-white">
+                  {dashboardStats?.uptime || "99.9%"}
+                </p>
+              </div>
+              <FaServer className="text-2xl text-green-400" />
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: 0.5 }}
           className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">
-              Recent Activity
-            </h3>{" "}
-            <Link
-              to="/dashboard/profile?tab=activity"
-              className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              View All
-            </Link>
-          </div>{" "}
-          <div className="space-y-3">
-            {(activities || []).length > 0 ? (
-              (activities || []).slice(0, 5).map((activity, index) => (
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Quick Actions
+          </h3>{" "}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {quickActions.map((action) => (
+              <Link
+                key={action.label}
+                to={action.href}
+                className="flex flex-col items-center gap-3 p-4 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors group"
+              >
                 <div
-                  key={activity.id || index}
-                  className="flex items-center gap-3 p-3 hover:bg-neutral-800/50 rounded-lg transition-colors"
+                  className={`p-3 rounded-full ${action.color} group-hover:scale-110 transition-transform`}
                 >
-                  <div
-                    className={`p-2 rounded-full ${
-                      activity.type === "security"
-                        ? "bg-red-500/20 text-red-400"
-                        : activity.type === "auth"
-                        ? "bg-blue-500/20 text-blue-400"
-                        : activity.type === "profile"
-                        ? "bg-green-500/20 text-green-400"
-                        : "bg-purple-500/20 text-purple-400"
-                    }`}
-                  >
-                    {activity.type === "security" ? (
-                      <FaShieldAlt className="w-4 h-4" />
-                    ) : activity.type === "auth" ? (
-                      <FaUser className="w-4 h-4" />
-                    ) : (
-                      <FaClock className="w-4 h-4" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-white text-sm">{activity.action}</p>
-                    <p className="text-xs text-gray-400">
-                      {activity.time ||
-                        new Date(activity.timestamp).toLocaleString()}
-                    </p>
-                  </div>
+                  <action.icon className="w-5 h-5" />
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <FaClock className="w-8 h-8 text-gray-500 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm">No recent activity</p>
-                <p className="text-gray-500 text-xs mt-1">
-                  Your account activity will appear here
-                </p>
-              </div>
-            )}
+                <span className="text-sm text-white group-hover:text-blue-400 transition-colors">
+                  {action.label}
+                </span>
+              </Link>
+            ))}
           </div>
         </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recommendations */}
+          {recommendations.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+            >
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Recommendations
+              </h3>
+              <div className="space-y-4">
+                {recommendations.map((rec, index) => (
+                  <div
+                    key={index}
+                    className={`p-4 rounded-lg border ${
+                      rec.priority === "high"
+                        ? "border-red-500/30 bg-red-500/10"
+                        : "border-yellow-500/30 bg-yellow-500/10"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`p-2 rounded-full ${
+                          rec.priority === "high"
+                            ? "bg-red-500/20 text-red-400"
+                            : "bg-yellow-500/20 text-yellow-400"
+                        }`}
+                      >
+                        <rec.icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-white mb-1">
+                          {rec.title}
+                        </h4>{" "}
+                        <p className="text-sm text-gray-400 mb-3">
+                          {rec.description}
+                        </p>
+                        <Link
+                          to={rec.href}
+                          className={`inline-flex items-center gap-2 px-3 py-1 text-sm rounded-lg transition-colors ${
+                            rec.priority === "high"
+                              ? "bg-red-600 text-white hover:bg-red-700"
+                              : "bg-yellow-600 text-white hover:bg-yellow-700"
+                          }`}
+                        >
+                          {rec.action}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Recent Activity */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">
+                Recent Activity
+              </h3>{" "}
+              <Link
+                to="/dashboard/profile?tab=activity"
+                className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                View All
+              </Link>
+            </div>{" "}
+            <div className="space-y-3">
+              {(activities || []).length > 0 ? (
+                (activities || []).slice(0, 5).map((activity, index) => (
+                  <div
+                    key={activity._id || index}
+                    className="flex items-center gap-3 p-3 hover:bg-neutral-800/50 rounded-lg transition-colors"
+                  >
+                    <div
+                      className={`p-2 rounded-full ${
+                        activity.type === "security"
+                          ? "bg-red-500/20 text-red-400"
+                          : activity.type === "auth"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : activity.type === "profile"
+                          ? "bg-green-500/20 text-green-400"
+                          : "bg-purple-500/20 text-purple-400"
+                      }`}
+                    >
+                      {activity.type === "security" ? (
+                        <FaShieldAlt className="w-4 h-4" />
+                      ) : activity.type === "auth" ? (
+                        <FaUser className="w-4 h-4" />
+                      ) : (
+                        <FaClock className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm">{activity.action}</p>
+                      <p className="text-xs text-gray-400">
+                        {activity.time ||
+                          new Date(activity.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <FaClock className="w-8 h-8 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">No recent activity</p>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Your account activity will appear here
+                  </p>
+                </div>
+              )}
+            </div>{" "}
+          </motion.div>
+        </div>
       </div>
-    </div>
+    </ProfileErrorBoundary>
   );
 };
 

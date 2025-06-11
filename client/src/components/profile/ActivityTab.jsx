@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import {
   FaShieldAlt,
   FaUser,
@@ -8,23 +8,34 @@ import {
   FaSignInAlt,
   FaFilter,
 } from "react-icons/fa";
-import { clearActivitiesError } from "@redux/slices/userSlice";
-import toast from "react-hot-toast";
+import { fetchUserActivity } from "@redux/slices/userSlice";
+import LoadingState from "./LoadingState";
+import ProfileErrorBoundary from "./ProfileErrorBoundary";
 
-const ActivityTab = ({ activities = [], loading = false }) => {
+const ActivityTab = () => {
   const dispatch = useDispatch();
-  const { activitiesError } = useSelector((state) => state.user);
+
+  // Get data from Redux state
+  const { activities, loading } = useSelector((state) => state.userProfile);
+  const isLoading = loading?.userActivity || false;
 
   const [filter, setFilter] = useState("all");
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // Remove the data fetching useEffect since data comes from props
-
+  // Load activities data on mount
   useEffect(() => {
-    if (activitiesError) {
-      toast.error(activitiesError);
-      dispatch(clearActivitiesError());
-    }
-  }, [activitiesError, dispatch]);
+    const loadData = async () => {
+      try {
+        await dispatch(fetchUserActivity({ page: 1, limit: 50 }));
+      } catch (error) {
+        console.error("Error loading activities:", error);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    loadData();
+  }, [dispatch]);
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -68,114 +79,117 @@ const ActivityTab = ({ activities = [], loading = false }) => {
       return `${Math.floor(diffInSeconds / 86400)}d ago`;
     return time.toLocaleDateString();
   };
-
   // Filter activities based on selected filter
   const filteredActivities =
     filter === "all"
-      ? activities
-      : activities.filter((activity) => activity.type === filter);
+      ? activities || []
+      : (activities || []).filter((activity) => activity.type === filter);
+
+  // Show loading state during initial load
+  if (isInitialLoading) {
+    return <LoadingState message="Loading activities..." />;
+  }
 
   return (
-    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-xl font-semibold text-white mb-2">
-            Account Activity
-          </h3>
-          <p className="text-gray-400">
-            View your recent account activity and security events.
-          </p>
+    <ProfileErrorBoundary fallbackMessage="Failed to load activities">
+      <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Account Activity
+            </h3>
+            <p className="text-gray-400">
+              View your recent account activity and security events.
+            </p>
+          </div>
         </div>
-      </div>
-
-      {/* Filter */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <FaFilter className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-400">Filter:</span>
-        </div>
-        <div className="flex gap-2">
-          {[
-            { value: "all", label: "All" },
-            { value: "auth", label: "Authentication" },
-            { value: "security", label: "Security" },
-            { value: "profile", label: "Profile" },
-            { value: "system", label: "System" },
-          ].map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setFilter(value)}
-              className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                filter === value
-                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                  : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading && filteredActivities.length === 0 && (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-        </div>
-      )}
-
-      {/* Activities List */}
-      {!loading && filteredActivities.length === 0 ? (
-        <div className="text-center py-12">
-          <FaLock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">No activity found</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredActivities.map((activity, index) => (
-            <div
-              key={`${activity.timestamp}-${index}`}
-              className="flex items-start gap-4 p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 transition-colors"
-            >
+        {/* Filter */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <FaFilter className="w-4 h-4 text-gray-400" />
+            <span className="text-sm text-gray-400">Filter:</span>
+          </div>
+          <div className="flex gap-2">
+            {[
+              { value: "all", label: "All" },
+              { value: "auth", label: "Authentication" },
+              { value: "security", label: "Security" },
+              { value: "profile", label: "Profile" },
+              { value: "system", label: "System" },
+            ].map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setFilter(value)}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  filter === value
+                    ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                    : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>{" "}
+        {/* Loading State */}
+        {isLoading && filteredActivities.length === 0 && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+          </div>
+        )}{" "}
+        {/* Activities List */}
+        {!isLoading && filteredActivities.length === 0 ? (
+          <div className="text-center py-12">
+            <FaLock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-400">No activity found</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredActivities.map((activity, index) => (
               <div
-                className={`p-3 rounded-full border ${getActivityColor(
-                  activity.type
-                )}`}
+                key={`${activity.timestamp}-${index}`}
+                className="flex items-start gap-4 p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 transition-colors"
               >
-                {getActivityIcon(activity.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-white mb-1">
-                  {activity.action}
-                </h4>
-                {activity.details && (
-                  <p className="text-sm text-gray-400 mb-2">
-                    {activity.details}
-                  </p>
-                )}
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span>{formatTimeAgo(activity.timestamp)}</span>
-                  {activity.ip && <span>IP: {activity.ip}</span>}
+                <div
+                  className={`p-3 rounded-full border ${getActivityColor(
+                    activity.type
+                  )}`}
+                >
+                  {getActivityIcon(activity.type)}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-white mb-1">
+                    {activity.action}
+                  </h4>
+                  {activity.details && (
+                    <p className="text-sm text-gray-400 mb-2">
+                      {activity.details}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span>{formatTimeAgo(activity.timestamp)}</span>
+                    {activity.ip && <span>IP: {activity.ip}</span>}
+                  </div>
+                </div>
+                <span
+                  className={`px-3 py-1 text-xs rounded-full border ${getActivityColor(
+                    activity.type
+                  )}`}
+                >
+                  {activity.type}
+                </span>
               </div>
-              <span
-                className={`px-3 py-1 text-xs rounded-full border ${getActivityColor(
-                  activity.type
-                )}`}
-              >
-                {activity.type}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}{" "}
+        {/* Activity Info */}
+        <div className="text-center mt-4 text-sm text-gray-500">
+          Showing {filteredActivities.length} of {(activities || []).length}{" "}
+          activities
         </div>
-      )}
-
-      {/* Activity Info */}
-      <div className="text-center mt-4 text-sm text-gray-500">
-        Showing {filteredActivities.length} of {activities.length} activities
       </div>
-    </div>
+    </ProfileErrorBoundary>
   );
 };
 

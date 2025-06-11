@@ -15,11 +15,13 @@ import { fetchProviders, unlinkProvider } from "@redux/slices/authSlice";
 
 const OAuthAccountsSection = () => {
   const dispatch = useDispatch();
-  const { providers: linkedProviders, providersLoading } = useSelector(
+  const { providers: linkedProviders, loading } = useSelector(
     (state) => state.auth
   );
+  const providersLoading = loading?.providers;
   const [localLoading, setLocalLoading] = useState({});
 
+  // Load providers data on mount
   useEffect(() => {
     dispatch(fetchProviders());
   }, [dispatch]);
@@ -49,12 +51,10 @@ const OAuthAccountsSection = () => {
 
   const handleUnlink = async (providerId) => {
     if (localLoading[providerId]) return;
-
     try {
       setLocalLoading((prev) => ({ ...prev, [providerId]: true }));
       await dispatch(unlinkProvider(providerId)).unwrap();
       toast.success(`${providerId} account unlinked successfully`);
-      dispatch(fetchProviders());
     } catch (error) {
       toast.error(error.message || `Failed to unlink ${providerId} account`);
     } finally {
