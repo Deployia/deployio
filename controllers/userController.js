@@ -1,6 +1,11 @@
 const userService = require("../services/userService");
 const cloudinary = require("../config/cloudinary");
 const stream = require("stream");
+const {
+  getSafeUserData,
+  getSafeApiKeyData,
+  getSafeActivityData,
+} = require("../utils/userDataFilter");
 
 /**
  * Update user profile (including image upload)
@@ -24,10 +29,9 @@ const updateProfile = async (req, res) => {
       profileImageUrl,
       removeProfileImage
     );
-
     res.status(200).json({
       success: true,
-      user: updatedUser,
+      user: getSafeUserData(updatedUser),
     });
   } catch (error) {
     console.error("Update profile error:", error);
@@ -159,10 +163,9 @@ const getProfile = async (req, res) => {
         message: "User not found",
       });
     }
-
     res.status(200).json({
       success: true,
-      user: user,
+      user: getSafeUserData(user),
     });
   } catch (error) {
     console.error("Get profile error:", error);
@@ -258,16 +261,20 @@ const getUserActivity = async (req, res) => {
   try {
     const userId = req.user.id;
     const { page = 1, limit = 20, type } = req.query;
-
     const activities = await userService.getUserActivity(userId, {
       page: parseInt(page),
       limit: parseInt(limit),
       type,
     });
 
+    // Filter activity data for safety
+    const safeActivities = activities.data.map((activity) =>
+      getSafeActivityData(activity)
+    );
+
     res.status(200).json({
       success: true,
-      activities: activities.data,
+      activities: safeActivities,
       pagination: {
         current: activities.page,
         pages: activities.pages,
@@ -340,10 +347,11 @@ const getApiKeys = async (req, res) => {
   try {
     const userId = req.user.id;
     const apiKeys = await userService.getApiKeys(userId);
+    const safeApiKeys = apiKeys.map((key) => getSafeApiKeyData(key));
 
     res.status(200).json({
       success: true,
-      apiKeys,
+      apiKeys: safeApiKeys,
     });
   } catch (error) {
     console.error("Get API keys error:", error);
@@ -368,7 +376,6 @@ const createApiKey = async (req, res) => {
         message: "API key name is required",
       });
     }
-
     const apiKey = await userService.createApiKey(userId, {
       name: name.trim(),
       permissions,
@@ -376,7 +383,7 @@ const createApiKey = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      apiKey,
+      apiKey: getSafeApiKeyData(apiKey),
       message: "API key created successfully",
     });
   } catch (error) {

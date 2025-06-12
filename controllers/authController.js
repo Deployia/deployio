@@ -2,6 +2,11 @@ const authService = require("../services/authService");
 const jwt = require("jsonwebtoken");
 const { storeRefreshToken } = require("../services/authService");
 const User = require("../models/User");
+const {
+  getSafeUserData,
+  getSafeSessionData,
+  getSafeProviderData,
+} = require("../utils/userDataFilter");
 // Determine front-end URL for redirects
 const frontUrl =
   process.env.NODE_ENV === "development"
@@ -46,7 +51,7 @@ const register = async (req, res) => {
     res.status(201).json({
       success: true,
       otpSent: result.otpSent || true,
-      user: result.user,
+      user: getSafeUserData(result.user),
       message:
         result.message ||
         "OTP sent to your email. Please verify to activate your account.",
@@ -123,7 +128,7 @@ const verifyOtp = async (req, res) => {
     });
     res.status(200).json({
       success: true,
-      user: result.user,
+      user: getSafeUserData(result.user),
       sessionId: session._id.toString(),
       message: "Account verified successfully",
     });
@@ -212,7 +217,11 @@ const login = async (req, res) => {
         });
         return res.status(200).json({
           success: true,
-          user: { id: user._id, username: user.username, email: user.email },
+          user: getSafeUserData({
+            id: user._id,
+            username: user.username,
+            email: user.email,
+          }),
           sessionId: session._id.toString(),
         });
       }
@@ -262,7 +271,11 @@ const login = async (req, res) => {
     });
     res.status(200).json({
       success: true,
-      user: { id: user._id, username: user.username, email: user.email },
+      user: getSafeUserData({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+      }),
       sessionId: session._id.toString(),
     });
   } catch (error) {
@@ -389,9 +402,11 @@ const getMe = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Not authenticated" });
-    }
-    // Return user data and current session ID
-    res.status(200).json({ user: req.user, sessionId: req.sessionId });
+    } // Return user data and current session ID
+    res.status(200).json({
+      user: getSafeUserData(req.user),
+      sessionId: req.sessionId,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -626,7 +641,10 @@ const resendOtp = async (req, res) => {
 const getLinkedProviders = async (req, res) => {
   try {
     const providers = await authService.getLinkedProviders(req.user._id);
-    res.status(200).json({ success: true, providers });
+    res.status(200).json({
+      success: true,
+      providers: getSafeProviderData(providers),
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -669,7 +687,11 @@ const unlinkProvider = async (req, res) => {
 const getSessions = async (req, res) => {
   try {
     const sessions = await authService.getSessions(req.user._id);
-    res.status(200).json({ success: true, sessions });
+    const safeSessions = sessions.map((session) => getSafeSessionData(session));
+    res.status(200).json({
+      success: true,
+      sessions: safeSessions,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -768,11 +790,10 @@ const verify2FALogin = async (req, res) => {
       ...cookieOptions,
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
-
     res.status(200).json({
       success: true,
       data: {
-        user: loginResult.user,
+        user: getSafeUserData(loginResult.user),
         method: verificationResult.method,
       },
       message: "2FA verification successful",
