@@ -172,8 +172,8 @@ const MobileSidebar = memo(
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.15, ease: "easeOut" }}
-                            className="mt-2 ml-4 bg-neutral-800/95 backdrop-blur-md border border-neutral-700/50 rounded-xl shadow-2xl overflow-hidden"
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            className="mt-2 ml-4 bg-neutral-800/98 backdrop-blur-md border border-neutral-700/60 rounded-xl shadow-2xl overflow-hidden"
                           >
                             <div className="p-2">
                               {item.items.map((subItem, subIndex) => {
@@ -194,12 +194,13 @@ const MobileSidebar = memo(
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={onClose}
-                                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/60 transition-all duration-150 group"
+                                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/80 transition-all duration-200 group relative overflow-hidden"
                                       >
-                                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg relative z-10">
                                           <Icon className="w-4 h-4 text-white" />
                                         </div>
-                                        <div className="flex-1">
+                                        <div className="flex-1 relative z-10">
                                           <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
                                             {subItem.label}
                                           </div>
@@ -212,12 +213,13 @@ const MobileSidebar = memo(
                                       <Link
                                         to={subItem.href}
                                         onClick={onClose}
-                                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/60 transition-all duration-150 group"
+                                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/80 transition-all duration-200 group relative overflow-hidden"
                                       >
-                                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg relative z-10">
                                           <Icon className="w-4 h-4 text-white" />
                                         </div>
-                                        <div className="flex-1">
+                                        <div className="flex-1 relative z-10">
                                           <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
                                             {subItem.label}
                                           </div>

@@ -1,7 +1,9 @@
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useModal } from "@context/ModalContext.jsx";
+import { useEffect } from "react";
 import SEO from "@components/SEO.jsx";
+import { useScrollToSection } from "@hooks/useScrollToSection";
 import {
   Hero,
   About,
@@ -13,8 +15,29 @@ import {
 
 function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { openModal } = useModal();
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const { scrollToSectionDelayed } = useScrollToSection();
+
+  // Handle cross-page scrolling when navigated from other pages
+  useEffect(() => {
+    // Check if we have a section to scroll to from navigation state
+    if (location.state?.scrollToSection) {
+      const sectionId = location.state.scrollToSection;
+
+      // Use the hook's delayed scroll function
+      const cleanup = scrollToSectionDelayed(sectionId, 100);
+
+      // Clear the state to prevent repeated scrolling on component re-renders
+      window.history.replaceState(
+        { ...location.state, scrollToSection: null },
+        ""
+      );
+
+      return cleanup;
+    }
+  }, [location.state, scrollToSectionDelayed]);
 
   const handleGetStarted = () => {
     if (isAuthenticated) {

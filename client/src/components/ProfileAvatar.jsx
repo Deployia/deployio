@@ -23,28 +23,28 @@ const ProfileAvatar = memo(
   }) => {
     const profileMenuItems = [
       {
-        label: "Profile",
-        href: "/dashboard/profile",
+        label: "Overview",
+        href: "/dashboard/profile?tab=overview",
         icon: FaUser,
-        description: "View and edit your profile",
+        description: "View your profile overview",
       },
       {
-        label: "Settings",
-        href: "/dashboard/profile?tab=settings",
+        label: "Profile Settings",
+        href: "/dashboard/profile?tab=profile",
         icon: FaCog,
-        description: "Account settings and preferences",
+        description: "Manage your profile settings",
       },
       {
         label: "Security",
         href: "/dashboard/profile?tab=security",
         icon: FaShieldAlt,
-        description: "Password and 2FA settings",
+        description: "Manage security settings and tokens",
       },
       {
-        label: "Sessions",
-        href: "/dashboard/profile?tab=sessions",
+        label: "Activity",
+        href: "/dashboard/profile?tab=activity",
         icon: FaHistory,
-        description: "Manage active sessions",
+        description: "View your recent activities",
       },
     ];
 
@@ -101,7 +101,6 @@ const ProfileAvatar = memo(
             <FaChevronDown className="w-3 h-3 text-gray-400" />
           </motion.div>
         </motion.button>
-        {/* Dropdown Menu */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -113,7 +112,11 @@ const ProfileAvatar = memo(
             >
               {/* Profile Header */}
               <div className="p-4 border-b border-neutral-700/50">
-                <div className="flex items-center gap-3">
+                <Link
+                  to="/dashboard/profile"
+                  onClick={closeDropdown}
+                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                >
                   <img
                     src={avatarUrl}
                     alt="Profile"
@@ -127,7 +130,7 @@ const ProfileAvatar = memo(
                       {user?.email || "user@example.com"}
                     </p>
                   </div>
-                </div>
+                </Link>
               </div>
 
               {/* Menu Items */}
