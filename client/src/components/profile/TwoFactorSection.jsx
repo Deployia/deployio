@@ -48,124 +48,129 @@ const TwoFactorSection = () => {
       dispatch(clearError());
     }
   }, [error, dispatch]);
-
   const handleSetup2FA = () => {
     dispatch(generate2FASecret());
     setSetupStep("qr-code");
     setShowQRCode(true);
   };
+
+  // Reusable function to create backup codes modal content
+  const createBackupCodesModal = (title, description) => {
+    return (
+      <div className="max-w-lg mx-auto space-y-4">
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <p className="text-xs text-gray-400">{description}</p>
+        </div>
+
+        {/* Compact Backup Codes Display */}
+        <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-4">
+          {backupCodes && backupCodes.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {backupCodes.map((code, index) => (
+                <div
+                  key={index}
+                  className="bg-neutral-900/50 border border-neutral-600 rounded-md p-2 text-center font-mono text-xs text-gray-300"
+                >
+                  {code}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <Spinner size="sm" />
+              <p className="text-gray-400 mt-2 text-xs">
+                Generating backup codes...
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Compact Action Buttons */}
+        <div className="flex gap-2 justify-center">
+          <button
+            onClick={async () => {
+              try {
+                const codesText = [
+                  "DeployIO Backup Codes",
+                  "========================",
+                  "",
+                  "These are your backup codes for two-factor authentication.",
+                  "Each code can only be used once.",
+                  "Store them in a safe place!",
+                  "",
+                  ...backupCodes,
+                  "",
+                  `Generated on: ${new Date().toLocaleString()}`,
+                ].join("\n");
+
+                const blob = new Blob([codesText], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "deployio-backup-codes.txt";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                toast.success("Backup codes downloaded");
+              } catch {
+                toast.error("Failed to download backup codes");
+              }
+            }}
+            className="flex-1 min-h-[36px] px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
+          >
+            <FiDownload className="h-3 w-3 flex-shrink-0" />
+            <span>Download</span>
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const codesText = backupCodes.join("\n");
+                await navigator.clipboard.writeText(codesText);
+                toast.success("Backup codes copied to clipboard");
+              } catch {
+                toast.error("Failed to copy backup codes");
+              }
+            }}
+            className="flex-1 min-h-[36px] px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
+          >
+            <FiCopy className="h-3 w-3 flex-shrink-0" />
+            <span>Copy</span>
+          </button>
+          <button
+            onClick={closeModal}
+            className="flex-1 min-h-[36px] px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-colors duration-200"
+          >
+            Done
+          </button>
+        </div>
+
+        {/* Compact Warning */}
+        <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3">
+          <div className="flex items-start space-x-2">
+            <FiAlertTriangle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-yellow-300">
+              <p className="font-medium">Important:</p>
+              <p>Each code can only be used once. Store them securely!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handle2FAEnabled = () => {
     setSetupStep("instructions");
     setShowQRCode(false);
     dispatch(clearQRCode());
-    toast.success("2FA enabled successfully!"); // Show backup codes in a modal after enabling 2FA
+    toast.success("2FA enabled successfully!");
+
+    // Show backup codes in a modal after enabling 2FA
     setTimeout(() => {
-      const backupCodesContent = (
-        <div className="max-w-lg mx-auto space-y-4">
-          <div className="text-center space-y-2">
-            <h3 className="text-lg font-semibold text-white">
-              Save Your Backup Codes
-            </h3>
-            <p className="text-xs text-gray-400">
-              Save these backup codes in a secure location. You can use them to
-              access your account if you lose access to your authenticator app.
-            </p>
-          </div>
-
-          {/* Compact Backup Codes Display */}
-          <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-4">
-            {backupCodes && backupCodes.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
-                {backupCodes.map((code, index) => (
-                  <div
-                    key={index}
-                    className="bg-neutral-900/50 border border-neutral-600 rounded-md p-2 text-center font-mono text-xs text-gray-300"
-                  >
-                    {code}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <Spinner size="sm" />
-                <p className="text-gray-400 mt-2 text-xs">
-                  Loading backup codes...
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Compact Action Buttons */}
-          <div className="flex gap-2 justify-center">
-            <button
-              onClick={async () => {
-                try {
-                  const codesText = [
-                    "DeployIO Backup Codes",
-                    "========================",
-                    "",
-                    "These are your backup codes for two-factor authentication.",
-                    "Each code can only be used once.",
-                    "Store them in a safe place!",
-                    "",
-                    ...backupCodes,
-                    "",
-                    `Generated on: ${new Date().toLocaleString()}`,
-                  ].join("\n");
-
-                  const blob = new Blob([codesText], { type: "text/plain" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "deployio-backup-codes.txt";
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  toast.success("Backup codes downloaded");
-                } catch {
-                  toast.error("Failed to download backup codes");
-                }
-              }}
-              className="flex-1 min-h-[36px] px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
-            >
-              <FiDownload className="h-3 w-3 flex-shrink-0" />
-              <span>Download</span>
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  const codesText = backupCodes.join("\n");
-                  await navigator.clipboard.writeText(codesText);
-                  toast.success("Backup codes copied to clipboard");
-                } catch {
-                  toast.error("Failed to copy backup codes");
-                }
-              }}
-              className="flex-1 min-h-[36px] px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
-            >
-              <FiCopy className="h-3 w-3 flex-shrink-0" />
-              <span>Copy</span>
-            </button>
-            <button
-              onClick={closeModal}
-              className="flex-1 min-h-[36px] px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-colors duration-200"
-            >
-              Done
-            </button>
-          </div>
-
-          {/* Compact Warning */}
-          <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3">
-            <div className="flex items-start space-x-2">
-              <FiAlertTriangle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-yellow-300">
-                <p className="font-medium">Important:</p>
-                <p>Each code can only be used once. Store them securely!</p>
-              </div>
-            </div>
-          </div>
-        </div>
+      const backupCodesContent = createBackupCodesModal(
+        "Save Your Backup Codes",
+        "Save these backup codes in a secure location. You can use them to access your account if you lose access to your authenticator app."
       );
       openModal(backupCodesContent);
     }, 100);
@@ -202,118 +207,13 @@ const TwoFactorSection = () => {
         onConfirm={async (password) => {
           await dispatch(generateNewBackupCodes(password)).unwrap();
           toast.success("New backup codes generated");
-          closeModal(); // Show the new backup codes in a modal after a brief delay
+          closeModal();
+
+          // Show the new backup codes in a modal after a brief delay
           setTimeout(() => {
-            const backupCodesContent = (
-              <div className="max-w-lg mx-auto space-y-4">
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold text-white">
-                    New Backup Codes Generated
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    Your old backup codes have been invalidated. Save these new
-                    codes in a secure location.
-                  </p>
-                </div>
-
-                {/* Compact Backup Codes Display */}
-                <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-4">
-                  {backupCodes && backupCodes.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {backupCodes.map((code, index) => (
-                        <div
-                          key={index}
-                          className="bg-neutral-900/50 border border-neutral-600 rounded-md p-2 text-center font-mono text-xs text-gray-300"
-                        >
-                          {code}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <Spinner size="sm" />
-                      <p className="text-gray-400 mt-2 text-xs">
-                        Loading backup codes...
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Compact Action Buttons */}
-                <div className="flex gap-2 justify-center">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const codesText = [
-                          "DeployIO Backup Codes",
-                          "========================",
-                          "",
-                          "These are your backup codes for two-factor authentication.",
-                          "Each code can only be used once.",
-                          "Store them in a safe place!",
-                          "",
-                          ...backupCodes,
-                          "",
-                          `Generated on: ${new Date().toLocaleString()}`,
-                        ].join("\n");
-
-                        const blob = new Blob([codesText], {
-                          type: "text/plain",
-                        });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "deployio-backup-codes.txt";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        toast.success("Backup codes downloaded");
-                      } catch {
-                        toast.error("Failed to download backup codes");
-                      }
-                    }}
-                    className="flex-1 min-h-[36px] px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
-                  >
-                    <FiDownload className="h-3 w-3 flex-shrink-0" />
-                    <span>Download</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const codesText = backupCodes.join("\n");
-                        await navigator.clipboard.writeText(codesText);
-                        toast.success("Backup codes copied to clipboard");
-                      } catch {
-                        toast.error("Failed to copy backup codes");
-                      }
-                    }}
-                    className="flex-1 min-h-[36px] px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500/20 flex items-center justify-center gap-2 transition-colors duration-200"
-                  >
-                    <FiCopy className="h-3 w-3 flex-shrink-0" />
-                    <span>Copy</span>
-                  </button>
-                  <button
-                    onClick={closeModal}
-                    className="flex-1 min-h-[36px] px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-colors duration-200"
-                  >
-                    Done
-                  </button>
-                </div>
-
-                {/* Compact Warning */}
-                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3">
-                  <div className="flex items-start space-x-2">
-                    <FiAlertTriangle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-yellow-300">
-                      <p className="font-medium">Important:</p>
-                      <p>
-                        Each code can only be used once. Store them securely!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            const backupCodesContent = createBackupCodesModal(
+              "New Backup Codes Generated",
+              "Your old backup codes have been invalidated. Save these new codes in a secure location."
             );
             openModal(backupCodesContent);
           }, 100);

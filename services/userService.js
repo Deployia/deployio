@@ -70,18 +70,52 @@ const getNotificationPreferences = async (userId) => {
 const updateNotificationPreferences = async (userId, preferences) => {
   // Validate preferences object
   const allowedPreferences = [
+    // Basic delivery methods
+    "email",
+    "inApp",
+    "push",
+
+    // Legacy preferences (maintain backward compatibility)
     "deployments",
     "security",
     "marketing",
     "updates",
-    "email",
-    "inApp",
+
+    // Deployment notifications
+    "deploymentSuccess",
+    "deploymentFailure",
+    "deploymentStarted",
+
+    // Security & Account notifications
+    "securityAlerts",
+    "accountChanges",
+    "newDeviceLogin",
+
+    // Communication notifications
+    "productUpdates",
+    "tips",
+
+    // Complex nested objects
+    "quietHours",
+    "digestSettings",
   ];
+
   const updateData = {};
 
   for (const [key, value] of Object.entries(preferences)) {
-    if (allowedPreferences.includes(key) && typeof value === "boolean") {
-      updateData[`notificationPreferences.${key}`] = value;
+    if (allowedPreferences.includes(key)) {
+      if (typeof value === "boolean") {
+        // Simple boolean preferences
+        updateData[`notificationPreferences.${key}`] = value;
+      } else if (typeof value === "object" && value !== null) {
+        // Handle nested objects like quietHours and digestSettings
+        if (key === "quietHours" || key === "digestSettings") {
+          for (const [nestedKey, nestedValue] of Object.entries(value)) {
+            updateData[`notificationPreferences.${key}.${nestedKey}`] =
+              nestedValue;
+          }
+        }
+      }
     }
   }
 

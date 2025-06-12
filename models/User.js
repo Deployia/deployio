@@ -122,9 +122,23 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "admin", "moderator"],
       default: "user",
-    },
-    // Notification preferences
+    }, // Notification preferences
     notificationPreferences: {
+      // Basic delivery methods
+      email: {
+        type: Boolean,
+        default: true,
+      },
+      inApp: {
+        type: Boolean,
+        default: true,
+      },
+      push: {
+        type: Boolean,
+        default: false,
+      },
+
+      // Legacy preferences (maintain backward compatibility)
       deployments: {
         type: Boolean,
         default: true,
@@ -141,13 +155,89 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
       },
-      email: {
+
+      // Deployment notifications
+      deploymentSuccess: {
         type: Boolean,
         default: true,
       },
-      inApp: {
+      deploymentFailure: {
         type: Boolean,
         default: true,
+      },
+      deploymentStarted: {
+        type: Boolean,
+        default: true,
+      },
+
+      // Security & Account notifications
+      securityAlerts: {
+        type: Boolean,
+        default: true,
+      },
+      accountChanges: {
+        type: Boolean,
+        default: true,
+      },
+      newDeviceLogin: {
+        type: Boolean,
+        default: true,
+      },
+
+      // Communication notifications
+      productUpdates: {
+        type: Boolean,
+        default: true,
+      },
+      tips: {
+        type: Boolean,
+        default: false,
+      },
+
+      // Quiet hours settings
+      quietHours: {
+        enabled: {
+          type: Boolean,
+          default: false,
+        },
+        startTime: {
+          type: String,
+          default: "22:00",
+        },
+        endTime: {
+          type: String,
+          default: "08:00",
+        },
+      },
+
+      // Digest settings
+      digestSettings: {
+        enabled: {
+          type: Boolean,
+          default: false,
+        },
+        frequency: {
+          type: String,
+          enum: ["daily", "weekly", "monthly"],
+          default: "weekly",
+        },
+        day: {
+          type: String,
+          enum: [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+          ],
+          default: "monday",
+        },
+        time: {
+          type: String,
+          default: "09:00",
+        },
       },
     },
     // Track user sessions for multi-session management

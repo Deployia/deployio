@@ -14,16 +14,30 @@ export const store = configureStore({
   reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      // Performance optimizations
+      // Performance optimizations - reduce checks that cause violations
       serializableCheck: {
         ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
         ignoredActionsPaths: ["meta.arg", "payload.timestamp"],
         ignoredPaths: ["items.dates"],
+        // Reduce serialization check frequency to improve performance
+        warnAfter: 128,
       },
-      // Improve performance by reducing immutable checks in production
-      immutableCheck: import.meta.env.MODE !== "production",
+      // Disable immutable checks entirely in development to reduce violations
+      immutableCheck: false,
+      // Reduce action creator check frequency
+      actionCreatorCheck:
+        import.meta.env.MODE === "production"
+          ? false
+          : {
+              warnAfter: 128,
+            },
     }),
-  devTools: import.meta.env.MODE !== "production",
+  devTools: import.meta.env.MODE !== "production" && {
+    // Limit Redux DevTools features to reduce performance impact
+    maxAge: 50,
+    trace: false,
+    traceLimit: 25,
+  },
 });
 
 export default store;
