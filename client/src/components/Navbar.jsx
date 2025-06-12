@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileAvatar from "./ProfileAvatar";
 import MobileSidebar from "./MobileSidebar";
+import { useScrollToSection as useScrollHook } from "@hooks/useScrollToSection";
 
 // Home page navigation structure
 const homeNavigationItems = [
@@ -283,24 +284,39 @@ const Navbar = memo(() => {
         toast.error(error);
       });
   }, [dispatch, navigate]);
-  // Smooth scroll to section
+
+  const { scrollToSection: hookScrollToSection } = useScrollHook();
+
+  // Enhanced smooth scroll to section with cross-page navigation
   const scrollToSection = useCallback(
     (sectionId) => {
-      const element = document.querySelector(sectionId);
-      if (element) {
-        element.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }
-      // Clear any existing timeout
+      // Clear dropdown immediately
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
         setHoverTimeout(null);
       }
       setOpenDropdown(null);
+
+      // Use the hook for consistent cross-page navigation
+      hookScrollToSection(sectionId);
     },
-    [hoverTimeout]
+    [hoverTimeout, hookScrollToSection]
+  );
+
+  // Handler for logo click - scroll to top if on home page, otherwise navigate to home
+  const handleLogoClick = useCallback(
+    (e) => {
+      if (location.pathname === "/") {
+        // If on home page, prevent navigation and scroll to top
+        e.preventDefault();
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      }
+      // If not on home page, let the Link handle navigation normally
+    },
+    [location.pathname]
   );
 
   const toggleDropdown = useCallback((dropdownId) => {
@@ -319,12 +335,20 @@ const Navbar = memo(() => {
     [hoverTimeout]
   );
   const closeDropdown = useCallback(() => {
-    // Add a small delay before closing to allow smooth transitions
+    // Add a longer delay before closing to improve UX
     const timeout = setTimeout(() => {
       setOpenDropdown(null);
-    }, 100);
+    }, 300);
     setHoverTimeout(timeout);
   }, []);
+
+  const keepDropdownOpen = useCallback(() => {
+    // Clear timeout when hovering over dropdown content
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+  }, [hoverTimeout]);
   // Disable logout button while logout is processing
   const isLoggingOut = loading && loading.logout;
 
@@ -341,7 +365,11 @@ const Navbar = memo(() => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             {/* Logo */}{" "}
-            <Link to="/" className="flex items-center gap-3 group">
+            <Link
+              to="/"
+              className="flex items-center gap-3 group"
+              onClick={handleLogoClick}
+            >
               <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
                 <img src="/favicon.png" alt="Deployio Logo" />
               </div>
@@ -384,7 +412,9 @@ const Navbar = memo(() => {
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
                           transition={{ duration: 0.15, ease: "easeOut" }}
-                          className={`absolute top-full mt-2 w-80 bg-neutral-800/90 backdrop-blur-lg border border-neutral-700/30 rounded-xl shadow-2xl overflow-hidden z-50 ${
+                          onMouseEnter={keepDropdownOpen}
+                          onMouseLeave={closeDropdown}
+                          className={`absolute top-full mt-2 w-80 bg-neutral-800/95 backdrop-blur-lg border border-neutral-700/50 rounded-xl shadow-2xl overflow-hidden z-50 ${
                             item.id === "downloads" ? "right-0" : "left-0"
                           }`}
                         >
@@ -407,12 +437,13 @@ const Navbar = memo(() => {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={closeDropdown}
-                                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/60 transition-all duration-150 group"
+                                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/80 transition-all duration-200 group relative overflow-hidden"
                                     >
-                                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg relative z-10">
                                         <Icon className="w-4 h-4 text-white" />
                                       </div>
-                                      <div className="flex-1">
+                                      <div className="flex-1 relative z-10">
                                         <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
                                           {subItem.label}
                                         </div>
@@ -425,12 +456,13 @@ const Navbar = memo(() => {
                                     <Link
                                       to={subItem.href}
                                       onClick={closeDropdown}
-                                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/60 transition-all duration-150 group"
+                                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/80 transition-all duration-200 group relative overflow-hidden"
                                     >
-                                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg relative z-10">
                                         <Icon className="w-4 h-4 text-white" />
                                       </div>
-                                      <div className="flex-1">
+                                      <div className="flex-1 relative z-10">
                                         <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
                                           {subItem.label}
                                         </div>
