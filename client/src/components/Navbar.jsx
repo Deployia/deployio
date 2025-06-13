@@ -355,13 +355,19 @@ const Navbar = memo(() => {
   const openMobileSidebar = useCallback(() => {
     setIsMobileSidebarOpen(true);
   }, []);
-
   const closeMobileSidebar = useCallback(() => {
     setIsMobileSidebarOpen(false);
   }, []);
+
+  // Determine navbar positioning based on current route
+  const isHomePage = location.pathname === "/";
+  const positionClass = isHomePage ? "fixed" : "sticky";
+
   return (
     <>
-      <header className="bg-neutral-900/70 backdrop-blur-lg border-b border-neutral-800/30 sticky top-0 z-50 body shadow-xl">
+      <header
+        className={`bg-neutral-900/70 backdrop-blur-lg border-b border-neutral-800/30 ${positionClass} top-0 z-50 body shadow-xl w-full`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             {/* Logo */}{" "}
