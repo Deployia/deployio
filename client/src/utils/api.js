@@ -13,37 +13,37 @@ const api = axios.create({
   timeout: 10000, // 10 second timeout
 });
 
-// Cache interceptor for GET requests
-api.interceptors.request.use((config) => {
-  // Only cache GET requests that don't contain sensitive data
-  if (
-    config.method === "get" &&
-    !config.url.includes("/me") &&
-    !config.url.includes("/sessions")
-  ) {
-    const cacheKey = `${config.method}:${config.url}:${JSON.stringify(
-      config.params
-    )}`;
-    const cachedResponse = cache.get(cacheKey);
+// // Cache interceptor for GET requests
+// api.interceptors.request.use((config) => {
+//   // Only cache GET requests that don't contain sensitive data
+//   if (
+//     config.method === "get" &&
+//     !config.url.includes("/me") &&
+//     !config.url.includes("/sessions")
+//   ) {
+//     const cacheKey = `${config.method}:${config.url}:${JSON.stringify(
+//       config.params
+//     )}`;
+//     const cachedResponse = cache.get(cacheKey);
 
-    if (
-      cachedResponse &&
-      Date.now() - cachedResponse.timestamp < CACHE_DURATION
-    ) {
-      // Return cached response
-      config.adapter = () =>
-        Promise.resolve({
-          data: cachedResponse.data,
-          status: 200,
-          statusText: "OK",
-          headers: {},
-          config,
-        });
-    }
-  }
+//     if (
+//       cachedResponse &&
+//       Date.now() - cachedResponse.timestamp < CACHE_DURATION
+//     ) {
+//       // Return cached response
+//       config.adapter = () =>
+//         Promise.resolve({
+//           data: cachedResponse.data,
+//           status: 200,
+//           statusText: "OK",
+//           headers: {},
+//           config,
+//         });
+//     }
+//   }
 
-  return config;
-});
+//   return config;
+// });
 
 // Automatically attempt token refresh on 401 responses
 api.interceptors.response.use(
