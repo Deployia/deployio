@@ -8,6 +8,15 @@ dotenv.config();
 const connectDB = require("./config/database");
 connectDB();
 
+// Redis connection
+const connectRedis = require("./config/redis"); // Import new Redis config
+let redisClient;
+
+(async () => {
+  redisClient = await connectRedis();
+  app.set("redisClient", redisClient); // Set redisClient in app context after connection
+})();
+
 const app = require("./app");
 
 // Start server

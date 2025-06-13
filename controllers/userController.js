@@ -16,6 +16,8 @@ const updateProfile = async (req, res) => {
     const updateData = req.body;
     let profileImageUrl = undefined;
     const removeProfileImage = req.body.removeProfileImage === "true";
+    const redisClient = req.app.get("redisClient"); // Get redisClient from app context
+    const cacheKey = `user:${userId}`;
 
     // Handle file upload if present
     if (req.file) {
@@ -29,6 +31,10 @@ const updateProfile = async (req, res) => {
       profileImageUrl,
       removeProfileImage
     );
+
+    // Invalidate cache after successful update
+    await redisClient.del(cacheKey);
+
     res.status(200).json({
       success: true,
       user: getSafeUserData(updatedUser),
@@ -48,6 +54,8 @@ const updateProfile = async (req, res) => {
 const updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
+    const redisClient = req.app.get("redisClient"); // Get redisClient from app context
+    const cacheKey = `user:${req.user.id}`;
 
     // Validate required fields
     if (!currentPassword || !newPassword) {
@@ -63,6 +71,9 @@ const updatePassword = async (req, res) => {
       currentPassword,
       newPassword
     );
+
+    // Invalidate cache after successful password update
+    await redisClient.del(cacheKey);
 
     res.status(200).json({
       success: true,
