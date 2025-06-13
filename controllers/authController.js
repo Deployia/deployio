@@ -844,10 +844,11 @@ const verify2FALogin = async (req, res) => {
         success: false,
         message: verificationResult.error || "Invalid verification code",
       });
-    }
-
-    // Complete login by generating tokens
-    const loginResult = await authService.complete2FALogin(userId);
+    } // Complete login by generating tokens
+    const loginResult = await authService.complete2FALogin(userId, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
 
     // Set cookies (using same names as regular login)
     const cookieOptions = {
@@ -869,6 +870,7 @@ const verify2FALogin = async (req, res) => {
         user: getSafeUserData(loginResult.user),
         method: verificationResult.method,
       },
+      sessionId: loginResult.sessionId,
       message: "2FA verification successful",
     });
   } catch (error) {

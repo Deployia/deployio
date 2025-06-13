@@ -21,6 +21,7 @@ api.interceptors.request.use((config) => {
     config.method === "get" &&
     !config.url.includes("/me") && // Consider if /me should be cached or not based on volatility
     !config.url.includes("/sessions") && // Sessions are likely volatile, good to exclude
+    !config.url.includes("/activity") && // Activities should be fresh to reflect real-time updates
     !config._noCache // Check for the custom _noCache flag
   ) {
     const cacheKey = `${config.method}:${config.url}:${JSON.stringify(
@@ -54,6 +55,7 @@ api.interceptors.response.use(
       response.config.method === "get" &&
       !response.config.url.includes("/me") &&
       !response.config.url.includes("/sessions") &&
+      !response.config.url.includes("/activity") && // Activities should be fresh to reflect real-time updates
       !response.config._noCache && // Only cache if _noCache is not set
       response.status === 200 &&
       !response.headers["x-cached-response"] // Do not re-cache if it was served from cache by the request interceptor
@@ -112,6 +114,17 @@ export const clearApiCache = () => cache.clear();
 export const invalidateCacheEntry = (url, params) => {
   const cacheKey = `get:${url}:${JSON.stringify(params)}`;
   cache.delete(cacheKey);
+};
+
+// Function to clear all cache entries for a URL (regardless of params)
+export const invalidateAllCacheEntriesForUrl = (url) => {
+  const keysToDelete = [];
+  for (const [key] of cache.entries()) {
+    if (key.startsWith(`get:${url}`)) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach((key) => cache.delete(key));
 };
 
 export default api;
