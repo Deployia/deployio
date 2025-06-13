@@ -1,17 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "@utils/api";
+import api, { invalidateCacheEntry } from "@utils/api";
 import { updateProfile } from "./authSlice";
 
 // Fetch notification preferences
 export const fetchNotificationPreferences = createAsyncThunk(
   "userProfile/fetchNotificationPreferences",
-  async (options, thunkAPI) => {
+  async (_, thunkAPI) => {
     try {
-      let url = "/user/notification-preferences";
-      if (options && options.bustCache) {
-        url += `?_cb=${Date.now()}`;
-      }
-      const response = await api.get(url);
+      const response = await api.get("/user/notification-preferences");
       return response.data.preferences;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -30,6 +26,8 @@ export const updateNotificationPreferences = createAsyncThunk(
         "/user/notification-preferences",
         preferences
       );
+      invalidateCacheEntry("/user/notification-preferences", undefined);
+      thunkAPI.dispatch(fetchNotificationPreferences());
       return response.data.preferences;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -42,31 +40,9 @@ export const updateNotificationPreferences = createAsyncThunk(
 // Fetch user activity
 export const fetchUserActivity = createAsyncThunk(
   "userProfile/fetchUserActivity",
-  async (arg, thunkAPI) => {
+  async (params, thunkAPI) => {
     try {
-      let params = {};
-      let useCacheBusting = false;
-
-      if (arg) {
-        // Check if arg is the options object { params, bustCache }
-        if (
-          typeof arg === "object" &&
-          arg !== null &&
-          (Object.prototype.hasOwnProperty.call(arg, "params") ||
-            Object.prototype.hasOwnProperty.call(arg, "bustCache"))
-        ) {
-          params = arg.params || {};
-          useCacheBusting = !!arg.bustCache;
-        } else {
-          // Assume arg is the params object itself
-          params = arg;
-        }
-      }
-
-      const searchParams = new URLSearchParams(params);
-      if (useCacheBusting) {
-        searchParams.append("_cb", Date.now().toString());
-      }
+      const searchParams = new URLSearchParams(params || {});
       const queryParamsString = searchParams.toString();
       const response = await api.get(`/user/activity?${queryParamsString}`);
       return response.data;
@@ -96,13 +72,9 @@ export const logUserActivity = createAsyncThunk(
 // Fetch API keys
 export const fetchApiKeys = createAsyncThunk(
   "userProfile/fetchApiKeys",
-  async (options, thunkAPI) => {
+  async (_, thunkAPI) => {
     try {
-      let url = "/user/api-keys";
-      if (options && options.bustCache) {
-        url += `?_cb=${Date.now()}`;
-      }
-      const response = await api.get(url);
+      const response = await api.get("/user/api-keys");
       return response.data.apiKeys;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -118,6 +90,8 @@ export const createApiKey = createAsyncThunk(
   async (keyData, thunkAPI) => {
     try {
       const response = await api.post("/user/api-keys", keyData);
+      invalidateCacheEntry("/user/api-keys", undefined);
+      thunkAPI.dispatch(fetchApiKeys());
       return response.data.apiKey;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -133,6 +107,8 @@ export const deleteApiKey = createAsyncThunk(
   async (keyId, thunkAPI) => {
     try {
       await api.delete(`/user/api-keys/${keyId}`);
+      invalidateCacheEntry("/user/api-keys", undefined);
+      thunkAPI.dispatch(fetchApiKeys());
       return keyId;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -145,13 +121,9 @@ export const deleteApiKey = createAsyncThunk(
 // Fetch dashboard stats
 export const fetchDashboardStats = createAsyncThunk(
   "userProfile/fetchDashboardStats",
-  async (options, thunkAPI) => {
+  async (_, thunkAPI) => {
     try {
-      let url = "/user/dashboard-stats";
-      if (options && options.bustCache) {
-        url += `?_cb=${Date.now()}`;
-      }
-      const response = await api.get(url);
+      const response = await api.get("/user/dashboard-stats");
       return response.data.stats;
     } catch (error) {
       return thunkAPI.rejectWithValue(
