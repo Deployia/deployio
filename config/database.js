@@ -26,16 +26,15 @@ const connectDB = async () => {
       if (process.env.NODE_ENV === "development") {
         mongoose.set("debug", true);
       }
-
-      console.log(`MongoDB Connected: ${conn.connection.host}`);
+      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
       return conn;
     } catch (error) {
       attempt++;
       console.error(
-        `MongoDB connection attempt ${attempt} failed: ${error.message}`
+        `❌ MongoDB connection attempt ${attempt} failed: ${error.message}`
       );
       if (attempt >= maxRetries) {
-        console.error("Max MongoDB connection retries reached. Exiting.");
+        console.error("💥 Max MongoDB connection retries reached. Exiting.");
         process.exit(1);
       }
       await new Promise((res) => setTimeout(res, 5000));
