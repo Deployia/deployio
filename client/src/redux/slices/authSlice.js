@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "@utils/api";
-import { verify2FALogin, enable2FA, disable2FA } from "./twoFactorSlice";
+import { verify2FALogin, enable2FA, disable2FA } from "./twoFactorSlice"; // Added fetch2FAStatus for completeness if needed later
 
 // Initial State - Focus only on authentication
 const initialState = {
@@ -212,7 +212,7 @@ export const updateProfile = createAsyncThunk(
 // Get current user
 export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
   try {
-    const response = await api.get("/auth/me");
+    const response = await api.get(`/auth/me?_cb=${Date.now()}`); // Added cache-busting parameter
     return response.data;
   } catch (error) {
     const message =
@@ -269,7 +269,7 @@ export const fetchProviders = createAsyncThunk(
   "auth/fetchProviders",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/auth/providers");
+      const response = await api.get(`/auth/providers?_cb=${Date.now()}`); // Added cache-busting parameter
       return response.data.providers;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -284,7 +284,7 @@ export const fetchSessions = createAsyncThunk(
   "auth/fetchSessions",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/auth/sessions");
+      const response = await api.get(`/auth/sessions?_cb=${Date.now()}`); // Added cache-busting parameter
       return response.data.sessions;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -634,6 +634,27 @@ const authSlice = createSlice({
         // Don't reset requires2FA here so the user can try again
       })
 
+      // Listen to 2FA status changes from twoFactorSlice
+      .addCase(enable2FA.fulfilled, (state) => {
+        if (state.user) {
+          state.user.twoFactorEnabled = true;
+        }
+        // Also reset requires2FA flag if user was in pending2FA state during login
+        state.requires2FA = false;
+        state.pending2FAUserId = null;
+      })
+      .addCase(disable2FA.fulfilled, (state) => {
+        if (state.user) {
+          state.user.twoFactorEnabled = false;
+        }
+      })
+      // Potentially handle get2FAStatus.fulfilled if needed to sync on initial load or refresh
+      // .addCase(fetch2FAStatus.fulfilled, (state, action) => {
+      //   if (state.user && action.payload.twoFactorEnabled !== undefined) {
+      //    state.user.twoFactorEnabled = action.payload.twoFactorEnabled;
+      //   }
+      // })
+
       // OAuth providers cases
       .addCase(fetchProviders.pending, (state) => {
         state.loading.providers = true;
@@ -697,21 +718,7 @@ const authSlice = createSlice({
         state.loading.deleteSession = false;
         state.error.deleteSession = action.payload;
         state.success.deleteSession = false;
-      })
-
-      // Listen to 2FA actions to update user state in real-time
-      .addCase(enable2FA.fulfilled, (state) => {
-        // Update user's 2FA status in auth state for real-time UI updates
-        if (state.user) {
-          state.user.twoFactorEnabled = true;
-        }
-      })
-      .addCase(disable2FA.fulfilled, (state) => {
-        // Update user's 2FA status in auth state for real-time UI updates
-        if (state.user) {
-          state.user.twoFactorEnabled = false;
-        }
-      });
+      }); // Ensures the builder chain is correctly terminated if the duplicates were the absolute last items.
   },
 });
 

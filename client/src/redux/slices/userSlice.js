@@ -5,9 +5,13 @@ import { updateProfile } from "./authSlice";
 // Fetch notification preferences
 export const fetchNotificationPreferences = createAsyncThunk(
   "userProfile/fetchNotificationPreferences",
-  async (_, thunkAPI) => {
+  async (options, thunkAPI) => {
     try {
-      const response = await api.get("/user/notification-preferences");
+      let url = "/user/notification-preferences";
+      if (options && options.bustCache) {
+        url += `?_cb=${Date.now()}`;
+      }
+      const response = await api.get(url);
       return response.data.preferences;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -38,10 +42,33 @@ export const updateNotificationPreferences = createAsyncThunk(
 // Fetch user activity
 export const fetchUserActivity = createAsyncThunk(
   "userProfile/fetchUserActivity",
-  async (params, thunkAPI) => {
+  async (arg, thunkAPI) => {
     try {
-      const queryParams = new URLSearchParams(params).toString();
-      const response = await api.get(`/user/activity?${queryParams}`);
+      let params = {};
+      let useCacheBusting = false;
+
+      if (arg) {
+        // Check if arg is the options object { params, bustCache }
+        if (
+          typeof arg === "object" &&
+          arg !== null &&
+          (Object.prototype.hasOwnProperty.call(arg, "params") ||
+            Object.prototype.hasOwnProperty.call(arg, "bustCache"))
+        ) {
+          params = arg.params || {};
+          useCacheBusting = !!arg.bustCache;
+        } else {
+          // Assume arg is the params object itself
+          params = arg;
+        }
+      }
+
+      const searchParams = new URLSearchParams(params);
+      if (useCacheBusting) {
+        searchParams.append("_cb", Date.now().toString());
+      }
+      const queryParamsString = searchParams.toString();
+      const response = await api.get(`/user/activity?${queryParamsString}`);
       return response.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -69,9 +96,13 @@ export const logUserActivity = createAsyncThunk(
 // Fetch API keys
 export const fetchApiKeys = createAsyncThunk(
   "userProfile/fetchApiKeys",
-  async (_, thunkAPI) => {
+  async (options, thunkAPI) => {
     try {
-      const response = await api.get("/user/api-keys");
+      let url = "/user/api-keys";
+      if (options && options.bustCache) {
+        url += `?_cb=${Date.now()}`;
+      }
+      const response = await api.get(url);
       return response.data.apiKeys;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -114,9 +145,13 @@ export const deleteApiKey = createAsyncThunk(
 // Fetch dashboard stats
 export const fetchDashboardStats = createAsyncThunk(
   "userProfile/fetchDashboardStats",
-  async (_, thunkAPI) => {
+  async (options, thunkAPI) => {
     try {
-      const response = await api.get("/user/dashboard-stats");
+      let url = "/user/dashboard-stats";
+      if (options && options.bustCache) {
+        url += `?_cb=${Date.now()}`;
+      }
+      const response = await api.get(url);
       return response.data.stats;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -232,7 +267,8 @@ const userProfileSlice = createSlice({
       .addCase(updateNotificationPreferences.fulfilled, (state, action) => {
         state.loading.updateNotificationPreferences = false;
         state.success.updateNotificationPreferences = true;
-        state.notificationPreferences = action.payload;
+        // Ensure a new object reference for notificationPreferences
+        state.notificationPreferences = { ...action.payload };
       })
       .addCase(updateNotificationPreferences.rejected, (state, action) => {
         state.loading.updateNotificationPreferences = false;
@@ -260,8 +296,19 @@ const userProfileSlice = createSlice({
       })
       .addCase(logUserActivity.fulfilled, (state, action) => {
         state.loading.logActivity = false;
-        // Add new activity to the beginning of the list
-        state.activities.unshift(action.payload);
+        // Add new activity to the beginning of the list, ensuring a new array reference
+        state.activities = [action.payload, ...state.activities];
+        // Optionally, update pagination if the new item affects it
+        if (state.activityPagination) {
+          state.activityPagination = {
+            ...state.activityPagination,
+            total: state.activityPagination.total + 1,
+            // Note: current page and total pages might need more complex logic
+            // if adding an item should shift items across pages.
+            // For simplicity, we're just incrementing total here.
+            // A full refetch might be more robust if pagination accuracy is critical on new log.
+          };
+        }
       })
       .addCase(logUserActivity.rejected, (state, action) => {
         state.loading.logActivity = false;
@@ -290,7 +337,8 @@ const userProfileSlice = createSlice({
       .addCase(createApiKey.fulfilled, (state, action) => {
         state.loading.createApiKey = false;
         state.success.createApiKey = true;
-        state.apiKeys.push(action.payload);
+        // Ensure a new array reference for apiKeys
+        state.apiKeys = [...state.apiKeys, action.payload];
       })
       .addCase(createApiKey.rejected, (state, action) => {
         state.loading.createApiKey = false;
@@ -305,6 +353,7 @@ const userProfileSlice = createSlice({
       .addCase(deleteApiKey.fulfilled, (state, action) => {
         state.loading.deleteApiKey = false;
         state.success.deleteApiKey = true;
+        // Ensure a new array reference for apiKeys after deletion
         state.apiKeys = state.apiKeys.filter(
           (key) => key._id !== action.payload
         );
@@ -330,9 +379,32 @@ const userProfileSlice = createSlice({
 
       // Listen to profile updates from authSlice to keep data in sync
       .addCase(updateProfile.fulfilled, (state) => {
-        // Force refresh of notification preferences and other data when profile is updated
-        // This ensures all user-related data stays in sync
-        state.loading.notificationPreferences = true;
+        // When profile is updated (e.g., authUser changes), reset user-specific data,
+        // errors, and success flags in this slice to ensure a clean state and
+        // encourage components to re-fetch fresh data.
+
+        // Reset data fields to their initial states from initialState
+        state.notificationPreferences = null;
+        state.activities = [];
+        state.activityPagination = null;
+        state.apiKeys = [];
+        state.dashboardStats = null;
+
+        // Reset all error states for this slice
+        Object.keys(state.error).forEach((key) => {
+          state.error[key] = null;
+        });
+
+        // Reset all success states for this slice
+        Object.keys(state.success).forEach((key) => {
+          state.success[key] = false;
+        });
+
+        // Optionally, reset loading states. If components correctly trigger
+        // loading states on re-fetch, this might not be strictly necessary.
+        // Object.keys(state.loading).forEach((key) => {
+        //   state.loading[key] = false;
+        // });
       });
   },
 });
