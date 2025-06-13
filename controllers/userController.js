@@ -2,6 +2,7 @@ const userService = require("../services/userService");
 const cloudinary = require("../config/cloudinary");
 const stream = require("stream");
 const logger = require("../config/logger"); // Import logger
+const { getRedisClient } = require("../config/redisClient");
 const {
   getSafeUserData,
   getSafeApiKeyData,
@@ -12,12 +13,11 @@ const {
  * Update user profile (including image upload)
  */
 const updateProfile = async (req, res) => {
-  try {
-    const userId = req.user.id;
+  try {    const userId = req.user.id;
     const updateData = req.body;
     let profileImageUrl = undefined;
     const removeProfileImage = req.body.removeProfileImage === "true";
-    const redisClient = req.app.get("redisClient"); // Get redisClient from app context
+    const redisClient = getRedisClient(); // Get redisClient from singleton
     const cacheKey = `user:${userId}`;
 
     // Handle file upload if present
@@ -31,10 +31,19 @@ const updateProfile = async (req, res) => {
       updateData,
       profileImageUrl,
       removeProfileImage
-    );
-
-    // Invalidate cache after successful update
-    await redisClient.del(cacheKey);
+    );    // Invalidate cache after successful update (only if Redis is available)
+    if (redisClient && redisClient.isReady) {
+      try {
+        await redisClient.del(cacheKey);
+      } catch (cacheError) {
+        // Log cache error but don't fail the operation
+        logger.warn("Cache invalidation failed", {
+          error: cacheError.message,
+          userId,
+          cacheKey,
+        });
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -58,9 +67,8 @@ const updateProfile = async (req, res) => {
  * Update user password
  */
 const updatePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    const redisClient = req.app.get("redisClient"); // Get redisClient from app context
+  try {    const { currentPassword, newPassword } = req.body;
+    const redisClient = getRedisClient(); // Get redisClient from singleton
     const cacheKey = `user:${req.user.id}`;
 
     // Validate required fields
@@ -75,11 +83,21 @@ const updatePassword = async (req, res) => {
     const result = await userService.updatePassword(
       req.user.id,
       currentPassword,
-      newPassword
-    );
+      newPassword    );
 
-    // Invalidate cache after successful password update
-    await redisClient.del(cacheKey);
+    // Invalidate cache after successful password update (only if Redis is available)
+    if (redisClient && redisClient.isReady) {
+      try {
+        await redisClient.del(cacheKey);
+      } catch (cacheError) {
+        // Log cache error but don't fail the operation
+        logger.warn("Cache invalidation failed after password update", {
+          error: cacheError.message,
+          userId: req.user?.id,
+          cacheKey,
+        });
+      }
+    }
 
     res.status(200).json({
       success: true,

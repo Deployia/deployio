@@ -78,7 +78,7 @@ function VerifyOtp() {
             ? "Account verified successfully! Welcome to DeployIO!"
             : "Account verified and logged in!"
         );
-        navigate("/profile");
+        navigate("/dashboard");
         setIsSubmitting(false);
 
         // Clear verification state if coming from login flow
