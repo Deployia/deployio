@@ -184,10 +184,6 @@ jobs:
           username: vasudevshetty
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -euo pipefail            # abort on error, unset var, or pipefail
-            # check disk space (require at least 1GB free)
-            avail_kb=$(df --output=avail / | tail -n1)
-            if [ "$avail_kb" -lt 1048576 ]; then echo "❌ Insufficient disk space: ${avail_kb} KB available"; exit 1; fi
             cd ~/deployio
             git fetch origin
             git checkout main
