@@ -297,7 +297,6 @@ const userSchema = new mongoose.Schema(
         key: {
           type: String,
           required: true,
-          unique: true,
         },
         keyType: {
           type: String,
@@ -405,6 +404,9 @@ userSchema.methods.createPasswordResetToken = function () {
 userSchema.index({ resetPasswordToken: 1 }, { sparse: true }); // For password reset
 userSchema.index({ createdAt: 1 }); // For sorting/filtering by creation date
 userSchema.index({ isVerified: 1, createdAt: -1 }); // Compound index for verified users
+
+// API Keys sparse unique index - only enforce uniqueness for non-null values
+userSchema.index({ "apiKeys.key": 1 }, { unique: true, sparse: true });
 
 // Text index for search functionality (if needed)
 userSchema.index(

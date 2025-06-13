@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "@utils/api";
+import api, { invalidateCacheEntry } from "@utils/api";
 
 // Initial state
 const initialState = {
@@ -150,14 +150,17 @@ const twoFactorSlice = createSlice({
       .addCase(enable2FA.pending, (state) => {
         state.isEnabling = true;
         state.error = null;
-      })
-      .addCase(enable2FA.fulfilled, (state, action) => {
+      })      .addCase(enable2FA.fulfilled, (state, action) => {
         state.isEnabling = false;
         state.twoFactorEnabled = true;
         state.backupCodes = action.payload.backupCodes;
         state.backupCodesCount = action.payload.backupCodes.length;
         state.qrCode = null;
         state.secret = null;
+        // Invalidate 2FA status cache to ensure fresh data
+        invalidateCacheEntry("/auth/2fa/status", undefined);
+        // Also invalidate user data cache since user object contains 2FA status
+        invalidateCacheEntry("/auth/me", undefined);
       })
       .addCase(enable2FA.rejected, (state, action) => {
         state.isEnabling = false;
@@ -181,12 +184,15 @@ const twoFactorSlice = createSlice({
       .addCase(disable2FA.pending, (state) => {
         state.isDisabling = true;
         state.error = null;
-      })
-      .addCase(disable2FA.fulfilled, (state) => {
+      })      .addCase(disable2FA.fulfilled, (state) => {
         state.isDisabling = false;
         state.twoFactorEnabled = false;
         state.backupCodes = [];
         state.backupCodesCount = 0;
+        // Invalidate 2FA status cache to ensure fresh data
+        invalidateCacheEntry("/auth/2fa/status", undefined);
+        // Also invalidate user data cache since user object contains 2FA status
+        invalidateCacheEntry("/auth/me", undefined);
       })
       .addCase(disable2FA.rejected, (state, action) => {
         state.isDisabling = false;
@@ -212,11 +218,12 @@ const twoFactorSlice = createSlice({
       .addCase(generateNewBackupCodes.pending, (state) => {
         state.isLoading = true;
         state.error = null;
-      })
-      .addCase(generateNewBackupCodes.fulfilled, (state, action) => {
+      })      .addCase(generateNewBackupCodes.fulfilled, (state, action) => {
         state.isLoading = false;
         state.backupCodes = action.payload.backupCodes;
         state.backupCodesCount = action.payload.backupCodes.length;
+        // Invalidate 2FA status cache to ensure fresh backup codes count
+        invalidateCacheEntry("/auth/2fa/status", undefined);
       })
       .addCase(generateNewBackupCodes.rejected, (state, action) => {
         state.isLoading = false;

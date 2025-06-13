@@ -302,11 +302,15 @@ const createApiKey = async (userId, { name, permissions }) => {
   if (existingKey) {
     throw new Error("API key with this name already exists");
   }
-
   // Generate secure API key
   const keyType = permissions.includes("write") ? "live" : "test";
   const keyData = crypto.randomBytes(32).toString("hex");
   const fullKey = `dp_${keyType}_${keyData}`;
+
+  // Validate that the key was generated properly
+  if (!keyData || keyData.trim() === "") {
+    throw new Error("Failed to generate valid API key");
+  }
 
   const newApiKey = {
     name,

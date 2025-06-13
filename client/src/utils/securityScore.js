@@ -98,3 +98,14 @@ export const getSecurityScoreLabel = (score) => {
   if (score >= 40) return "Fair";
   return "Poor";
 };
+
+/**
+ * Get security score bar color classes for progress bars
+ * @param {number} score - Security score (0-100)
+ * @returns {string} CSS classes for progress bar color
+ */
+export const getSecurityScoreBarColor = (score) => {
+  if (score >= 80) return "bg-green-500";
+  if (score >= 60) return "bg-yellow-500";
+  return "bg-red-500";
+};

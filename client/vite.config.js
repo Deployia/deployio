@@ -21,12 +21,38 @@ export default defineConfig(({ mode }) => {
       VITE_APP_FASTAPI_URL: "/service/v1",
     },
   };
-
   // Use environment default if value is not provided
   const currentDefaults =
     defaults[env.VITE_APP_ENV || mode] || defaults.development;
+
+  // CSP configuration based on environment
+  const getCSP = (mode) => {
+    const baseCSP =
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:;";
+
+    if (mode === "development") {
+      // Allow localhost connections in development
+      return baseCSP + " connect-src 'self' http://localhost:* https: wss:;";
+    } else {
+      // Strict HTTPS only in production
+      return baseCSP + " connect-src 'self' https: wss:;";
+    }
+  };
+
+  // Plugin to transform HTML based on environment
+  const cspPlugin = {
+    name: "csp-transform",
+    transformIndexHtml(html) {
+      const csp = getCSP(mode);
+      return html.replace(
+        /content="[^"]*connect-src[^"]*"/,
+        `content="${csp}"`
+      );
+    },
+  };
+
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), cspPlugin],
 
     // Path aliases for cleaner imports
     resolve: {

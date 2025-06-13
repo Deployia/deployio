@@ -30,13 +30,13 @@ const TwoFactorQRCode = ({ qrCode, secret, onSuccess }) => {
       return;
     }
     try {
-      await dispatch(
+      const result = await dispatch(
         enable2FA({
           token: verificationCode,
           secret,
         })
       ).unwrap();
-      onSuccess();
+      onSuccess(result);
     } catch {
       // Error is already handled by Redux slice
     }

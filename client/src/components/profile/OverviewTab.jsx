@@ -21,6 +21,7 @@ import {
 import { fetchProviders } from "@redux/slices/authSlice";
 import LoadingState from "./LoadingState";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
+import { calculateSecurityScore } from "@utils/securityScore";
 
 const OverviewTab = () => {
   const dispatch = useDispatch();
@@ -56,36 +57,14 @@ const OverviewTab = () => {
 
     loadData();
   }, [dispatch]);
-
-  // Calculate security score locally
+  // Calculate security score using utility
   const securityScore = useMemo(() => {
-    let score = 0;
-    if (authUser?.twoFactorEnabled || twoFactorEnabled) score += 40;
-    if (authUser?.email && authUser.emailVerified) score += 20;
-    if (
-      authUser?.lastPasswordChange &&
-      new Date() - new Date(authUser.lastPasswordChange) <
-        90 * 24 * 60 * 60 * 1000
-    ) {
-      score += 20;
-    }
-    if (apiKeys && apiKeys.length > 0) score += 10;
-
-    const profileComplete = (() => {
-      if (!authUser) return false;
-      const requiredFields = ["firstName", "lastName", "email", "bio"];
-      const completedFields = requiredFields.filter(
-        (field) => authUser[field] && authUser[field].trim() !== ""
-      );
-      return completedFields.length >= Math.ceil(requiredFields.length * 0.75);
-    })();
-
-    if (profileComplete) score += 10;
-    const oauthConnections = linkedProviders
-      ? Object.values(linkedProviders).filter(Boolean).length
-      : 0;
-    if (oauthConnections > 0) score += 10;
-    return Math.min(score, 100);
+    return calculateSecurityScore({
+      authUser,
+      twoFactorEnabled,
+      apiKeys,
+      linkedProviders,
+    });
   }, [authUser, apiKeys, linkedProviders, twoFactorEnabled]);
 
   // Calculate profile completion dynamically
@@ -127,8 +106,7 @@ const OverviewTab = () => {
       ).type,
     };
   }, [activities]);
-
-  const getSecurityScoreColor = (score) => {
+  const getSecurityScoreColorClasses = (score) => {
     if (score >= 80) return "text-green-400 bg-green-500/20";
     if (score >= 60) return "text-yellow-400 bg-yellow-500/20";
     return "text-red-400 bg-red-500/20";
@@ -316,9 +294,9 @@ const OverviewTab = () => {
                 <p className="text-2xl font-bold text-white">
                   {securityScore}%
                 </p>
-              </div>
+              </div>{" "}
               <div
-                className={`p-3 rounded-full ${getSecurityScoreColor(
+                className={`p-3 rounded-full ${getSecurityScoreColorClasses(
                   securityScore
                 )}`}
               >

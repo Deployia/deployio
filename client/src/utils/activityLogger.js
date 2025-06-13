@@ -85,13 +85,16 @@ class ActivityLogger {
   notificationSettingsChanged(changes = {}) {
     return this.profile("Notification settings updated", changes);
   }
-
-  apiKeyGenerated() {
-    return this.security("API key generated");
+  apiKeyGenerated(keyName = null) {
+    const details = keyName ? { keyName } : { keyName: "New API Key" };
+    return this.security("API key generated", details);
   }
 
-  apiKeyRevoked(keyId) {
-    return this.security("API key revoked", { keyId });
+  apiKeyRevoked(keyId, keyName = null) {
+    return this.security("API key revoked", {
+      keyId,
+      keyName: keyName || "Unknown Key",
+    });
   }
 
   deploymentCreated(deploymentId, projectId) {

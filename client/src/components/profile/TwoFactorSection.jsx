@@ -53,9 +53,14 @@ const TwoFactorSection = () => {
     setSetupStep("qr-code");
     setShowQRCode(true);
   };
-
   // Reusable function to create backup codes modal content
-  const createBackupCodesModal = (title, description) => {
+  const createBackupCodesModal = (
+    title,
+    description,
+    codesToDisplay = null
+  ) => {
+    const displayCodes = codesToDisplay || backupCodes;
+
     return (
       <div className="max-w-lg mx-auto space-y-4">
         <div className="text-center space-y-2">
@@ -65,9 +70,9 @@ const TwoFactorSection = () => {
 
         {/* Compact Backup Codes Display */}
         <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-4">
-          {backupCodes && backupCodes.length > 0 ? (
+          {displayCodes && displayCodes.length > 0 ? (
             <div className="grid grid-cols-2 gap-2">
-              {backupCodes.map((code, index) => (
+              {displayCodes.map((code, index) => (
                 <div
                   key={index}
                   className="bg-neutral-900/50 border border-neutral-600 rounded-md p-2 text-center font-mono text-xs text-gray-300"
@@ -80,7 +85,7 @@ const TwoFactorSection = () => {
             <div className="text-center py-4">
               <Spinner size="sm" />
               <p className="text-gray-400 mt-2 text-xs">
-                Generating backup codes...
+                Loading backup codes...
               </p>
             </div>
           )}
@@ -99,7 +104,7 @@ const TwoFactorSection = () => {
                   "Each code can only be used once.",
                   "Store them in a safe place!",
                   "",
-                  ...backupCodes,
+                  ...displayCodes,
                   "",
                   `Generated on: ${new Date().toLocaleString()}`,
                 ].join("\n");
@@ -126,7 +131,7 @@ const TwoFactorSection = () => {
           <button
             onClick={async () => {
               try {
-                const codesText = backupCodes.join("\n");
+                const codesText = displayCodes.join("\n");
                 await navigator.clipboard.writeText(codesText);
                 toast.success("Backup codes copied to clipboard");
               } catch {
@@ -159,21 +164,26 @@ const TwoFactorSection = () => {
       </div>
     );
   };
-
-  const handle2FAEnabled = () => {
+  const handle2FAEnabled = (enableResult) => {
     setSetupStep("instructions");
     setShowQRCode(false);
     dispatch(clearQRCode());
     toast.success("2FA enabled successfully!");
 
     // Show backup codes in a modal after enabling 2FA
-    setTimeout(() => {
-      const backupCodesContent = createBackupCodesModal(
-        "Save Your Backup Codes",
-        "Save these backup codes in a secure location. You can use them to access your account if you lose access to your authenticator app."
-      );
-      openModal(backupCodesContent);
-    }, 100);
+    // Use backup codes from the enable result or Redux state
+    const codesToShow = enableResult?.backupCodes || backupCodes;
+
+    if (codesToShow && codesToShow.length > 0) {
+      setTimeout(() => {
+        const backupCodesContent = createBackupCodesModal(
+          "Save Your Backup Codes",
+          "Save these backup codes in a secure location. You can use them to access your account if you lose access to your authenticator app.",
+          codesToShow
+        );
+        openModal(backupCodesContent);
+      }, 100);
+    }
   };
 
   const handleCancelSetup = () => {
@@ -205,7 +215,9 @@ const TwoFactorSection = () => {
         description="Enter your password to generate new backup codes. This will invalidate all existing backup codes."
         confirmText="Generate New Codes"
         onConfirm={async (password) => {
-          await dispatch(generateNewBackupCodes(password)).unwrap();
+          const result = await dispatch(
+            generateNewBackupCodes(password)
+          ).unwrap();
           toast.success("New backup codes generated");
           closeModal();
 
@@ -213,7 +225,8 @@ const TwoFactorSection = () => {
           setTimeout(() => {
             const backupCodesContent = createBackupCodesModal(
               "New Backup Codes Generated",
-              "Your old backup codes have been invalidated. Save these new codes in a secure location."
+              "Your old backup codes have been invalidated. Save these new codes in a secure location.",
+              result.backupCodes
             );
             openModal(backupCodesContent);
           }, 100);
