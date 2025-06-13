@@ -89,11 +89,8 @@ function Home() {
 
   return (
     <>
-      <SEO
-        title="Deployio - AI-Powered DevOps Platform"
-        description="Transform your deployment process with AI-powered automation. Deploy smarter, not harder with intelligent code analysis and optimization."
-        keywords="deployment, devops, ai, automation, docker, ci/cd, cloud deployment"
-      />
+      {" "}
+      <SEO page="home" />
       <div className="min-h-screen bg-neutral-900">
         <Hero onGetStarted={handleGetStarted} onWatchDemo={handleWatchDemo} />
         <About />

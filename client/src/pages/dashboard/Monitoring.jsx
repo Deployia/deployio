@@ -207,11 +207,7 @@ const Monitoring = () => {
 
   return (
     <>
-      <SEO
-        title="Monitoring - Deployio"
-        description="Monitor your applications and infrastructure in real-time. Track performance metrics, alerts, and system health."
-        keywords="monitoring, performance, metrics, alerts, infrastructure, uptime"
-      />
+      <SEO page="monitoring" />
 
       <motion.div
         variants={containerVariants}

@@ -294,11 +294,7 @@ const Integrations = () => {
 
   return (
     <>
-      <SEO
-        title="Integrations - Deployio"
-        description="Connect your favorite tools and services with Deployio. Integrate with GitHub, Slack, AWS, and many more platforms."
-        keywords="integrations, GitHub, Slack, AWS, Docker, CI/CD, automation"
-      />
+      <SEO page="integrations" />
 
       <motion.div
         variants={containerVariants}

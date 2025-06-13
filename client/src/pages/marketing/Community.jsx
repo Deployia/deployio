@@ -183,12 +183,8 @@ const Community = () => {
 
   return (
     <>
-      <SEO
-        title="Community - Join the Deployio Developer Community"
-        description="Join thousands of developers in the Deployio community. Get support, share knowledge, and contribute to the future of deployment automation."
-        keywords="developer community, open source, Discord, GitHub, developers, collaboration"
-      />
-
+      {" "}
+      <SEO page="community" />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Hero Section */}
         <section className="py-20 px-4 bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">

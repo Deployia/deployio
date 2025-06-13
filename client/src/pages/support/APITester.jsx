@@ -219,12 +219,8 @@ const APITester = () => {
 
   return (
     <>
-      <SEO
-        title="API Tester - Deployio"
-        description="Test and debug APIs with our powerful API testing tool. Send requests, view responses, and manage your API workflows."
-        keywords="API, testing, REST, HTTP, debugging, requests, responses"
-      />
-
+      {" "}
+      <SEO page="apiTester" />
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -541,7 +537,6 @@ const APITester = () => {
           </motion.div>
         </div>
       </motion.div>
-
       {/* Save Request Dialog */}
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

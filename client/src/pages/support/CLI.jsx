@@ -160,12 +160,8 @@ const CLI = () => {
 
   return (
     <>
-      <SEO
-        title="CLI Tools - Deployio"
-        description="Generate CLI commands, manage deployments, and streamline your workflow with Deployio CLI tools."
-        keywords="CLI, command line, deployment, tools, generator, terminal"
-      />
-
+      {" "}
+      <SEO page="cli" />
       <motion.div
         variants={containerVariants}
         initial="hidden"

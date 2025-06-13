@@ -153,12 +153,8 @@ const SupportCenter = () => {
 
   return (
     <>
-      <SEO
-        title="Support Center - Get Help with Deployio"
-        description="Get 24/7 support for your deployment needs. Access documentation, FAQs, live chat, and expert assistance."
-        keywords="support, help, documentation, FAQ, customer service, technical support"
-      />
-
+      {" "}
+      <SEO page="supportCenter" />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <section className="py-20 px-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
