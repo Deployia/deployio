@@ -5,6 +5,7 @@ const errorHandler = require("./middleware/errorMiddleware");
 const routes = require("./routes");
 require("./config/passport");
 const mongoose = require("mongoose");
+const { getRedisClient } = require("./config/redisClient");
 
 const app = express();
 
@@ -19,10 +20,17 @@ app.get("/api/v1/health", (req, res) => {
   const uptime = process.uptime();
   const dbState =
     mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+
+  // Check Redis connection status
+  const redisClient = getRedisClient();
+  const redisState =
+    redisClient && redisClient.isReady ? "connected" : "disconnected";
+
   res.json({
     service_name: "Backend Service",
     status: "ok",
     mongodb_status: dbState,
+    redis_status: redisState,
     uptime: uptime,
   });
 });

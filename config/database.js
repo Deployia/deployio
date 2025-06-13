@@ -9,6 +9,9 @@ const connectDB = async () => {
   let attempt = 0;
   while (attempt < maxRetries) {
     try {
+      console.log(
+        `🔄 MongoDB connection attempt ${attempt + 1}/${maxRetries}...`
+      );
       const conn = await mongoose.connect(process.env.MONGODB_URI, {
         // Performance optimizations
         maxPoolSize: 10, // Maintain up to 10 socket connections
@@ -37,6 +40,7 @@ const connectDB = async () => {
         console.error("💥 Max MongoDB connection retries reached. Exiting.");
         process.exit(1);
       }
+      console.log("⏳ Retrying MongoDB connection in 5 seconds...");
       await new Promise((res) => setTimeout(res, 5000));
     }
   }
