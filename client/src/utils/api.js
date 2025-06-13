@@ -13,47 +13,50 @@ const api = axios.create({
   timeout: 10000, // 10 second timeout
 });
 
-// // Cache interceptor for GET requests
-// api.interceptors.request.use((config) => {
-//   // Only cache GET requests that don't contain sensitive data
-//   if (
-//     config.method === "get" &&
-//     !config.url.includes("/me") &&
-//     !config.url.includes("/sessions")
-//   ) {
-//     const cacheKey = `${config.method}:${config.url}:${JSON.stringify(
-//       config.params
-//     )}`;
-//     const cachedResponse = cache.get(cacheKey);
+// Cache interceptor for GET requests
+api.interceptors.request.use((config) => {
+  // Only cache GET requests that don't contain sensitive data
+  // and do not have a '_noCache' flag set in the config.
+  if (
+    config.method === "get" &&
+    !config.url.includes("/me") && // Consider if /me should be cached or not based on volatility
+    !config.url.includes("/sessions") && // Sessions are likely volatile, good to exclude
+    !config._noCache // Check for the custom _noCache flag
+  ) {
+    const cacheKey = `${config.method}:${config.url}:${JSON.stringify(
+      config.params
+    )}`;
+    const cachedResponse = cache.get(cacheKey);
 
-//     if (
-//       cachedResponse &&
-//       Date.now() - cachedResponse.timestamp < CACHE_DURATION
-//     ) {
-//       // Return cached response
-//       config.adapter = () =>
-//         Promise.resolve({
-//           data: cachedResponse.data,
-//           status: 200,
-//           statusText: "OK",
-//           headers: {},
-//           config,
-//         });
-//     }
-//   }
-
-//   return config;
-// });
+    if (
+      cachedResponse &&
+      Date.now() - cachedResponse.timestamp < CACHE_DURATION
+    ) {
+      // Return cached response
+      config.adapter = () =>
+        Promise.resolve({
+          data: cachedResponse.data,
+          status: 200,
+          statusText: "OK (cached)",
+          headers: { ...config.headers, "x-cached-response": "true" }, // Add a header to indicate cached response
+          config,
+        });
+    }
+  }
+  return config;
+});
 
 // Automatically attempt token refresh on 401 responses
 api.interceptors.response.use(
   (response) => {
-    // Cache GET responses (excluding sensitive endpoints)
+    // Cache GET responses (excluding sensitive endpoints and _noCache requests)
     if (
       response.config.method === "get" &&
       !response.config.url.includes("/me") &&
       !response.config.url.includes("/sessions") &&
-      response.status === 200
+      !response.config._noCache && // Only cache if _noCache is not set
+      response.status === 200 &&
+      !response.headers["x-cached-response"] // Do not re-cache if it was served from cache by the request interceptor
     ) {
       const cacheKey = `${response.config.method}:${
         response.config.url
@@ -86,10 +89,15 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         await api.post("/auth/refresh-token", {});
+        // After successful refresh, retry the original request.
+        // If the original request was a GET, we might want to bypass cache for this retry
+        // to ensure we get fresh data after re-authentication, though this depends on the specific needs.
+        // For now, it will use the default caching behavior.
         return api(originalRequest);
       } catch (refreshError) {
-        // Clear cache on auth failure
+        // Clear cache on auth failure to prevent serving stale data to a logged-out user
         cache.clear();
+        // Potentially redirect to login or handle global logout state here
         return Promise.reject(refreshError);
       }
     }
@@ -99,5 +107,11 @@ api.interceptors.response.use(
 
 // Export cache clear function for manual cache management
 export const clearApiCache = () => cache.clear();
+
+// Function to clear a specific cache entry by URL (and optionally params)
+export const invalidateCacheEntry = (url, params) => {
+  const cacheKey = `get:${url}:${JSON.stringify(params)}`;
+  cache.delete(cacheKey);
+};
 
 export default api;

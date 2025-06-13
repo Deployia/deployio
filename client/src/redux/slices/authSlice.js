@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "@utils/api";
+import api, { invalidateCacheEntry } from "@utils/api"; // Import invalidateCacheEntry
 import { verify2FALogin, enable2FA, disable2FA } from "./twoFactorSlice"; // Added fetch2FAStatus for completeness if needed later
 
 // Initial State - Focus only on authentication
@@ -212,7 +212,7 @@ export const updateProfile = createAsyncThunk(
 // Get current user
 export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
   try {
-    const response = await api.get(`/auth/me?_cb=${Date.now()}`); // Added cache-busting parameter
+    const response = await api.get("/auth/me"); // Removed _cb
     return response.data;
   } catch (error) {
     const message =
@@ -268,8 +268,9 @@ export const verifyOtp = createAsyncThunk(
 export const fetchProviders = createAsyncThunk(
   "auth/fetchProviders",
   async (_, thunkAPI) => {
+    // Removed options
     try {
-      const response = await api.get(`/auth/providers?_cb=${Date.now()}`); // Added cache-busting parameter
+      const response = await api.get("/auth/providers"); // Removed _cb
       return response.data.providers;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -283,8 +284,9 @@ export const fetchProviders = createAsyncThunk(
 export const fetchSessions = createAsyncThunk(
   "auth/fetchSessions",
   async (_, thunkAPI) => {
+    // Removed options
     try {
-      const response = await api.get(`/auth/sessions?_cb=${Date.now()}`); // Added cache-busting parameter
+      const response = await api.get("/auth/sessions"); // Removed _cb
       return response.data.sessions;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -300,6 +302,9 @@ export const unlinkProvider = createAsyncThunk(
   async (provider, thunkAPI) => {
     try {
       await api.delete(`/auth/unlink/${provider}`);
+      // Invalidate cache and re-fetch providers
+      invalidateCacheEntry("/auth/providers");
+      thunkAPI.dispatch(fetchProviders());
       return provider;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -315,6 +320,9 @@ export const deleteSession = createAsyncThunk(
   async (sessionId, thunkAPI) => {
     try {
       await api.delete(`/auth/sessions/${sessionId}`);
+      // Invalidate cache and re-fetch sessions
+      invalidateCacheEntry("/auth/sessions");
+      thunkAPI.dispatch(fetchSessions());
       return sessionId;
     } catch (error) {
       return thunkAPI.rejectWithValue(
