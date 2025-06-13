@@ -25,6 +25,12 @@ import { fetchProviders } from "@redux/slices/authSlice";
 import { get2FAStatus } from "@redux/slices/twoFactorSlice";
 import { useModal } from "@context/ModalContext";
 import activityLogger from "@/utils/activityLogger";
+import {
+  calculateSecurityScore,
+  getSecurityScoreColor,
+  getSecurityScoreLabel,
+  getSecurityScoreBarColor,
+} from "@utils/securityScore";
 
 const SecurityTab = () => {
   const dispatch = useDispatch();
@@ -34,33 +40,21 @@ const SecurityTab = () => {
     (state) => state.auth
   );
   const { apiKeys } = useSelector((state) => state.userProfile);
-  const { twoFactorEnabled } = useSelector((state) => state.twoFactor);
-
-  // Local state
+  const { twoFactorEnabled } = useSelector((state) => state.twoFactor); // Local state
   const [showCreateApiKey, setShowCreateApiKey] = useState(false);
   const [newApiKeyName, setNewApiKeyName] = useState("");
   const [generatedApiKey, setGeneratedApiKey] = useState(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [deletingKeyId, setDeletingKeyId] = useState(null);
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
 
-  // Calculate security score locally
-  const securityScore = (() => {
-    let score = 0;
-    if (authUser?.twoFactorEnabled || twoFactorEnabled) score += 40;
-    if (authUser?.email && authUser.emailVerified) score += 20;
-    if (
-      authUser?.lastPasswordChange &&
-      new Date() - new Date(authUser.lastPasswordChange) <
-        90 * 24 * 60 * 60 * 1000
-    ) {
-      score += 20;
-    }
-    if (apiKeys && apiKeys.length > 0) score += 10;
-    const oauthConnections = linkedProviders
-      ? Object.values(linkedProviders).filter(Boolean).length
-      : 0;
-    if (oauthConnections > 0) score += 10;
-    return Math.min(score, 100);
-  })();
+  // Calculate security score using utility
+  const securityScore = calculateSecurityScore({
+    authUser,
+    twoFactorEnabled,
+    apiKeys,
+    linkedProviders,
+  });
 
   // Initial data loading ONLY
   useEffect(() => {
@@ -79,7 +73,6 @@ const SecurityTab = () => {
     };
     loadData();
   }, [dispatch]);
-
   const generateApiKey = async () => {
     if (!newApiKeyName.trim()) {
       toast.error("Please enter a name for the API key");
@@ -87,6 +80,7 @@ const SecurityTab = () => {
     }
 
     try {
+      setIsGeneratingKey(true);
       const result = await dispatch(createApiKey({ name: newApiKeyName }));
       if (createApiKey.fulfilled.match(result)) {
         setGeneratedApiKey(result.payload.key);
@@ -94,52 +88,48 @@ const SecurityTab = () => {
         setShowCreateApiKey(false);
         toast.success("API key generated successfully");
 
-        // Log activity - no need to refresh data, Redux handles it
-        await activityLogger.apiKeyGenerated();
+        // Log activity with the key name for better details
+        await activityLogger.apiKeyGenerated(newApiKeyName);
       }
     } catch {
       toast.error("Failed to generate API key");
+    } finally {
+      setIsGeneratingKey(false);
     }
   };
+
   const handleDeleteApiKey = (keyId, keyName) => {
     openModal(
       <ConfirmDeleteModal
         title="Delete API Key"
         description="This action cannot be undone. This will permanently delete the API key and revoke all access associated with it."
         itemName={keyName}
+        isLoading={deletingKeyId === keyId}
         onConfirm={async () => {
           try {
+            setDeletingKeyId(keyId);
             await dispatch(deleteApiKey(keyId));
             toast.success("API key deleted successfully");
 
-            // Log activity - no need to refresh data, Redux handles it
-            await activityLogger.apiKeyRevoked(keyId);
+            // Log activity with key name for better details
+            await activityLogger.apiKeyRevoked(keyId, keyName);
             closeModal();
           } catch {
             toast.error("Failed to delete API key");
+          } finally {
+            setDeletingKeyId(null);
           }
         }}
-        onCancel={closeModal}
+        onCancel={() => {
+          setDeletingKeyId(null);
+          closeModal();
+        }}
       />
     );
   };
-
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
-  };
-
-  const getSecurityScoreColor = (score) => {
-    if (score >= 80) return "text-green-400";
-    if (score >= 60) return "text-yellow-400";
-    return "text-red-400";
-  };
-
-  const getSecurityScoreLabel = (score) => {
-    if (score >= 80) return "Excellent";
-    if (score >= 60) return "Good";
-    if (score >= 40) return "Fair";
-    return "Poor";
   };
   // Show loading state during initial load
   if (isInitialLoading) {
@@ -183,17 +173,14 @@ const SecurityTab = () => {
               </span>
             </div>
             <div className="w-full bg-neutral-700 rounded-full h-3">
+              {" "}
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${securityScore}%` }}
                 transition={{ duration: 1, delay: 0.5 }}
-                className={`h-3 rounded-full ${
-                  securityScore >= 80
-                    ? "bg-green-500"
-                    : securityScore >= 60
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-                }`}
+                className={`h-3 rounded-full ${getSecurityScoreBarColor(
+                  securityScore
+                )}`}
               />
             </div>
           </div>
@@ -328,11 +315,20 @@ const SecurityTab = () => {
                   />
                 </div>
                 <div className="flex gap-3">
+                  {" "}
                   <button
                     onClick={generateApiKey}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={isGeneratingKey || !newApiKeyName.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
-                    Generate Key
+                    {isGeneratingKey ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      "Generate Key"
+                    )}
                   </button>
                   <button
                     onClick={() => setShowCreateApiKey(false)}
@@ -354,10 +350,13 @@ const SecurityTab = () => {
                   className="flex items-center justify-between p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 transition-colors"
                 >
                   <div className="flex-1">
+                    {" "}
                     <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-medium text-white">{apiKey.name}</h4>
+                      <h4 className="font-medium text-white">
+                        {apiKey.name || "Unnamed Key"}
+                      </h4>
                       <div className="flex gap-1">
-                        {apiKey.permissions.map((permission) => (
+                        {(apiKey.permissions || []).map((permission) => (
                           <span
                             key={permission}
                             className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full"
@@ -366,11 +365,21 @@ const SecurityTab = () => {
                           </span>
                         ))}
                       </div>
-                    </div>
+                    </div>{" "}
                     <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <code className="font-mono">{apiKey.key}</code>
+                      <code className="font-mono">
+                        {apiKey.maskedKey && apiKey.maskedKey.includes("*")
+                          ? apiKey.maskedKey
+                          : `${apiKey.maskedKey?.slice(
+                              0,
+                              12
+                            )}...${apiKey.maskedKey?.slice(-4)}`}
+                      </code>
                       <span>
-                        Created: {new Date(apiKey.created).toLocaleDateString()}
+                        Created:{" "}
+                        {apiKey.created
+                          ? new Date(apiKey.created).toLocaleDateString()
+                          : "N/A"}
                       </span>
                       {apiKey.lastUsed && (
                         <span>
@@ -379,14 +388,14 @@ const SecurityTab = () => {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </div>{" "}
                   <div className="flex items-center gap-2">
+                    {" "}
                     <button
-                      onClick={() =>
-                        copyToClipboard(apiKey.key.replace(/\*/g, ""))
-                      }
+                      onClick={() => copyToClipboard(apiKey.key || "")}
                       className="p-2 text-gray-400 hover:text-white transition-colors"
                       title="Copy key"
+                      disabled={apiKey.key && apiKey.key.includes("*")}
                     >
                       <FaCopy />
                     </button>{" "}
