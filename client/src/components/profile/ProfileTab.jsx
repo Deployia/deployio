@@ -76,9 +76,6 @@ const ProfileTab = () => {
           });
           // Log activity
           await activityLogger.profileUpdate(["profileImage"]);
-
-          // Force re-render by updating form state
-          setProfileForm((prev) => ({ ...prev }));
         })
         .catch((error) => {
           toast.error(`Failed to update image: ${error}`, {
@@ -107,9 +104,6 @@ const ProfileTab = () => {
           (key) => profileForm[key] && key !== "profileImage"
         );
         await activityLogger.profileUpdate(updatedFields);
-
-        // Force re-render by updating form state
-        setProfileForm((prev) => ({ ...prev }));
       })
       .catch((error) => {
         toast.error(`Failed to update profile: ${error}`, {
