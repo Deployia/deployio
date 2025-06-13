@@ -45,7 +45,6 @@ const SecurityTab = () => {
   const [newApiKeyName, setNewApiKeyName] = useState("");
   const [generatedApiKey, setGeneratedApiKey] = useState(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [deletingKeyId, setDeletingKeyId] = useState(null);
   const [isGeneratingKey, setIsGeneratingKey] = useState(false);
 
   // Calculate security score using utility
@@ -97,17 +96,14 @@ const SecurityTab = () => {
       setIsGeneratingKey(false);
     }
   };
-
   const handleDeleteApiKey = (keyId, keyName) => {
     openModal(
       <ConfirmDeleteModal
         title="Delete API Key"
         description="This action cannot be undone. This will permanently delete the API key and revoke all access associated with it."
         itemName={keyName}
-        isLoading={deletingKeyId === keyId}
         onConfirm={async () => {
           try {
-            setDeletingKeyId(keyId);
             await dispatch(deleteApiKey(keyId));
             toast.success("API key deleted successfully");
 
@@ -116,14 +112,9 @@ const SecurityTab = () => {
             closeModal();
           } catch {
             toast.error("Failed to delete API key");
-          } finally {
-            setDeletingKeyId(null);
           }
         }}
-        onCancel={() => {
-          setDeletingKeyId(null);
-          closeModal();
-        }}
+        onCancel={closeModal}
       />
     );
   };
