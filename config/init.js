@@ -9,6 +9,7 @@ const helmet = require("helmet");
 const hpp = require("hpp");
 const cors = require("cors");
 const compression = require("compression");
+const logger = require("./logger"); // Import the Winston logger
 
 module.exports = (app) => {
   // Trust proxy - Only in production when behind reverse proxy (Traefik)
@@ -36,23 +37,25 @@ module.exports = (app) => {
     })
   ); // Response time header for performance monitoring
   app.use((req, res, next) => {
-    const start = Date.now();
-
-    // Override res.end to set header before response is sent
+    const start = process.hrtime(); // Use process.hrtime() for more precise timing
     const originalEnd = res.end;
+
     res.end = function (chunk, encoding) {
-      const duration = Date.now() - start;
+      const endTime = process.hrtime(start);
+      const durationInMs = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(3);
 
-      // Only set header if not already sent
+      // Log performance using the logger utility
+      logger.logPerformance(start, req.path, req.method, res.statusCode);
+
       if (!res.headersSent) {
-        res.set("X-Response-Time", `${duration}ms`);
+        res.set("X-Response-Time", `${durationInMs}ms`);
       }
 
-      // Log slow requests in development
-      if (process.env.NODE_ENV === "development" && duration > 500) {
-        console.log(`Slow request: ${req.method} ${req.path} - ${duration}ms`);
+      if (parseFloat(durationInMs) > 500) {
+        logger.warn(
+          `Slow request: ${req.method} ${req.path} - ${res.statusCode} - ${durationInMs}ms`
+        );
       }
-
       return originalEnd.call(this, chunk, encoding);
     };
 
@@ -103,11 +106,11 @@ module.exports = (app) => {
   // Cookie parser
   app.use(cookieParser());
 
-  // Logging
+  // Logging - Replace morgan's default console logging with Winston
   if (process.env.NODE_ENV === "development") {
-    app.use(morgan("dev"));
+    app.use(morgan("dev", { stream: logger.stream }));
   } else {
-    app.use(morgan("combined"));
+    app.use(morgan("combined", { stream: logger.stream }));
   }
 
   // Security
@@ -153,8 +156,11 @@ module.exports = (app) => {
       } else {
         // Log blocked origins in development for debugging
         if (isDevelopment) {
-          console.log(`CORS blocked origin: ${origin}`);
-          console.log(`Allowed origins: ${allowedOrigins.join(", ")}`);
+          logger.warn(
+            `CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(
+              ", "
+            )}`
+          );
         }
         callback(new Error("Not allowed by CORS policy"));
       }

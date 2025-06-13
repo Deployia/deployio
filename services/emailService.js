@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const EmailTemplateRenderer = require("../utils/EmailTemplateRenderer");
+const logger = require("../config/logger"); // Added logger
 
 // Initialize template renderer
 const templateRenderer = new EmailTemplateRenderer();
@@ -101,12 +102,13 @@ const sendEmail = async (options) => {
     };
   } catch (error) {
     // Log the error for debugging (but don't expose sensitive details to the caller)
-    console.error("Email service error:", {
+    logger.error("Email service error:", {
       error: error.message,
       to: options?.to,
       subject: options?.subject,
       template: options?.template,
       timestamp: new Date().toISOString(),
+      stack: error.stack,
     });
 
     // Throw a more user-friendly error

@@ -4,6 +4,7 @@ const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const User = require("../models/User");
 const { sendEmail } = require("./emailService");
+const logger = require("../config/logger"); // Added logger
 
 /**
  * Generate JWT token for authentication
@@ -54,7 +55,11 @@ const registerUser = async (userData) => {
       variables: { username, otp },
     });
   } catch (emailError) {
-    console.error(`Failed to send registration email to ${email}:`, emailError);
+    logger.error(`Failed to send registration email to ${email}:`, {
+      error: emailError.message,
+      stack: emailError.stack,
+      email,
+    }); // Replaced console.error
     // If email fails, don't create the user account
     throw new Error(
       "Unable to send verification email. Please try again later or contact support if the problem persists."
@@ -151,9 +156,13 @@ const loginUser = async (email, password, loginInfo = {}) => {
         user.otpExpire = otpExpire;
         await user.save();
 
-        console.log(`OTP email sent to ${user.email}`);
+        logger.info(`OTP email sent to ${user.email}`); // Replaced console.log
       } catch (error) {
-        console.error(`Failed to send OTP email to ${user.email}:`, error);
+        logger.error(`Failed to send OTP email to ${user.email}:`, {
+          error: error.message,
+          stack: error.stack,
+          email: user.email,
+        }); // Replaced console.error
         // If email fails, throw an error instead of proceeding
         throw new Error(
           "Unable to send verification email. Please try again later or contact support if the problem persists."
@@ -209,7 +218,11 @@ const loginUser = async (email, password, loginInfo = {}) => {
       refreshToken,
     };
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error("Login error:", {
+      error: error.message,
+      stack: error.stack,
+      email,
+    }); // Replaced console.error
     throw error;
   }
 };
@@ -375,9 +388,13 @@ const resendOtp = async (email) => {
     user.otpExpire = otpExpire;
     await user.save();
 
-    console.log(`OTP resent to ${user.email}`);
+    logger.info(`OTP resent to ${user.email}`); // Replaced console.log
   } catch (error) {
-    console.error(`Failed to resend OTP email to ${user.email}:`, error);
+    logger.error(`Failed to resend OTP email to ${user.email}:`, {
+      error: error.message,
+      stack: error.stack,
+      email: user.email,
+    }); // Replaced console.error
     throw new Error(
       "Unable to send verification email. Please try again later or contact support if the problem persists."
     );
@@ -420,7 +437,11 @@ async function storeRefreshToken(userId, token) {
 
     return true;
   } catch (error) {
-    console.error("Error storing refresh token:", error);
+    logger.error("Error storing refresh token:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error("Failed to store refresh token");
   }
 }
@@ -505,7 +526,12 @@ async function addSession(userId, session) {
     await user.save();
     return user.sessions[user.sessions.length - 1];
   } catch (error) {
-    console.error("Error adding session:", error);
+    logger.error("Error adding session:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+      session,
+    }); // Replaced console.error
     throw new Error("Failed to create session");
   }
 }
@@ -534,7 +560,11 @@ async function getSessions(userId) {
 
     return user.sessions;
   } catch (error) {
-    console.error("Error getting sessions:", error);
+    logger.error("Error getting sessions:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error("Failed to retrieve sessions");
   }
 }
@@ -567,11 +597,16 @@ async function deleteSession(userId, sessionId) {
     await user.save();
 
     // Log security event
-    console.log(`Session ${sessionId} deleted for user ${userId}`);
+    logger.info(`Session ${sessionId} deleted for user ${userId}`); // Replaced console.log
 
     return true;
   } catch (error) {
-    console.error("Error deleting session:", error);
+    logger.error("Error deleting session:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+      sessionId,
+    }); // Replaced console.error
     throw new Error(error.message || "Failed to delete session");
   }
 }
@@ -593,12 +628,15 @@ async function cleanupExpiredSessions() {
       }
     );
 
-    console.log(
-      `Cleaned up expired sessions for ${result.modifiedCount} users`
+    logger.info(
+      `Cleaned up expired sessions for ${result.modifiedCount} users` // Replaced console.log
     );
     return result;
   } catch (error) {
-    console.error("Error cleaning up expired sessions:", error);
+    logger.error("Error cleaning up expired sessions:", {
+      error: error.message,
+      stack: error.stack,
+    }); // Replaced console.error
     throw new Error("Failed to cleanup expired sessions");
   }
 }
@@ -636,7 +674,11 @@ async function getSessionAnalytics(userId) {
     };
     return analytics;
   } catch (error) {
-    console.error("Error getting session analytics:", error);
+    logger.error("Error getting session analytics:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error("Failed to get session analytics");
   }
 }
@@ -670,7 +712,11 @@ const generate2FASecret = async (userId) => {
       manualEntryKey: secret.base32,
     };
   } catch (error) {
-    console.error("Error generating 2FA secret:", error);
+    logger.error("Error generating 2FA secret:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error("Failed to generate 2FA secret");
   }
 };
@@ -721,7 +767,11 @@ const enable2FA = async (userId, token, secret) => {
       backupCodes: backupCodes.map((bc) => bc.code),
     };
   } catch (error) {
-    console.error("Error enabling 2FA:", error);
+    logger.error("Error enabling 2FA:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error(error.message || "Failed to enable 2FA");
   }
 };
@@ -787,7 +837,11 @@ const verify2FALogin = async (userId, token) => {
     // Neither TOTP nor backup code worked
     return { verified: false, error: "Invalid verification code" };
   } catch (error) {
-    console.error("Error verifying 2FA login:", error);
+    logger.error("Error verifying 2FA login:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error(error.message || "Failed to verify 2FA");
   }
 };
@@ -823,7 +877,11 @@ const disable2FA = async (userId, password) => {
 
     return "2FA disabled successfully";
   } catch (error) {
-    console.error("Error disabling 2FA:", error);
+    logger.error("Error disabling 2FA:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error(error.message || "Failed to disable 2FA");
   }
 };
@@ -847,7 +905,11 @@ const get2FAStatus = async (userId) => {
         : 0,
     };
   } catch (error) {
-    console.error("Error getting 2FA status:", error);
+    logger.error("Error getting 2FA status:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error("Failed to get 2FA status");
   }
 };
@@ -892,7 +954,11 @@ const generateNewBackupCodes = async (userId, password) => {
       backupCodes: backupCodes.map((bc) => bc.code),
     };
   } catch (error) {
-    console.error("Error generating new backup codes:", error);
+    logger.error("Error generating new backup codes:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error(error.message || "Failed to generate new backup codes");
   }
 };
@@ -929,7 +995,11 @@ const complete2FALogin = async (userId) => {
       refreshToken,
     };
   } catch (error) {
-    console.error("Error completing 2FA login:", error);
+    logger.error("Error completing 2FA login:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    }); // Replaced console.error
     throw new Error("Failed to complete 2FA login");
   }
 };
@@ -950,7 +1020,12 @@ async function checkRecentLoginAttempts(email, ip) {
     // TODO: Implement proper rate limiting with Redis
     return 0;
   } catch (error) {
-    console.error("Error checking recent login attempts:", error);
+    logger.error("Error checking recent login attempts:", {
+      error: error.message,
+      stack: error.stack,
+      email,
+      ip,
+    }); // Replaced console.error
     return 0; // Fail open for now
   }
 }
@@ -960,12 +1035,17 @@ async function checkRecentLoginAttempts(email, ip) {
  */
 async function logFailedLoginAttempt(email, ip) {
   try {
-    console.log(
-      `Failed login attempt for ${email} from IP: ${ip} at ${new Date().toISOString()}`
+    logger.warn(
+      `Failed login attempt for ${email} from IP: ${ip} at ${new Date().toISOString()}` // Replaced console.log with logger.warn
     );
     // TODO: Store in security log collection
   } catch (error) {
-    console.error("Error logging failed login attempt:", error);
+    logger.error("Error logging failed login attempt:", {
+      error: error.message,
+      stack: error.stack,
+      email,
+      ip,
+    }); // Replaced console.error
   }
 }
 
@@ -985,7 +1065,11 @@ async function incrementFailedAttempts(user) {
 
     await user.save();
   } catch (error) {
-    console.error("Error incrementing failed attempts:", error);
+    logger.error("Error incrementing failed attempts:", {
+      error: error.message,
+      stack: error.stack,
+      userId: user?._id,
+    }); // Replaced console.error
   }
 }
 
@@ -994,10 +1078,10 @@ async function incrementFailedAttempts(user) {
  */
 async function logSuccessfulLogin(userId, loginInfo) {
   try {
-    console.log(
+    logger.info(
       `Successful login for user ${userId} from IP: ${
         loginInfo.ip
-      } at ${new Date().toISOString()}`
+      } at ${new Date().toISOString()}` // Replaced console.log
     );
 
     // Update user's last login info
@@ -1008,7 +1092,10 @@ async function logSuccessfulLogin(userId, loginInfo) {
 
     // TODO: Store in security log collection for audit trail
   } catch (error) {
-    console.error("Error logging successful login:", error);
+    logger.error("Error logging successful login:", {
+      error: error.message,
+      stack: error.stack,
+    });
   }
 }
 
@@ -1031,12 +1118,15 @@ async function cleanupInactiveSessions() {
       }
     );
 
-    console.log(
+    logger.info(
       `Cleaned up inactive sessions for ${result.modifiedCount} users`
     );
     return result;
   } catch (error) {
-    console.error("Error cleaning up inactive sessions:", error);
+    logger.error("Error cleaning up inactive sessions:", {
+      error: error.message,
+      stack: error.stack,
+    });
     throw new Error("Failed to cleanup inactive sessions");
   }
 }

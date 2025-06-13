@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const logger = require("../config/logger"); // Import logger
 
 /**
  * Middleware to protect routes and verify authentication
@@ -46,13 +47,13 @@ const protect = async (req, res, next) => {
           message:
             "User account not found. Please register or contact support.",
         });
-      }      // Check if user account is still verified/active
+      } // Check if user account is still verified/active
       if (!user.isVerified) {
         // Auto-verify OAuth users who might have been created before the fix
         if (user.googleId || user.githubId) {
           user.isVerified = true;
           await user.save();
-          console.log(`Auto-verified OAuth user: ${user.email}`);
+          logger.info(`Auto-verified OAuth user: ${user.email}`);
         } else {
           return res.status(403).json({
             success: false,
@@ -93,7 +94,14 @@ const protect = async (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error("Auth middleware error:", error);
+    logger.error("Auth middleware error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      request: {
+        method: req.method,
+        url: req.originalUrl,
+        ip: req.ip,
+      },
+    });
     return res.status(500).json({
       success: false,
       message: "Server error during authentication. Please try again.",

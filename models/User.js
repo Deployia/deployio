@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const logger = require("../config/logger"); // Import logger
 
 const userSchema = new mongoose.Schema(
   {
@@ -375,7 +376,9 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
     const result = await bcrypt.compare(candidatePassword, this.password);
     return result;
   } catch (error) {
-    console.error("Password comparison error:", error);
+    logger.error("Password comparison error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+    });
     return false;
   }
 };
