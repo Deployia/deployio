@@ -9,6 +9,8 @@ const updateProfile = async (
   removeProfileImage
 ) => {
   const updateFields = { ...updateData };
+  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const cacheKey = `user:${userId}`;
 
   // Handle profile image changes
   if (profileImageUrl) {
@@ -23,12 +25,18 @@ const updateProfile = async (
     runValidators: true,
   }).select("-password");
   if (!user) throw new Error("User not found");
+
+  // Invalidate cache
+  await redisClient.del(cacheKey);
   return user;
 };
 
 // Update user password
 const updatePassword = async (userId, currentPassword, newPassword) => {
   const user = await User.findById(userId).select("+password googleId");
+  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const cacheKey = `user:${userId}`;
+
   if (!user) throw new Error("User not found");
   if (user.googleId)
     throw new Error("Password update not allowed for OAuth users");
@@ -36,19 +44,38 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
   if (!isMatch) throw new Error("Current password is incorrect");
   user.password = newPassword;
   await user.save();
+
+  // Invalidate cache
+  await redisClient.del(cacheKey);
+
   return "Password updated successfully";
 };
 
 // Get user by ID
 const getUserById = async (userId) => {
+  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const cacheKey = `user:${userId}`;
+
+  // Try to get data from cache
+  const cachedUser = await redisClient.get(cacheKey);
+  if (cachedUser) {
+    return JSON.parse(cachedUser);
+  }
+
+  // If not in cache, get from DB and cache it
   const user = await User.findById(userId).select("-password");
   if (!user) throw new Error("User not found");
+
+  await redisClient.set(cacheKey, JSON.stringify(user), { EX: 3600 }); // Cache for 1 hour
   return user;
 };
 
 // Delete user account
 const deleteUser = async (userId, password) => {
   const user = await User.findById(userId).select("+password");
+  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const cacheKey = `user:${userId}`;
+
   if (!user) throw new Error("User not found");
 
   // Verify password before deletion
@@ -56,6 +83,10 @@ const deleteUser = async (userId, password) => {
   if (!isMatch) throw new Error("Incorrect password");
 
   await User.findByIdAndDelete(userId);
+
+  // Invalidate cache
+  await redisClient.del(cacheKey);
+
   return "Account deleted successfully";
 };
 

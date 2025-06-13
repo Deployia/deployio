@@ -78,6 +78,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      redis:
+        condition: service_healthy # Changed from service_started
     networks:
       - web
 
@@ -115,21 +117,30 @@ services:
 
   mongodb:
     image: mongo:latest
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     volumes:
       - mongodb_data:/data/db
     networks:
       - web
+    healthcheck:
+      test: echo 'db.runCommand(\"ping\").ok' | mongo localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:alpine
+    networks:
+      - web
+    healthcheck:
+      test: [\"CMD\", \"redis-cli\", \"ping\"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:
+  letsencrypt:
 
 networks:
   web:
-    driver: bridge
-
-volumes:
-  letsencrypt:
-  mongodb_data:
