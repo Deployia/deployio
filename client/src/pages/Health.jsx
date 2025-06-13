@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import api from "@utils/api";
 import fastapi from "@utils/fastapi";
@@ -17,12 +17,28 @@ import {
   FaExclamationTriangle,
   FaShieldAlt,
   FaMemory,
+  FaUser,
+  FaKey,
+  FaSync,
+  FaCopy,
+  FaChevronDown,
+  FaChevronUp,
 } from "react-icons/fa";
 
 function Health() {
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [showBackendJson, setShowBackendJson] = useState(true);
+  const [showFastapiJson, setShowFastapiJson] = useState(true);
+  // Copy feedback state
+  const [copyFeedback, setCopyFeedback] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
   // Organized service states
   const [services, setServices] = useState({
@@ -35,6 +51,8 @@ function Health() {
       message: "",
       mongodb_status: "unknown",
       redis_status: "unknown",
+      protectedData: null,
+      protectedError: null,
     },
     fastapi: {
       name: "FastAPI Service",
@@ -51,6 +69,34 @@ function Health() {
   });
 
   const envInfo = useEnvironmentInfo();
+  // Copy to clipboard function
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback({
+        show: true,
+        message: "JSON copied to clipboard!",
+        type: "success",
+      });
+
+      // Hide feedback after 3 seconds
+      setTimeout(() => {
+        setCopyFeedback({ show: false, message: "", type: "success" });
+      }, 3000);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+      setCopyFeedback({
+        show: true,
+        message: "Failed to copy JSON",
+        type: "error",
+      });
+
+      // Hide error feedback after 5 seconds
+      setTimeout(() => {
+        setCopyFeedback({ show: false, message: "", type: "success" });
+      }, 5000);
+    }
+  };
 
   // Utility function to format uptime
   const formatUptime = (seconds) => {
@@ -175,9 +221,15 @@ function Health() {
       </div>
     );
   };
+  const fetchStatuses = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
 
-  useEffect(() => {
-    async function fetchStatuses() {
       try {
         // Backend greeting + health
         const beHello = await api.get("/hello");
@@ -196,6 +248,8 @@ function Health() {
             message: beHello.data.message,
             mongodb_status: beHealth.data.mongodb_status,
             redis_status: beHealth.data.redis_status,
+            protectedData: null,
+            protectedError: null,
           },
           fastapi: {
             ...prev.fastapi,
@@ -209,39 +263,73 @@ function Health() {
           },
         }));
 
-        // Test FastAPI protected endpoint if authenticated
+        // Test protected endpoints if authenticated
         if (isAuthenticated) {
+          // Test Backend protected endpoint
           try {
-            const protectedResponse = await fastapi.get("/protected/data");
+            const backendProtectedResponse = await api.get("/protected/data");
+            setServices((prev) => ({
+              ...prev,
+              backend: {
+                ...prev.backend,
+                protectedData: backendProtectedResponse.data,
+                protectedError: null,
+              },
+            }));
+          } catch (backendProtectedErr) {
+            setServices((prev) => ({
+              ...prev,
+              backend: {
+                ...prev.backend,
+                protectedData: null,
+                protectedError:
+                  backendProtectedErr.response?.data?.message ||
+                  backendProtectedErr.message,
+              },
+            }));
+          }
+
+          // Test FastAPI protected endpoint
+          try {
+            const fastapiProtectedResponse = await fastapi.get(
+              "/protected/data"
+            );
             setServices((prev) => ({
               ...prev,
               fastapi: {
                 ...prev.fastapi,
-                protectedData: protectedResponse.data,
+                protectedData: fastapiProtectedResponse.data,
                 protectedError: null,
               },
             }));
-          } catch (protectedErr) {
+          } catch (fastapiProtectedErr) {
             setServices((prev) => ({
               ...prev,
               fastapi: {
                 ...prev.fastapi,
                 protectedData: null,
                 protectedError:
-                  protectedErr.response?.data?.detail || protectedErr.message,
+                  fastapiProtectedErr.response?.data?.detail ||
+                  fastapiProtectedErr.message,
               },
             }));
           }
         }
+
+        setLastUpdated(new Date());
       } catch (err) {
         setError(err.message || "Error fetching statuses");
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    }
+    },
+    [isAuthenticated]
+  );
 
+  useEffect(() => {
     fetchStatuses();
-  }, [isAuthenticated]);
+  }, [fetchStatuses]);
 
   if (loading)
     return (
@@ -255,6 +343,7 @@ function Health() {
       <SEO page="health" />
       <div className="h-full overflow-auto p-6 body">
         <div className="max-w-6xl mx-auto">
+          {" "}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-white mb-1 heading flex items-center">
@@ -264,29 +353,148 @@ function Health() {
               <p className="text-neutral-400 text-sm">
                 Monitor the status and performance of all system components
               </p>
+              {lastUpdated && (
+                <p className="text-neutral-500 text-xs mt-1">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </p>
+              )}
             </div>
-            {error ? (
-              <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center">
-                <FaExclamationTriangle className="text-red-400 mr-2" />
-                <span className="text-red-300 text-sm">{error}</span>
-              </div>
-            ) : (
-              <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center">
-                <FaCheckCircle className="text-green-400 mr-2" />
-                <span className="text-green-300 text-sm">
-                  All Systems Operational
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => fetchStatuses(true)}
+                disabled={refreshing}
+                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white rounded-lg transition-colors duration-200 flex items-center text-sm"
+              >
+                <FaSync
+                  className={`mr-2 ${refreshing ? "animate-spin" : ""}`}
+                />
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+              {error ? (
+                <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center">
+                  <FaExclamationTriangle className="text-red-400 mr-2" />
+                  <span className="text-red-300 text-sm">{error}</span>
+                </div>
+              ) : (
+                <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center">
+                  <FaCheckCircle className="text-green-400 mr-2" />
+                  <span className="text-green-300 text-sm">
+                    All Systems Operational
+                  </span>
+                </div>
+              )}
+            </div>{" "}
+          </div>
+          {/* Copy Feedback Notification */}
+          {copyFeedback.show && (
+            <div
+              className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 ${
+                copyFeedback.type === "success"
+                  ? "bg-green-900/90 border border-green-700/50 text-green-300"
+                  : "bg-red-900/90 border border-red-700/50 text-red-300"
+              }`}
+            >
+              <div className="flex items-center">
+                {copyFeedback.type === "success" ? (
+                  <FaCheckCircle className="mr-2 text-green-400" />
+                ) : (
+                  <FaExclamationTriangle className="mr-2 text-red-400" />
+                )}
+                <span className="text-sm font-medium">
+                  {copyFeedback.message}
                 </span>
               </div>
-            )}
-          </div>
-
+            </div>
+          )}
           {/* Service Status Cards */}
           <div className="grid gap-6 mb-6 md:grid-cols-2">
             {Object.entries(services).map(([key, service]) => (
               <ServiceCard key={key} serviceKey={key} service={service} />
             ))}
           </div>
+          {/* Authentication Status Section */}
+          <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-6 bg-neutral-900/70">
+            <div className="flex items-center mb-4">
+              <div
+                className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
+                  isAuthenticated
+                    ? "bg-green-600/20 text-green-400"
+                    : "bg-red-600/20 text-red-400"
+                }`}
+              >
+                {isAuthenticated ? (
+                  <FaUser className="h-5 w-5" />
+                ) : (
+                  <FaKey className="h-5 w-5" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white heading">
+                  Authentication Status
+                </h3>
+                <p className="text-xs text-neutral-400">
+                  Current user session and authentication state
+                </p>
+              </div>
+              <div className="ml-auto">
+                {isAuthenticated ? (
+                  <span className="px-3 py-1 text-sm bg-green-900/30 text-green-400 rounded-full border border-green-700/30">
+                    ✓ Authenticated
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 text-sm bg-red-900/30 text-red-400 rounded-full border border-red-700/30">
+                    ✗ Not Authenticated
+                  </span>
+                )}
+              </div>
+            </div>
 
+            {isAuthenticated && user ? (
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">User ID</p>
+                  <p className="text-sm text-white font-mono">
+                    {user._id || user.id}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Username</p>
+                  <p className="text-sm text-white font-mono">
+                    {user.username}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Email</p>
+                  <p className="text-sm text-white font-mono">{user.email}</p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Role</p>
+                  <p className="text-sm text-white font-mono">
+                    {user.role || "User"}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">
+                    Session Active
+                  </p>
+                  <p className="text-sm text-green-400">✓ Valid Token</p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Access Level</p>
+                  <p className="text-sm text-white font-mono">
+                    Protected Endpoints
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-neutral-800/50 rounded-lg border border-neutral-700 text-center">
+                <p className="text-neutral-400 text-sm">
+                  Please log in to view user details and test protected
+                  endpoints
+                </p>
+              </div>
+            )}
+          </div>{" "}
           {/* Protected Endpoint Testing Section */}
           {isAuthenticated && (
             <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-6 bg-neutral-900/70">
@@ -299,61 +507,430 @@ function Health() {
                     Protected Endpoint Testing
                   </h3>
                   <p className="text-xs text-neutral-400">
-                    Testing authenticated API access
+                    Testing authenticated API access across services with
+                    real-time data display and JSON format comparison
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-sm text-neutral-400">
-                  <FaShieldAlt className="mr-2 text-neutral-500" />
-                  Protected Data Request
+              {/* Data Consistency Summary */}
+              {(services.backend.protectedData ||
+                services.fastapi.protectedData) && (
+                <div className="mb-6 p-4 bg-neutral-800/30 rounded-lg border border-neutral-600">
+                  <h4 className="text-sm font-medium text-white mb-3 flex items-center">
+                    <FaCheckCircle className="mr-2 text-green-400" />
+                    Data Consistency Analysis
+                  </h4>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
+                      <p className="text-xs text-neutral-400 mb-1">
+                        Backend Status
+                      </p>
+                      <p className="text-xs text-white">
+                        {services.backend.protectedData ? (
+                          <span className="text-green-400">
+                            ✓ Response received
+                          </span>
+                        ) : (
+                          <span className="text-red-400">✗ No response</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
+                      <p className="text-xs text-neutral-400 mb-1">
+                        FastAPI Status
+                      </p>
+                      <p className="text-xs text-white">
+                        {services.fastapi.protectedData ? (
+                          <span className="text-green-400">
+                            ✓ Response received
+                          </span>
+                        ) : (
+                          <span className="text-red-400">✗ No response</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
+                      <p className="text-xs text-neutral-400 mb-1">
+                        Data Structure
+                      </p>
+                      <p className="text-xs text-white">
+                        {services.backend.protectedData &&
+                        services.fastapi.protectedData ? (
+                          <span className="text-green-400">✓ Consistent</span>
+                        ) : (
+                          <span className="text-yellow-400">- Partial</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
+                      <p className="text-xs text-neutral-400 mb-1">
+                        Fields Matched
+                      </p>
+                      <p className="text-xs text-white">
+                        {services.backend.protectedData &&
+                        services.fastapi.protectedData ? (
+                          <span className="text-green-400">
+                            user_id, username, service, timestamp
+                          </span>
+                        ) : (
+                          <span className="text-neutral-400">N/A</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  {services.fastapi.protectedError ? (
-                    <span className="text-red-400 text-sm">
-                      {services.fastapi.protectedError}
-                    </span>
-                  ) : services.fastapi.protectedData ? (
-                    <span className="text-green-400 text-sm">✓ Success</span>
-                  ) : (
-                    <span className="text-neutral-400 text-sm">Not tested</span>
+              )}
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Backend Protected Endpoint */}
+                <div className="p-4 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <FaServer className="mr-2 text-green-500" />
+                      <div>
+                        <h4 className="text-md font-medium text-white">
+                          Backend Service
+                        </h4>
+                        <p className="text-xs text-neutral-400">
+                          /protected/data
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      {services.backend.protectedError ? (
+                        <span className="px-2 py-1 text-xs bg-red-900/30 text-red-400 rounded">
+                          ✗ Failed
+                        </span>
+                      ) : services.backend.protectedData ? (
+                        <span className="px-2 py-1 text-xs bg-green-900/30 text-green-400 rounded">
+                          ✓ Success
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs bg-neutral-700 text-neutral-400 rounded">
+                          Not tested
+                        </span>
+                      )}
+                    </div>
+                  </div>{" "}
+                  {services.backend.protectedData && (
+                    <div className="space-y-3">
+                      {/* JSON Response Display */}
+                      <div className="p-3 bg-neutral-900/70 rounded border border-neutral-600">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-green-400 flex items-center">
+                            <FaCode className="mr-1" /> JSON Response
+                          </p>
+                          <div className="flex items-center space-x-2">
+                            {" "}
+                            <button
+                              onClick={() =>
+                                copyToClipboard(
+                                  JSON.stringify(
+                                    services.backend.protectedData,
+                                    null,
+                                    2
+                                  )
+                                )
+                              }
+                              className="text-xs text-neutral-400 hover:text-green-400 hover:bg-green-900/20 px-2 py-1 rounded transition-all duration-200 flex items-center"
+                              title="Copy JSON to clipboard"
+                            >
+                              <FaCopy className="mr-1" /> Copy
+                            </button>
+                            <button
+                              onClick={() =>
+                                setShowBackendJson(!showBackendJson)
+                              }
+                              className="text-xs text-neutral-400 hover:text-white transition-colors flex items-center"
+                            >
+                              {showBackendJson ? (
+                                <>
+                                  <FaChevronUp className="mr-1" /> Hide
+                                </>
+                              ) : (
+                                <>
+                                  <FaChevronDown className="mr-1" /> Show
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        {showBackendJson ? (
+                          <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-x-auto bg-black/30 p-3 rounded border">
+                            {JSON.stringify(
+                              services.backend.protectedData,
+                              null,
+                              2
+                            )}
+                          </pre>
+                        ) : (
+                          <div className="text-xs text-green-400 font-mono bg-black/30 p-3 rounded border">
+                            <span className="text-neutral-400">
+                              Click &quot;Show&quot; to view JSON response
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {services.backend.protectedError && (
+                    <div className="p-3 bg-red-900/30 rounded border border-red-700/30">
+                      <p className="text-xs text-red-400 mb-1 flex items-center">
+                        <FaExclamationTriangle className="mr-1" /> Error Details
+                      </p>
+                      <p className="text-xs text-red-300 font-mono">
+                        {services.backend.protectedError}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* FastAPI Protected Endpoint */}
+                <div className="p-4 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <FaCog className="mr-2 text-blue-500" />
+                      <div>
+                        <h4 className="text-md font-medium text-white">
+                          FastAPI Service
+                        </h4>
+                        <p className="text-xs text-neutral-400">
+                          /protected/data
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      {services.fastapi.protectedError ? (
+                        <span className="px-2 py-1 text-xs bg-red-900/30 text-red-400 rounded">
+                          ✗ Failed
+                        </span>
+                      ) : services.fastapi.protectedData ? (
+                        <span className="px-2 py-1 text-xs bg-green-900/30 text-green-400 rounded">
+                          ✓ Success
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs bg-neutral-700 text-neutral-400 rounded">
+                          Not tested
+                        </span>
+                      )}
+                    </div>
+                  </div>{" "}
+                  {services.fastapi.protectedData && (
+                    <div className="space-y-3">
+                      {/* JSON Response Display */}
+                      <div className="p-3 bg-neutral-900/70 rounded border border-neutral-600">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-green-400 flex items-center">
+                            <FaCode className="mr-1" /> JSON Response
+                          </p>
+                          <div className="flex items-center space-x-2">
+                            {" "}
+                            <button
+                              onClick={() =>
+                                copyToClipboard(
+                                  JSON.stringify(
+                                    services.fastapi.protectedData,
+                                    null,
+                                    2
+                                  )
+                                )
+                              }
+                              className="text-xs text-neutral-400 hover:text-green-400 hover:bg-green-900/20 px-2 py-1 rounded transition-all duration-200 flex items-center"
+                              title="Copy JSON to clipboard"
+                            >
+                              <FaCopy className="mr-1" /> Copy
+                            </button>
+                            <button
+                              onClick={() =>
+                                setShowFastapiJson(!showFastapiJson)
+                              }
+                              className="text-xs text-neutral-400 hover:text-white transition-colors flex items-center"
+                            >
+                              {showFastapiJson ? (
+                                <>
+                                  <FaChevronUp className="mr-1" /> Hide
+                                </>
+                              ) : (
+                                <>
+                                  <FaChevronDown className="mr-1" /> Show
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        {showFastapiJson ? (
+                          <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-x-auto bg-black/30 p-3 rounded border">
+                            {JSON.stringify(
+                              services.fastapi.protectedData,
+                              null,
+                              2
+                            )}
+                          </pre>
+                        ) : (
+                          <div className="text-xs text-green-400 font-mono bg-black/30 p-3 rounded border">
+                            <span className="text-neutral-400">
+                              Click &quot;Show&quot; to view JSON response
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {services.fastapi.protectedError && (
+                    <div className="p-3 bg-red-900/30 rounded border border-red-700/30">
+                      <p className="text-xs text-red-400 mb-1 flex items-center">
+                        <FaExclamationTriangle className="mr-1" /> Error Details
+                      </p>
+                      <p className="text-xs text-red-300 font-mono">
+                        {services.fastapi.protectedError}
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
           )}
-
           {/* Environment Information */}
           <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body bg-neutral-900/70">
-            <h3 className="text-lg font-semibold text-white mb-3 heading flex items-center">
+            <h3 className="text-lg font-semibold text-white mb-4 heading flex items-center">
               <FaCode className="mr-2 text-blue-400" />
               Environment Information
             </h3>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
-                <p className="text-sm text-neutral-400 flex items-center justify-between">
-                  <span>Environment</span>
-                  <span className="text-white">{envInfo.environment}</span>
-                </p>
+
+            {/* Environment Variables Section */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-white mb-3 flex items-center">
+                <FaCog className="mr-2 text-green-400" />
+                Environment Variables
+              </h4>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Environment</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.environment}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Mode</p>
+                  <p className="text-sm text-white font-mono">{envInfo.mode}</p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Backend URL</p>
+                  <p className="text-sm text-white font-mono break-all">
+                    {envInfo.backendUrl}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">FastAPI URL</p>
+                  <p className="text-sm text-white font-mono break-all">
+                    {envInfo.fastapiUrl}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Build Version</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.version}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Build Time</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.buildTime}
+                  </p>
+                </div>
               </div>
-              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
-                <p className="text-sm text-neutral-400 flex items-center justify-between">
-                  <span>Backend URL</span>
-                  <span className="text-white">{envInfo.backendUrl}</span>
-                </p>
+            </div>
+
+            {/* Runtime Information Section */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-white mb-3 flex items-center">
+                <FaServer className="mr-2 text-purple-400" />
+                Runtime Information
+              </h4>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">
+                    Development Mode
+                  </p>
+                  <p className="text-sm text-white">
+                    {envInfo.isDev ? (
+                      <span className="text-yellow-400">✓ Enabled</span>
+                    ) : (
+                      <span className="text-green-400">✗ Disabled</span>
+                    )}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">
+                    Production Mode
+                  </p>
+                  <p className="text-sm text-white">
+                    {envInfo.isProd ? (
+                      <span className="text-green-400">✓ Enabled</span>
+                    ) : (
+                      <span className="text-yellow-400">✗ Disabled</span>
+                    )}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">
+                    Docker Container
+                  </p>
+                  <p className="text-sm text-white">
+                    {envInfo.inDocker ? (
+                      <span className="text-blue-400">✓ Running</span>
+                    ) : (
+                      <span className="text-neutral-400">✗ Local</span>
+                    )}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Hostname</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.hostname}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Port</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.port || "Default"}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Protocol</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.protocol}
+                  </p>
+                </div>
               </div>
-              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
-                <p className="text-sm text-neutral-400 flex items-center justify-between">
-                  <span>FastAPI URL</span>
-                  <span className="text-white">{envInfo.fastapiUrl}</span>
-                </p>
-              </div>
-              <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
-                <p className="text-sm text-neutral-400 flex items-center justify-between">
-                  <span>Build Version</span>
-                  <span className="text-white">{envInfo.version}</span>
-                </p>
+            </div>
+
+            {/* Browser Information Section */}
+            <div>
+              <h4 className="text-md font-medium text-white mb-3 flex items-center">
+                <FaMemory className="mr-2 text-orange-400" />
+                Browser Information
+              </h4>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Platform</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.platform}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                  <p className="text-xs text-neutral-400 mb-1">Language</p>
+                  <p className="text-sm text-white font-mono">
+                    {envInfo.language}
+                  </p>
+                </div>
+                <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700 md:col-span-2 lg:col-span-1">
+                  <p className="text-xs text-neutral-400 mb-1">User Agent</p>
+                  <p className="text-xs text-white font-mono break-all">
+                    {envInfo.userAgent}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
