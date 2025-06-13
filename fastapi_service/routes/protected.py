@@ -36,13 +36,18 @@ async def get_dashboard(current_user: AuthenticatedUser = Depends(jwt_auth)):
 @router.get("/data", response_model=ResponseModel[dict])
 async def get_protected_data(current_user: AuthenticatedUser = Depends(jwt_auth)):
     """Get some protected data (protected route)"""
+    from datetime import datetime
+
     return ResponseModel(
         success=True,
         message="Protected data retrieved successfully",
         data={
             "message": "This is protected data that requires authentication",
             "user_id": current_user.id,
+            "username": current_user.username or current_user.email,
             "access_level": "authenticated",
+            "service": "FastAPI Python",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
         },
     )
 
@@ -50,12 +55,16 @@ async def get_protected_data(current_user: AuthenticatedUser = Depends(jwt_auth)
 @router.post("/action", response_model=ResponseModel[dict])
 async def perform_action(current_user: AuthenticatedUser = Depends(jwt_auth)):
     """Perform some protected action (protected route)"""
+    from datetime import datetime
+
     return ResponseModel(
         success=True,
         message="Action performed successfully",
         data={
             "action": "completed",
             "performed_by": current_user.id,
-            "timestamp": "2024-12-19T10:00:00Z",
+            "username": current_user.username or current_user.email,
+            "service": "FastAPI Python",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
         },
     )
