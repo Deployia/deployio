@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const logger = require("../config/logger"); // Added logger
 
 /**
  * Email template renderer using base template and configuration
@@ -25,7 +26,10 @@ class EmailTemplateRenderer {
       const configPath = path.join(this.templatesDir, "config.json");
       this.config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     } catch (error) {
-      console.error("Error loading email templates:", error);
+      logger.error("Error loading email templates:", {
+        error: error.message,
+        stack: error.stack,
+      }); // Replaced console.error
       throw new Error("Failed to load email templates");
     }
   }
@@ -165,7 +169,11 @@ class EmailTemplateRenderer {
       // Render final template
       return this.replaceVariables(this.baseTemplate, templateVariables);
     } catch (error) {
-      console.error(`Error rendering email template '${templateName}':`, error);
+      logger.error(`Error rendering email template '${templateName}':`, {
+        error: error.message,
+        stack: error.stack,
+        templateName,
+      }); // Replaced console.error
       throw new Error(`Failed to render email template: ${error.message}`);
     }
   }

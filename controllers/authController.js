@@ -2,6 +2,7 @@ const authService = require("../services/authService");
 const jwt = require("jsonwebtoken");
 const { storeRefreshToken } = require("../services/authService");
 const User = require("../models/User");
+const logger = require("../config/logger"); // Import logger
 const {
   getSafeUserData,
   getSafeSessionData,
@@ -74,6 +75,12 @@ const register = async (req, res) => {
       }
     }
 
+    // logger.error(\'Registration error\', { error: { message: error.message, name: error.name, stack: error.stack }, requestBody: req.body });
+    logger.error("Registration error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      requestBody: req.body, // Be mindful of sensitive data in req.body if any beyond username/email/password
+      statusCode,
+    });
     res.status(statusCode).json({
       success: false,
       message: message,
@@ -134,6 +141,11 @@ const verifyOtp = async (req, res) => {
     });
   } catch (error) {
     const statusCode = error.message.includes("User not found") ? 404 : 400;
+    logger.error("Verify OTP error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      requestBody: req.body,
+      statusCode,
+    });
     res.status(statusCode).json({ success: false, message: error.message });
   }
 };
@@ -279,6 +291,10 @@ const login = async (req, res) => {
       sessionId: session._id.toString(),
     });
   } catch (error) {
+    logger.error("Login error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      requestBody: { email: req.body.email }, // Log only email for security
+    });
     // Return 400 for login validation errors to avoid triggering refresh token interceptor
     // 401 should only be used for expired/invalid tokens, not login failures
     res.status(400).json({ success: false, message: error.message });
@@ -309,6 +325,10 @@ const forgotPassword = async (req, res) => {
           "If an account with that email exists, a password reset link has been sent.",
       });
     }
+    logger.error("Forgot password error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      requestBody: req.body,
+    });
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -326,6 +346,11 @@ const resetPassword = async (req, res) => {
     const result = await authService.resetPassword(token, password);
     res.status(200).json({ success: true, message: result });
   } catch (error) {
+    logger.error("Reset password error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      params: req.params,
+      // Not logging password from req.body
+    });
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -354,7 +379,15 @@ const logout = async (req, res) => {
         await authService.deleteSession(userId, currentSession._id.toString());
       }
     } catch (sessionError) {
-      console.error("Error removing session:", sessionError);
+      // console.error("Error removing session:", sessionError);
+      logger.warn("Error removing session during logout", {
+        error: {
+          message: sessionError.message,
+          name: sessionError.name,
+          stack: sessionError.stack,
+        },
+        userId,
+      });
       // Continue with logout even if session removal fails
     }
 
@@ -377,7 +410,11 @@ const logout = async (req, res) => {
       message: result || "Logged out successfully",
     });
   } catch (error) {
-    console.error("Logout error:", error);
+    // console.error("Logout error:", error);
+    logger.error("Logout error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      userId: req.user?._id,
+    });
 
     // Still clear cookies even if there's an error
     const cookieOptions = {
@@ -408,6 +445,10 @@ const getMe = async (req, res) => {
       sessionId: req.sessionId,
     });
   } catch (error) {
+    logger.error("Get Me (current user) error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      userId: req.user?._id,
+    });
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -497,6 +538,11 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
     });
     return res.redirect(`${front}/dashboard/profile`);
   } catch (error) {
+    logger.error(`OAuth callback error for ${providerName}`, {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      userId: req.user?._id,
+      provider: providerName,
+    });
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -601,7 +647,11 @@ const refreshToken = async (req, res) => {
       message: "Tokens refreshed successfully",
     });
   } catch (error) {
-    console.error("Refresh token error:", error);
+    // console.error("Refresh token error:", error);
+    logger.error("Refresh token error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      cookies: req.cookies, // Be cautious if cookies contain sensitive info, though refreshToken itself is a JWT
+    });
     res.status(500).json({
       success: false,
       message: "Server error during token refresh. Please try again.",
@@ -632,6 +682,11 @@ const resendOtp = async (req, res) => {
       statusCode = 500; // Server error
     }
 
+    logger.error("Resend OTP error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      requestBody: req.body,
+      statusCode,
+    });
     res.status(statusCode).json({ success: false, message: error.message });
   }
 };
@@ -646,6 +701,10 @@ const getLinkedProviders = async (req, res) => {
       providers: getSafeProviderData(providers),
     });
   } catch (error) {
+    logger.error("Get linked providers error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      userId: req.user?._id,
+    });
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -668,6 +727,11 @@ const linkProviderCallback = (providerName) => async (req, res) => {
     // Redirect to profile on front-end
     return res.redirect(`${frontUrl}/dashboard/profile`);
   } catch (error) {
+    logger.error(`Link provider callback error for ${providerName}`, {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      userId: req.user?._id,
+      provider: providerName,
+    });
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -679,6 +743,11 @@ const unlinkProvider = async (req, res) => {
     await authService.unlinkProvider(req.user._id, provider);
     res.status(200).json({ success: true, message: `${provider} unlinked` });
   } catch (error) {
+    logger.error("Unlink provider error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      userId: req.user?._id,
+      provider: req.params.provider,
+    });
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -693,6 +762,10 @@ const getSessions = async (req, res) => {
       sessions: safeSessions,
     });
   } catch (error) {
+    logger.error("Get sessions error", {
+      error: { message: error.message, name: error.name, stack: error.stack },
+      userId: req.user?._id,
+    });
     res.status(500).json({ success: false, message: error.message });
   }
 };

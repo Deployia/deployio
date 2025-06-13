@@ -1,6 +1,7 @@
 const userService = require("../services/userService");
 const cloudinary = require("../config/cloudinary");
 const stream = require("stream");
+const logger = require("../config/logger"); // Import logger
 const {
   getSafeUserData,
   getSafeApiKeyData,
@@ -40,7 +41,12 @@ const updateProfile = async (req, res) => {
       user: getSafeUserData(updatedUser),
     });
   } catch (error) {
-    console.error("Update profile error:", error);
+    // console.error("Update profile error:", error);
+    logger.error("Update profile error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      requestBody: req.body,
+    });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -80,7 +86,12 @@ const updatePassword = async (req, res) => {
       message: result,
     });
   } catch (error) {
-    console.error("Update password error:", error);
+    // console.error("Update password error:", error);
+    logger.error("Update password error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      // Not logging req.body here as it contains passwords
+    });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -139,7 +150,14 @@ const handleImageUpload = async (file) => {
         },
         (error, result) => {
           if (error) {
-            console.error("Cloudinary upload error:", error);
+            // console.error("Cloudinary upload error:", error);
+            logger.error("Cloudinary upload error during stream", {
+              error: {
+                message: error.message,
+                name: error.name,
+                http_code: error.http_code,
+              },
+            });
             reject(new Error(error.message || "Image upload failed"));
           } else {
             resolve(result);
@@ -155,7 +173,12 @@ const handleImageUpload = async (file) => {
 
     return uploadResult.secure_url;
   } catch (error) {
-    console.error("Image upload error:", error);
+    // console.error("Image upload error:", error);
+    // This error is re-thrown, so the higher-level catch in updateProfile will log it if it bubbles up.
+    // Logging it here as well in case handleImageUpload is used directly elsewhere.
+    logger.error("Image upload handling error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+    });
     throw new Error("Failed to upload profile image: " + error.message);
   }
 };
@@ -179,7 +202,11 @@ const getProfile = async (req, res) => {
       user: getSafeUserData(user),
     });
   } catch (error) {
-    console.error("Get profile error:", error);
+    // console.error("Get profile error:", error);
+    logger.error("Get profile error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+    });
     res.status(500).json({
       success: false,
       message: "Failed to get user profile",
@@ -209,7 +236,12 @@ const deleteAccount = async (req, res) => {
       message: "Account deleted successfully",
     });
   } catch (error) {
-    console.error("Delete account error:", error);
+    // console.error("Delete account error:", error);
+    logger.error("Delete account error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      // Not logging req.body here as it contains password
+    });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -230,7 +262,11 @@ const getNotificationPreferences = async (req, res) => {
       preferences,
     });
   } catch (error) {
-    console.error("Get notification preferences error:", error);
+    // console.error("Get notification preferences error:", error);
+    logger.error("Get notification preferences error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+    });
     res.status(500).json({
       success: false,
       message: error.message || "Failed to get notification preferences",
@@ -257,7 +293,12 @@ const updateNotificationPreferences = async (req, res) => {
       message: "Notification preferences updated successfully",
     });
   } catch (error) {
-    console.error("Update notification preferences error:", error);
+    // console.error("Update notification preferences error:", error);
+    logger.error("Update notification preferences error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      requestBody: req.body,
+    });
     res.status(400).json({
       success: false,
       message: error.message || "Failed to update notification preferences",
@@ -293,7 +334,12 @@ const getUserActivity = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get user activity error:", error);
+    // console.error("Get user activity error:", error);
+    logger.error("Get user activity error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      query: req.query,
+    });
     res.status(500).json({
       success: false,
       message: error.message || "Failed to get user activity",
@@ -322,7 +368,12 @@ const logUserActivity = async (req, res) => {
       activity,
     });
   } catch (error) {
-    console.error("Log user activity error:", error);
+    // console.error("Log user activity error:", error);
+    logger.error("Log user activity error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      requestBody: req.body,
+    });
     res.status(400).json({
       success: false,
       message: error.message || "Failed to log user activity",
@@ -343,7 +394,11 @@ const getDashboardStats = async (req, res) => {
       stats,
     });
   } catch (error) {
-    console.error("Get dashboard stats error:", error);
+    // console.error("Get dashboard stats error:", error);
+    logger.error("Get dashboard stats error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+    });
     res.status(500).json({
       success: false,
       message: error.message || "Failed to get dashboard stats",
@@ -365,7 +420,11 @@ const getApiKeys = async (req, res) => {
       apiKeys: safeApiKeys,
     });
   } catch (error) {
-    console.error("Get API keys error:", error);
+    // console.error("Get API keys error:", error);
+    logger.error("Get API keys error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+    });
     res.status(500).json({
       success: false,
       message: error.message || "Failed to get API keys",
@@ -398,7 +457,12 @@ const createApiKey = async (req, res) => {
       message: "API key created successfully",
     });
   } catch (error) {
-    console.error("Create API key error:", error);
+    // console.error("Create API key error:", error);
+    logger.error("Create API key error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      requestBody: req.body,
+    });
     res.status(400).json({
       success: false,
       message: error.message || "Failed to create API key",
@@ -428,7 +492,12 @@ const deleteApiKey = async (req, res) => {
       message: "API key deleted successfully",
     });
   } catch (error) {
-    console.error("Delete API key error:", error);
+    // console.error("Delete API key error:", error);
+    logger.error("Delete API key error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+      params: req.params,
+    });
     res.status(400).json({
       success: false,
       message: error.message || "Failed to delete API key",

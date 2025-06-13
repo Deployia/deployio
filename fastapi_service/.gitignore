@@ -22,7 +22,8 @@ ENV/
 
 # FastAPI / Uvicorn specific
 # No specific files usually, but you might add logs or other generated files here
-# *.log
+logs/
+*.log
 
 # OS specific
 .DS_Store
