@@ -4,7 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Primary Meta Tags -->
-    <title>Deployio</title>
+    <title>
+      Deployio - AI-Powered DevOps Automation Platform | Intelligent Deployment
+      Solutions
+    </title>
     <meta
       name="title"
       content="Deployio - AI-Powered DevOps Automation Platform | Intelligent Deployment Solutions"
@@ -15,26 +18,42 @@
     />
     <meta
       name="keywords"
-      content="AI DevOps automation, intelligent deployment, automated CI/CD, GitHub deployment, Docker generation, MERN stack deployment, cloud deployment automation, DevOps platform, deployment pipeline, infrastructure automation"
+      content="AI DevOps automation, intelligent deployment, automated CI/CD, GitHub deployment, Docker generation, MERN stack deployment, cloud deployment automation, DevOps platform, deployment pipeline, infrastructure automation, deployment monitoring, code analysis, security scanning"
     />
     <meta name="author" content="Deployio Team" />
     <meta name="robots" content="index, follow" />
     <meta name="language" content="English" />
     <meta name="revisit-after" content="7 days" />
+    <meta name="application-name" content="Deployio" />
+    <meta name="generator" content="Vite" />
 
     <!-- Theme and App Meta -->
     <meta name="theme-color" content="#3b82f6" />
     <meta name="msapplication-TileColor" content="#3b82f6" />
     <meta name="msapplication-navbutton-color" content="#3b82f6" />
+    <meta name="msapplication-starturl" content="/" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Deployio" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Security Meta Tags -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:;"
+    />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://deployio.com/" />
+    <meta property="og:url" content="https://deployio.tech/" />
     <meta
       property="og:title"
       content="Deployio - AI-Powered DevOps Automation Platform | Intelligent Deployment Solutions"
@@ -43,13 +62,19 @@
       property="og:description"
       content="Transform your deployment process with Deployio's AI-powered automation. Submit a GitHub URL and get instant stack detection, Dockerfiles, CI/CD pipelines, and production deployments with real-time monitoring."
     />
-    <meta property="og:image" content="https://deployio.com/og-image.jpg" />
+    <meta property="og:image" content="https://deployio.tech/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Deployio - AI-Powered DevOps Automation Platform"
+    />
     <meta property="og:site_name" content="Deployio" />
     <meta property="og:locale" content="en_US" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://deployio.com/" />
+    <meta property="twitter:url" content="https://deployio.tech/" />
     <meta
       property="twitter:title"
       content="Deployio - AI-Powered DevOps Automation Platform | Intelligent Deployment Solutions"
@@ -60,25 +85,38 @@
     />
     <meta
       property="twitter:image"
-      content="https://deployio.com/og-image.jpg"
+      content="https://deployio.tech/og-image.jpg"
     />
     <meta property="twitter:site" content="@deployio" />
     <meta property="twitter:creator" content="@deployio" />
+
+    <!-- Additional Platform Tags -->
+    <meta property="fb:app_id" content="" />
+    <meta name="linkedin:owner" content="" />
+    <meta name="pinterest" content="nopin" />
 
     <!-- Icons and Favicons -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="manifest" href="/manifest.json" />
+    <link rel="shortcut icon" href="/favicon.png" />
 
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://deployio.com/" />
+    <link rel="canonical" href="https://deployio.tech/" />
 
     <!-- Preconnect for Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://api.deployio.tech" />
 
     <!-- DNS Prefetch for Performance -->
-    <link rel="dns-prefetch" href="//api.deployio.com" />
+    <link rel="dns-prefetch" href="//api.deployio.tech" />
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="/favicon.png" as="image" type="image/png" />
+    <link rel="preload" href="/logo.png" as="image" type="image/png" />
 
     <!-- Structured Data for Search Engines -->
     <script type="application/ld+json">
@@ -90,20 +128,46 @@
         "operatingSystem": "Web",
         "description": "AI-powered DevOps automation platform that transforms deployment processes with intelligent stack detection, automated Dockerfiles, CI/CD pipeline generation, and real-time monitoring",
         "url": "https://deployio.tech",
+        "downloadUrl": "https://deployio.tech/downloads",
         "author": {
           "@type": "Organization",
-          "name": "Deployio Team"
+          "name": "Deployio Team",
+          "url": "https://deployio.tech"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Deployio",
+          "url": "https://deployio.tech"
         },
         "offers": {
           "@type": "Offer",
           "price": "0",
-          "priceCurrency": "USD"
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
         },
         "aggregateRating": {
           "@type": "AggregateRating",
           "ratingValue": "4.8",
-          "reviewCount": "150"
-        }
+          "reviewCount": "250",
+          "bestRating": "5",
+          "worstRating": "1"
+        },
+        "featureList": [
+          "AI-Powered Deployment Automation",
+          "Intelligent Stack Detection",
+          "Automated CI/CD Pipeline Generation",
+          "Real-time Monitoring",
+          "Multi-Cloud Support",
+          "Security Scanning",
+          "Code Analysis",
+          "API Testing Tools",
+          "Command Line Interface",
+          "SDK Support"
+        ],
+        "screenshot": "https://deployio.tech/og-image.jpg",
+        "softwareVersion": "3.0",
+        "datePublished": "2024-01-01",
+        "dateModified": "2024-12-20"
       }
     </script>
   </head>

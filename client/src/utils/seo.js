@@ -9,8 +9,8 @@ const defaultSEO = {
     "AI DevOps automation, intelligent deployment, automated CI/CD, GitHub deployment, Docker generation, MERN stack deployment, cloud deployment automation, DevOps platform, deployment pipeline, infrastructure automation",
   author: "Deployio Team",
   type: "website",
-  url: "https://deployio.com",
-  image: "https://deployio.com/og-image.jpg",
+  url: "https://deployio.tech",
+  image: "https://deployio.tech/og-image.jpg",
   siteName: "Deployio",
   locale: "en_US",
   twitterCardType: "summary_large_image",
@@ -164,14 +164,271 @@ export const seoConfig = {
       },
     },
   },
+  // Dashboard pages (Protected)
+  dashboard: {
+    title: "Dashboard | Deployio - AI DevOps Control Center",
+    description:
+      "Manage your deployments and monitor your applications with Deployio's comprehensive AI-powered dashboard. View deployment statistics, recent activity, and project overviews.",
+    keywords:
+      "AI deployment dashboard, DevOps control center, deployment management, project overview, deployment statistics, application monitoring",
+    url: `${defaultSEO.url}/dashboard`,
+    robots: "noindex, nofollow",
+  },
+
+  projects: {
+    title: "Projects | Deployio - Manage Development Projects",
+    description:
+      "Manage all your projects and deployments in one place with Deployio's project management interface. Create, deploy, and monitor your applications effortlessly.",
+    keywords:
+      "project management, deployment projects, application management, project dashboard, development projects, deployment interface",
+    url: `${defaultSEO.url}/dashboard/projects`,
+    robots: "noindex, nofollow",
+  },
+
+  deployments: {
+    title: "Deployments | Deployio - Deployment History & Monitoring",
+    description:
+      "Monitor and manage all your application deployments with detailed logs and status tracking. View deployment history, rollback options, and real-time deployment status.",
+    keywords:
+      "deployment monitoring, deployment history, deployment logs, application deployment, deployment tracking, deployment management",
+    url: `${defaultSEO.url}/dashboard/deployments`,
+    robots: "noindex, nofollow",
+  },
+
+  analytics: {
+    title: "Analytics | Deployio - Deployment Performance Insights",
+    description:
+      "Monitor your deployment performance and insights with comprehensive analytics. Track success rates, performance metrics, and deployment trends over time.",
+    keywords:
+      "deployment analytics, performance insights, deployment metrics, deployment statistics, performance monitoring, deployment trends",
+    url: `${defaultSEO.url}/dashboard/analytics`,
+    robots: "noindex, nofollow",
+  },
+
+  monitoring: {
+    title: "Monitoring | Deployio - Real-time System Monitoring",
+    description:
+      "Monitor your applications and infrastructure in real-time. Track performance metrics, alerts, system health, and get notified of issues instantly.",
+    keywords:
+      "application monitoring, infrastructure monitoring, real-time monitoring, system health, performance metrics, monitoring dashboard",
+    url: `${defaultSEO.url}/dashboard/monitoring`,
+    robots: "noindex, nofollow",
+  },
+
+  integrations: {
+    title: "Integrations | Deployio - Connect Your Favorite Tools",
+    description:
+      "Connect your favorite tools and services with Deployio. Integrate with GitHub, Slack, AWS, Docker, and many more platforms to streamline your workflow.",
+    keywords:
+      "integrations, GitHub integration, Slack integration, AWS integration, Docker integration, CI/CD integrations, deployment integrations",
+    url: `${defaultSEO.url}/dashboard/integrations`,
+    robots: "noindex, nofollow",
+  },
+
+  // Support & Tools pages
+  cli: {
+    title: "CLI Tool | Deployio - Command Line Interface",
+    description:
+      "Download and use Deployio's powerful CLI tool for command-line deployment management. Generate commands, automate deployments, and manage projects from your terminal.",
+    keywords:
+      "CLI tool, command line interface, deployment CLI, terminal deployment, command line deployment, CLI commands, deployment automation",
+    url: `${defaultSEO.url}/dashboard/cli`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Deployio CLI",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: ["Windows", "macOS", "Linux"],
+      description: "Command-line tool for deployment automation and management",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+    },
+  },
+
+  apiTester: {
+    title: "API Tester | Deployio - Test & Debug APIs",
+    description:
+      "Test and debug APIs with our powerful API testing tool. Send requests, view responses, manage collections, and debug your API workflows efficiently.",
+    keywords:
+      "API testing, REST API testing, HTTP client, API debugging, API development, request testing, API workflows",
+    url: `${defaultSEO.url}/dashboard/api-tester`,
+  },
+
+  documentation: {
+    title: "Documentation | Deployio - Complete Developer Guides",
+    description:
+      "Comprehensive documentation for Deployio. Learn deployment strategies, API references, integration guides, and best practices for modern DevOps.",
+    keywords:
+      "documentation, developer guides, API documentation, deployment guides, DevOps documentation, integration guides, deployment best practices",
+    url: `${defaultSEO.url}/resources/docs`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: "Deployio Documentation",
+      description: "Complete developer documentation for Deployio platform",
+      url: `${defaultSEO.url}/resources/docs`,
+      publisher: {
+        "@type": "Organization",
+        name: defaultSEO.siteName,
+      },
+    },
+  },
+
+  supportCenter: {
+    title: "Support Center | Deployio - Help & Customer Support",
+    description:
+      "Get help with Deployio. Access FAQs, troubleshooting guides, contact support, and find answers to common deployment questions.",
+    keywords:
+      "support center, customer support, help desk, troubleshooting, FAQ, deployment help, technical support",
+    url: `${defaultSEO.url}/resources/support`,
+  },
+
+  // Product pages
+  aiDeployment: {
+    title: "AI Deployment | Deployio - Intelligent Deployment Automation",
+    description:
+      "Transform your deployment process with AI-powered automation. Intelligent stack detection, automated optimization, and predictive deployment management.",
+    keywords:
+      "AI deployment, intelligent automation, automated deployment, AI DevOps, machine learning deployment, intelligent deployment optimization",
+    url: `${defaultSEO.url}/products/ai-deployment`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: "AI Deployment",
+      description: "AI-powered deployment automation and optimization",
+      category: "Software",
+      brand: {
+        "@type": "Brand",
+        name: "Deployio",
+      },
+    },
+  },
+
+  codeAnalysis: {
+    title: "Code Analysis | Deployio - Advanced Code Quality & Security",
+    description:
+      "Advanced code analysis and quality assurance. Detect bugs, security vulnerabilities, code smells, and performance issues before deployment.",
+    keywords:
+      "code analysis, static analysis, code quality, security scanning, vulnerability detection, code review automation",
+    url: `${defaultSEO.url}/products/code-analysis`,
+  },
+
+  cloudIntegration: {
+    title: "Cloud Integration | Deployio - Multi-Cloud Deployment",
+    description:
+      "Deploy seamlessly across multiple cloud providers. AWS, Google Cloud, Azure, and more with unified deployment management and optimization.",
+    keywords:
+      "cloud integration, multi-cloud deployment, AWS deployment, Google Cloud deployment, Azure deployment, cloud automation",
+    url: `${defaultSEO.url}/products/cloud-integration`,
+  },
+
+  securityShield: {
+    title: "Security Shield | Deployio - Enterprise Security Platform",
+    description:
+      "Enterprise-grade security for your deployments. Automated vulnerability scanning, compliance monitoring, threat detection, and security best practices.",
+    keywords:
+      "deployment security, vulnerability scanning, compliance monitoring, threat detection, enterprise security, DevSecOps, security automation",
+    url: `${defaultSEO.url}/products/security`,
+  },
+
+  // Marketing & Community pages
+  community: {
+    title: "Community | Deployio - Developer Community Hub",
+    description:
+      "Join the Deployio developer community. Connect with other developers, share experiences, get help, and contribute to the platform's growth.",
+    keywords:
+      "developer community, community hub, developer forum, deployment community, DevOps community, developer support",
+    url: `${defaultSEO.url}/resources/community`,
+  },
+
+  blog: {
+    title: "Blog | Deployio - Latest Updates & Tutorials",
+    description:
+      "Stay updated with the latest deployment best practices, tutorials, product updates, and news from the Deployio team and community.",
+    keywords:
+      "deployment blog, DevOps blog, deployment tutorials, DevOps best practices, CI/CD guides, deployment news, technical blog",
+    url: `${defaultSEO.url}/resources/blog`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      name: "Deployio Blog",
+      description: "Latest deployment tutorials and DevOps best practices",
+      url: `${defaultSEO.url}/resources/blog`,
+      publisher: {
+        "@type": "Organization",
+        name: defaultSEO.siteName,
+      },
+    },
+  },
+
+  // Download pages
+  cliTool: {
+    title: "Download CLI | Deployio - Command Line Tool",
+    description:
+      "Download the official Deployio CLI tool. Available for Windows, macOS, and Linux. Automate deployments from your terminal with powerful commands.",
+    keywords:
+      "CLI download, command line tool download, deployment CLI, terminal tool, CLI installation, command line deployment",
+    url: `${defaultSEO.url}/downloads/cli`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Deployio CLI",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: ["Windows", "macOS", "Linux"],
+      description:
+        "Official command-line interface for Deployio deployment platform",
+      downloadUrl: `${defaultSEO.url}/downloads/cli`,
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+    },
+  },
+
+  sdk: {
+    title: "Download SDK | Deployio - Software Development Kits",
+    description:
+      "Download official Deployio SDKs for JavaScript, Python, Java, Go, PHP, Ruby, C#, and Rust. Integrate deployment automation into your applications.",
+    keywords:
+      "SDK download, software development kit, JavaScript SDK, Python SDK, Java SDK, Go SDK, API client libraries, deployment SDK",
+    url: `${defaultSEO.url}/downloads/sdk`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Deployio SDKs",
+      applicationCategory: "DeveloperApplication",
+      description:
+        "Official SDKs for integrating Deployio into your applications",
+      downloadUrl: `${defaultSEO.url}/downloads/sdk`,
+      programmingLanguage: [
+        "JavaScript",
+        "Python",
+        "Java",
+        "Go",
+        "PHP",
+        "Ruby",
+        "C#",
+        "Rust",
+      ],
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+    },
+  },
 
   // System pages
   health: {
     title: "System Health | Deployio - Platform Status",
     description:
-      "Check the current status and health of Deployio's deployment platform services and infrastructure.",
+      "Check the current status and health of Deployio's deployment platform services and infrastructure. Monitor service uptime and performance metrics.",
     keywords:
-      "system health, platform status, service status, uptime, system monitoring",
+      "system health, platform status, service status, uptime monitoring, infrastructure health, system monitoring, service availability",
     url: `${defaultSEO.url}/health`,
     robots: "noindex, nofollow",
   },
@@ -179,8 +436,8 @@ export const seoConfig = {
   notFound: {
     title: "Page Not Found | Deployio - 404 Error",
     description:
-      "The page you're looking for doesn't exist. Return to Deployio's deployment platform or explore our features.",
-    keywords: "404 error, page not found, missing page",
+      "The page you're looking for doesn't exist. Return to Deployio's deployment platform or explore our features and documentation.",
+    keywords: "404 error, page not found, missing page, error page",
     robots: "noindex, nofollow",
   },
 };
