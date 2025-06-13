@@ -22,34 +22,34 @@ const CLIDownload = () => {
 
   const downloadLinks = {
     windows: {
-      x64: "https://releases.deployio.com/cli/windows/deployio-cli-x64.exe",
-      x32: "https://releases.deployio.com/cli/windows/deployio-cli-x86.exe",
+      x64: "https://releases.deployio.tech/cli/windows/deployio-cli-x64.exe",
+      x32: "https://releases.deployio.tech/cli/windows/deployio-cli-x86.exe",
     },
     macos: {
-      intel: "https://releases.deployio.com/cli/macos/deployio-cli-intel.dmg",
-      m1: "https://releases.deployio.com/cli/macos/deployio-cli-m1.dmg",
+      intel: "https://releases.deployio.tech/cli/macos/deployio-cli-intel.dmg",
+      m1: "https://releases.deployio.tech/cli/macos/deployio-cli-m1.dmg",
       universal:
-        "https://releases.deployio.com/cli/macos/deployio-cli-universal.dmg",
+        "https://releases.deployio.tech/cli/macos/deployio-cli-universal.dmg",
     },
     linux: {
-      deb: "https://releases.deployio.com/cli/linux/deployio-cli.deb",
-      rpm: "https://releases.deployio.com/cli/linux/deployio-cli.rpm",
-      tar: "https://releases.deployio.com/cli/linux/deployio-cli.tar.gz",
+      deb: "https://releases.deployio.tech/cli/linux/deployio-cli.deb",
+      rpm: "https://releases.deployio.tech/cli/linux/deployio-cli.rpm",
+      tar: "https://releases.deployio.tech/cli/linux/deployio-cli.tar.gz",
     },
   };
 
   const installCommands = {
     windows: {
-      powershell: "iwr https://get.deployio.com/cli.ps1 | iex",
+      powershell: "iwr https://get.deployio.tech/cli.ps1 | iex",
       chocolatey: "choco install deployio-cli",
       scoop: "scoop install deployio-cli",
     },
     macos: {
       homebrew: "brew install deployio/tap/deployio-cli",
-      curl: "curl -fsSL https://get.deployio.com/cli.sh | sh",
+      curl: "curl -fsSL https://get.deployio.tech/cli.sh | sh",
     },
     linux: {
-      curl: "curl -fsSL https://get.deployio.com/cli.sh | sh",
+      curl: "curl -fsSL https://get.deployio.tech/cli.sh | sh",
       apt: "sudo apt install deployio-cli",
       yum: "sudo yum install deployio-cli",
       snap: "sudo snap install deployio-cli",

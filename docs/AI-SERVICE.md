@@ -385,10 +385,10 @@ deployio deploy --target aws-ecs --environment production
 
 ### Support Channels
 
-- Email: support@deployio.com
+- Email: support@deployio.tech
 - Chat: Available in dashboard
-- Enterprise: enterprise@deployio.com
-- Security: security@deployio.com
+- Enterprise: enterprise@deployio.tech
+- Security: security@deployio.tech
 
 ---
 
