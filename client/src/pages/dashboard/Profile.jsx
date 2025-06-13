@@ -44,7 +44,6 @@ function Profile() {
     ],
     []
   );
-
   // Update URL when tab changes
   const handleTabChange = useCallback(
     (tabId) => {
@@ -56,6 +55,13 @@ function Profile() {
         newSearchParams.set("tab", tabId);
       }
       setSearchParams(newSearchParams);
+      
+      // Scroll to top of the page for better UX
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth'
+      });
     },
     [searchParams, setSearchParams]
   );

@@ -16,12 +16,12 @@ import ProfileErrorBoundary from "./ProfileErrorBoundary";
 const ActivityAnalytics = () => {
   const dispatch = useDispatch();
   const { activities, loading } = useSelector((state) => state.userProfile);
-  const [selectedTimeRange, setSelectedTimeRange] = useState("7d");
-
-  // Fetch activities when component mounts if not already loaded
+  const [selectedTimeRange, setSelectedTimeRange] = useState("7d"); // Fetch activities when component mounts if not already loaded
   useEffect(() => {
-    if (!activities || activities.length === 0) {
-      dispatch(fetchUserActivity({ page: 1, limit: 100 }));
+    // Only load if we don't have enough activities for meaningful analytics
+    // Reduced limit to avoid conflicts with ActivityTab pagination
+    if (!activities || activities.length < 10) {
+      dispatch(fetchUserActivity({ page: 1, limit: 100, source: "analytics" }));
     }
   }, [dispatch, activities]);
 

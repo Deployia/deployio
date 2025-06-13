@@ -5,9 +5,8 @@ import { FaArrowRight, FaPlay, FaStar } from "react-icons/fa";
 
 const Hero = ({ onGetStarted, onWatchDemo }) => {
   const { user } = useSelector((state) => state.auth);
-
   return (
-    <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 overflow-hidden pt-20">
       {/* Background Effects */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2)_0%,transparent_50%)]" />

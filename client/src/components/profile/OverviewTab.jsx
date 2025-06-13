@@ -34,14 +34,15 @@ const OverviewTab = () => {
   );
   const { twoFactorEnabled } = useSelector((state) => state.twoFactor);
 
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-
-  // Load overview data on mount
+  const [isInitialLoading, setIsInitialLoading] = useState(true); // Load overview data on mount
   useEffect(() => {
     const loadData = async () => {
       try {
         await Promise.allSettled([
-          dispatch(fetchUserActivity({ page: 1, limit: 10 })),
+          // Load activities with a specific identifier to avoid conflicts
+          dispatch(
+            fetchUserActivity({ page: 1, limit: 5, source: "overview" })
+          ),
           dispatch(fetchDashboardStats()),
           dispatch(fetchApiKeys()),
           dispatch(fetchProviders()),
