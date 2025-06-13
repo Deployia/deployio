@@ -82,7 +82,7 @@ const Analytics = () => {
     }, 1000);
 
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRange]);
 
   const containerVariants = {
@@ -118,14 +118,9 @@ const Analytics = () => {
       </div>
     );
   }
-
   return (
     <>
-      <SEO
-        title="Analytics - Deployio"
-        description="View detailed analytics and insights for your deployments and projects."
-        keywords="analytics, deployments, performance, monitoring, insights"
-      />
+      <SEO page="analytics" />
 
       <motion.div
         variants={containerVariants}

@@ -144,11 +144,8 @@ const Deployments = () => {
 
   return (
     <>
-      <SEO
-        title="Deployments - Deployio"
-        description="Monitor and manage all your application deployments with detailed logs and status tracking."
-      />
-
+      {" "}
+      <SEO page="deployments" />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -162,7 +159,6 @@ const Deployments = () => {
           Track and manage all your deployment activities.
         </p>
       </motion.div>
-
       {/* Filters and Search */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -198,7 +194,6 @@ const Deployments = () => {
           </select>
         </div>
       </motion.div>
-
       {/* Deployments List */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -310,7 +305,6 @@ const Deployments = () => {
           </motion.div>
         ))}
       </motion.div>
-
       {/* Empty State */}
       {filteredDeployments.length === 0 && (
         <motion.div

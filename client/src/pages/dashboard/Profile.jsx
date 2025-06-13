@@ -55,12 +55,12 @@ function Profile() {
         newSearchParams.set("tab", tabId);
       }
       setSearchParams(newSearchParams);
-      
+
       // Scroll to top of the page for better UX
       window.scrollTo({
         top: 0,
         left: 0,
-        behavior: 'smooth'
+        behavior: "smooth",
       });
     },
     [searchParams, setSearchParams]
@@ -134,11 +134,7 @@ function Profile() {
 
   return (
     <>
-      <SEO
-        title="Profile - Deployio"
-        description="Manage your Deployio profile, security settings, and account preferences."
-        keywords="profile, settings, account, security, notifications"
-      />
+      <SEO page="profile" />
 
       <motion.div
         variants={containerVariants}

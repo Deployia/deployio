@@ -113,12 +113,8 @@ const SecurityShield = () => {
 
   return (
     <>
-      <SEO
-        title="Security Shield - Enterprise Security Platform | Deployio"
-        description="Protect your deployments with enterprise-grade security. Vulnerability scanning, compliance monitoring, and threat detection for modern applications."
-        keywords="security, vulnerability scanning, compliance, threat detection, enterprise security, DevSecOps"
-      />
-
+      {" "}
+      <SEO page="securityShield" />
       <div className="min-h-screen bg-white dark:bg-gray-900">
         {/* Hero Section */}
         <section className="relative py-20 px-4 bg-gradient-to-br from-red-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">

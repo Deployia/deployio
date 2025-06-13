@@ -330,11 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   return (
     <>
-      <SEO
-        title="Download SDK - Deployio Software Development Kits"
-        description="Download official Deployio SDKs for JavaScript, Python, Java, Go, PHP, Ruby, C#, and Rust. Integrate deployment automation into your applications."
-        keywords="SDK download, API client, JavaScript SDK, Python SDK, Java SDK, Go SDK, deployment integration"
-      />
+      <SEO page="sdk" />
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}

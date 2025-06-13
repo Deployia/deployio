@@ -84,11 +84,8 @@ const Dashboard = () => {
   };
   return (
     <>
-      <SEO
-        title="Dashboard - Deployio"
-        description="Manage your deployments and monitor your applications with Deployio's comprehensive dashboard."
-      />
-
+      {" "}
+      <SEO page="dashboard" />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -102,7 +99,6 @@ const Dashboard = () => {
           Welcome back! Here&apos;s an overview of your deployment activity.
         </p>
       </motion.div>
-
       {/* Stats Grid */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -158,7 +154,6 @@ const Dashboard = () => {
           </p>
         </div>
       </motion.div>
-
       {/* Recent Deployments */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -209,7 +204,6 @@ const Dashboard = () => {
           </button>
         </div>
       </motion.div>
-
       {/* Quick Actions */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

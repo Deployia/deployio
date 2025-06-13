@@ -165,11 +165,7 @@ const Blog = () => {
 
   return (
     <>
-      <SEO
-        title="Blog - Latest Updates and Tutorials | Deployio"
-        description="Stay updated with the latest deployment best practices, tutorials, and news from the Deployio team and community."
-        keywords="blog, deployment tutorials, DevOps best practices, CI/CD guides, deployment news"
-      />
+      <SEO page="blog" />
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}

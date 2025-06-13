@@ -127,11 +127,7 @@ const CLIDownload = () => {
 
   return (
     <>
-      <SEO
-        title="Download CLI Tool - Deployio Command Line Interface"
-        description="Download the Deployio CLI tool for Windows, macOS, and Linux. Deploy your applications from the command line with ease."
-        keywords="CLI download, command line tool, deployment CLI, Deployio CLI, terminal deployment"
-      />
+      <SEO page="cliTool" />
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}

@@ -99,10 +99,7 @@ const Projects = () => {
 
   return (
     <>
-      <SEO
-        title="Projects - Deployio"
-        description="Manage all your projects and deployments in one place with Deployio's project management interface."
-      />
+      <SEO page="projects" />
 
       {/* Header */}
       <motion.div
