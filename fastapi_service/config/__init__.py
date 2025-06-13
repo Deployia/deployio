@@ -2,19 +2,18 @@
 Initialization module for setting up FastAPI app with middleware and configurations
 """
 
-import logging
 from fastapi import FastAPI
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from .cors import setup_cors
 from .settings import settings
-from .logging import setup_logging 
+from .logging import setup_logging, get_logger
 
 # Setup logging configuration
 setup_logging(debug=settings.debug)
 
-logger = logging.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def create_app() -> FastAPI:

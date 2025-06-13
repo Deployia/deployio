@@ -11,7 +11,7 @@ class JWTPayload(BaseModel):
     """JWT payload structure from Node.js server"""
 
     id: str
-    sessionId: str
+    sessionId: Optional[str] = None  # Made optional for compatibility
     iat: Optional[int] = None
     exp: Optional[int] = None
 

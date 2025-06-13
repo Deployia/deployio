@@ -6,3 +6,4 @@ pydantic>=2.5.0
 pydantic-settings>=2.1.0
 PyJWT>=2.8.0
 python-dotenv>=1.0.0
+redis>=5.0.0

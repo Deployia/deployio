@@ -49,10 +49,15 @@ class JWTAuth(HTTPBearer):
             payload = jwt.decode(token, self.jwt_secret, algorithms=["HS256"])
             jwt_payload = JWTPayload(**payload)
 
-            # Validate session with database
-            user_data = await self._validate_session(
-                jwt_payload.id, jwt_payload.sessionId
-            )
+            # Validate session with database (only if sessionId is provided)
+            user_data = None
+            if jwt_payload.sessionId:
+                user_data = await self._validate_session(
+                    jwt_payload.id, jwt_payload.sessionId
+                )
+            else:
+                # If no sessionId, just validate that the user exists
+                user_data = await self._validate_user_exists(jwt_payload.id)
 
             if not user_data:
                 raise HTTPException(
@@ -62,7 +67,7 @@ class JWTAuth(HTTPBearer):
 
             return AuthenticatedUser(
                 id=jwt_payload.id,
-                session_id=jwt_payload.sessionId,
+                session_id=jwt_payload.sessionId or "legacy",
                 username=user_data.get("username"),
                 email=user_data.get("email"),
             )
@@ -102,6 +107,24 @@ class JWTAuth(HTTPBearer):
             user = db.users.find_one(
                 {"_id": ObjectId(user_id), "sessions._id": ObjectId(session_id)}
             )
+
+            return user
+        except Exception:
+            return None
+
+    async def _validate_user_exists(self, user_id: str) -> Optional[dict]:
+        """Validate that user exists (for legacy tokens without sessionId)"""
+        try:
+            from config.database import get_sync_db_connection
+            from bson import ObjectId
+
+            # Get sync database connection for validation
+            db, status = get_sync_db_connection()
+            if status != "connected" or db is None:
+                return None
+
+            # Find user by ID
+            user = db.users.find_one({"_id": ObjectId(user_id)})
 
             return user
         except Exception:
