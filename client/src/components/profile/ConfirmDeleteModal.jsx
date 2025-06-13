@@ -7,13 +7,25 @@ const ConfirmDeleteModal = ({
   itemName,
   onConfirm,
   onCancel,
-  isLoading = false,
 }) => {
   const [confirmText, setConfirmText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onConfirm();
+
+    if (!isConfirmValid) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await onConfirm();
+    } catch (error) {
+      console.error("Delete operation failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const isConfirmValid = confirmText === "DELETE";
