@@ -1,5 +1,4 @@
 // config/init.js
-const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const passport = require("passport");
@@ -9,13 +8,34 @@ const helmet = require("helmet");
 const hpp = require("hpp");
 const cors = require("cors");
 const compression = require("compression");
-const logger = require("./logger"); // Import the Winston logger
+const logger = require("./logger");
+const {
+  getRateLimiters,
+  bypassHealthChecks,
+  debugRateLimit,
+  addRateLimitHeaders,
+} = require("../middleware/rateLimitMiddleware");
 
 module.exports = (app) => {
-  // Trust proxy - Only in production when behind reverse proxy (Traefik)
-  // This allows Express to properly handle X-Forwarded-For headers for rate limiting
+  // Trust proxy configuration - Critical for rate limiting behind reverse proxy
+  // This must be configured BEFORE any rate limiting middleware
   if (process.env.NODE_ENV === "production") {
-    app.set("trust proxy", true);
+    // In production, check if we should trust proxy
+    const trustProxy = process.env.TRUST_PROXY === "true";
+    app.set("trust proxy", trustProxy);
+
+    if (trustProxy) {
+      logger.info(
+        "Trust proxy enabled - IP detection will use X-Forwarded-For headers"
+      );
+    } else {
+      logger.warn(
+        "Trust proxy disabled in production - rate limiting may not work correctly behind reverse proxy"
+      );
+    }
+  } else {
+    // In development, typically no reverse proxy
+    app.set("trust proxy", process.env.TRUST_PROXY === "true");
   }
 
   // Enable gzip compression for better performance
@@ -86,18 +106,17 @@ module.exports = (app) => {
     };
     const swaggerSpec = swaggerJsdoc(swaggerOptions);
     app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  }
-
-  // Passport
+  } // Passport
   app.use(passport.initialize());
 
-  // Rate limiting
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: "Too many requests, please try again later.",
-  });
-  app.use(limiter);
+  // Add debugging middleware for rate limiting in development
+  if (process.env.NODE_ENV === "development") {
+    app.use(debugRateLimit);
+    app.use(addRateLimitHeaders);
+  }
+  // Rate limiting - Apply global rate limiting with health check bypass
+  app.use(bypassHealthChecks);
+  app.use(getRateLimiters().general);
 
   // Body parser
   app.use(require("express").json());

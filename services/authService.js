@@ -4,7 +4,8 @@ const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const User = require("../models/User");
 const { sendEmail } = require("./emailService");
-const logger = require("../config/logger"); // Added logger
+const logger = require("../config/logger");
+const { getRedisClient } = require("../config/redisClient");
 
 /**
  * Generate JWT token for authentication
@@ -127,14 +128,15 @@ const loginUser = async (email, password, loginInfo = {}) => {
       }
 
       throw new Error("Invalid email or password");
-    }
-
-    // Reset failed attempts on successful password verification
+    } // Reset failed attempts on successful password verification
     if (user.loginAttempts > 0) {
       user.loginAttempts = 0;
       user.lockUntil = undefined;
       await user.save();
     }
+
+    // Clear Redis-based login attempts on successful authentication
+    await clearLoginAttempts(email, loginInfo.ip);
 
     // Check if user is verified - return verification status instead of throwing error
     if (!user.isVerified) {
@@ -337,21 +339,43 @@ const resetPassword = async (token, newPassword) => {
  * Redis or a similar database. This simplified implementation relies on client-side
  * token removal only.
  */
-const logoutUser = async (userId) => {
-  // In a production implementation, you might:
-  // 1. Log the logout action
-  // 2. Store session data or user activity
-  // 3. Invalidate the token in a Redis store
+const logoutUser = async (userId, refreshToken) => {
+  try {
+    const redisClient = getRedisClient();
 
-  // Optional: find the user to confirm they exist
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new Error("User not found");
+    // Remove refresh token from database
+    const user = await User.findById(userId);
+    if (user) {
+      user.refreshTokens = user.refreshTokens.filter(
+        (rt) => rt.token !== refreshToken
+      );
+      await user.save();
+    }
+
+    // Remove refresh token from Redis
+    if (refreshToken) {
+      const tokenKey = `refresh_token:${userId}:${refreshToken}`;
+      await redisClient.del(tokenKey);
+    }
+
+    // Clear user session from Redis
+    const sessionKey = `user_session:${userId}`;
+    await redisClient.del(sessionKey);
+
+    // Remove from active sessions
+    const activeSessionsKey = `active_sessions:${userId}`;
+    await redisClient.srem(activeSessionsKey, sessionKey);
+
+    logger.info(`User ${userId} logged out successfully`);
+    return true;
+  } catch (error) {
+    logger.error("Error during logout:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    });
+    throw new Error("Logout failed");
   }
-
-  // Here we simply return a success message
-  // The actual token invalidation happens client-side by removing the token
-  return "Logged out successfully";
 };
 
 /**
@@ -403,9 +427,10 @@ const resendOtp = async (email) => {
   return "OTP resent to your email";
 };
 
-// New function to store refresh tokens for rotation
+// New function to store refresh tokens for rotation with Redis support
 async function storeRefreshToken(userId, token) {
   try {
+    const redisClient = getRedisClient();
     const decoded = jwt.decode(token);
     if (!decoded || !decoded.exp) {
       throw new Error("Invalid token format");
@@ -435,13 +460,29 @@ async function storeRefreshToken(userId, token) {
     user.refreshTokens.push({ token, expiresAt });
     await user.save();
 
+    // Store token in Redis for fast validation with TTL
+    const tokenKey = `refresh_token:${userId}:${token}`;
+    const ttlSeconds = Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
+
+    if (ttlSeconds > 0) {
+      await redisClient.setex(
+        tokenKey,
+        ttlSeconds,
+        JSON.stringify({
+          userId,
+          createdAt: now.toISOString(),
+          expiresAt: expiresAt.toISOString(),
+        })
+      );
+    }
+
     return true;
   } catch (error) {
     logger.error("Error storing refresh token:", {
       error: error.message,
       stack: error.stack,
       userId,
-    }); // Replaced console.error
+    });
     throw new Error("Failed to store refresh token");
   }
 }
@@ -1009,43 +1050,52 @@ const complete2FALogin = async (userId) => {
 // =============================================================================
 
 /**
- * Check recent login attempts for rate limiting
+ * Check recent login attempts for rate limiting using Redis
  */
 async function checkRecentLoginAttempts(email, ip) {
   try {
-    // This is a simple in-memory rate limiting
-    // In production, you'd want to use Redis or a database
+    const redisClient = getRedisClient();
     const cacheKey = `login_attempts_${email}_${ip}`;
-    // For now, return 0 as we don't have a cache implementation
-    // TODO: Implement proper rate limiting with Redis
-    return 0;
+
+    // Get the current count of login attempts
+    const attempts = await redisClient.get(cacheKey);
+    return attempts ? parseInt(attempts) : 0;
   } catch (error) {
     logger.error("Error checking recent login attempts:", {
       error: error.message,
       stack: error.stack,
       email,
       ip,
-    }); // Replaced console.error
+    });
     return 0; // Fail open for now
   }
 }
 
 /**
- * Log failed login attempt
+ * Log failed login attempt using Redis
  */
 async function logFailedLoginAttempt(email, ip) {
   try {
+    const redisClient = getRedisClient();
+    const cacheKey = `login_attempts_${email}_${ip}`;
+
+    // Increment the failed attempt counter with 15 minute expiry
+    await redisClient
+      .multi()
+      .incr(cacheKey)
+      .expire(cacheKey, 15 * 60) // 15 minutes
+      .exec();
+
     logger.warn(
-      `Failed login attempt for ${email} from IP: ${ip} at ${new Date().toISOString()}` // Replaced console.log with logger.warn
+      `Failed login attempt for ${email} from IP: ${ip} at ${new Date().toISOString()}`
     );
-    // TODO: Store in security log collection
   } catch (error) {
     logger.error("Error logging failed login attempt:", {
       error: error.message,
       stack: error.stack,
       email,
       ip,
-    }); // Replaced console.error
+    });
   }
 }
 
@@ -1074,14 +1124,16 @@ async function incrementFailedAttempts(user) {
 }
 
 /**
- * Log successful login for security monitoring
+ * Log successful login for security monitoring and session tracking
  */
 async function logSuccessfulLogin(userId, loginInfo) {
   try {
+    const redisClient = getRedisClient();
+
     logger.info(
       `Successful login for user ${userId} from IP: ${
         loginInfo.ip
-      } at ${new Date().toISOString()}` // Replaced console.log
+      } at ${new Date().toISOString()}`
     );
 
     // Update user's last login info
@@ -1090,11 +1142,54 @@ async function logSuccessfulLogin(userId, loginInfo) {
       lastLoginIP: loginInfo.ip,
     });
 
-    // TODO: Store in security log collection for audit trail
+    // Store session info in Redis for monitoring and security
+    const sessionKey = `user_session:${userId}`;
+    const sessionData = {
+      ip: loginInfo.ip,
+      userAgent: loginInfo.userAgent,
+      loginTime: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+    };
+
+    // Store session with 7 day expiry (matches refresh token expiry)
+    await redisClient.setex(
+      sessionKey,
+      7 * 24 * 60 * 60,
+      JSON.stringify(sessionData)
+    );
+
+    // Keep track of user's active sessions
+    const activeSessionsKey = `active_sessions:${userId}`;
+    await redisClient.sadd(activeSessionsKey, sessionKey);
+    await redisClient.expire(activeSessionsKey, 7 * 24 * 60 * 60);
   } catch (error) {
     logger.error("Error logging successful login:", {
       error: error.message,
       stack: error.stack,
+      userId,
+      loginInfo,
+    });
+  }
+}
+
+/**
+ * Clear login attempts on successful login using Redis
+ */
+async function clearLoginAttempts(email, ip) {
+  try {
+    const redisClient = getRedisClient();
+    const cacheKey = `login_attempts_${email}_${ip}`;
+
+    // Delete the login attempts counter
+    await redisClient.del(cacheKey);
+
+    logger.info(`Cleared login attempts for ${email} from IP: ${ip}`);
+  } catch (error) {
+    logger.error("Error clearing login attempts:", {
+      error: error.message,
+      stack: error.stack,
+      email,
+      ip,
     });
   }
 }

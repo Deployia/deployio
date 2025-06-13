@@ -1,5 +1,35 @@
 const User = require("../models/User");
 const crypto = require("crypto");
+const { getRedisClient } = require("../config/redisClient");
+
+// Cache management utilities
+const invalidateUserCache = async (userId) => {
+  try {
+    const redisClient = getRedisClient();
+    const patterns = [
+      `user:${userId}`,
+      `user_session:${userId}`,
+      `active_sessions:${userId}`,
+      `refresh_token:${userId}:*`,
+    ];
+
+    // Delete all user-related cache keys
+    for (const pattern of patterns) {
+      if (pattern.includes("*")) {
+        // For patterns with wildcards, we need to scan first
+        const keys = await redisClient.keys(pattern);
+        if (keys.length > 0) {
+          await redisClient.del(...keys);
+        }
+      } else {
+        await redisClient.del(pattern);
+      }
+    }
+  } catch (error) {
+    console.error("Error invalidating user cache:", error);
+    // Don't throw error as this is not critical
+  }
+};
 
 // Update user profile
 const updateProfile = async (
@@ -9,7 +39,7 @@ const updateProfile = async (
   removeProfileImage
 ) => {
   const updateFields = { ...updateData };
-  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const redisClient = getRedisClient(); // Get redisClient from singleton
   const cacheKey = `user:${userId}`;
 
   // Handle profile image changes
@@ -19,22 +49,21 @@ const updateProfile = async (
     // If removeProfileImage flag is true, set profileImage to null or default
     updateFields.profileImage = null;
   }
-
   const user = await User.findByIdAndUpdate(userId, updateFields, {
     new: true,
     runValidators: true,
   }).select("-password");
   if (!user) throw new Error("User not found");
 
-  // Invalidate cache
-  await redisClient.del(cacheKey);
+  // Invalidate cache comprehensively
+  await invalidateUserCache(userId);
   return user;
 };
 
 // Update user password
 const updatePassword = async (userId, currentPassword, newPassword) => {
   const user = await User.findById(userId).select("+password googleId");
-  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const redisClient = getRedisClient(); // Get redisClient from singleton
   const cacheKey = `user:${userId}`;
 
   if (!user) throw new Error("User not found");
@@ -45,35 +74,44 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
   user.password = newPassword;
   await user.save();
 
-  // Invalidate cache
-  await redisClient.del(cacheKey);
+  // Invalidate cache comprehensively
+  await invalidateUserCache(userId);
 
   return "Password updated successfully";
 };
 
 // Get user by ID
 const getUserById = async (userId) => {
-  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const redisClient = getRedisClient(); // Use the singleton Redis client
   const cacheKey = `user:${userId}`;
 
-  // Try to get data from cache
-  const cachedUser = await redisClient.get(cacheKey);
-  if (cachedUser) {
-    return JSON.parse(cachedUser);
+  try {
+    // Try to get data from cache
+    const cachedUser = await redisClient.get(cacheKey);
+    if (cachedUser) {
+      return JSON.parse(cachedUser);
+    }
+
+    // If not in cache, get from DB and cache it
+    const user = await User.findById(userId).select("-password");
+    if (!user) throw new Error("User not found");
+
+    // Cache for 1 hour
+    await redisClient.setex(cacheKey, 3600, JSON.stringify(user));
+    return user;
+  } catch (error) {
+    // If Redis fails, still return data from DB
+    console.error("Redis error in getUserById:", error);
+    const user = await User.findById(userId).select("-password");
+    if (!user) throw new Error("User not found");
+    return user;
   }
-
-  // If not in cache, get from DB and cache it
-  const user = await User.findById(userId).select("-password");
-  if (!user) throw new Error("User not found");
-
-  await redisClient.set(cacheKey, JSON.stringify(user), { EX: 3600 }); // Cache for 1 hour
-  return user;
 };
 
 // Delete user account
 const deleteUser = async (userId, password) => {
   const user = await User.findById(userId).select("+password");
-  const redisClient = require("../server").get("redisClient"); // Get redisClient from app context
+  const redisClient = getRedisClient(); // Use the singleton Redis client
   const cacheKey = `user:${userId}`;
 
   if (!user) throw new Error("User not found");
@@ -81,11 +119,10 @@ const deleteUser = async (userId, password) => {
   // Verify password before deletion
   const isMatch = await user.comparePassword(password);
   if (!isMatch) throw new Error("Incorrect password");
-
   await User.findByIdAndDelete(userId);
 
-  // Invalidate cache
-  await redisClient.del(cacheKey);
+  // Invalidate all user-related cache
+  await invalidateUserCache(userId);
 
   return "Account deleted successfully";
 };
@@ -388,4 +425,5 @@ module.exports = {
   createApiKey,
   deleteApiKey,
   getDashboardStats,
+  invalidateUserCache,
 };

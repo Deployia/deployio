@@ -2,6 +2,7 @@ const express = require("express");
 const { protect } = require("../middleware/authMiddleware");
 const userController = require("../controllers/userController");
 const multer = require("multer");
+const { getRateLimiters } = require("../middleware/rateLimitMiddleware");
 
 // Use memory storage for multer (no local uploads)
 const storage = multer.memoryStorage();
@@ -13,12 +14,18 @@ const router = express.Router();
 router.put(
   "/profile",
   protect,
+  getRateLimiters().user.profileUpdate,
   upload.single("profileImage"),
   userController.updateProfile
 );
 
 // Update password
-router.put("/update-password", protect, userController.updatePassword);
+router.put(
+  "/update-password",
+  protect,
+  getRateLimiters().user.passwordUpdate,
+  userController.updatePassword
+);
 
 // Notification preferences
 router.get(

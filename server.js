@@ -8,19 +8,19 @@ dotenv.config();
 const connectDB = require("./config/database");
 connectDB();
 
-// Redis connection
-const connectRedis = require("./config/redis"); // Import new Redis config
-let redisClient;
+// Redis connection and app startup
+const { connectRedis } = require("./config/redisClient");
 
 (async () => {
-  redisClient = await connectRedis();
-  app.set("redisClient", redisClient); // Set redisClient in app context after connection
+  // Connect to Redis first
+  await connectRedis();
+
+  // Import app after Redis is ready
+  const app = require("./app");
+
+  // Start server
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 })();
-
-const app = require("./app");
-
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
