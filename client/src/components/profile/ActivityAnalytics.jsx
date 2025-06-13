@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchUserActivity } from "@redux/slices/userSlice";
 import {
@@ -16,14 +16,20 @@ import ProfileErrorBoundary from "./ProfileErrorBoundary";
 const ActivityAnalytics = () => {
   const dispatch = useDispatch();
   const { activities, loading } = useSelector((state) => state.userProfile);
-  const [selectedTimeRange, setSelectedTimeRange] = useState("7d"); // Fetch activities when component mounts if not already loaded
+  const [selectedTimeRange, setSelectedTimeRange] = useState("7d");
+  const hasInitiallyLoaded = useRef(false);
+  // Fetch activities when component mounts if not already loaded
   useEffect(() => {
-    // Only load if we don't have enough activities for meaningful analytics
-    // Reduced limit to avoid conflicts with ActivityTab pagination
-    if (!activities || activities.length < 10) {
+    // Only load if we haven't loaded before and don't have enough activities for meaningful analytics
+    if (
+      !hasInitiallyLoaded.current &&
+      (!activities || activities.length < 10)
+    ) {
+      hasInitiallyLoaded.current = true;
       dispatch(fetchUserActivity({ page: 1, limit: 100, source: "analytics" }));
     }
-  }, [dispatch, activities]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]); // Only depend on dispatch to avoid infinite loop
 
   // Calculate analytics data
   const analyticsData = useMemo(() => {
@@ -119,6 +125,7 @@ const ActivityAnalytics = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
   if (!analyticsData) {
     return (
       <ProfileErrorBoundary fallbackMessage="Failed to load activity analytics">
@@ -156,6 +163,7 @@ const ActivityAnalytics = () => {
     profile: FaUser,
     system: FaCog,
   };
+
   return (
     <ProfileErrorBoundary fallbackMessage="Failed to load activity analytics">
       <motion.div

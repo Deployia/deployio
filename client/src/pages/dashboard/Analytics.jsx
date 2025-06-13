@@ -82,7 +82,8 @@ const Analytics = () => {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [timeRange, mockData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRange]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
