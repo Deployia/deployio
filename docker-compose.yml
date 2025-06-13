@@ -130,7 +130,7 @@ services:
     networks:
       - web
     healthcheck:
-      test: ["CMD-SHELL", "echo 'db.runCommand(\\\"ping\\\").ok' | mongo localhost:27017/test --quiet"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
