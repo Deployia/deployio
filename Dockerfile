@@ -1,4 +1,4 @@
-FROM node:20-alpine3.19 AS builder
+FROM node:20-alpine
 
 # Create app directory and non-root user
 WORKDIR /app
@@ -10,6 +10,9 @@ RUN apk update && \
     apk upgrade && \
     apk add --no-cache curl && \
     rm -rf /var/cache/apk/*
+
+# ensure logs directory exists for Winston file transport
+RUN mkdir -p /app/logs
 
 # Copy package files and install dependencies
 COPY package*.json ./

@@ -61,11 +61,7 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl --fail http://localhost:3000/api/v1/health || exit 1",
-        ]
+      test: ["CMD", "curl --fail http://localhost:3000/api/v1/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -100,10 +96,7 @@ services:
       - /tmp:noexec,nosuid,size=100m
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          "curl --fail http://localhost:8000/service/v1/health || exit 1",
-        ]
+        ["CMD", "curl --fail http://localhost:8000/service/v1/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -141,7 +134,7 @@ services:
     networks:
       - web
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping"]
+      test: ["CMD", "redis-cli ping"]
       interval: 10s
       timeout: 5s
       retries: 5
