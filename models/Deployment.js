@@ -267,7 +267,7 @@ deploymentSchema.index({ project: 1, createdAt: -1 });
 deploymentSchema.index({ deployedBy: 1 });
 deploymentSchema.index({ "deployment.status": 1 });
 deploymentSchema.index({ "deployment.environment": 1 });
-deploymentSchema.index({ "deployment.id": 1 }, { unique: true });
+// deployment.id already has unique: true in schema definition
 
 // Virtual for total duration
 deploymentSchema.virtual("totalDuration").get(function () {
@@ -384,7 +384,7 @@ deploymentSchema.methods.updateStatus = function (status, additionalData = {}) {
   return this.save();
 };
 
-deploymentSchema.methods.rollback = function (userId, reason) {
+deploymentSchema.methods.performRollback = function (userId, reason) {
   if (!this.rollback.canRollback) {
     throw new Error("This deployment cannot be rolled back");
   }
