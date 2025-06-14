@@ -35,7 +35,9 @@ jobs:
       - name: Install Node.js dependencies
         run: |
           npm ci --legacy-peer-deps
-          cd client && npm ci --legacy-peer-deps      - name: Install Python dependencies
+          cd client && npm ci --legacy-peer-deps
+
+      - name: Install Python dependencies
         run: |
           cd ai_service
           pip install -r requirements.txt
@@ -44,7 +46,9 @@ jobs:
       - name: Lint JavaScript/React
         run: |
           npm run lint || true
-          cd client && npm run lint || true      - name: Lint Python
+          cd client && npm run lint || true
+
+      - name: Lint Python
         run: |
           cd ai_service
           pylint --rcfile=.pylintrc **/*.py || true
@@ -61,7 +65,9 @@ jobs:
       - name: Security audit for Node.js
         run: |
           npm audit --audit-level=moderate || true
-          cd client && npm audit --audit-level=moderate || true      - name: Python security scan with Bandit
+          cd client && npm audit --audit-level=moderate || true
+
+      - name: Python security scan with Bandit
         run: |
           pip install bandit
           cd ai_service
@@ -123,7 +129,9 @@ jobs:
         run: |
           cd fastapi_service
           pip install -r requirements.txt
-          pip install pytest pytest-cov httpx      - name: Run AI Service tests
+          pip install pytest pytest-cov httpx
+
+      - name: Run AI Service tests
         run: |
           cd ai_service
           pytest tests/ -v --cov=. --cov-report=xml || true
@@ -187,7 +195,9 @@ jobs:
             # Deploy using your existing working process
             docker-compose down --remove-orphans
             docker-compose build --no-cache
-            docker-compose up -d            # Wait for containers to start
+            docker-compose up -d
+
+            # Wait for containers to start
             echo "⏳ Waiting for services to start..."
             sleep 20
 
