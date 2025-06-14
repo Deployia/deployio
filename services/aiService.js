@@ -12,6 +12,7 @@ const aiServiceClient = axios.create({
   timeout: AI_SERVICE_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
+    'X-Internal-Service': 'deployio-backend', // Internal service identification
   },
 });
 
@@ -286,11 +287,11 @@ const checkAiServiceHealth = async () => {
     });
     
     return {
-      status: 'healthy',
+      status: response.data.status === 'ok' ? 'healthy' : 'unhealthy',
       service_name: response.data.service_name,
       uptime: response.data.uptime,
-      mongodb_status: response.data.mongodb_status,
       redis_status: response.data.redis_status,
+      purpose: response.data.purpose,
     };
   } catch (error) {
     logger.error('AI service health check failed:', error.message);

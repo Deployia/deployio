@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import api from "@utils/api";
-import fastapi from "@utils/fastapi";
 import useEnvironmentInfo from "@utils/useEnvironmentInfo";
 import Spinner from "@components/Spinner";
 import SEO from "@components/SEO.jsx";
@@ -30,9 +29,7 @@ function Health() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [showBackendJson, setShowBackendJson] = useState(true);
-  const [showFastapiJson, setShowFastapiJson] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);  const [showBackendJson, setShowBackendJson] = useState(true);
   // Copy feedback state
   const [copyFeedback, setCopyFeedback] = useState({
     show: false,
@@ -53,18 +50,14 @@ function Health() {
       redis_status: "unknown",
       protectedData: null,
       protectedError: null,
-    },
-    fastapi: {
-      name: "FastAPI Service",
+    },    fastapi: {
+      name: "FastAPI AI Service",
       icon: FaCog,
       color: "blue",
       status: "unknown",
       uptime: 0,
       message: "",
-      mongodb_status: "unknown",
       redis_status: "unknown",
-      protectedData: null,
-      protectedError: null,
     },
   });
 
@@ -111,13 +104,12 @@ function Health() {
     if (minutes > 0) return `${minutes}m ${secs}s`;
     return `${secs}s`;
   };
-
   // Get status indicator component
   const StatusIndicator = ({ status, type = "default" }) => {
     let isHealthy = false;
 
     if (type === "service") {
-      isHealthy = status === "ok";
+      isHealthy = status === "ok" || status === "healthy";
     } else {
       isHealthy = status === "connected";
     }
@@ -162,33 +154,32 @@ function Health() {
             <div>
               <h3 className="text-lg font-semibold text-white heading">
                 {service.name}
-              </h3>
-              <p className="text-xs text-neutral-400">
+              </h3>              <p className="text-xs text-neutral-400">
                 {serviceKey === "backend"
                   ? "Express.js API"
-                  : "Python microservice"}
+                  : "AI Processing Service"}
               </p>
             </div>
           </div>
           <div className="flex items-center">
             <StatusIndicator status={service.status} type="service" />
           </div>
-        </div>
-
-        {/* Database Status */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center text-sm text-neutral-400">
-            <FaDatabase className="mr-2 text-neutral-500" />
-            Database
+        </div>        {/* Database Status - Only show for backend */}
+        {serviceKey === "backend" && (
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center text-sm text-neutral-400">
+              <FaDatabase className="mr-2 text-neutral-500" />
+              Database
+            </div>
+            <StatusIndicator status={service.mongodb_status} />
           </div>
-          <StatusIndicator status={service.mongodb_status} />
-        </div>
+        )}
 
         {/* Redis Status */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center text-sm text-neutral-400">
             <FaMemory className="mr-2 text-neutral-500" />
-            Redis Cache
+            {serviceKey === "fastapi" ? "Redis Cache" : "Redis Cache"}
           </div>
           <StatusIndicator status={service.redis_status} />
         </div>
@@ -228,16 +219,21 @@ function Health() {
       } else {
         setLoading(true);
       }
-      setError(null);
-
-      try {
+      setError(null);      try {
         // Backend greeting + health
         const beHello = await api.get("/hello");
         const beHealth = await api.get("/health");
 
-        // FastAPI greeting + health
-        const faHello = await fastapi.get("/hello");
-        const faHealth = await fastapi.get("/health");
+        // FastAPI health through Express backend (recommended approach)
+        let faHealth = null;
+        let faHealthError = null;
+        
+        try {
+          faHealth = await api.get("/projects/ai/health");
+        } catch (faError) {
+          console.warn("FastAPI health check failed:", faError);
+          faHealthError = faError.response?.data?.message || faError.message;
+        }
 
         // Update services state
         setServices((prev) => ({
@@ -250,20 +246,14 @@ function Health() {
             redis_status: beHealth.data.redis_status,
             protectedData: null,
             protectedError: null,
-          },
-          fastapi: {
+          },          fastapi: {
             ...prev.fastapi,
-            status: faHealth.data.status,
-            uptime: faHello.data.uptime,
-            message: faHello.data.message,
-            mongodb_status: faHealth.data.mongodb_status,
-            redis_status: faHealth.data.redis_status,
-            protectedData: null,
-            protectedError: null,
+            status: faHealth?.data?.data?.status || "error",
+            uptime: faHealth?.data?.data?.uptime || 0,
+            message: faHealthError ? `Error: ${faHealthError}` : (faHealth?.data?.data?.service_name || "AI Processing Service"),
+            redis_status: faHealth?.data?.data?.redis_status || "unknown",
           },
-        }));
-
-        // Test protected endpoints if authenticated
+        }));        // Test protected endpoints if authenticated
         if (isAuthenticated) {
           // Test Backend protected endpoint
           try {
@@ -285,32 +275,6 @@ function Health() {
                 protectedError:
                   backendProtectedErr.response?.data?.message ||
                   backendProtectedErr.message,
-              },
-            }));
-          }
-
-          // Test FastAPI protected endpoint
-          try {
-            const fastapiProtectedResponse = await fastapi.get(
-              "/protected/data"
-            );
-            setServices((prev) => ({
-              ...prev,
-              fastapi: {
-                ...prev.fastapi,
-                protectedData: fastapiProtectedResponse.data,
-                protectedError: null,
-              },
-            }));
-          } catch (fastapiProtectedErr) {
-            setServices((prev) => ({
-              ...prev,
-              fastapi: {
-                ...prev.fastapi,
-                protectedData: null,
-                protectedError:
-                  fastapiProtectedErr.response?.data?.detail ||
-                  fastapiProtectedErr.message,
               },
             }));
           }
@@ -505,85 +469,11 @@ function Health() {
                 <div>
                   <h3 className="text-lg font-semibold text-white heading">
                     Protected Endpoint Testing
-                  </h3>
-                  <p className="text-xs text-neutral-400">
-                    Testing authenticated API access across services with
-                    real-time data display and JSON format comparison
+                  </h3>                  <p className="text-xs text-neutral-400">
+                    Testing authenticated API access to the Express backend service
                   </p>
                 </div>
-              </div>
-
-              {/* Data Consistency Summary */}
-              {(services.backend.protectedData ||
-                services.fastapi.protectedData) && (
-                <div className="mb-6 p-4 bg-neutral-800/30 rounded-lg border border-neutral-600">
-                  <h4 className="text-sm font-medium text-white mb-3 flex items-center">
-                    <FaCheckCircle className="mr-2 text-green-400" />
-                    Data Consistency Analysis
-                  </h4>
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
-                      <p className="text-xs text-neutral-400 mb-1">
-                        Backend Status
-                      </p>
-                      <p className="text-xs text-white">
-                        {services.backend.protectedData ? (
-                          <span className="text-green-400">
-                            ✓ Response received
-                          </span>
-                        ) : (
-                          <span className="text-red-400">✗ No response</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
-                      <p className="text-xs text-neutral-400 mb-1">
-                        FastAPI Status
-                      </p>
-                      <p className="text-xs text-white">
-                        {services.fastapi.protectedData ? (
-                          <span className="text-green-400">
-                            ✓ Response received
-                          </span>
-                        ) : (
-                          <span className="text-red-400">✗ No response</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
-                      <p className="text-xs text-neutral-400 mb-1">
-                        Data Structure
-                      </p>
-                      <p className="text-xs text-white">
-                        {services.backend.protectedData &&
-                        services.fastapi.protectedData ? (
-                          <span className="text-green-400">✓ Consistent</span>
-                        ) : (
-                          <span className="text-yellow-400">- Partial</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="p-2 bg-neutral-900/50 rounded border border-neutral-600">
-                      <p className="text-xs text-neutral-400 mb-1">
-                        Fields Matched
-                      </p>
-                      <p className="text-xs text-white">
-                        {services.backend.protectedData &&
-                        services.fastapi.protectedData ? (
-                          <span className="text-green-400">
-                            user_id, username, service, timestamp
-                          </span>
-                        ) : (
-                          <span className="text-neutral-400">N/A</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Backend Protected Endpoint */}
+              </div>              {/* Backend Protected Endpoint */}
                 <div className="p-4 bg-neutral-800/50 rounded-lg border border-neutral-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
@@ -684,110 +574,16 @@ function Health() {
                       </p>
                     </div>
                   )}
+                </div>              {/* Note about FastAPI being internal */}
+              <div className="mt-4 p-3 bg-blue-900/20 rounded-lg border border-blue-700/30">
+                <div className="flex items-center mb-2">
+                  <FaCog className="mr-2 text-blue-400" />
+                  <p className="text-sm text-blue-300 font-medium">FastAPI AI Service</p>
                 </div>
-
-                {/* FastAPI Protected Endpoint */}
-                <div className="p-4 bg-neutral-800/50 rounded-lg border border-neutral-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <FaCog className="mr-2 text-blue-500" />
-                      <div>
-                        <h4 className="text-md font-medium text-white">
-                          FastAPI Service
-                        </h4>
-                        <p className="text-xs text-neutral-400">
-                          /protected/data
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      {services.fastapi.protectedError ? (
-                        <span className="px-2 py-1 text-xs bg-red-900/30 text-red-400 rounded">
-                          ✗ Failed
-                        </span>
-                      ) : services.fastapi.protectedData ? (
-                        <span className="px-2 py-1 text-xs bg-green-900/30 text-green-400 rounded">
-                          ✓ Success
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 text-xs bg-neutral-700 text-neutral-400 rounded">
-                          Not tested
-                        </span>
-                      )}
-                    </div>
-                  </div>{" "}
-                  {services.fastapi.protectedData && (
-                    <div className="space-y-3">
-                      {/* JSON Response Display */}
-                      <div className="p-3 bg-neutral-900/70 rounded border border-neutral-600">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs text-green-400 flex items-center">
-                            <FaCode className="mr-1" /> JSON Response
-                          </p>
-                          <div className="flex items-center space-x-2">
-                            {" "}
-                            <button
-                              onClick={() =>
-                                copyToClipboard(
-                                  JSON.stringify(
-                                    services.fastapi.protectedData,
-                                    null,
-                                    2
-                                  )
-                                )
-                              }
-                              className="text-xs text-neutral-400 hover:text-green-400 hover:bg-green-900/20 px-2 py-1 rounded transition-all duration-200 flex items-center"
-                              title="Copy JSON to clipboard"
-                            >
-                              <FaCopy className="mr-1" /> Copy
-                            </button>
-                            <button
-                              onClick={() =>
-                                setShowFastapiJson(!showFastapiJson)
-                              }
-                              className="text-xs text-neutral-400 hover:text-white transition-colors flex items-center"
-                            >
-                              {showFastapiJson ? (
-                                <>
-                                  <FaChevronUp className="mr-1" /> Hide
-                                </>
-                              ) : (
-                                <>
-                                  <FaChevronDown className="mr-1" /> Show
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                        {showFastapiJson ? (
-                          <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-x-auto bg-black/30 p-3 rounded border">
-                            {JSON.stringify(
-                              services.fastapi.protectedData,
-                              null,
-                              2
-                            )}
-                          </pre>
-                        ) : (
-                          <div className="text-xs text-green-400 font-mono bg-black/30 p-3 rounded border">
-                            <span className="text-neutral-400">
-                              Click &quot;Show&quot; to view JSON response
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {services.fastapi.protectedError && (
-                    <div className="p-3 bg-red-900/30 rounded border border-red-700/30">
-                      <p className="text-xs text-red-400 mb-1 flex items-center">
-                        <FaExclamationTriangle className="mr-1" /> Error Details
-                      </p>
-                      <p className="text-xs text-red-300 font-mono">
-                        {services.fastapi.protectedError}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <p className="text-xs text-blue-200">
+                  The FastAPI AI service is now an internal-only microservice and does not expose protected endpoints to the frontend. 
+                  All AI functionality is accessed through the Express backend with proper internal service authentication.
+                </p>
               </div>
             </div>
           )}
