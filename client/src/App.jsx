@@ -21,6 +21,7 @@ const VerifyOtp = lazy(() => import("@auth/VerifyOtp"));
 // Dashboard Pages
 const Dashboard = lazy(() => import("@dashboard/Dashboard"));
 const Projects = lazy(() => import("@dashboard/Projects"));
+const CreateProject = lazy(() => import("@dashboard/CreateProject"));
 const Deployments = lazy(() => import("@dashboard/Deployments"));
 const Analytics = lazy(() => import("@dashboard/Analytics"));
 const Monitoring = lazy(() => import("@dashboard/Monitoring"));
@@ -55,7 +56,7 @@ const SDK = lazy(() => import("@downloads/SDK"));
 // Keep frequently accessed pages non-lazy
 import Home from "@marketing/Home";
 import NotFound from "@pages/NotFound";
-import { getMe } from "@redux/slices/authSlice";
+import { getMe } from "@redux/index";
 
 // Other utility pages
 const Health = lazy(() => import("@pages/Health"));
@@ -104,7 +105,6 @@ function App() {
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             <Route path="terms-of-service" element={<TermsOfService />} />
             <Route path="cookie-policy" element={<CookiePolicy />} />
-
             {/* Product Pages with Layout */}
             <Route path="products" element={<ProductsLayout />}>
               <Route path="ai-deployment" element={<AIDeployment />} />
@@ -112,7 +112,6 @@ function App() {
               <Route path="cloud-integration" element={<CloudIntegration />} />
               <Route path="security" element={<SecurityShield />} />
             </Route>
-
             {/* Resource Pages with Layout */}
             <Route path="resources" element={<ResourcesLayout />}>
               <Route path="docs" element={<Documentation />} />
@@ -120,18 +119,17 @@ function App() {
               <Route path="community" element={<Community />} />
               <Route path="blog" element={<Blog />} />
             </Route>
-
             {/* Download Pages with Layout */}
             <Route path="downloads" element={<DownloadsLayout />}>
               <Route path="cli" element={<CLITool />} />
               <Route path="sdk" element={<SDK />} />
-            </Route>
-
+            </Route>{" "}
             {/* Protected Dashboard Routes with Layout */}
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<DashboardLayout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="projects" element={<Projects />} />
+                <Route path="projects/create" element={<CreateProject />} />
                 <Route path="deployments" element={<Deployments />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="cli" element={<CLI />} />
@@ -141,7 +139,6 @@ function App() {
                 <Route path="profile" element={<Profile />} />
               </Route>
             </Route>
-
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

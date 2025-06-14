@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { registerUser, reset } from "@redux/slices/authSlice";
+import { registerUser, reset } from "@redux/index";
 import zxcvbn from "zxcvbn";
 import {
   FaUser,
