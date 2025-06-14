@@ -1,0 +1,666 @@
+const Project = require("../models/Project");
+const Deployment = require("../models/Deployment");
+const { getRedisClient } = require("../config/redisClient");
+const crypto = require("crypto");
+
+// Cache management utilities
+const invalidateProjectCache = async (projectId, userId) => {
+  try {
+    const redisClient = getRedisClient();
+    const patterns = [
+      `project:${projectId}`,
+      `project_details:${projectId}`,
+      `user_projects:${userId}`,
+      `user_projects:${userId}:*`,
+      `project_collaborators:${projectId}`,
+      `project_deployments:${projectId}:*`,
+    ];
+
+    // Delete all project-related cache keys
+    for (const pattern of patterns) {
+      if (pattern.includes("*")) {
+        const keys = await redisClient.keys(pattern);
+        if (keys.length > 0) {
+          await redisClient.del(...keys);
+        }
+      } else {
+        await redisClient.del(pattern);
+      }
+    }
+  } catch (error) {
+    console.error("Error invalidating project cache:", error);
+    // Don't throw error as this is not critical
+  }
+};
+
+const invalidateUserProjectsCache = async (userId) => {
+  try {
+    const redisClient = getRedisClient();
+    const patterns = [
+      `user_projects:${userId}`,
+      `user_projects:${userId}:*`,
+    ];
+
+    for (const pattern of patterns) {
+      if (pattern.includes("*")) {
+        const keys = await redisClient.keys(pattern);
+        if (keys.length > 0) {
+          await redisClient.del(...keys);
+        }
+      } else {
+        await redisClient.del(pattern);
+      }
+    }
+  } catch (error) {
+    console.error("Error invalidating user projects cache:", error);
+  }
+};
+
+// Create a new project
+const createProject = async (userId, projectData) => {
+  try {
+    const project = new Project({
+      ...projectData,
+      owner: userId,
+    });
+
+    await project.save();
+    
+    // Populate the owner and collaborators
+    await project.populate("owner", "username email profileImage");
+    
+    // Invalidate user projects cache
+    await invalidateUserProjectsCache(userId);
+    
+    return project;
+  } catch (error) {
+    if (error.code === 11000) {
+      throw new Error("A project with this repository URL already exists");
+    }
+    throw error;
+  }
+};
+
+// Get user's projects (owned + collaborated)
+const getUserProjects = async (userId, options = {}) => {
+  const redisClient = getRedisClient();
+  const { page = 1, limit = 10, sort = "updatedAt", order = "desc", status } = options;
+  const skip = (page - 1) * limit;
+  const sortOrder = order === "desc" ? -1 : 1;
+  
+  // Create cache key with options
+  const cacheKey = `user_projects:${userId}:page_${page}_limit_${limit}_sort_${sort}_order_${order}_status_${status || 'all'}`;
+
+  try {
+    // Try to get from cache
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+
+    // Build aggregation pipeline
+    const pipeline = [
+      {
+        $match: {
+          $or: [
+            { owner: userId },
+            { "collaborators.user": userId }
+          ],
+          isArchived: { $ne: true }
+        }
+      }
+    ];
+
+    // Add status filter if provided
+    if (status && status !== 'all') {
+      pipeline.push({
+        $match: { "deployment.status": status }
+      });
+    }
+
+    // Add search filter if provided
+    if (options.search) {
+      pipeline.unshift({
+        $match: {
+          $or: [
+            { name: { $regex: options.search, $options: "i" } },
+            { description: { $regex: options.search, $options: "i" } },
+            { "repository.url": { $regex: options.search, $options: "i" } },
+          ]
+        }
+      });
+    }
+
+    // Add framework filter if provided
+    if (options.framework) {
+      pipeline.unshift({
+        $match: { "technology.framework": options.framework }
+      });
+    }
+
+    // Add sorting
+    const sortObj = {};
+    sortObj[sort] = sortOrder;
+    pipeline.push({ $sort: sortObj });
+
+    // Add pagination
+    pipeline.push({ $skip: skip }, { $limit: limit });
+
+    // Add population
+    pipeline.push(
+      {
+        $lookup: {
+          from: "users",
+          localField: "owner",
+          foreignField: "_id",
+          as: "owner",
+          pipeline: [{ $project: { username: 1, email: 1, profileImage: 1 } }]
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "collaborators.user",
+          foreignField: "_id",
+          as: "collaboratorUsers",
+          pipeline: [{ $project: { username: 1, email: 1, profileImage: 1 } }]
+        }
+      },
+      {
+        $addFields: {
+          owner: { $arrayElemAt: ["$owner", 0] },
+          collaborators: {
+            $map: {
+              input: "$collaborators",
+              as: "collab",
+              in: {
+                $mergeObjects: [
+                  "$$collab",
+                  {
+                    user: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$collaboratorUsers",
+                            cond: { $eq: ["$$this._id", "$$collab.user"] }
+                          }
+                        },
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: { collaboratorUsers: 0 }
+      }
+    );
+
+    const projects = await Project.aggregate(pipeline);
+
+    // Get total count for pagination
+    const totalCountPipeline = [
+      {
+        $match: {
+          $or: [
+            { owner: userId },
+            { "collaborators.user": userId }
+          ],
+          isArchived: { $ne: true }
+        }
+      }
+    ];
+
+    if (status && status !== 'all') {
+      totalCountPipeline.push({
+        $match: { "deployment.status": status }
+      });
+    }
+
+    totalCountPipeline.push({ $count: "total" });
+    
+    const totalCountResult = await Project.aggregate(totalCountPipeline);
+    const totalProjects = totalCountResult[0]?.total || 0;
+
+    const result = {
+      projects,
+      pagination: {
+        page,
+        limit,
+        total: totalProjects,
+        pages: Math.ceil(totalProjects / limit),
+        hasNext: page < Math.ceil(totalProjects / limit),
+        hasPrev: page > 1
+      }
+    };
+
+    // Cache for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
+    return result;
+  } catch (error) {
+    console.error("Redis error in getUserProjects:", error);
+    // Fallback to direct DB query
+    const projects = await Project.find({
+      $or: [
+        { owner: userId },
+        { "collaborators.user": userId }
+      ],
+      isArchived: { $ne: true }
+    })
+      .populate("owner", "username email profileImage")
+      .populate("collaborators.user", "username email profileImage")
+      .sort({ [sort]: sortOrder })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Project.countDocuments({
+      $or: [
+        { owner: userId },
+        { "collaborators.user": userId }
+      ],
+      isArchived: { $ne: true }
+    });
+
+    return {
+      projects,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      }
+    };
+  }
+};
+
+// Get project by ID with caching
+const getProjectById = async (projectId, userId) => {
+  const redisClient = getRedisClient();
+  const cacheKey = `project_details:${projectId}`;
+
+  try {
+    // Try to get from cache
+    const cachedProject = await redisClient.get(cacheKey);
+    if (cachedProject) {
+      const project = JSON.parse(cachedProject);
+      
+      // Verify user has access to this project
+      const hasAccess = 
+        project.owner._id.toString() === userId.toString() ||
+        project.collaborators.some(c => c.user._id.toString() === userId.toString());
+      
+      if (!hasAccess) {
+        throw new Error("Access denied: You don't have permission to view this project");
+      }
+      
+      return project;
+    }
+
+    // Get from DB
+    const project = await Project.findById(projectId)
+      .populate("owner", "username email profileImage")
+      .populate("collaborators.user", "username email profileImage")
+      .populate("deployment.lastDeployment.deployedBy", "username email");
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Check if user has access
+    const hasAccess = 
+      project.owner._id.toString() === userId.toString() ||
+      project.collaborators.some(c => c.user._id.toString() === userId.toString());
+
+    if (!hasAccess) {
+      throw new Error("Access denied: You don't have permission to view this project");
+    }
+
+    // Cache for 10 minutes
+    await redisClient.setex(cacheKey, 600, JSON.stringify(project));
+    
+    return project;
+  } catch (error) {
+    if (error.message.includes("Access denied") || error.message === "Project not found") {
+      throw error;
+    }
+    
+    console.error("Redis error in getProjectById:", error);
+    
+    // Fallback to DB
+    const project = await Project.findById(projectId)
+      .populate("owner", "username email profileImage")
+      .populate("collaborators.user", "username email profileImage");
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const hasAccess = 
+      project.owner._id.toString() === userId.toString() ||
+      project.collaborators.some(c => c.user._id.toString() === userId.toString());
+
+    if (!hasAccess) {
+      throw new Error("Access denied: You don't have permission to view this project");
+    }
+
+    return project;
+  }
+};
+
+// Update project
+const updateProject = async (projectId, userId, updateData) => {
+  const project = await Project.findById(projectId);
+  
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if user has permission to update (owner or admin)
+  const isOwner = project.owner.toString() === userId.toString();
+  const isAdmin = project.collaborators.some(
+    c => c.user.toString() === userId.toString() && c.role === "admin"
+  );
+
+  if (!isOwner && !isAdmin) {
+    throw new Error("Access denied: You don't have permission to update this project");
+  }
+
+  // Update the project
+  const updatedProject = await Project.findByIdAndUpdate(
+    projectId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  )
+    .populate("owner", "username email profileImage")
+    .populate("collaborators.user", "username email profileImage");
+
+  // Invalidate caches
+  await invalidateProjectCache(projectId, project.owner);
+  await invalidateUserProjectsCache(project.owner);
+  
+  // Invalidate cache for all collaborators
+  for (const collaborator of project.collaborators) {
+    await invalidateUserProjectsCache(collaborator.user);
+  }
+
+  return updatedProject;
+};
+
+// Delete project
+const deleteProject = async (projectId, userId) => {
+  const project = await Project.findById(projectId);
+  
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Only owner can delete project
+  if (project.owner.toString() !== userId.toString()) {
+    throw new Error("Access denied: Only the project owner can delete this project");
+  }
+
+  // Delete associated deployments
+  await Deployment.deleteMany({ project: projectId });
+  
+  // Delete the project
+  await Project.findByIdAndDelete(projectId);
+
+  // Invalidate caches
+  await invalidateProjectCache(projectId, userId);
+  await invalidateUserProjectsCache(userId);
+  
+  // Invalidate cache for all collaborators
+  for (const collaborator of project.collaborators) {
+    await invalidateUserProjectsCache(collaborator.user);
+  }
+
+  return "Project deleted successfully";
+};
+
+// Archive/Unarchive project
+const toggleArchiveProject = async (projectId, userId, archive = true) => {
+  const project = await Project.findById(projectId);
+  
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Only owner can archive/unarchive
+  if (project.owner.toString() !== userId.toString()) {
+    throw new Error("Access denied: Only the project owner can archive/unarchive this project");
+  }
+
+  const updateData = {
+    isArchived: archive,
+    archivedAt: archive ? new Date() : null
+  };
+
+  const updatedProject = await Project.findByIdAndUpdate(
+    projectId,
+    updateData,
+    { new: true }
+  )
+    .populate("owner", "username email profileImage")
+    .populate("collaborators.user", "username email profileImage");
+
+  // Invalidate caches
+  await invalidateProjectCache(projectId, userId);
+  await invalidateUserProjectsCache(userId);
+
+  return updatedProject;
+};
+
+// Add collaborator to project
+const addCollaborator = async (projectId, userId, collaboratorEmail, role = "developer") => {
+  const User = require("../models/User");
+  const project = await Project.findById(projectId);
+  
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if user has permission (owner or admin)
+  const isOwner = project.owner.toString() === userId.toString();
+  const isAdmin = project.collaborators.some(
+    c => c.user.toString() === userId.toString() && c.role === "admin"
+  );
+
+  if (!isOwner && !isAdmin) {
+    throw new Error("Access denied: You don't have permission to add collaborators");
+  }
+
+  // Find the user to be added
+  const collaboratorUser = await User.findOne({ email: collaboratorEmail });
+  if (!collaboratorUser) {
+    throw new Error("User not found with this email");
+  }
+
+  // Check if user is already a collaborator or owner
+  if (project.owner.toString() === collaboratorUser._id.toString()) {
+    throw new Error("User is already the owner of this project");
+  }
+
+  const existingCollaborator = project.collaborators.find(
+    c => c.user.toString() === collaboratorUser._id.toString()
+  );
+
+  if (existingCollaborator) {
+    throw new Error("User is already a collaborator");
+  }
+
+  // Add collaborator
+  project.collaborators.push({
+    user: collaboratorUser._id,
+    role,
+    addedBy: userId
+  });
+
+  await project.save();
+  await project.populate("collaborators.user", "username email profileImage");
+
+  // Invalidate caches
+  await invalidateProjectCache(projectId, project.owner);
+  await invalidateUserProjectsCache(project.owner);
+  await invalidateUserProjectsCache(collaboratorUser._id);
+
+  return project;
+};
+
+// Remove collaborator from project
+const removeCollaborator = async (projectId, userId, collaboratorId) => {
+  const project = await Project.findById(projectId);
+  
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check permissions
+  const isOwner = project.owner.toString() === userId.toString();
+  const isAdmin = project.collaborators.some(
+    c => c.user.toString() === userId.toString() && c.role === "admin"
+  );
+  const isSelfRemoval = userId.toString() === collaboratorId.toString();
+
+  if (!isOwner && !isAdmin && !isSelfRemoval) {
+    throw new Error("Access denied: You don't have permission to remove this collaborator");
+  }
+
+  // Remove collaborator
+  project.collaborators = project.collaborators.filter(
+    c => c.user.toString() !== collaboratorId.toString()
+  );
+
+  await project.save();
+
+  // Invalidate caches
+  await invalidateProjectCache(projectId, project.owner);
+  await invalidateUserProjectsCache(project.owner);
+  await invalidateUserProjectsCache(collaboratorId);
+
+  return project;
+};
+
+// Get project deployments with caching
+const getProjectDeployments = async (projectId, userId, options = {}) => {
+  const redisClient = getRedisClient();
+  const { page = 1, limit = 10, status } = options;
+  const skip = (page - 1) * limit;
+  
+  const cacheKey = `project_deployments:${projectId}:page_${page}_limit_${limit}_status_${status || 'all'}`;
+
+  try {
+    // Verify user has access to project
+    await getProjectById(projectId, userId);
+
+    // Try cache first
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+
+    // Build query
+    const query = { project: projectId };
+    if (status && status !== 'all') {
+      query["deployment.status"] = status;
+    }
+
+    const deployments = await Deployment.find(query)
+      .populate("deployedBy", "username email profileImage")
+      .populate("project", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Deployment.countDocuments(query);
+
+    const result = {
+      deployments,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      }
+    };
+
+    // Cache for 2 minutes (deployments change frequently)
+    await redisClient.setex(cacheKey, 120, JSON.stringify(result));
+    
+    return result;
+  } catch (error) {
+    console.error("Error in getProjectDeployments:", error);
+    throw error;
+  }
+};
+
+// Update project deployment status
+const updateDeploymentStatus = async (projectId, userId, status, deploymentData = {}) => {
+  const project = await Project.findById(projectId);
+  
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if user has permission
+  const hasAccess = 
+    project.owner.toString() === userId.toString() ||
+    project.collaborators.some(c => c.user.toString() === userId.toString());
+
+  if (!hasAccess) {
+    throw new Error("Access denied: You don't have permission to update this project");
+  }
+
+  // Update deployment status
+  project.deployment.status = status;
+  
+  if (deploymentData.url) {
+    project.deployment.url = deploymentData.url;
+  }
+  
+  if (deploymentData.domain) {
+    project.deployment.domain = deploymentData.domain;
+  }
+
+  // Update analytics
+  if (status === "success") {
+    project.analytics.successfulDeployments += 1;
+  } else if (status === "failed") {
+    project.analytics.failedDeployments += 1;
+  }
+  
+  if (status === "success" || status === "failed") {
+    project.analytics.totalDeployments += 1;
+  }
+
+  await project.save();
+
+  // Invalidate caches
+  await invalidateProjectCache(projectId, project.owner);
+  await invalidateUserProjectsCache(project.owner);
+
+  return project;
+};
+
+module.exports = {
+  createProject,
+  getUserProjects,
+  getProjectById,
+  updateProject,
+  deleteProject,
+  toggleArchiveProject,
+  addCollaborator,
+  removeCollaborator,
+  getProjectDeployments,
+  updateDeploymentStatus,
+  invalidateProjectCache,
+  invalidateUserProjectsCache,
+};
