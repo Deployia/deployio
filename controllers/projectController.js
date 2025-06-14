@@ -1,4 +1,6 @@
 const projectService = require("../services/projectService");
+const Project = require("../models/Project");
+const Deployment = require("../models/Deployment");
 const logger = require("../config/logger");
 const { validationResult } = require("express-validator");
 
@@ -19,7 +21,7 @@ const getProjects = async (req, res) => {
       order: order || "desc",
       status,
       search,
-      framework
+      framework,
     };
 
     const result = await projectService.getUserProjects(userId, options);
@@ -52,12 +54,16 @@ const getProject = async (req, res) => {
     const userId = req.user._id;
 
     const project = await projectService.getProjectById(id, userId);
-    
+
     // Get recent deployments for this project
-    const deploymentsResult = await projectService.getProjectDeployments(id, userId, {
-      page: 1,
-      limit: 5
-    });
+    const deploymentsResult = await projectService.getProjectDeployments(
+      id,
+      userId,
+      {
+        page: 1,
+        limit: 5,
+      }
+    );
 
     res.status(200).json({
       success: true,
@@ -68,8 +74,11 @@ const getProject = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error fetching project:", error);
-    
-    if (error.message === "Project not found" || error.message.includes("Access denied")) {
+
+    if (
+      error.message === "Project not found" ||
+      error.message.includes("Access denied")
+    ) {
       return res.status(404).json({
         success: false,
         message: error.message,
@@ -115,7 +124,7 @@ const createProject = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error creating project:", error);
-    
+
     if (error.message.includes("already exists")) {
       return res.status(400).json({
         success: false,
@@ -152,9 +161,15 @@ const updateProject = async (req, res) => {
     }
 
     const updateData = req.body;
-    const updatedProject = await projectService.updateProject(id, userId, updateData);
+    const updatedProject = await projectService.updateProject(
+      id,
+      userId,
+      updateData
+    );
 
-    logger.info(`Project updated: ${updatedProject.name} by ${req.user.username}`);
+    logger.info(
+      `Project updated: ${updatedProject.name} by ${req.user.username}`
+    );
 
     res.status(200).json({
       success: true,
@@ -163,8 +178,11 @@ const updateProject = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error updating project:", error);
-    
-    if (error.message.includes("not found") || error.message.includes("Access denied")) {
+
+    if (
+      error.message.includes("not found") ||
+      error.message.includes("Access denied")
+    ) {
       return res.status(404).json({
         success: false,
         message: error.message,
@@ -199,8 +217,11 @@ const deleteProject = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error deleting project:", error);
-    
-    if (error.message.includes("not found") || error.message.includes("Access denied")) {
+
+    if (
+      error.message.includes("not found") ||
+      error.message.includes("Access denied")
+    ) {
       return res.status(404).json({
         success: false,
         message: error.message,
@@ -226,7 +247,12 @@ const addCollaborator = async (req, res) => {
     const { email, role = "developer" } = req.body;
     const userId = req.user._id;
 
-    const updatedProject = await projectService.addCollaborator(id, userId, email, role);
+    const updatedProject = await projectService.addCollaborator(
+      id,
+      userId,
+      email,
+      role
+    );
 
     logger.info(
       `Collaborator added: ${email} to project ${updatedProject.name}`
@@ -239,9 +265,12 @@ const addCollaborator = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error adding collaborator:", error);
-    
-    if (error.message.includes("not found") || error.message.includes("Access denied") || 
-        error.message.includes("already")) {
+
+    if (
+      error.message.includes("not found") ||
+      error.message.includes("Access denied") ||
+      error.message.includes("already")
+    ) {
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -266,7 +295,11 @@ const removeCollaborator = async (req, res) => {
     const { id, collaboratorId } = req.params;
     const userId = req.user._id;
 
-    const updatedProject = await projectService.removeCollaborator(id, userId, collaboratorId);
+    const updatedProject = await projectService.removeCollaborator(
+      id,
+      userId,
+      collaboratorId
+    );
 
     logger.info(`Collaborator removed from project ${updatedProject.name}`);
 
@@ -277,8 +310,11 @@ const removeCollaborator = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error removing collaborator:", error);
-    
-    if (error.message.includes("not found") || error.message.includes("Access denied")) {
+
+    if (
+      error.message.includes("not found") ||
+      error.message.includes("Access denied")
+    ) {
       return res.status(404).json({
         success: false,
         message: error.message,
@@ -365,19 +401,28 @@ const toggleArchiveProject = async (req, res) => {
     const { archive = true } = req.body;
     const userId = req.user._id;
 
-    const updatedProject = await projectService.toggleArchiveProject(id, userId, archive);
+    const updatedProject = await projectService.toggleArchiveProject(
+      id,
+      userId,
+      archive
+    );
 
-    logger.info(`Project ${archive ? 'archived' : 'unarchived'}: ${updatedProject.name}`);
+    logger.info(
+      `Project ${archive ? "archived" : "unarchived"}: ${updatedProject.name}`
+    );
 
     res.status(200).json({
       success: true,
-      message: `Project ${archive ? 'archived' : 'unarchived'} successfully`,
+      message: `Project ${archive ? "archived" : "unarchived"} successfully`,
       data: updatedProject,
     });
   } catch (error) {
     logger.error("Error toggling project archive:", error);
-    
-    if (error.message.includes("not found") || error.message.includes("Access denied")) {
+
+    if (
+      error.message.includes("not found") ||
+      error.message.includes("Access denied")
+    ) {
       return res.status(404).json({
         success: false,
         message: error.message,
@@ -406,10 +451,14 @@ const getProjectDeployments = async (req, res) => {
     const options = {
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 10,
-      status
+      status,
     };
 
-    const result = await projectService.getProjectDeployments(id, userId, options);
+    const result = await projectService.getProjectDeployments(
+      id,
+      userId,
+      options
+    );
 
     res.status(200).json({
       success: true,
@@ -420,8 +469,11 @@ const getProjectDeployments = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error fetching project deployments:", error);
-    
-    if (error.message.includes("not found") || error.message.includes("Access denied")) {
+
+    if (
+      error.message.includes("not found") ||
+      error.message.includes("Access denied")
+    ) {
       return res.status(404).json({
         success: false,
         message: error.message,
@@ -448,9 +500,16 @@ const updateProjectDeploymentStatus = async (req, res) => {
     const userId = req.user._id;
 
     const deploymentData = { url, domain };
-    const updatedProject = await projectService.updateDeploymentStatus(id, userId, status, deploymentData);
+    const updatedProject = await projectService.updateDeploymentStatus(
+      id,
+      userId,
+      status,
+      deploymentData
+    );
 
-    logger.info(`Project deployment status updated: ${updatedProject.name} - ${status}`);
+    logger.info(
+      `Project deployment status updated: ${updatedProject.name} - ${status}`
+    );
 
     res.status(200).json({
       success: true,
@@ -459,8 +518,11 @@ const updateProjectDeploymentStatus = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error updating deployment status:", error);
-    
-    if (error.message.includes("not found") || error.message.includes("Access denied")) {
+
+    if (
+      error.message.includes("not found") ||
+      error.message.includes("Access denied")
+    ) {
       return res.status(404).json({
         success: false,
         message: error.message,

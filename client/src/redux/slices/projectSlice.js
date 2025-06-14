@@ -55,7 +55,8 @@ export const fetchProjectById = createAsyncThunk(
   async (projectId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/projects/${projectId}`);
-      return response.data.data || response.data;
+      // Extract the project from the nested response structure
+      return response.data.data?.project || response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch project"

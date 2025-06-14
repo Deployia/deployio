@@ -84,20 +84,31 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
 const getUserById = async (userId) => {
   const redisClient = getRedisClient(); // Use the singleton Redis client
   const cacheKey = `user:${userId}`;
-
   try {
-    // Try to get data from cache
-    const cachedUser = await redisClient.get(cacheKey);
-    if (cachedUser) {
-      return JSON.parse(cachedUser);
+    // Try to get data from cache (only if Redis is available)
+    if (redisClient) {
+      try {
+        const cachedUser = await redisClient.get(cacheKey);
+        if (cachedUser) {
+          return JSON.parse(cachedUser);
+        }
+      } catch (cacheError) {
+        console.warn("Redis cache read error:", cacheError.message);
+      }
     }
 
     // If not in cache, get from DB and cache it
     const user = await User.findById(userId).select("-password");
     if (!user) throw new Error("User not found");
 
-    // Cache for 1 hour
-    await redisClient.setex(cacheKey, 3600, JSON.stringify(user));
+    // Cache for 1 hour (only if Redis is available)
+    if (redisClient) {
+      try {
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(user));
+      } catch (cacheError) {
+        console.warn("Redis cache write error:", cacheError.message);
+      }
+    }
     return user;
   } catch (error) {
     // If Redis fails, still return data from DB

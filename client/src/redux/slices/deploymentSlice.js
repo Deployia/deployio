@@ -65,7 +65,10 @@ export const fetchProjectDeployments = createAsyncThunk(
   async (projectId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/projects/${projectId}/deployments`);
-      return response.data;
+      // Extract deployments from the nested response structure
+      return (
+        response.data.data?.deployments || response.data.data || response.data
+      );
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch project deployments"
@@ -401,8 +404,9 @@ const deploymentSlice = createSlice({
       })
       .addCase(fetchProjectDeployments.fulfilled, (state, action) => {
         state.loading.fetchProject = false;
-        state.projectDeployments =
-          action.payload.deployments || action.payload.data || [];
+        state.projectDeployments = Array.isArray(action.payload)
+          ? action.payload
+          : [];
       })
       .addCase(fetchProjectDeployments.rejected, (state, action) => {
         state.loading.fetchProject = false;
