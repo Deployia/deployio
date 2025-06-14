@@ -8,7 +8,7 @@ services:
       - --entrypoints.websecure.address=:443
       - --providers.docker
       - --providers.docker.exposedByDefault=false
-      # Use TLS-ALPN-01 challenge on port 443 for ACME
+      - --api.dashboard=false
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
       - --certificatesresolvers.myresolver.acme.email=admin@deployio.tech
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
@@ -20,15 +20,16 @@ services:
       - letsencrypt:/letsencrypt
     networks:
       - web
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./client
       dockerfile: Dockerfile
       args:
-        - VITE_APP_ENV=production
-        - VITE_APP_BACKEND_URL=/api/v1
-        - VITE_APP_FASTAPI_URL=/service/v1
+        VITE_APP_ENV: production
+        VITE_APP_BACKEND_URL: /api/v1
+        VITE_APP_FASTAPI_URL: /service/v1
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -46,10 +47,9 @@ services:
     networks:
       - web
     depends_on:
-      backend:
-        condition: service_healthy      
-      ai-service:
-        condition: service_healthy
+      - backend
+      - ai-service
+    restart: unless-stopped
 
   backend:
     build: .
@@ -61,7 +61,11 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:3000/api/v1/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl --fail http://localhost:3000/api/v1/health || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -76,12 +80,12 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
       - "traefik.http.routers.backend.priority=2"
     depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy # Changed from service_started
+      - mongodb
+      - redis
     networks:
       - web
+    restart: unless-stopped
+
   ai-service:
     build:
       context: ./ai_service
@@ -94,12 +98,16 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:8000/service/v1/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl --fail http://localhost:8000/service/v1/health || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-    labels:      
+    labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ai-service.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/service`)"
       - "traefik.http.routers.ai-service.entrypoints=websecure"
@@ -109,10 +117,10 @@ services:
       - "traefik.http.services.ai-service.loadbalancer.server.port=8000"
       - "traefik.http.routers.ai-service.priority=2"
     depends_on:
-      mongodb:
-        condition: service_healthy
+      - mongodb
     networks:
       - web
+    restart: unless-stopped
 
   mongodb:
     image: mongo:latest
@@ -126,9 +134,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
 
   redis:
     image: redis:alpine
+    command: redis-server
+    volumes:
+      - redis_data:/data
     networks:
       - web
     healthcheck:
@@ -136,10 +148,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
+    restart: unless-stopped
 
 volumes:
   mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
   letsencrypt:
+    driver: local
 
 networks:
   web:
+    driver: bridge
