@@ -47,7 +47,8 @@ services:
       - web
     depends_on:
       backend:
-        condition: service_healthy      ai-service:
+        condition: service_healthy      
+      ai-service:
         condition: service_healthy
 
   backend:
@@ -98,7 +99,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    labels:      - "traefik.enable=true"
+    labels:      
+      - "traefik.enable=true"
       - "traefik.http.routers.ai-service.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/service`)"
       - "traefik.http.routers.ai-service.entrypoints=websecure"
       - "traefik.http.routers.ai-service.tls.certresolver=myresolver"
