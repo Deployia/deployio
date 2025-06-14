@@ -24,7 +24,6 @@ class ErrorResponse(BaseModel):
 class HealthResponse(BaseModel):
     service_name: str
     status: str
-    mongodb_status: str
     redis_status: str
     uptime: float
 

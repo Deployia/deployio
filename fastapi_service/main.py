@@ -1,10 +1,9 @@
 """
-FastAPI Service Main Application
+FastAPI AI Service - Simplified Internal Microservice
 """
 
 import time
 from config import create_app
-from config.database import initialize_database, get_sync_db_connection
 from config.redis_client import connect_redis, get_redis_client
 from middleware import setup_exception_handlers
 from routes import create_routes
@@ -21,8 +20,6 @@ app = create_app()
 async def health_check_direct():
     """Direct health check endpoint that bypasses CORS for Docker health checks"""
     try:
-        # Check database connection
-        _, db_status = get_sync_db_connection()
         # Check Redis connection
         redis_client = get_redis_client()
         try:
@@ -37,18 +34,17 @@ async def health_check_direct():
         uptime = time.time() - server_start
 
         return {
-            "service_name": "FastAPI Service",
+            "service_name": "FastAPI AI Service",
             "status": "ok",
-            "mongodb_status": db_status,
             "redis_status": redis_status,
             "uptime": uptime,
+            "purpose": "AI processing microservice"
         }
     except Exception as e:
         return {
-            "service_name": "FastAPI Service",
+            "service_name": "FastAPI AI Service",
             "status": "error",
             "error": str(e),
-            "mongodb_status": "unknown",
             "redis_status": "unknown",
             "uptime": time.time() - server_start,
         }
@@ -64,8 +60,7 @@ app.include_router(create_routes())
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    await initialize_database()
-    await connect_redis()
+    await connect_redis()  # Only Redis for caching AI results
 
 
 if __name__ == "__main__":

@@ -6,7 +6,6 @@ import time
 import logging
 from fastapi import APIRouter, HTTPException
 from models.response import HealthResponse, HelloResponse
-from config.database import get_sync_db_connection
 from config.redis_client import get_redis_client
 
 router = APIRouter()
@@ -20,8 +19,6 @@ server_start = time.time()
 async def health_check():
     """Health check endpoint"""
     try:
-        # Check database connection
-        _, db_status = get_sync_db_connection()
         # Check Redis connection
         redis_client = get_redis_client()
         try:
@@ -36,9 +33,8 @@ async def health_check():
         uptime = time.time() - server_start
 
         return HealthResponse(
-            service_name="FastAPI Service",
+            service_name="FastAPI AI Service",
             status="ok",
-            mongodb_status=db_status,
             redis_status=redis_status,
             uptime=uptime,
         )

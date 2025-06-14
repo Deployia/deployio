@@ -2,18 +2,26 @@
 AI-powered project analysis routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Header, Depends
 from typing import Dict, List, Optional
 from pydantic import BaseModel
-from models.auth import AuthenticatedUser
 from models.response import ResponseModel
-from middleware.jwt_auth import jwt_auth
 import httpx
 import json
 import os
 from datetime import datetime
 
 router = APIRouter()
+
+# Simple header validation for internal service communication
+def validate_internal_request(x_internal_service: Optional[str] = Header(None)):
+    """Validate that request comes from authorized internal service"""
+    if not x_internal_service or x_internal_service != "deployio-backend":
+        raise HTTPException(
+            status_code=403, 
+            detail="Access denied: Internal service only"
+        )
+    return x_internal_service
 
 # Pydantic models for AI requests/responses
 class RepositoryAnalysisRequest(BaseModel):
@@ -68,7 +76,7 @@ class OptimizationResponse(BaseModel):
 @router.post("/analyze-stack", response_model=ResponseModel[StackDetectionResponse])
 async def analyze_project_stack(
     request: RepositoryAnalysisRequest,
-    current_user: AuthenticatedUser = Depends(jwt_auth)
+    internal_service: str = Depends(validate_internal_request)
 ):
     """Analyze project repository to detect technology stack"""
     try:
@@ -86,7 +94,7 @@ async def analyze_project_stack(
 @router.post("/generate-dockerfile", response_model=ResponseModel[DockerfileResponse])
 async def generate_dockerfile(
     request: DockerfileRequest,
-    current_user: AuthenticatedUser = Depends(jwt_auth)
+    internal_service: str = Depends(validate_internal_request)
 ):
     """Generate optimized Dockerfile and Docker Compose configuration"""
     try:
@@ -103,7 +111,7 @@ async def generate_dockerfile(
 @router.post("/optimize-deployment", response_model=ResponseModel[OptimizationResponse])
 async def optimize_deployment(
     request: OptimizationRequest,
-    current_user: AuthenticatedUser = Depends(jwt_auth)
+    internal_service: str = Depends(validate_internal_request)
 ):
     """Analyze project and provide optimization suggestions"""
     try:
