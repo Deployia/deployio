@@ -107,10 +107,9 @@ const CreateProject = () => {
           template: result.stackAnalysis.primary.name.toLowerCase(),
         }));
       }
-
       setStep(2);
-    } catch (error) {
-      console.error("Repository analysis failed:", error);
+    } catch {
+      // Error is handled by Redux slice
     }
   };
 
@@ -124,11 +123,10 @@ const CreateProject = () => {
           template: formData.template,
         })
       ).unwrap();
-
       setDockerfile(result.dockerfile);
       setStep(3);
-    } catch (error) {
-      console.error("Dockerfile generation failed:", error);
+    } catch {
+      // Error is handled by Redux slice
     }
   };
 
@@ -140,12 +138,11 @@ const CreateProject = () => {
       dockerfile: dockerfile,
       repositoryUrl: formData.repository,
     };
-
     try {
       await dispatch(createProject(projectData)).unwrap();
       // Success will be handled by useEffect
-    } catch (error) {
-      console.error("Project creation failed:", error);
+    } catch {
+      // Error is handled by Redux slice
     }
   };
 

@@ -59,6 +59,30 @@ const homeNavigationItems = [
     ],
   },
   {
+    label: "Downloads",
+    id: "downloads",
+    items: [
+      {
+        label: "CLI Tool",
+        href: "/downloads/cli",
+        icon: FaDownload,
+        description: "Command line interface",
+      },
+      {
+        label: "SDK",
+        href: "/downloads/sdk",
+        icon: FaCode,
+        description: "Software development kit",
+      },
+      {
+        label: "GitHub Repository",
+        href: "https://github.com/deployio/deployio",
+        icon: FaGithub,
+        description: "Open source repository",
+      },
+    ],
+  },
+  {
     label: "Resources",
     id: "resources",
     items: [
@@ -85,30 +109,6 @@ const homeNavigationItems = [
         href: "/resources/blog",
         icon: FaBlog,
         description: "Latest updates and tutorials",
-      },
-    ],
-  },
-  {
-    label: "Downloads",
-    id: "downloads",
-    items: [
-      {
-        label: "CLI Tool",
-        href: "/downloads/cli",
-        icon: FaDownload,
-        description: "Command line interface",
-      },
-      {
-        label: "SDK",
-        href: "/downloads/sdk",
-        icon: FaCode,
-        description: "Software development kit",
-      },
-      {
-        label: "GitHub Repository",
-        href: "https://github.com/deployio/deployio",
-        icon: FaGithub,
-        description: "Open source repository",
       },
     ],
   },

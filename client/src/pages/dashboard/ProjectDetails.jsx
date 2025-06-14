@@ -26,10 +26,10 @@ import {
   FaSync,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
 import {
   fetchProjectById,
   fetchProjectDeployments,
-  fetchProjectAnalytics,
   updateProject,
   deleteProject,
   toggleArchiveProject,
@@ -67,13 +67,19 @@ const ProjectDetails = () => {
     } else {
       setActiveTab("overview");
     }
-  }, [location.pathname]);
-  // Fetch project data on mount
+  }, [location.pathname]); // Fetch project data on mount
   useEffect(() => {
     if (id) {
-      dispatch(fetchProjectById(id));
-      dispatch(fetchProjectDeployments(id));
-      dispatch(fetchProjectAnalytics({ projectId: id }));
+      const fetchData = async () => {
+        try {
+          await dispatch(fetchProjectById(id)).unwrap();
+          await dispatch(fetchProjectDeployments({ projectId: id })).unwrap();
+        } catch {
+          // Error handling is done by Redux slice
+        }
+      };
+
+      fetchData();
     }
   }, [id, dispatch]);
 
@@ -187,11 +193,46 @@ const ProjectDetails = () => {
         return <FaCode className="w-4 h-4 text-gray-400" />;
     }
   };
-
-  if (loading.project) {
+  if (loading.currentProject) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen">
+        <SEO
+          title="Loading Project - DeployIO"
+          description="Loading project details..."
+        />
+
+        {/* Header Skeleton */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-10 h-10 bg-neutral-700/50 rounded-lg animate-pulse"></div>
+            <div className="h-8 bg-neutral-700/50 rounded w-48 animate-pulse"></div>
+          </div>
+          <div className="h-4 bg-neutral-700/50 rounded w-96 animate-pulse mb-2"></div>
+          <div className="h-4 bg-neutral-700/50 rounded w-64 animate-pulse"></div>
+        </motion.div>
+
+        {/* Tab Navigation Skeleton */}
+        <div className="flex gap-2 mb-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-10 bg-neutral-700/50 rounded-lg w-24 animate-pulse"
+            ></div>
+          ))}
+        </div>
+
+        {/* Content Loading */}
+        <div className="space-y-8">
+          <LoadingGrid columns={3} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <LoadingChart height="h-64" />
+            <LoadingChart height="h-64" />
+          </div>
+        </div>
       </div>
     );
   }

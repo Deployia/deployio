@@ -17,38 +17,32 @@ import {
   FaChartLine,
   FaUser,
   FaShoppingCart,
+  FaRedo,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import { LoadingGrid } from "@components/LoadingSpinner";
 import {
   fetchProjects,
   clearProjectError,
   clearProjectSuccess,
+  deleteProject,
 } from "@redux/index";
 
 const Projects = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  // Redux state
+  const navigate = useNavigate(); // Redux state
   const { projects, loading, error, success } = useSelector(
     (state) => state.projects
   );
-
-  // Debug: Check what projects actually contains
-  useEffect(() => {
-    console.log("Projects state:", {
-      projects,
-      type: typeof projects,
-      isArray: Array.isArray(projects),
-    });
-  }, [projects]);
-
   // Local state
   const [filter, setFilter] = useState("all");
-
   // Fetch projects on component mount
   useEffect(() => {
-    dispatch(fetchProjects());
-  }, [dispatch]);
+    // Only fetch if we don't have projects or if the list is empty
+    if (!projects || projects.length === 0) {
+      dispatch(fetchProjects());
+    }
+  }, [dispatch, projects]);
 
   // Clear success/error messages after some time
   useEffect(() => {
@@ -274,8 +268,25 @@ const Projects = () => {
       >
         {" "}
         {loading.projects ? (
-          <div className="col-span-full flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <div className="col-span-full">
+            <LoadingGrid columns={2} rows={2} />
+          </div>
+        ) : error.projects ? (
+          <div className="col-span-full text-center py-16">
+            <div className="text-red-400 mb-4">
+              <FaProjectDiagram className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">
+                Failed to Load Projects
+              </h3>
+              <p className="mb-4">{error.projects}</p>
+              <button
+                onClick={() => dispatch(fetchProjects())}
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              >
+                <FaRedo className="w-4 h-4 mr-2 inline" />
+                Try Again
+              </button>
+            </div>
           </div>
         ) : filteredProjects.length > 0 ? (
           filteredProjects.map((project, index) => (
@@ -306,11 +317,11 @@ const Projects = () => {
                 </div>{" "}
                 <span
                   className={getStatusBadge(
-                    project.deployment?.status || "inactive"
+                    project.deployment?.status || project.status || "inactive"
                   )}
                 >
                   {getStatusDisplayText(
-                    project.deployment?.status || "inactive"
+                    project.deployment?.status || project.status || "inactive"
                   )}
                 </span>
               </div>
@@ -323,7 +334,10 @@ const Projects = () => {
                 <div className="flex items-center gap-2">
                   <FaRocket className="w-4 h-4 text-green-400" />
                   <span className="text-gray-400 text-sm">
-                    {project.deploymentCount || 0} deployments
+                    {project.deploymentCount ||
+                      project.analytics?.totalDeployments ||
+                      0}{" "}
+                    deployments
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -335,9 +349,9 @@ const Projects = () => {
                 <div className="flex items-center gap-2">
                   <FaCalendarAlt className="w-4 h-4 text-purple-400" />
                   <span className="text-gray-400 text-sm">
-                    {project.analytics?.lastActivity
+                    {project.analytics?.lastActivity || project.updatedAt
                       ? new Date(
-                          project.analytics.lastActivity
+                          project.analytics?.lastActivity || project.updatedAt
                         ).toLocaleDateString()
                       : "No activity"}
                   </span>
@@ -352,8 +366,11 @@ const Projects = () => {
               {/* Repository Link */}
               <div className="flex items-center gap-2 mb-4 p-3 bg-neutral-800/50 rounded-lg">
                 <FaGithub className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-300 text-sm font-mono">
-                  {project.repository?.url || "No repository"}
+                <span className="text-gray-300 text-sm font-mono truncate">
+                  {project.repository?.url?.replace(
+                    "https://github.com/",
+                    ""
+                  ) || "No repository"}
                 </span>
               </div>{" "}
               {/* Action Buttons */}
@@ -365,7 +382,12 @@ const Projects = () => {
                   <FaEye className="w-3 h-3" />
                   View
                 </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm">
+                <button
+                  onClick={() =>
+                    navigate(`/dashboard/projects/${project._id}/deployments`)
+                  }
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
+                >
                   <FaRocket className="w-3 h-3" />
                   Deploy
                 </button>
@@ -378,20 +400,55 @@ const Projects = () => {
                   <FaCog className="w-3 h-3" />
                   Settings
                 </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm ml-auto">
+                <button
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Are you sure you want to delete this project?"
+                      )
+                    ) {
+                      dispatch(deleteProject(project._id));
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm ml-auto"
+                >
                   <FaTrash className="w-3 h-3" />
                 </button>{" "}
               </div>
             </motion.div>
           ))
+        ) : error.projects ? (
+          <div className="col-span-full text-center py-16">
+            <div className="text-red-400 mb-4">
+              <FaProjectDiagram className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">
+                Failed to Load Projects
+              </h3>
+              <p className="mb-4">{error.projects}</p>
+              <button
+                onClick={() => dispatch(fetchProjects())}
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              >
+                <FaRedo className="w-4 h-4 mr-2 inline" />
+                Try Again
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="col-span-full text-center py-16">
             <div className="text-gray-400 mb-4">
               <FaProjectDiagram className="w-16 h-16 mx-auto mb-4 opacity-50" />
               <h3 className="text-xl font-semibold mb-2">No Projects Found</h3>
-              <p>Get started by creating your first project.</p>
+              <p>
+                {filter === "all"
+                  ? "Get started by creating your first project."
+                  : `No projects match the "${filter}" filter.`}
+              </p>
             </div>
-            <button className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+            <button
+              onClick={() => navigate("/dashboard/projects/create")}
+              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+            >
               <FaPlus className="w-4 h-4 mr-2 inline" />
               Create Your First Project
             </button>

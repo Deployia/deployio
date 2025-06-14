@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaRocket,
@@ -19,6 +20,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import { LoadingGrid } from "@components/LoadingSpinner";
 import { useModal } from "@context/ModalContext.jsx";
 import {
   fetchDeployments,
@@ -32,6 +34,7 @@ import {
 
 const Deployments = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { openModal, closeModal } = useModal();
 
   // Redux state
@@ -41,11 +44,13 @@ const Deployments = () => {
   // Local state
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-
   // Fetch deployments on component mount
   useEffect(() => {
-    dispatch(fetchDeployments());
-  }, [dispatch]);
+    // Only fetch if we don't have deployments or if the list is empty
+    if (!deployments || deployments.length === 0) {
+      dispatch(fetchDeployments());
+    }
+  }, [dispatch, deployments]);
 
   // Clear success/error messages after some time
   useEffect(() => {
@@ -74,21 +79,27 @@ const Deployments = () => {
       );
     }
   }, [success, error, dispatch]);
-
   // Filter and search deployments
-  const filteredDeployments = deployments.filter((deployment) => {
-    const matchesFilter =
-      filter === "all" || deployment.deployment?.status === filter;
-    const matchesSearch =
-      searchTerm === "" ||
-      deployment.project?.name
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      deployment.deployment?.commit?.message
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  }); // Handle deployment actions
+  const filteredDeployments = Array.isArray(deployments)
+    ? deployments.filter((deployment) => {
+        const matchesFilter =
+          filter === "all" ||
+          deployment.status === filter ||
+          deployment.deployment?.status === filter;
+        const matchesSearch =
+          searchTerm === "" ||
+          deployment.project?.name
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          deployment.commit?.message
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          deployment.deployment?.commit?.message
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase());
+        return matchesFilter && matchesSearch;
+      })
+    : []; // Handle deployment actions
   const handleStop = (deploymentId) => {
     dispatch(stopDeployment(deploymentId));
   };
@@ -305,21 +316,8 @@ const Deployments = () => {
         className="space-y-4"
       >
         {" "}
-        {loading.deployments ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
-              >
-                <div className="animate-pulse">
-                  <div className="h-6 bg-gray-600 rounded w-1/3 mb-4"></div>
-                  <div className="h-4 bg-gray-600 rounded w-1/2 mb-2"></div>
-                  <div className="h-4 bg-gray-600 rounded w-2/3"></div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {loading.fetch ? (
+          <LoadingGrid columns={1} rows={3} />
         ) : filteredDeployments.length > 0 ? (
           filteredDeployments.map((deployment, index) => (
             <motion.div
@@ -330,50 +328,78 @@ const Deployments = () => {
               className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
             >
               <div className="flex items-center justify-between mb-4">
+                {" "}
                 <div className="flex items-center gap-4">
-                  {getStatusIcon(deployment.deployment?.status || "pending")}
+                  {getStatusIcon(
+                    deployment.deployment?.status ||
+                      deployment.status ||
+                      "pending"
+                  )}
                   <div>
-                    <h3 className="text-white font-semibold text-lg">
+                    <h3
+                      className="text-white font-semibold text-lg cursor-pointer hover:text-blue-400 transition-colors"
+                      onClick={() =>
+                        navigate(
+                          `/dashboard/projects/${
+                            deployment.project?._id || deployment.projectId
+                          }`
+                        )
+                      }
+                    >
                       {deployment.project?.name || "Unknown Project"}
                     </h3>
                     <div className="flex items-center gap-3 mt-1">
                       <div className="flex items-center gap-1">
                         <FaCodeBranch className="w-3 h-3 text-gray-400" />
                         <span className="text-gray-400 text-sm">
-                          {deployment.deployment?.branch || "main"}
+                          {deployment.deployment?.branch ||
+                            deployment.branch ||
+                            "main"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
                         <FaCode className="w-3 h-3 text-gray-400" />
                         <span className="text-gray-400 text-sm font-mono">
-                          {deployment.deployment?.commit?.hash?.substring(
-                            0,
-                            7
-                          ) || "N/A"}
+                          {(
+                            deployment.deployment?.commit?.hash ||
+                            deployment.commit?.hash ||
+                            "N/A"
+                          ).substring(0, 7)}
                         </span>
                       </div>
                       <span
                         className={getEnvironmentBadge(
-                          deployment.deployment?.environment || "development"
+                          deployment.deployment?.environment ||
+                            deployment.environment ||
+                            "development"
                         )}
                       >
-                        {deployment.deployment?.environment || "development"}
+                        {deployment.deployment?.environment ||
+                          deployment.environment ||
+                          "development"}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {" "}
                   <span
                     className={getStatusBadge(
-                      deployment.deployment?.status || "pending"
+                      deployment.deployment?.status ||
+                        deployment.status ||
+                        "pending"
                     )}
                   >
-                    {deployment.deployment?.status || "pending"}
+                    {deployment.deployment?.status ||
+                      deployment.status ||
+                      "pending"}
                   </span>
                 </div>{" "}
-              </div>
+              </div>{" "}
               <p className="text-gray-300 mb-4">
-                {deployment.deployment?.commit?.message || "No commit message"}
+                {deployment.deployment?.commit?.message ||
+                  deployment.commit?.message ||
+                  "No commit message"}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="flex items-center gap-2">
