@@ -20,8 +20,8 @@ if [ ! -d "client" ]; then
     exit 1
 fi
 
-if [ ! -d "fastapi_service" ]; then
-    echo "❌ fastapi_service directory not found"
+if [ ! -d "ai_service" ]; then
+    echo "❌ ai_service directory not found"
     exit 1
 fi
 

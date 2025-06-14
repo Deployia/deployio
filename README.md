@@ -46,13 +46,25 @@ npm run dev
 
 ## 🏗️ Platform Architecture
 
-- **Frontend**: React + Vite + Tailwind CSS (User Dashboard)
-- **Backend**: Node.js + Express + JWT Authentication (Core API)
-- **AI Service**: FastAPI + Python (AI Processing & Analysis)
-- **Database**: MongoDB (User data & deployment configs)
-- **Infrastructure**: Docker + Traefik (Containerization & Routing)
-- **CI/CD**: GitHub Actions (Automated deployment pipeline)
-- **Monitoring**: Real-time logs and system metrics
+Deployio uses a modern microservices architecture:
+
+- **Frontend**: React + Vite + Tailwind CSS (User Dashboard & Interface)
+- **Backend**: Node.js + Express + JWT Authentication (Core API & Business Logic)
+- **AI Service**: FastAPI + Python (Internal AI Processing & Analysis) 
+- **Database**: MongoDB (User data & deployment configurations)
+- **Cache**: Redis (Session management & AI result caching)
+- **Infrastructure**: Docker + Traefik (Containerization & Reverse Proxy)
+- **CI/CD**: GitHub Actions (Automated testing & deployment pipeline)
+- **Monitoring**: Real-time logs, health checks, and system metrics
+
+### Service Communication Flow
+```
+Frontend (React) → Express Backend (Auth/API) → AI Service (Internal Processing)
+                     ↓
+              MongoDB (Data) + Redis (Cache)
+```
+
+**Security Model**: The AI service is internal-only and communicates exclusively with the Express backend using service headers. All user authentication and authorization happens at the Express layer.
 
 ## 📊 Platform Demo
 
@@ -132,9 +144,19 @@ npm run dev  # Starts all services
 
 ```
 deployio/
-├── 📱 client/                 # React frontend (User Dashboard)
-├── 🤖 fastapi_service/        # AI processing & analysis service
-├── ⚙️ config/                 # Platform configuration
+├── 📱 client/                 # React frontend (User Dashboard & Interface)
+├── 🤖 ai_service/            # AI processing & analysis service (FastAPI)
+├── ⚙️ config/                 # Platform configuration & database setup
+├── 🛡️ middleware/             # Express middleware (auth, rate limiting, error handling)
+├── 🏗️ models/                 # MongoDB data models (User, Project, Deployment)
+├── 🚀 routes/                 # Express API routes
+├── 🔧 services/               # Business logic & external integrations
+├── 📊 controllers/            # Request handlers & API logic
+├── 🧪 scripts/                # Deployment & maintenance scripts
+├── 📚 docs/                   # Comprehensive documentation
+├── 🐳 docker-compose.yml      # Multi-service orchestration
+└── ⚡ .github/workflows/      # CI/CD automation
+```
 ├── 🛡️ middleware/             # Express middleware
 ├── 📊 models/                 # Database models
 ├── 🛣️ routes/                 # API routes
@@ -166,7 +188,7 @@ npm run deploy     # Deploy platform updates
 ### For AI Development
 
 ```bash
-cd fastapi_service
+cd ai_service
 pip install -r requirements.txt
 python main.py     # Start AI service for development
 ```

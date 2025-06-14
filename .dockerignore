@@ -3,7 +3,7 @@ node_modules/
 
 # ignore client and other non-backend services
 client/
-fastapi_service/
+ai_service/
 
 # ignore git metadata
 .git/

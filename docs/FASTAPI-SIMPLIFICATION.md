@@ -1,13 +1,13 @@
-# FastAPI Service Simplification
+# AI Service Simplification
 
 ## Overview
-The FastAPI service has been simplified to focus solely on AI processing capabilities, removing unnecessary authentication and database dependencies.
+The AI service (formerly FastAPI service) has been simplified to focus solely on AI processing capabilities, removing unnecessary authentication and database dependencies. The service is now located in the `ai_service/` directory.
 
 ## Architecture Changes
 
 ### ✅ Removed Components
 - **JWT Authentication**: No longer needed since Express backend handles all auth
-- **MongoDB Connection**: FastAPI doesn't need direct database access
+- **MongoDB Connection**: AI service doesn't need direct database access
 - **Protected Routes**: Simplified to internal service communication only
 - **User Models**: Authentication handled by Express backend
 
@@ -15,6 +15,12 @@ The FastAPI service has been simplified to focus solely on AI processing capabil
 - **Redis Caching**: For AI analysis result caching
 - **Health Endpoints**: For monitoring and service discovery
 - **AI Processing Routes**: Core functionality for stack analysis, Dockerfile generation, optimization
+
+## Service Renaming
+- **Directory**: `fastapi_service/` → `ai_service/`
+- **Docker Service**: `fastapi` → `ai-service`
+- **npm Scripts**: `fastapi:*` → `ai:*`
+- **Traefik Routes**: `fastapi` → `ai-service`
 
 ## Security Model
 
@@ -26,7 +32,7 @@ The FastAPI service has been simplified to focus solely on AI processing capabil
 
 ### Request Flow
 ```
-Frontend → Express Backend (Auth) → FastAPI AI Service (Processing)
+Frontend → Express Backend (Auth) → AI Service (Processing)
 ```
 
 ## Environment Variables
@@ -37,9 +43,9 @@ Frontend → Express Backend (Auth) → FastAPI AI Service (Processing)
 AI_SERVICE_URL=http://localhost:8000
 ```
 
-### FastAPI Service (.env)
+### AI Service (.env)
 ```bash
-# FastAPI AI Service Environment Variables
+# AI Service Environment Variables
 
 # Redis Configuration  
 REDIS_URL=redis://localhost:6379
@@ -84,13 +90,13 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 
 1. **Simplified Architecture**: Clear separation of concerns
 2. **Better Security**: No direct frontend access to AI service
-3. **Easier Maintenance**: Fewer dependencies in FastAPI
+3. **Easier Maintenance**: Fewer dependencies in AI service
 4. **Performance**: Reduced overhead from unnecessary auth checks
 5. **Scalability**: AI service can be easily scaled independently
 
 ## File Structure
 ```
-fastapi_service/
+ai_service/
 ├── main.py                 # Simplified main app
 ├── requirements.txt        # Reduced dependencies
 ├── .env                   # Simplified config

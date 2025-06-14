@@ -233,7 +233,7 @@ npm run dev
 
 ```bash
 # Navigate to FastAPI directory
-cd fastapi_service
+cd ai_service
 
 # Create virtual environment
 python -m venv venv

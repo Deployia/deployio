@@ -35,22 +35,18 @@ jobs:
       - name: Install Node.js dependencies
         run: |
           npm ci --legacy-peer-deps
-          cd client && npm ci --legacy-peer-deps
-
-      - name: Install Python dependencies
+          cd client && npm ci --legacy-peer-deps      - name: Install Python dependencies
         run: |
-          cd fastapi_service
+          cd ai_service
           pip install -r requirements.txt
           pip install pylint pytest black
 
       - name: Lint JavaScript/React
         run: |
           npm run lint || true
-          cd client && npm run lint || true
-
-      - name: Lint Python
+          cd client && npm run lint || true      - name: Lint Python
         run: |
-          cd fastapi_service
+          cd ai_service
           pylint --rcfile=.pylintrc **/*.py || true
           black --check --diff . || true
 
@@ -65,12 +61,10 @@ jobs:
       - name: Security audit for Node.js
         run: |
           npm audit --audit-level=moderate || true
-          cd client && npm audit --audit-level=moderate || true
-
-      - name: Python security scan with Bandit
+          cd client && npm audit --audit-level=moderate || true      - name: Python security scan with Bandit
         run: |
           pip install bandit
-          cd fastapi_service
+          cd ai_service
           bandit -r . -x tests/ || true
 
   backend-tests:
@@ -129,11 +123,9 @@ jobs:
         run: |
           cd fastapi_service
           pip install -r requirements.txt
-          pip install pytest pytest-cov httpx
-
-      - name: Run FastAPI tests
+          pip install pytest pytest-cov httpx      - name: Run AI Service tests
         run: |
-          cd fastapi_service
+          cd ai_service
           pytest tests/ -v --cov=. --cov-report=xml || true
 
   frontend-tests:

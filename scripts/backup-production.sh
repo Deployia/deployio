@@ -102,7 +102,7 @@ backup_configs() {
     tar -czf $backup_file \
         .env.production \
         client/.env.production \
-        fastapi_service/.env.production \
+        ai_service/.env.production \
         docker-compose*.yml \
         scripts/ \
         2>/dev/null || warning "Some configuration files may be missing"

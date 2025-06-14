@@ -162,7 +162,7 @@ docker-compose exec backend touch /test-file  # Should fail
 
 - `Dockerfile` (Node.js Backend)
 - `client/Dockerfile` (React Frontend)
-- `fastapi_service/Dockerfile` (FastAPI Service)
+- `ai_service/Dockerfile` (AI Service)
 
 ### **Configuration Files**
 
