@@ -217,7 +217,7 @@ cp .env.example .env
 # Key variables: MONGO_URI, JWT_SECRET, OPENAI_API_KEY
 ```
 
-**📚 Complete configuration guide**: [docs/DEVELOPMENT-SETUP.md](docs/DEVELOPMENT-SETUP.md)
+**📚 Complete configuration guide**: [docs/DEVELOPMENT-SETUP.md](docs/DEVELOPMENT-SETUP.md
 
 ## 🚀 Development Roadmap
 
