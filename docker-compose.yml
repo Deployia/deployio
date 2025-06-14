@@ -47,8 +47,7 @@ services:
       - web
     depends_on:
       backend:
-        condition: service_healthy
-      fastapi:
+        condition: service_healthy      ai-service:
         condition: service_healthy
 
   backend:
@@ -82,13 +81,12 @@ services:
         condition: service_healthy # Changed from service_started
     networks:
       - web
-
-  fastapi:
+  ai-service:
     build:
-      context: ./fastapi_service
+      context: ./ai_service
       dockerfile: Dockerfile
     env_file:
-      - ./fastapi_service/.env.production
+      - ./ai_service/.env.production
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -100,15 +98,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.fastapi.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/service`)"
-      - "traefik.http.routers.fastapi.entrypoints=websecure"
-      - "traefik.http.routers.fastapi.tls.certresolver=myresolver"
-      - "traefik.http.routers.fastapi.tls.domains[0].main=deployio.tech"
-      - "traefik.http.routers.fastapi.tls.domains[0].sans=www.deployio.tech"
-      - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
-      - "traefik.http.routers.fastapi.priority=2"
+    labels:      - "traefik.enable=true"
+      - "traefik.http.routers.ai-service.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/service`)"
+      - "traefik.http.routers.ai-service.entrypoints=websecure"
+      - "traefik.http.routers.ai-service.tls.certresolver=myresolver"
+      - "traefik.http.routers.ai-service.tls.domains[0].main=deployio.tech"
+      - "traefik.http.routers.ai-service.tls.domains[0].sans=www.deployio.tech"
+      - "traefik.http.services.ai-service.loadbalancer.server.port=8000"
+      - "traefik.http.routers.ai-service.priority=2"
     depends_on:
       mongodb:
         condition: service_healthy

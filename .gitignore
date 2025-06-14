@@ -2,5 +2,5 @@ node_modules
 .env*
 !.env.example
 logs/
-fastapi_service/logs/
+ai_service/logs/
 *.log

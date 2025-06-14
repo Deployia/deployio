@@ -24,7 +24,7 @@ npm install
 cd client && npm install && cd ..
 
 # Install Python dependencies for AI service
-cd fastapi_service && pip install -r requirements.txt && cd ..
+cd ai_service && pip install -r requirements.txt && cd ..
 ```
 
 ### 2. Environment Configuration
@@ -170,7 +170,7 @@ npm run clean        # Clean build artifacts
 {
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "python.defaultInterpreterPath": "./fastapi_service/.venv/bin/python",
+  "python.defaultInterpreterPath": "./ai_service/.venv/bin/python",
   "eslint.workingDirectories": ["client"]
 }
 ```
@@ -203,7 +203,7 @@ docker build -t deployio-backend .
 docker build -t deployio-frontend ./client
 
 # Build AI service
-docker build -t deployio-ai ./fastapi_service
+docker build -t deployio-ai ./ai_service
 ```
 
 ## Database Management
@@ -239,7 +239,7 @@ npm run migrate
 
 ```bash
 # Create virtual environment
-cd fastapi_service
+cd ai_service
 python -m venv .venv
 
 # Activate virtual environment
@@ -258,7 +258,7 @@ python main.py
 ### AI Model Configuration
 
 ```python
-# fastapi_service/config/settings.py
+# ai_service/config/settings.py
 AI_MODELS = {
     "stack_detection": "gpt-4",
     "dockerfile_generation": "gpt-4",
@@ -295,7 +295,7 @@ npm run test:e2e
 ### AI Service Testing
 
 ```bash
-cd fastapi_service
+cd ai_service
 pytest tests/
 pytest tests/test_stack_detection.py -v
 ```
@@ -324,9 +324,9 @@ pytest tests/test_stack_detection.py -v
   "name": "Debug FastAPI",
   "type": "python",
   "request": "launch",
-  "program": "${workspaceFolder}/fastapi_service/main.py",
+  "program": "${workspaceFolder}/ai_service/main.py",
   "console": "integratedTerminal",
-  "cwd": "${workspaceFolder}/fastapi_service"
+  "cwd": "${workspaceFolder}/ai_service"
 }
 ```
 
@@ -377,7 +377,7 @@ npm run logs
 npm run logs:server
 
 # AI service logs
-cd fastapi_service && tail -f logs/app.log
+cd ai_service && tail -f logs/app.log
 
 # Check service health
 curl http://localhost:3000/api/v1/health

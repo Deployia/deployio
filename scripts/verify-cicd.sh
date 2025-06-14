@@ -34,7 +34,7 @@ echo -e "${BLUE}======================================${NC}"
 
 # 1. Check project structure
 print_info "Checking project structure..."
-[ -f "docker-compose.yml" ] && [ -f "package.json" ] && [ -d "client" ] && [ -d "fastapi_service" ]
+[ -f "docker-compose.yml" ] && [ -f "package.json" ] && [ -d "client" ] && [ -d "ai_service" ]
 print_status "Project structure is valid"
 
 # 2. Validate Docker Compose

@@ -33,7 +33,7 @@ jobs:
         run: |
           npm ci --legacy-peer-deps
           cd client && npm ci --legacy-peer-deps
-          cd ../fastapi_service && pip install -r requirements.txt
+          cd ../ai_service && pip install -r requirements.txt
 
       - name: Node.js Security Audit
         run: |
@@ -44,7 +44,7 @@ jobs:
       - name: Python Security Scan
         run: |
           pip install bandit safety
-          cd fastapi_service
+          cd ai_service
           bandit -r . -x tests/ -f json -o ../bandit-report.json || true
           safety check --json --output ../safety-report.json || true
         continue-on-error: true
@@ -68,7 +68,7 @@ jobs:
       - name: Build Docker images
         run: |
           docker build -t deployio/backend:scan .
-          docker build -t deployio/fastapi:scan ./fastapi_service
+          docker build -t deployio/ai-service:scan ./ai_service
           docker build -t deployio/frontend:scan ./client
 
       - name: Install Trivy

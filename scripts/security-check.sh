@@ -52,7 +52,7 @@ else
 fi
 
 # Check FastAPI Dockerfile
-if grep -q "USER deployio" fastapi_service/Dockerfile; then
+if grep -q "USER deployio" ai_service/Dockerfile; then
     echo "✅ FastAPI service runs as non-root user (deployio)"
 else
     echo "❌ FastAPI service may be running as root"
@@ -76,7 +76,7 @@ else
 fi
 
 # Check for updated Python version
-if grep -q "python:3.12-slim-bookworm" fastapi_service/Dockerfile; then
+if grep -q "python:3.12-slim-bookworm" ai_service/Dockerfile; then
     echo "✅ Using secure Python base image (python:3.12-slim-bookworm)"
 else
     echo "⚠️  Consider updating to python:3.12-slim-bookworm for latest security patches"
@@ -97,7 +97,7 @@ else
     echo "❌ Client .dockerignore missing"
 fi
 
-if [ -f "fastapi_service/.dockerignore" ]; then
+if [ -f "ai_service/.dockerignore" ]; then
     echo "✅ FastAPI .dockerignore exists"
 else
     echo "❌ FastAPI .dockerignore missing"

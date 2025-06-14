@@ -106,7 +106,7 @@ services:
 
   # AI Service (FastAPI)
   ai-service:
-    build: ./fastapi_service
+    build: ./ai_service
     ports:
       - "8000:8000"
     environment:

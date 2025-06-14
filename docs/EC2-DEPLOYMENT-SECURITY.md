@@ -435,7 +435,7 @@ services:
 
   fastapi:
     build:
-      context: ./fastapi_service
+      context: ./ai_service
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
