@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import {
   FaRocket,
@@ -14,80 +15,190 @@ import {
   FaUser,
   FaFilter,
   FaSearch,
+  FaTrash,
+  FaTimes,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import { useModal } from "@context/ModalContext.jsx";
+import {
+  fetchDeployments,
+  stopDeployment,
+  restartDeployment,
+  cancelDeployment,
+  fetchDeploymentLogs,
+  clearDeploymentError,
+  clearDeploymentSuccess,
+} from "@redux/index";
 
 const Deployments = () => {
+  const dispatch = useDispatch();
+  const { openModal, closeModal } = useModal();
+
+  // Redux state
+  const { deployments, loading, error, success, logs } = useSelector(
+    (state) => state.deployments
+  );
+  // Local state
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [deployments] = useState([
-    {
-      id: 1,
-      projectName: "E-commerce Platform",
-      branch: "main",
-      commit: "a1b2c3d",
-      commitMessage: "Fix payment gateway integration",
-      status: "success",
-      environment: "production",
-      deployedBy: "John Doe",
-      startTime: "2024-01-15 14:30:00",
-      duration: "3m 45s",
-      url: "https://ecommerce.deployio.app",
-    },
-    {
-      id: 2,
-      projectName: "API Gateway Service",
-      branch: "develop",
-      commit: "e4f5g6h",
-      commitMessage: "Add rate limiting middleware",
-      status: "running",
-      environment: "staging",
-      deployedBy: "Jane Smith",
-      startTime: "2024-01-15 13:45:00",
-      duration: "2m 12s",
-      url: "https://api-staging.deployio.app",
-    },
-    {
-      id: 3,
-      projectName: "Dashboard Analytics",
-      branch: "feature/charts",
-      commit: "i7j8k9l",
-      commitMessage: "Implement real-time chart updates",
-      status: "failed",
-      environment: "production",
-      deployedBy: "Mike Johnson",
-      startTime: "2024-01-15 12:20:00",
-      duration: "1m 33s",
-      url: null,
-    },
-    {
-      id: 4,
-      projectName: "Mobile App Backend",
-      branch: "main",
-      commit: "m1n2o3p",
-      commitMessage: "Update user authentication flow",
-      status: "success",
-      environment: "development",
-      deployedBy: "Sarah Wilson",
-      startTime: "2024-01-15 10:15:00",
-      duration: "4m 21s",
-      url: "https://mobile-dev.deployio.app",
-    },
-    {
-      id: 5,
-      projectName: "E-commerce Platform",
-      branch: "hotfix/security",
-      commit: "q4r5s6t",
-      commitMessage: "Security patch for XSS vulnerability",
-      status: "pending",
-      environment: "production",
-      deployedBy: "Admin",
-      startTime: "2024-01-15 09:30:00",
-      duration: "-",
-      url: null,
-    },
-  ]);
+  // Fetch deployments on component mount
+  useEffect(() => {
+    dispatch(fetchDeployments());
+  }, [dispatch]);
+
+  // Clear success/error messages after some time
+  useEffect(() => {
+    if (success.deploy) {
+      setTimeout(
+        () => dispatch(clearDeploymentSuccess({ field: "deploy" })),
+        3000
+      );
+    }
+    if (success.stop) {
+      setTimeout(
+        () => dispatch(clearDeploymentSuccess({ field: "stop" })),
+        3000
+      );
+    }
+    if (success.delete) {
+      setTimeout(
+        () => dispatch(clearDeploymentSuccess({ field: "delete" })),
+        3000
+      );
+    }
+    if (error.deployments) {
+      setTimeout(
+        () => dispatch(clearDeploymentError({ field: "deployments" })),
+        5000
+      );
+    }
+  }, [success, error, dispatch]);
+
+  // Filter and search deployments
+  const filteredDeployments = deployments.filter((deployment) => {
+    const matchesFilter =
+      filter === "all" || deployment.deployment?.status === filter;
+    const matchesSearch =
+      searchTerm === "" ||
+      deployment.project?.name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      deployment.deployment?.commit?.message
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  }); // Handle deployment actions
+  const handleStop = (deploymentId) => {
+    dispatch(stopDeployment(deploymentId));
+  };
+
+  const handleRestart = (deploymentId) => {
+    dispatch(restartDeployment(deploymentId));
+  };
+
+  const handleViewLogs = (deployment) => {
+    dispatch(fetchDeploymentLogs({ deploymentId: deployment._id }));
+
+    const logsContent = (
+      <div className="w-full max-w-4xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">
+            Deployment Logs - {deployment.project?.name}
+          </h3>
+          <button
+            onClick={closeModal}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <FaTimes className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="bg-black/50 rounded-lg p-4 max-h-96 overflow-y-auto">
+          {loading.logs ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <span className="ml-2 text-gray-400">Loading logs...</span>
+            </div>
+          ) : logs && logs.length > 0 ? (
+            <pre className="text-green-400 text-sm font-mono whitespace-pre-wrap">
+              {logs.map((log, index) => (
+                <div key={index} className="mb-1">
+                  <span className="text-gray-500">{log.timestamp}</span>{" "}
+                  {log.message}
+                </div>
+              ))}
+            </pre>
+          ) : (
+            <p className="text-gray-400 text-center py-4">No logs available</p>
+          )}
+        </div>
+
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={closeModal}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+
+    openModal(logsContent);
+  };
+
+  const handleDeleteConfirm = (deployment) => {
+    const deleteContent = (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">
+            Delete Deployment
+          </h3>
+          <button
+            onClick={closeModal}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <FaTimes className="w-5 h-5" />
+          </button>
+        </div>
+
+        <p className="text-gray-300 mb-6">
+          Are you sure you want to delete the deployment for{" "}
+          <span className="font-semibold text-white">
+            {deployment.project?.name}
+          </span>
+          ? This action cannot be undone.
+        </p>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={closeModal}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+          >
+            Cancel
+          </button>{" "}
+          <button
+            onClick={() => {
+              dispatch(
+                cancelDeployment({
+                  projectId: deployment.projectId,
+                  deploymentId: deployment._id,
+                })
+              );
+              closeModal();
+            }}
+            disabled={loading.cancel}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            {loading.cancel ? "Canceling..." : "Cancel Deployment"}
+          </button>
+        </div>
+      </div>
+    );
+
+    openModal(deleteContent);
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -133,14 +244,6 @@ const Deployments = () => {
         return `${baseClasses} bg-gray-500/20 text-gray-400`;
     }
   };
-
-  const filteredDeployments = deployments.filter((deployment) => {
-    const matchesFilter = filter === "all" || deployment.status === filter;
-    const matchesSearch =
-      deployment.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      deployment.commitMessage.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
 
   return (
     <>
@@ -201,128 +304,194 @@ const Deployments = () => {
         transition={{ delay: 0.2 }}
         className="space-y-4"
       >
-        {filteredDeployments.map((deployment, index) => (
-          <motion.div
-            key={deployment.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 + index * 0.1 }}
-            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                {getStatusIcon(deployment.status)}
-                <div>
-                  <h3 className="text-white font-semibold text-lg">
-                    {deployment.projectName}
-                  </h3>
-                  <div className="flex items-center gap-3 mt-1">
-                    {" "}
-                    <div className="flex items-center gap-1">
-                      <FaCodeBranch className="w-3 h-3 text-gray-400" />
-                      <span className="text-gray-400 text-sm">
-                        {deployment.branch}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <FaCode className="w-3 h-3 text-gray-400" />
-                      <span className="text-gray-400 text-sm font-mono">
-                        {deployment.commit}
-                      </span>
-                    </div>
-                    <span
-                      className={getEnvironmentBadge(deployment.environment)}
-                    >
-                      {deployment.environment}
-                    </span>
-                  </div>
+        {" "}
+        {loading.deployments ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+              >
+                <div className="animate-pulse">
+                  <div className="h-6 bg-gray-600 rounded w-1/3 mb-4"></div>
+                  <div className="h-4 bg-gray-600 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-gray-600 rounded w-2/3"></div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3">
-                <span className={getStatusBadge(deployment.status)}>
-                  {deployment.status}
-                </span>
+            ))}
+          </div>
+        ) : filteredDeployments.length > 0 ? (
+          filteredDeployments.map((deployment, index) => (
+            <motion.div
+              key={deployment._id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 + index * 0.1 }}
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  {getStatusIcon(deployment.deployment?.status || "pending")}
+                  <div>
+                    <h3 className="text-white font-semibold text-lg">
+                      {deployment.project?.name || "Unknown Project"}
+                    </h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-1">
+                        <FaCodeBranch className="w-3 h-3 text-gray-400" />
+                        <span className="text-gray-400 text-sm">
+                          {deployment.deployment?.branch || "main"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <FaCode className="w-3 h-3 text-gray-400" />
+                        <span className="text-gray-400 text-sm font-mono">
+                          {deployment.deployment?.commit?.hash?.substring(
+                            0,
+                            7
+                          ) || "N/A"}
+                        </span>
+                      </div>
+                      <span
+                        className={getEnvironmentBadge(
+                          deployment.deployment?.environment || "development"
+                        )}
+                      >
+                        {deployment.deployment?.environment || "development"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={getStatusBadge(
+                      deployment.deployment?.status || "pending"
+                    )}
+                  >
+                    {deployment.deployment?.status || "pending"}
+                  </span>
+                </div>{" "}
               </div>
-            </div>
-
-            <p className="text-gray-300 mb-4">{deployment.commitMessage}</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <p className="text-gray-300 mb-4">
+                {deployment.deployment?.commit?.message || "No commit message"}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <FaUser className="w-4 h-4 text-blue-400" />
+                  <span className="text-gray-400 text-sm">
+                    by{" "}
+                    {deployment.deployedBy?.name ||
+                      deployment.deployedBy?.email ||
+                      "Unknown"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FaCalendarAlt className="w-4 h-4 text-purple-400" />
+                  <span className="text-gray-400 text-sm">
+                    {new Date(deployment.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FaClock className="w-4 h-4 text-orange-400" />
+                  <span className="text-gray-400 text-sm">
+                    {deployment.deployment?.duration || "N/A"}
+                  </span>
+                </div>
+              </div>{" "}
+              {deployment.deployment?.url && (
+                <div className="mb-4 p-3 bg-neutral-800/50 rounded-lg">
+                  <a
+                    href={deployment.deployment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 text-sm font-mono"
+                  >
+                    {deployment.deployment.url}
+                  </a>
+                </div>
+              )}{" "}
               <div className="flex items-center gap-2">
-                <FaUser className="w-4 h-4 text-blue-400" />
-                <span className="text-gray-400 text-sm">
-                  by {deployment.deployedBy}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FaCalendarAlt className="w-4 h-4 text-purple-400" />
-                <span className="text-gray-400 text-sm">
-                  {deployment.startTime}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FaClock className="w-4 h-4 text-orange-400" />
-                <span className="text-gray-400 text-sm">
-                  {deployment.duration}
-                </span>
-              </div>
-            </div>
-
-            {deployment.url && (
-              <div className="mb-4 p-3 bg-neutral-800/50 rounded-lg">
-                <a
-                  href={deployment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 text-sm font-mono"
+                <button
+                  onClick={() => handleViewLogs(deployment)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
                 >
-                  {deployment.url}
-                </a>
+                  <FaEye className="w-3 h-3" />
+                  View Logs
+                </button>
+
+                {deployment.deployment?.status === "success" && (
+                  <button
+                    onClick={() => handleRestart(deployment._id)}
+                    disabled={loading.restart}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
+                  >
+                    <FaRedo className="w-3 h-3" />
+                    {loading.restart ? "Restarting..." : "Redeploy"}
+                  </button>
+                )}
+
+                {deployment.deployment?.status === "running" && (
+                  <button
+                    onClick={() => handleStop(deployment._id)}
+                    disabled={loading.stop}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
+                  >
+                    <FaStop className="w-3 h-3" />
+                    {loading.stop ? "Stopping..." : "Cancel"}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => handleDeleteConfirm(deployment)}
+                  disabled={loading.delete}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
+                >
+                  <FaTrash className="w-3 h-3" />
+                  {loading.delete ? "Deleting..." : "Delete"}
+                </button>
               </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm">
-                <FaEye className="w-3 h-3" />
-                View Logs
-              </button>
-
-              {deployment.status === "success" && (
-                <button className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm">
-                  <FaRedo className="w-3 h-3" />
-                  Redeploy
-                </button>
-              )}
-
-              {deployment.status === "running" && (
-                <button className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm">
-                  <FaStop className="w-3 h-3" />
-                  Cancel
-                </button>
-              )}
+            </motion.div>
+          ))
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-16"
+          >
+            <div className="w-16 h-16 bg-gray-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FaRocket className="w-8 h-8 text-gray-400" />
             </div>
+            <h3 className="text-white text-xl font-semibold mb-2">
+              No deployments found
+            </h3>
+            <p className="text-gray-400 mb-6">
+              {filter === "all"
+                ? "No deployments yet. Deploy your first project to get started."
+                : `No deployments with status "${filter}".`}
+            </p>
           </motion.div>
-        ))}
+        )}
       </motion.div>
-      {/* Empty State */}
-      {filteredDeployments.length === 0 && (
+      {/* Error Message */}
+      {error.deployments && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center py-16"
+          className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-center mt-6"
         >
-          <div className="w-16 h-16 bg-gray-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FaRocket className="w-8 h-8 text-gray-400" />
-          </div>
-          <h3 className="text-white text-xl font-semibold mb-2">
-            No deployments found
-          </h3>
-          <p className="text-gray-400 mb-6">
-            {searchTerm || filter !== "all"
-              ? "Try adjusting your search or filter criteria."
-              : "Start by deploying your first project."}
-          </p>
+          {error.deployments}
+        </motion.div>
+      )}
+      {/* Success Messages */}
+      {(success.deploy || success.stop || success.delete) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-green-400 text-center mt-6"
+        >
+          {success.deploy && "Deployment started successfully!"}
+          {success.stop && "Deployment stopped successfully!"}{" "}
+          {success.delete && "Deployment deleted successfully!"}
         </motion.div>
       )}
     </>

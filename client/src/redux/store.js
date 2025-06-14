@@ -3,11 +3,17 @@ import { combineReducers } from "@reduxjs/toolkit";
 import authReducer from "./slices/authSlice";
 import userProfileReducer from "./slices/userSlice";
 import twoFactorReducer from "./slices/twoFactorSlice";
+import projectReducer from "./slices/projectSlice";
+import deploymentReducer from "./slices/deploymentSlice";
+import analyticsReducer from "./slices/analyticsSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,
   userProfile: userProfileReducer,
   twoFactor: twoFactorReducer,
+  projects: projectReducer,
+  deployments: deploymentReducer,
+  analytics: analyticsReducer,
 });
 
 export const store = configureStore({

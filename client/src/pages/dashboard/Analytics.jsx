@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import {
   FaChartLine,
@@ -12,78 +13,44 @@ import {
   FaSyncAlt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import { fetchUserAnalytics, fetchDashboardStats } from "@redux/index";
 
 const Analytics = () => {
-  const [timeRange, setTimeRange] = useState("7d");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  // Redux state
+  const { userAnalytics, dashboardStats, loading } = useSelector(
+    (state) => state.analytics
+  );
 
-  // Mock data - replace with actual API calls
-  const mockData = {
+  // Local state
+  const [timeRange, setTimeRange] = useState("7d");
+  // Fetch analytics data on component mount and when time range changes
+  useEffect(() => {
+    dispatch(fetchUserAnalytics(timeRange));
+    dispatch(fetchDashboardStats());
+  }, [dispatch, timeRange]);
+  // Combine all analytics data
+  const analyticsData = {
     overview: {
-      totalDeployments: 145,
-      successRate: 96.5,
-      avgDeployTime: "4.2m",
-      uptime: "99.9%",
+      totalDeployments: dashboardStats?.totalDeployments || 0,
+      successRate: dashboardStats?.successRate || 0,
+      avgDeployTime: dashboardStats?.avgDeployTime || "0m",
+      uptime: dashboardStats?.uptime || "0%",
     },
     charts: {
-      deployments: [
-        { date: "2024-01-01", value: 12 },
-        { date: "2024-01-02", value: 18 },
-        { date: "2024-01-03", value: 15 },
-        { date: "2024-01-04", value: 22 },
-        { date: "2024-01-05", value: 28 },
-        { date: "2024-01-06", value: 32 },
-        { date: "2024-01-07", value: 18 },
-      ],
-      performance: [
-        { metric: "Response Time", value: "145ms", change: "-12%" },
-        { metric: "Error Rate", value: "0.2%", change: "-45%" },
-        { metric: "Throughput", value: "1.2k/s", change: "+8%" },
-        { metric: "CPU Usage", value: "45%", change: "+2%" },
-      ],
+      deployments: userAnalytics?.deploymentTimeline || [],
+      performance: userAnalytics?.performance || [],
     },
-    topProjects: [
-      { name: "E-commerce API", deployments: 45, status: "active" },
-      { name: "Mobile App Backend", deployments: 38, status: "active" },
-      { name: "Analytics Dashboard", deployments: 32, status: "inactive" },
-      { name: "User Management", deployments: 28, status: "active" },
-    ],
-    recentActivity: [
-      {
-        id: 1,
-        type: "deployment",
-        project: "E-commerce API",
-        status: "success",
-        time: "2 hours ago",
-      },
-      {
-        id: 2,
-        type: "rollback",
-        project: "Mobile App Backend",
-        status: "warning",
-        time: "4 hours ago",
-      },
-      {
-        id: 3,
-        type: "deployment",
-        project: "Analytics Dashboard",
-        status: "success",
-        time: "6 hours ago",
-      },
-    ],
+    topProjects: userAnalytics?.topProjects || [],
+    recentActivity: userAnalytics?.recentActivity || [],
   };
-
-  useEffect(() => {
-    // Simulate API loading
-    const timer = setTimeout(() => {
-      setData(mockData);
-      setLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRange]);
+  const handleTimeRangeChange = (newRange) => {
+    setTimeRange(newRange);
+  };
+  const refreshData = () => {
+    dispatch(fetchUserAnalytics(timeRange));
+    dispatch(fetchDashboardStats());
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -144,9 +111,10 @@ const Analytics = () => {
           </div>
 
           <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
+            {" "}
             <select
               value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
+              onChange={(e) => handleTimeRangeChange(e.target.value)}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="24h">Last 24 hours</option>
@@ -154,82 +122,105 @@ const Analytics = () => {
               <option value="30d">Last 30 days</option>
               <option value="90d">Last 90 days</option>
             </select>
-
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+            <button
+              onClick={refreshData}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
               <FaSyncAlt />
               Refresh
             </button>
           </div>
-        </motion.div>
-
+        </motion.div>{" "}
         {/* Overview Cards */}
-        <motion.div
-          variants={itemVariants}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        >
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Total Deployments
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {data.overview.totalDeployments}
-                </p>
+        {loading.dashboardStats ? (
+          <motion.div
+            variants={itemVariants}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+          >
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+              >
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-4"></div>
+                  <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
+                </div>
               </div>
-              <FaRocket className="text-blue-600 text-2xl" />
-            </div>
-            <p className="text-sm text-green-600 mt-2">+12% from last period</p>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Success Rate
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {data.overview.successRate}%
-                </p>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            variants={itemVariants}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+          >
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Total Deployments
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analyticsData.overview.totalDeployments}
+                  </p>
+                </div>
+                <FaRocket className="text-blue-600 text-2xl" />
               </div>
-              <FaShieldAlt className="text-green-600 text-2xl" />
+              <p className="text-sm text-green-600 mt-2">
+                +12% from last period
+              </p>
             </div>
-            <p className="text-sm text-green-600 mt-2">
-              +2.1% from last period
-            </p>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Avg Deploy Time
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {data.overview.avgDeployTime}
-                </p>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Success Rate
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analyticsData.overview.successRate}%
+                  </p>
+                </div>
+                <FaShieldAlt className="text-green-600 text-2xl" />
               </div>
-              <FaClock className="text-orange-600 text-2xl" />
+              <p className="text-sm text-green-600 mt-2">
+                +2.1% from last period
+              </p>
             </div>
-            <p className="text-sm text-green-600 mt-2">-8% from last period</p>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Uptime
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {data.overview.uptime}
-                </p>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Avg Deploy Time
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analyticsData.overview.avgDeployTime}
+                  </p>
+                </div>
+                <FaClock className="text-orange-600 text-2xl" />
               </div>
-              <FaServer className="text-purple-600 text-2xl" />
+              <p className="text-sm text-green-600 mt-2">
+                -8% from last period
+              </p>
             </div>
-            <p className="text-sm text-green-600 mt-2">Excellent</p>
-          </div>
-        </motion.div>
 
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Uptime
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analyticsData.overview.uptime}
+                  </p>
+                </div>{" "}
+                <FaServer className="text-purple-600 text-2xl" />
+              </div>
+              <p className="text-sm text-green-600 mt-2">Excellent</p>
+            </div>
+          </motion.div>
+        )}
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Deployment Trends */}
@@ -245,7 +236,7 @@ const Analytics = () => {
             </div>
 
             <div className="h-64 flex items-end justify-between space-x-2">
-              {data.charts.deployments.map((item, index) => (
+              {analyticsData.charts.deployments.map((item, index) => (
                 <div key={index} className="flex flex-col items-center flex-1">
                   <div
                     className="w-full bg-blue-600 rounded-t-md transition-all duration-300 hover:bg-blue-700"
@@ -272,7 +263,7 @@ const Analytics = () => {
             </div>
 
             <div className="space-y-4">
-              {data.charts.performance.map((metric, index) => (
+              {analyticsData.charts.performance.map((metric, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
@@ -299,7 +290,6 @@ const Analytics = () => {
             </div>
           </motion.div>
         </div>
-
         {/* Bottom Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Top Projects */}
@@ -312,7 +302,7 @@ const Analytics = () => {
             </h3>
 
             <div className="space-y-4">
-              {data.topProjects.map((project, index) => (
+              {analyticsData.topProjects.map((project, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -352,7 +342,7 @@ const Analytics = () => {
             </h3>
 
             <div className="space-y-4">
-              {data.recentActivity.map((activity) => (
+              {analyticsData.recentActivity.map((activity) => (
                 <div
                   key={activity.id}
                   className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { loginUser, reset, reset2FA } from "@redux/slices/authSlice";
+import { loginUser, reset, reset2FA } from "@redux/index";
 import {
   FaUser,
   FaLock,

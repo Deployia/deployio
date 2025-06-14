@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import {
   FaRocket,
@@ -11,50 +12,46 @@ import {
   FaUsers,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import {
+  fetchProjects,
+  fetchDeployments,
+  fetchDashboardStats,
+} from "@redux/index";
 
 const Dashboard = () => {
-  // Mock data for dashboard
-  const [stats] = useState({
-    totalProjects: 12,
-    activeDeployments: 8,
-    successRate: 98.5,
-    totalUsers: 1247,
-  });
+  const dispatch = useDispatch();
 
-  const [recentDeployments] = useState([
-    {
-      id: 1,
-      projectName: "E-commerce App",
-      status: "success",
-      timestamp: "2 hours ago",
-      environment: "production",
-      duration: "3m 45s",
-    },
-    {
-      id: 2,
-      projectName: "API Gateway",
-      status: "running",
-      timestamp: "5 hours ago",
-      environment: "staging",
-      duration: "2m 12s",
-    },
-    {
-      id: 3,
-      projectName: "Dashboard UI",
-      status: "failed",
-      timestamp: "1 day ago",
-      environment: "production",
-      duration: "1m 33s",
-    },
-    {
-      id: 4,
-      projectName: "Auth Service",
-      status: "success",
-      timestamp: "2 days ago",
-      environment: "production",
-      duration: "4m 21s",
-    },
-  ]);
+  // Redux state
+  const { projects, loading: projectLoading } = useSelector(
+    (state) => state.projects
+  );
+
+  const { deployments, loading: deploymentLoading } = useSelector(
+    (state) => state.deployments
+  );
+
+  const { dashboardStats, loading: analyticsLoading } = useSelector(
+    (state) => state.analytics
+  );
+
+  // Fetch data on component mount
+  useEffect(() => {
+    dispatch(fetchProjects({ limit: 5 })); // Get recent projects
+    dispatch(fetchDeployments({ limit: 5, sort: "createdAt", order: "desc" })); // Get recent deployments
+    dispatch(fetchDashboardStats());
+  }, [dispatch]);
+
+  // Calculate stats from real data
+  const stats = {
+    totalProjects: dashboardStats?.totalProjects || projects.length,
+    activeDeployments:
+      dashboardStats?.activeDeployments ||
+      deployments.filter((d) => d.status === "running").length,
+    successRate: dashboardStats?.successRate || 98.5,
+    totalUsers: dashboardStats?.totalUsers || 1247,
+  };
+
+  const recentDeployments = deployments.slice(0, 5);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -166,36 +163,53 @@ const Dashboard = () => {
         </h2>
 
         <div className="space-y-4">
-          {recentDeployments.map((deployment, index) => (
-            <motion.div
-              key={deployment.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 + index * 0.1 }}
-              className="flex items-center justify-between p-4 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                {getStatusIcon(deployment.status)}
-                <div>
-                  <h3 className="text-white font-medium">
-                    {deployment.projectName}
-                  </h3>
-                  <p className="text-gray-400 text-sm">
-                    {deployment.environment} • {deployment.timestamp}
-                  </p>
+          {deploymentLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : recentDeployments.length > 0 ? (
+            recentDeployments.map((deployment, index) => (
+              <motion.div
+                key={deployment._id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 + index * 0.1 }}
+                className="flex items-center justify-between p-4 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  {getStatusIcon(deployment.deployment?.status || "pending")}
+                  <div>
+                    <h3 className="text-white font-medium">
+                      {deployment.project?.name ||
+                        deployment.projectName ||
+                        "Unknown Project"}
+                    </h3>
+                    <p className="text-gray-400 text-sm">
+                      {deployment.deployment?.environment} •{" "}
+                      {new Date(deployment.createdAt).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-gray-400 text-sm">
-                  {deployment.duration}
-                </span>
-                <span className={getStatusBadge(deployment.status)}>
-                  {deployment.status}
-                </span>
-              </div>
-            </motion.div>
-          ))}
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-400 text-sm">
+                    {deployment.deployment?.duration || "N/A"}
+                  </span>{" "}
+                  <span
+                    className={getStatusBadge(
+                      deployment.deployment?.status || "pending"
+                    )}
+                  >
+                    {deployment.deployment?.status || "pending"}
+                  </span>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              No recent deployments
+            </div>
+          )}
         </div>
 
         <div className="mt-6 text-center">
