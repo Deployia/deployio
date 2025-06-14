@@ -14,6 +14,8 @@ export {
   updateProject,
   deleteProject,
   toggleArchiveProject,
+  analyzeRepository,
+  generateDockerfile,
   resetProjectState,
   clearProjectError,
   clearProjectSuccess,

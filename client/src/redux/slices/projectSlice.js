@@ -12,6 +12,8 @@ const initialState = {
     update: false,
     delete: false,
     connect: false,
+    analyze: false,
+    dockerfile: false,
   },
   error: {
     projects: null,
@@ -20,12 +22,16 @@ const initialState = {
     update: null,
     delete: null,
     connect: null,
+    analyze: null,
+    dockerfile: null,
   },
   success: {
     create: false,
     update: false,
     delete: false,
     connect: false,
+    analyze: false,
+    dockerfile: false,
   },
   pagination: {
     total: 0,
@@ -117,6 +123,41 @@ export const toggleArchiveProject = createAsyncThunk(
       return rejectWithValue(
         error.response?.data?.message ||
           "Failed to toggle project archive status"
+      );
+    }
+  }
+);
+
+export const analyzeRepository = createAsyncThunk(
+  "projects/analyzeRepository",
+  async ({ projectId }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/projects/${projectId}/analyze`);
+      return response.data.data || response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to analyze repository"
+      );
+    }
+  }
+);
+
+export const generateDockerfile = createAsyncThunk(
+  "projects/generateDockerfile",
+  async (
+    { projectId, buildCommand, startCommand, port },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post(`/projects/${projectId}/dockerfile`, {
+        buildCommand,
+        startCommand,
+        port,
+      });
+      return response.data.data || response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to generate Dockerfile"
       );
     }
   }
@@ -289,6 +330,70 @@ const projectSlice = createSlice({
         state.loading.update = false;
         state.error.update = action.payload;
         state.success.update = false;
+      })
+
+      // Analyze Repository
+      .addCase(analyzeRepository.pending, (state) => {
+        state.loading.analyze = true;
+        state.error.analyze = null;
+        state.success.analyze = false;
+      })
+      .addCase(analyzeRepository.fulfilled, (state, action) => {
+        state.loading.analyze = false;
+        state.success.analyze = true;
+
+        // Update the current project with analysis data
+        if (action.payload.project) {
+          const projectId = action.payload.project._id;
+
+          // Update in projects array
+          const index = state.projects.findIndex((p) => p._id === projectId);
+          if (index !== -1) {
+            state.projects[index] = action.payload.project;
+          }
+
+          // Update current project if it's the same
+          if (state.currentProject?._id === projectId) {
+            state.currentProject = action.payload.project;
+          }
+        }
+      })
+      .addCase(analyzeRepository.rejected, (state, action) => {
+        state.loading.analyze = false;
+        state.error.analyze = action.payload;
+        state.success.analyze = false;
+      })
+
+      // Generate Dockerfile
+      .addCase(generateDockerfile.pending, (state) => {
+        state.loading.dockerfile = true;
+        state.error.dockerfile = null;
+        state.success.dockerfile = false;
+      })
+      .addCase(generateDockerfile.fulfilled, (state, action) => {
+        state.loading.dockerfile = false;
+        state.success.dockerfile = true;
+
+        // Update the current project with dockerfile data
+        if (action.payload.project) {
+          const projectId = action.payload.project._id;
+
+          // Update in projects array
+          const index = state.projects.findIndex((p) => p._id === projectId);
+          if (index !== -1) {
+            state.projects[index] = action.payload.project;
+          }
+
+          // Update current project if it's the same
+          if (state.currentProject?._id === projectId) {
+            state.currentProject = action.payload.project;
+          }
+        }
+      })
+      .addCase(generateDockerfile.rejected, (state, action) => {
+        state.loading.dockerfile = false;
+        state.error.dockerfile = action.payload;
+        state.success.dockerfile = false;
       });
   },
 });
