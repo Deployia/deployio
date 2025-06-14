@@ -111,8 +111,8 @@ jobs:
           MONGODB_URI: mongodb://admin:password123@localhost:27017/deployio_test?authSource=admin
           JWT_SECRET: test_jwt_secret_for_ci
 
-  fastapi-tests:
-    name: FastAPI Tests
+  ai-tests:
+    name: ai Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -127,7 +127,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd fastapi_service
+          cd ai_service
           pip install -r requirements.txt
           pip install pytest pytest-cov httpx
 
@@ -168,7 +168,7 @@ jobs:
         code-quality,
         security-scan,
         backend-tests,
-        fastapi-tests,
+        ai-tests,
         frontend-tests,
       ]
     if: github.ref == 'refs/heads/main'
@@ -176,6 +176,25 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+
+      - name: Cleanup Docker Resources
+        uses: appleboy/ssh-action@master
+        with:
+          host: deployio.tech
+          username: vasudevshetty
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/deployio
+
+            # Clean up old Docker data (but keep current running containers)
+            echo "🧹 Cleaning up old Docker resources..."
+            docker image prune -f
+            docker container prune -f
+            docker network prune -f
+            docker volume prune -f
+
+            echo "✅ Docker cleanup completed successfully"
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
@@ -225,24 +244,6 @@ jobs:
             fi
 
             echo "✅ Deployment completed successfully"
-
-      - name: Cleanup Docker Resources
-        uses: appleboy/ssh-action@master
-        with:
-          host: deployio.tech
-          username: vasudevshetty
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd ~/deployio
-
-            # Clean up old Docker data (but keep current running containers)
-            echo "🧹 Cleaning up old Docker resources..."
-            docker image prune -f
-            docker container prune -f
-            docker network prune -f
-            docker volume prune -f
-
-            echo "✅ Docker cleanup completed successfully"
 
   notify:
     name: Deployment Notification
