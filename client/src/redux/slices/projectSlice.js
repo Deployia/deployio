@@ -47,7 +47,14 @@ export const fetchProjects = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await api.get("/projects", { params });
-      return response.data.data || response.data;
+      // Backend returns { success: true, data: { projects: [...], pagination: {...} } }
+      if (response.data.success && response.data.data) {
+        return {
+          projects: response.data.data.projects || [],
+          pagination: response.data.data.pagination || {},
+        };
+      }
+      return { projects: response.data.projects || [], pagination: {} };
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch projects"
@@ -61,8 +68,14 @@ export const fetchProjectById = createAsyncThunk(
   async (projectId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/projects/${projectId}`);
-      // Extract the project from the nested response structure
-      return response.data.data?.project || response.data.data || response.data;
+      // Backend returns { success: true, data: { project: {...}, recentDeployments: [...] } }
+      if (response.data.success && response.data.data) {
+        return {
+          project: response.data.data.project,
+          recentDeployments: response.data.data.recentDeployments || [],
+        };
+      }
+      return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch project"
@@ -163,6 +176,29 @@ export const generateDockerfile = createAsyncThunk(
   }
 );
 
+export const fetchProjectDeployments = createAsyncThunk(
+  "projects/fetchProjectDeployments",
+  async ({ projectId, params = {} }, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/projects/${projectId}/deployments`, {
+        params,
+      });
+      // Backend returns { success: true, data: { deployments: [...], pagination: {...} } }
+      if (response.data.success && response.data.data) {
+        return {
+          deployments: response.data.data.deployments || [],
+          pagination: response.data.data.pagination || {},
+        };
+      }
+      return { deployments: response.data.deployments || [], pagination: {} };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch project deployments"
+      );
+    }
+  }
+);
+
 const projectSlice = createSlice({
   name: "projects",
   initialState,
@@ -201,8 +237,7 @@ const projectSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder
-      // Fetch Projects
+    builder // Fetch Projects
       .addCase(fetchProjects.pending, (state) => {
         state.loading.projects = true;
         state.error.projects = null;
@@ -219,6 +254,7 @@ const projectSlice = createSlice({
       .addCase(fetchProjects.rejected, (state, action) => {
         state.loading.projects = false;
         state.error.projects = action.payload;
+        state.projects = [];
       })
 
       // Fetch Project By ID
@@ -228,11 +264,19 @@ const projectSlice = createSlice({
       })
       .addCase(fetchProjectById.fulfilled, (state, action) => {
         state.loading.currentProject = false;
-        state.currentProject = action.payload;
+        if (action.payload.project) {
+          state.currentProject = {
+            ...action.payload.project,
+            recentDeployments: action.payload.recentDeployments || [],
+          };
+        } else {
+          state.currentProject = action.payload;
+        }
       })
       .addCase(fetchProjectById.rejected, (state, action) => {
         state.loading.currentProject = false;
         state.error.currentProject = action.payload;
+        state.currentProject = null;
       })
 
       // Create Project

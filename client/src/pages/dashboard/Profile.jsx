@@ -12,6 +12,7 @@ import {
 } from "react-icons/fa";
 import SEO from "@components/SEO.jsx";
 import { motion, AnimatePresence } from "framer-motion";
+import { LoadingGrid } from "@components/LoadingSpinner";
 import {
   ProfileTab,
   SessionsTab,
@@ -123,11 +124,15 @@ function Profile() {
       </ProfileErrorBoundary>
     );
   };
-
   if (!authUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900">
+        <div className="p-8">
+          <h1 className="text-3xl font-bold text-white heading mb-8">
+            Profile
+          </h1>
+          <LoadingGrid columns={3} rows={2} />
+        </div>
       </div>
     );
   }

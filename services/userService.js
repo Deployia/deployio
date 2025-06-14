@@ -369,10 +369,23 @@ const getDashboardStats = async (userId) => {
   const user = await User.findById(userId);
   if (!user) throw new Error("User not found");
 
+  // Import models here to avoid circular dependency
+  const Project = require("../models/Project");
+  const Deployment = require("../models/Deployment");
+
   // Calculate stats based on user data
   const now = new Date();
   const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Get user's projects and deployments
+  const projects = await Project.find({ userId }).lean();
+  const projectIds = projects.map((p) => p._id);
+  const deployments = await Deployment.find({
+    $or: [{ userId }, { projectId: { $in: projectIds } }],
+  })
+    .populate("project", "name")
+    .lean();
 
   // Recent activities
   const recentActivities = user.activities.filter(
@@ -397,13 +410,29 @@ const getDashboardStats = async (userId) => {
     { auth: 0, security: 0, profile: 0, general: 0, system: 0 }
   );
 
-  // Mock deployment stats (replace with real data when available)
+  // Real deployment stats
   const deploymentStats = {
-    total: 45 + Math.floor(Math.random() * 50),
-    successful: Math.floor(Math.random() * 45) + 40,
-    failed: Math.floor(Math.random() * 5),
-    pending: Math.floor(Math.random() * 3),
+    total: deployments.length,
+    successful: deployments.filter((d) => d.status === "success").length,
+    failed: deployments.filter((d) => d.status === "failed").length,
+    pending: deployments.filter(
+      (d) =>
+        d.status === "pending" ||
+        d.status === "running" ||
+        d.status === "deploying"
+    ).length,
+    thisMonth: deployments.filter((d) => new Date(d.createdAt) >= last30Days)
+      .length,
   };
+
+  // Recent projects and deployments for dashboard
+  const recentProjects = projects
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    .slice(0, 5);
+
+  const recentDeployments = deployments
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 10);
 
   return {
     user: {
@@ -422,8 +451,15 @@ const getDashboardStats = async (userId) => {
     },
     apiKeys: apiKeyStats,
     deployments: deploymentStats,
-    projects: Math.floor(Math.random() * 15) + 5, // Mock data
-    uptime: "99.9%", // Mock data
+    projects: {
+      total: projects.length,
+      active: projects.filter((p) => !p.archived).length,
+      archived: projects.filter((p) => p.archived).length,
+    },
+    // Include actual data for dashboard
+    recentProjects,
+    recentDeployments,
+    uptime: "99.9%", // This could be calculated from deployment success rates
   };
 };
 

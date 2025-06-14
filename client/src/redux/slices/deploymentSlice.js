@@ -6,27 +6,43 @@ export const fetchDeployments = createAsyncThunk(
   "deployments/fetchDeployments",
   async (_params = {}, { rejectWithValue }) => {
     try {
-      // Fetch all deployments across projects - we'll need to aggregate from project deployments
-      // Since there's no global deployments endpoint, we'll need to implement this differently
-      const response = await api.get("/projects"); // Get all projects first
+      // Fetch all projects first to get their deployments
+      const projectsResponse = await api.get("/projects");
       let allDeployments = [];
 
-      // For each project, get its deployments
-      if (response.data.projects) {
-        for (const project of response.data.projects) {
+      if (
+        projectsResponse.data.success &&
+        projectsResponse.data.data?.projects
+      ) {
+        const projects = projectsResponse.data.data.projects;
+
+        // For each project, get its deployments
+        for (const project of projects) {
           try {
             const deploymentResponse = await api.get(
               `/projects/${project._id}/deployments`
             );
-            if (deploymentResponse.data.deployments) {
-              // Add project info to each deployment
-              const deploymentsWithProject =
-                deploymentResponse.data.deployments.map((deployment) => ({
-                  ...deployment,
-                  project: project,
-                }));
-              allDeployments = [...allDeployments, ...deploymentsWithProject];
+
+            let deployments = [];
+            if (
+              deploymentResponse.data.success &&
+              deploymentResponse.data.data?.deployments
+            ) {
+              deployments = deploymentResponse.data.data.deployments;
+            } else if (deploymentResponse.data.deployments) {
+              deployments = deploymentResponse.data.deployments;
             }
+
+            // Add project info to each deployment
+            const deploymentsWithProject = deployments.map((deployment) => ({
+              ...deployment,
+              project: {
+                _id: project._id,
+                name: project.name,
+                repository: project.repository,
+              },
+            }));
+            allDeployments = [...allDeployments, ...deploymentsWithProject];
           } catch (err) {
             // Skip if project deployments can't be fetched
             console.warn(
@@ -36,6 +52,11 @@ export const fetchDeployments = createAsyncThunk(
           }
         }
       }
+
+      // Sort by creation date (newest first)
+      allDeployments.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
 
       return { deployments: allDeployments };
     } catch (error) {
@@ -65,10 +86,17 @@ export const fetchProjectDeployments = createAsyncThunk(
   async (projectId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/projects/${projectId}/deployments`);
-      // Extract deployments from the nested response structure
-      return (
-        response.data.data?.deployments || response.data.data || response.data
-      );
+      // Backend returns { success: true, data: { deployments: [...], pagination: {...} } }
+      if (response.data.success && response.data.data) {
+        return {
+          deployments: response.data.data.deployments || [],
+          pagination: response.data.data.pagination || {},
+        };
+      }
+      return {
+        deployments: response.data.deployments || response.data.data || [],
+        pagination: {},
+      };
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch project deployments"
@@ -370,8 +398,7 @@ const deploymentSlice = createSlice({
       })
       .addCase(fetchDeployments.fulfilled, (state, action) => {
         state.loading.fetch = false;
-        state.deployments =
-          action.payload.deployments || action.payload.data || [];
+        state.deployments = action.payload.deployments || [];
         if (action.payload.pagination) {
           state.pagination = action.payload.pagination;
         }
@@ -404,9 +431,10 @@ const deploymentSlice = createSlice({
       })
       .addCase(fetchProjectDeployments.fulfilled, (state, action) => {
         state.loading.fetchProject = false;
-        state.projectDeployments = Array.isArray(action.payload)
-          ? action.payload
-          : [];
+        state.projectDeployments = action.payload.deployments || [];
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        }
       })
       .addCase(fetchProjectDeployments.rejected, (state, action) => {
         state.loading.fetchProject = false;

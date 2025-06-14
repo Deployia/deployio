@@ -28,6 +28,7 @@ const ProjectSettings = lazy(() => import("@dashboard/ProjectSettings"));
 const CreateProject = lazy(() => import("@dashboard/CreateProject"));
 const Deployments = lazy(() => import("@dashboard/Deployments"));
 const Analytics = lazy(() => import("@dashboard/Analytics"));
+const Activity = lazy(() => import("@dashboard/Activity"));
 const Monitoring = lazy(() => import("@dashboard/Monitoring"));
 const Integrations = lazy(() => import("@dashboard/Integrations"));
 const Profile = lazy(() => import("@dashboard/Profile"));
@@ -141,9 +142,10 @@ function App() {
                   <Route path="deployments" element={<ProjectDeployments />} />
                   <Route path="analytics" element={<ProjectAnalytics />} />
                   <Route path="settings" element={<ProjectSettings />} />
-                </Route>
+                </Route>{" "}
                 <Route path="deployments" element={<Deployments />} />
                 <Route path="analytics" element={<Analytics />} />
+                <Route path="activity" element={<Activity />} />
                 <Route path="cli" element={<CLI />} />
                 <Route path="api-tester" element={<APITester />} />
                 <Route path="monitoring" element={<Monitoring />} />
