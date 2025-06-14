@@ -22,7 +22,8 @@ export const fetchProjectAnalytics = createAsyncThunk(
   async ({ projectId, _timeRange = "7d" }, { rejectWithValue }) => {
     try {
       const response = await api.get(`/projects/${projectId}/analytics`);
-      return response.data;
+      // Extract analytics data from the nested response structure
+      return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch project analytics"
@@ -212,7 +213,7 @@ const analyticsSlice = createSlice({
       .addCase(fetchProjectAnalytics.fulfilled, (state, action) => {
         state.loading.project = false;
         state.success.project = true;
-        state.projectAnalytics = action.payload.analytics || action.payload;
+        state.projectAnalytics = action.payload;
       })
       .addCase(fetchProjectAnalytics.rejected, (state, action) => {
         state.loading.project = false;

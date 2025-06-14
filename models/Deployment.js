@@ -20,7 +20,14 @@ const deploymentSchema = new mongoose.Schema(
       },
       status: {
         type: String,
-        enum: ["pending", "building", "deploying", "success", "failed", "cancelled"],
+        enum: [
+          "pending",
+          "building",
+          "deploying",
+          "success",
+          "failed",
+          "cancelled",
+        ],
         default: "pending",
       },
       environment: {
@@ -331,14 +338,17 @@ deploymentSchema.statics.getActiveDeployments = function () {
     .populate("deployedBy", "username email");
 };
 
-deploymentSchema.statics.getDeploymentStats = function (projectId, timeframe = 30) {
+deploymentSchema.statics.getDeploymentStats = function (
+  projectId,
+  timeframe = 30
+) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - timeframe);
 
   return this.aggregate([
     {
       $match: {
-        project: mongoose.Types.ObjectId(projectId),
+        project: new mongoose.Types.ObjectId(projectId),
         createdAt: { $gte: startDate },
       },
     },
@@ -366,7 +376,10 @@ deploymentSchema.methods.updateStatus = function (status, additionalData = {}) {
   this.deployment.status = status;
 
   // Add event for status change
-  this.addEvent(`deployment_${status}`, `Deployment status changed to ${status}`);
+  this.addEvent(
+    `deployment_${status}`,
+    `Deployment status changed to ${status}`
+  );
 
   // Update timestamps based on status
   if (status === "building" && !this.build.startedAt) {

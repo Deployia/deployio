@@ -37,16 +37,20 @@ const createDeployment = async (projectId, userId, deploymentData) => {
       throw new Error("Project not found");
     }
 
-    const hasAccess = 
+    const hasAccess =
       project.owner.toString() === userId.toString() ||
-      project.collaborators.some(c => c.user.toString() === userId.toString());
+      project.collaborators.some(
+        (c) => c.user.toString() === userId.toString()
+      );
 
     if (!hasAccess) {
-      throw new Error("Access denied: You don't have permission to deploy this project");
+      throw new Error(
+        "Access denied: You don't have permission to deploy this project"
+      );
     }
 
     // Generate unique deployment ID
-    const deploymentId = `dep_${crypto.randomBytes(16).toString('hex')}`;
+    const deploymentId = `dep_${crypto.randomBytes(16).toString("hex")}`;
 
     const deployment = new Deployment({
       ...deploymentData,
@@ -55,15 +59,15 @@ const createDeployment = async (projectId, userId, deploymentData) => {
       deployment: {
         ...deploymentData.deployment,
         id: deploymentId,
-      }
+      },
     });
 
     await deployment.save();
-    
+
     // Populate the deployment
     await deployment.populate([
       { path: "project", select: "name owner" },
-      { path: "deployedBy", select: "username email profileImage" }
+      { path: "deployedBy", select: "username email profileImage" },
     ]);
 
     // Update project's last deployment info
@@ -71,7 +75,7 @@ const createDeployment = async (projectId, userId, deploymentData) => {
       id: deploymentId,
       status: deployment.deployment.status,
       startedAt: new Date(),
-      deployedBy: userId
+      deployedBy: userId,
     };
     await project.save();
 
@@ -88,28 +92,40 @@ const createDeployment = async (projectId, userId, deploymentData) => {
 const getDeploymentById = async (deploymentId, userId) => {
   const redisClient = getRedisClient();
   const cacheKey = `deployment:${deploymentId}`;
-
   try {
-    // Try cache first
-    const cachedDeployment = await redisClient.get(cacheKey);
-    if (cachedDeployment) {
-      const deployment = JSON.parse(cachedDeployment);
-      
-      // Verify user has access
-      const project = await Project.findById(deployment.project._id || deployment.project);
-      const hasAccess = 
-        project.owner.toString() === userId.toString() ||
-        project.collaborators.some(c => c.user.toString() === userId.toString());
+    // Try cache first (only if Redis is available)
+    if (redisClient) {
+      try {
+        const cachedDeployment = await redisClient.get(cacheKey);
+        if (cachedDeployment) {
+          const deployment = JSON.parse(cachedDeployment);
+          // Verify user has access
+          const project = await Project.findById(
+            deployment.project._id || deployment.project
+          );
+          const hasAccess =
+            project.owner.toString() === userId.toString() ||
+            project.collaborators.some(
+              (c) => c.user.toString() === userId.toString()
+            );
 
-      if (!hasAccess) {
-        throw new Error("Access denied: You don't have permission to view this deployment");
+          if (!hasAccess) {
+            throw new Error(
+              "Access denied: You don't have permission to view this deployment"
+            );
+          }
+
+          return deployment;
+        }
+      } catch (cacheError) {
+        console.warn("Redis cache read error:", cacheError.message);
       }
-      
-      return deployment;
     }
 
     // Get from DB
-    const deployment = await Deployment.findOne({ "deployment.id": deploymentId })
+    const deployment = await Deployment.findOne({
+      "deployment.id": deploymentId,
+    })
       .populate("project", "name owner collaborators")
       .populate("deployedBy", "username email profileImage");
 
@@ -118,27 +134,40 @@ const getDeploymentById = async (deploymentId, userId) => {
     }
 
     // Check access
-    const hasAccess = 
+    const hasAccess =
       deployment.project.owner.toString() === userId.toString() ||
-      deployment.project.collaborators.some(c => c.user.toString() === userId.toString());
+      deployment.project.collaborators.some(
+        (c) => c.user.toString() === userId.toString()
+      );
 
     if (!hasAccess) {
-      throw new Error("Access denied: You don't have permission to view this deployment");
+      throw new Error(
+        "Access denied: You don't have permission to view this deployment"
+      );
+    } // Cache for 5 minutes (only if Redis is available)
+    if (redisClient) {
+      try {
+        await redisClient.setEx(cacheKey, 300, JSON.stringify(deployment));
+      } catch (cacheError) {
+        console.warn("Redis cache write error:", cacheError.message);
+      }
     }
 
-    // Cache for 5 minutes
-    await redisClient.setex(cacheKey, 300, JSON.stringify(deployment));
-    
     return deployment;
   } catch (error) {
-    if (error.message.includes("Access denied") || error.message === "Deployment not found") {
+    if (
+      error.message.includes("Access denied") ||
+      error.message === "Deployment not found"
+    ) {
       throw error;
     }
-    
+
     console.error("Redis error in getDeploymentById:", error);
-    
+
     // Fallback to DB
-    const deployment = await Deployment.findOne({ "deployment.id": deploymentId })
+    const deployment = await Deployment.findOne({
+      "deployment.id": deploymentId,
+    })
       .populate("project", "name owner collaborators")
       .populate("deployedBy", "username email profileImage");
 
@@ -146,12 +175,16 @@ const getDeploymentById = async (deploymentId, userId) => {
       throw new Error("Deployment not found");
     }
 
-    const hasAccess = 
+    const hasAccess =
       deployment.project.owner.toString() === userId.toString() ||
-      deployment.project.collaborators.some(c => c.user.toString() === userId.toString());
+      deployment.project.collaborators.some(
+        (c) => c.user.toString() === userId.toString()
+      );
 
     if (!hasAccess) {
-      throw new Error("Access denied: You don't have permission to view this deployment");
+      throw new Error(
+        "Access denied: You don't have permission to view this deployment"
+      );
     }
 
     return deployment;
@@ -159,27 +192,37 @@ const getDeploymentById = async (deploymentId, userId) => {
 };
 
 // Update deployment status
-const updateDeploymentStatus = async (deploymentId, userId, status, updateData = {}) => {
+const updateDeploymentStatus = async (
+  deploymentId,
+  userId,
+  status,
+  updateData = {}
+) => {
   try {
-    const deployment = await Deployment.findOne({ "deployment.id": deploymentId })
-      .populate("project", "name owner collaborators");
+    const deployment = await Deployment.findOne({
+      "deployment.id": deploymentId,
+    }).populate("project", "name owner collaborators");
 
     if (!deployment) {
       throw new Error("Deployment not found");
     }
 
     // Check access
-    const hasAccess = 
+    const hasAccess =
       deployment.project.owner.toString() === userId.toString() ||
-      deployment.project.collaborators.some(c => c.user.toString() === userId.toString());
+      deployment.project.collaborators.some(
+        (c) => c.user.toString() === userId.toString()
+      );
 
     if (!hasAccess) {
-      throw new Error("Access denied: You don't have permission to update this deployment");
+      throw new Error(
+        "Access denied: You don't have permission to update this deployment"
+      );
     }
 
     // Update deployment status
     deployment.deployment.status = status;
-    
+
     if (updateData.url) deployment.deployment.url = updateData.url;
     if (updateData.domain) deployment.deployment.domain = updateData.domain;
 
@@ -187,7 +230,7 @@ const updateDeploymentStatus = async (deploymentId, userId, status, updateData =
     if (status === "building" && !deployment.build.startedAt) {
       deployment.build.startedAt = new Date();
     }
-    
+
     if (status === "success" || status === "failed") {
       if (deployment.build.startedAt && !deployment.build.completedAt) {
         deployment.build.completedAt = new Date();
@@ -204,12 +247,15 @@ const updateDeploymentStatus = async (deploymentId, userId, status, updateData =
         project.analytics.failedDeployments += 1;
       }
       project.analytics.totalDeployments += 1;
-      
+
       // Update average build time
       if (deployment.build.duration) {
-        const totalTime = project.analytics.averageBuildTime * (project.analytics.totalDeployments - 1);
+        const totalTime =
+          project.analytics.averageBuildTime *
+          (project.analytics.totalDeployments - 1);
         project.analytics.averageBuildTime = Math.floor(
-          (totalTime + deployment.build.duration) / project.analytics.totalDeployments
+          (totalTime + deployment.build.duration) /
+            project.analytics.totalDeployments
         );
       }
 
@@ -240,7 +286,7 @@ const updateDeploymentStatus = async (deploymentId, userId, status, updateData =
 const getDeploymentLogs = async (deploymentId, userId) => {
   try {
     const deployment = await getDeploymentById(deploymentId, userId);
-    
+
     return {
       buildLogs: deployment.build.buildLogs || "",
       buildOutput: deployment.build.buildOutput || "",
@@ -249,8 +295,8 @@ const getDeploymentLogs = async (deploymentId, userId) => {
         status: deployment.deployment.status,
         startedAt: deployment.build.startedAt,
         completedAt: deployment.build.completedAt,
-        duration: deployment.build.duration
-      }
+        duration: deployment.build.duration,
+      },
     };
   } catch (error) {
     throw error;
@@ -260,30 +306,39 @@ const getDeploymentLogs = async (deploymentId, userId) => {
 // Cancel deployment
 const cancelDeployment = async (deploymentId, userId) => {
   try {
-    const deployment = await Deployment.findOne({ "deployment.id": deploymentId })
-      .populate("project", "name owner collaborators");
+    const deployment = await Deployment.findOne({
+      "deployment.id": deploymentId,
+    }).populate("project", "name owner collaborators");
 
     if (!deployment) {
       throw new Error("Deployment not found");
     }
 
     // Check access
-    const hasAccess = 
+    const hasAccess =
       deployment.project.owner.toString() === userId.toString() ||
-      deployment.project.collaborators.some(c => c.user.toString() === userId.toString());
+      deployment.project.collaborators.some(
+        (c) => c.user.toString() === userId.toString()
+      );
 
     if (!hasAccess) {
-      throw new Error("Access denied: You don't have permission to cancel this deployment");
+      throw new Error(
+        "Access denied: You don't have permission to cancel this deployment"
+      );
     }
 
     // Can only cancel pending or building deployments
-    if (!["pending", "building", "deploying"].includes(deployment.deployment.status)) {
+    if (
+      !["pending", "building", "deploying"].includes(
+        deployment.deployment.status
+      )
+    ) {
       throw new Error("Cannot cancel deployment in current status");
     }
 
     deployment.deployment.status = "cancelled";
     deployment.build.completedAt = new Date();
-    
+
     if (deployment.build.startedAt) {
       deployment.build.duration = Math.floor(
         (deployment.build.completedAt - deployment.build.startedAt) / 1000
@@ -316,22 +371,31 @@ const getDeploymentStats = async (projectId, userId, timeframe = 30) => {
       throw new Error("Project not found");
     }
 
-    const hasAccess = 
+    const hasAccess =
       project.owner.toString() === userId.toString() ||
-      project.collaborators.some(c => c.user.toString() === userId.toString());
+      project.collaborators.some(
+        (c) => c.user.toString() === userId.toString()
+      );
 
     if (!hasAccess) {
-      throw new Error("Access denied: You don't have permission to view this project");
+      throw new Error(
+        "Access denied: You don't have permission to view this project"
+      );
     }
 
     const redisClient = getRedisClient();
     const cacheKey = `deployment_stats:${projectId}:${timeframe}`;
-
     try {
-      // Try cache first
-      const cachedStats = await redisClient.get(cacheKey);
-      if (cachedStats) {
-        return JSON.parse(cachedStats);
+      // Try cache first (only if Redis is available)
+      if (redisClient) {
+        try {
+          const cachedStats = await redisClient.get(cacheKey);
+          if (cachedStats) {
+            return JSON.parse(cachedStats);
+          }
+        } catch (cacheError) {
+          console.warn("Redis cache read error:", cacheError.message);
+        }
       }
     } catch (error) {
       console.error("Redis error in getDeploymentStats:", error);
@@ -347,23 +411,23 @@ const getDeploymentStats = async (projectId, userId, timeframe = 30) => {
       {
         $match: {
           project: project._id,
-          createdAt: { $gte: startDate, $lte: endDate }
-        }
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
       },
       {
         $group: {
           _id: null,
           totalDeployments: { $sum: 1 },
           successfulDeployments: {
-            $sum: { $cond: [{ $eq: ["$deployment.status", "success"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$deployment.status", "success"] }, 1, 0] },
           },
           failedDeployments: {
-            $sum: { $cond: [{ $eq: ["$deployment.status", "failed"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$deployment.status", "failed"] }, 1, 0] },
           },
           averageBuildTime: { $avg: "$build.duration" },
-          totalBuildTime: { $sum: "$build.duration" }
-        }
-      }
+          totalBuildTime: { $sum: "$build.duration" },
+        },
+      },
     ]);
 
     const result = stats[0] || {
@@ -371,49 +435,53 @@ const getDeploymentStats = async (projectId, userId, timeframe = 30) => {
       successfulDeployments: 0,
       failedDeployments: 0,
       averageBuildTime: 0,
-      totalBuildTime: 0
+      totalBuildTime: 0,
     };
 
     // Calculate success rate
-    result.successRate = result.totalDeployments > 0 
-      ? ((result.successfulDeployments / result.totalDeployments) * 100).toFixed(1)
-      : 0;
+    result.successRate =
+      result.totalDeployments > 0
+        ? (
+            (result.successfulDeployments / result.totalDeployments) *
+            100
+          ).toFixed(1)
+        : 0;
 
     // Get daily deployment counts for chart data
     const dailyStats = await Deployment.aggregate([
       {
         $match: {
           project: project._id,
-          createdAt: { $gte: startDate, $lte: endDate }
-        }
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
       },
       {
         $group: {
           _id: {
             year: { $year: "$createdAt" },
             month: { $month: "$createdAt" },
-            day: { $dayOfMonth: "$createdAt" }
+            day: { $dayOfMonth: "$createdAt" },
           },
           deployments: { $sum: 1 },
           successful: {
-            $sum: { $cond: [{ $eq: ["$deployment.status", "success"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$deployment.status", "success"] }, 1, 0] },
           },
           failed: {
-            $sum: { $cond: [{ $eq: ["$deployment.status", "failed"] }, 1, 0] }
-          }
-        }
+            $sum: { $cond: [{ $eq: ["$deployment.status", "failed"] }, 1, 0] },
+          },
+        },
       },
-      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
     ]);
 
     result.dailyStats = dailyStats;
-    result.timeframe = timeframe;
-
-    try {
-      // Cache for 10 minutes
-      await redisClient.setex(cacheKey, 600, JSON.stringify(result));
-    } catch (error) {
-      console.error("Redis error caching deployment stats:", error);
+    result.timeframe = timeframe; // Cache for 10 minutes (only if Redis is available)
+    if (redisClient) {
+      try {
+        await redisClient.setEx(cacheKey, 600, JSON.stringify(result));
+      } catch (cacheError) {
+        console.warn("Redis cache write error:", cacheError.message);
+      }
     }
 
     return result;

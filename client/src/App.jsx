@@ -21,6 +21,10 @@ const VerifyOtp = lazy(() => import("@auth/VerifyOtp"));
 // Dashboard Pages
 const Dashboard = lazy(() => import("@dashboard/Dashboard"));
 const Projects = lazy(() => import("@dashboard/Projects"));
+const ProjectDetails = lazy(() => import("@dashboard/ProjectDetails"));
+const ProjectDeployments = lazy(() => import("@dashboard/ProjectDeployments"));
+const ProjectAnalytics = lazy(() => import("@dashboard/ProjectAnalytics"));
+const ProjectSettings = lazy(() => import("@dashboard/ProjectSettings"));
 const CreateProject = lazy(() => import("@dashboard/CreateProject"));
 const Deployments = lazy(() => import("@dashboard/Deployments"));
 const Analytics = lazy(() => import("@dashboard/Analytics"));
@@ -129,7 +133,15 @@ function App() {
               <Route path="dashboard" element={<DashboardLayout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="projects" element={<Projects />} />
-                <Route path="projects/create" element={<CreateProject />} />
+                <Route
+                  path="projects/create"
+                  element={<CreateProject />}
+                />{" "}
+                <Route path="projects/:id" element={<ProjectDetails />}>
+                  <Route path="deployments" element={<ProjectDeployments />} />
+                  <Route path="analytics" element={<ProjectAnalytics />} />
+                  <Route path="settings" element={<ProjectSettings />} />
+                </Route>
                 <Route path="deployments" element={<Deployments />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="cli" element={<CLI />} />

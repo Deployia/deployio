@@ -355,10 +355,13 @@ const Projects = () => {
                 <span className="text-gray-300 text-sm font-mono">
                   {project.repository?.url || "No repository"}
                 </span>
-              </div>
+              </div>{" "}
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm">
+                <button
+                  onClick={() => navigate(`/dashboard/projects/${project._id}`)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+                >
                   <FaEye className="w-3 h-3" />
                   View
                 </button>
@@ -366,7 +369,12 @@ const Projects = () => {
                   <FaRocket className="w-3 h-3" />
                   Deploy
                 </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm">
+                <button
+                  onClick={() =>
+                    navigate(`/dashboard/projects/${project._id}/settings`)
+                  }
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm"
+                >
                   <FaCog className="w-3 h-3" />
                   Settings
                 </button>
