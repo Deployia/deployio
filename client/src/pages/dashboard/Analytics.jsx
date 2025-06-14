@@ -83,10 +83,9 @@ const Analytics = () => {
         projectTechnologies: [],
         weeklyTrend: [],
       };
-    }
-
-    // Use backend stats if available, otherwise calculate from frontend data
-    const totalProjects = dashboardStats?.projects || projects?.length || 0;
+    } // Use backend stats if available, otherwise calculate from frontend data
+    const totalProjects =
+      dashboardStats?.projects?.total || projects?.length || 0;
     const totalDeployments =
       dashboardStats?.deployments?.total || deployments?.length || 0;
     const successfulDeployments =
