@@ -2,11 +2,16 @@ const express = require("express");
 const { body } = require("express-validator");
 const projectController = require("../controllers/projectController");
 const deploymentController = require("../controllers/deploymentController");
-const authMiddleware = require("../middleware/authMiddleware");
+const aiController = require("../controllers/aiController");
+const { protect: authMiddleware } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// Apply auth middleware to all routes
+// Public AI service routes (no auth required)
+router.get("/ai/technologies", aiController.getSupportedTechnologies);
+router.get("/ai/health", aiController.checkAiServiceHealth);
+
+// Apply auth middleware to all other routes
 router.use(authMiddleware);
 
 // Project validation rules
@@ -55,11 +60,10 @@ router.delete("/:id", projectController.deleteProject);
 router.patch("/:id/archive", projectController.toggleArchiveProject);
 
 // Project collaborators
-router.post("/:id/collaborators", 
+router.post("/:id/collaborators", [
   body("email").isEmail().withMessage("Valid email is required"),
-  body("role").optional().isIn(["developer", "admin"]).withMessage("Role must be developer or admin"),
-  projectController.addCollaborator
-);
+  body("role").optional().isIn(["developer", "admin"]).withMessage("Role must be developer or admin")
+], projectController.addCollaborator);
 router.delete("/:id/collaborators/:collaboratorId", projectController.removeCollaborator);
 
 // Project deployments
@@ -78,5 +82,12 @@ router.get("/deployments/:id", deploymentController.getDeployment);
 router.patch("/deployments/:id/status", deploymentController.updateDeploymentStatus);
 router.get("/deployments/:id/logs", deploymentController.getDeploymentLogs);
 router.patch("/deployments/:id/cancel", deploymentController.cancelDeployment);
+
+// AI-powered project analysis routes
+router.post("/:id/analyze", aiController.analyzeProjectStack);
+router.post("/:id/dockerfile", aiController.generateDockerfile);
+router.get("/:id/optimize", aiController.getOptimizations);
+router.patch("/:id/optimize/:suggestionIndex/implement", aiController.markOptimizationImplemented);
+router.post("/:id/ai-analysis", aiController.runFullAiAnalysis);
 
 module.exports = router;

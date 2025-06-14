@@ -2,6 +2,7 @@ const Project = require("../models/Project");
 const Deployment = require("../models/Deployment");
 const { getRedisClient } = require("../config/redisClient");
 const crypto = require("crypto");
+const aiService = require("./aiService");
 
 // Cache management utilities
 const invalidateProjectCache = async (projectId, userId) => {
@@ -650,6 +651,172 @@ const updateDeploymentStatus = async (projectId, userId, status, deploymentData 
   return project;
 };
 
+// AI-powered project analysis
+const analyzeProjectWithAI = async (projectId, userId) => {
+  try {
+    const project = await getProjectById(projectId, userId);
+    
+    // Get user info for AI service authentication
+    const User = require("../models/User");
+    const user = await User.findById(userId).select("username email");
+    
+    // Analyze technology stack using AI
+    const stackAnalysis = await aiService.analyzeProjectStack(
+      projectId,
+      project.repository.url,
+      project.repository.branch,
+      user
+    );
+    
+    // Update project with AI analysis results
+    const updateData = {
+      "technology.framework": stackAnalysis.technology.framework,
+      "technology.language": stackAnalysis.technology.language,
+      "technology.database": stackAnalysis.technology.database,
+      "technology.buildTool": stackAnalysis.technology.build_tool,
+      "technology.confidence": stackAnalysis.technology.confidence,
+      "technology.detectedAt": new Date(),
+      "ai.stackDetectionCompleted": true,
+    };
+    
+    // Add optimization suggestions if available
+    if (stackAnalysis.recommendations && stackAnalysis.recommendations.length > 0) {
+      updateData["ai.optimizationSuggestions"] = stackAnalysis.recommendations.map(rec => ({
+        type: rec.type || "general",
+        title: rec.title,
+        description: rec.description,
+        priority: "medium",
+        implemented: false,
+        suggestedAt: new Date(),
+      }));
+    }
+    
+    const updatedProject = await updateProject(projectId, userId, updateData);
+    
+    // Invalidate caches
+    await invalidateProjectCache(projectId, userId);
+    
+    return {
+      project: updatedProject,
+      analysis: stackAnalysis,
+    };
+  } catch (error) {
+    throw new Error(`AI project analysis failed: ${error.message}`);
+  }
+};
+
+// Generate Dockerfile for project
+const generateProjectDockerfile = async (projectId, userId, buildConfig = {}) => {
+  try {
+    const project = await getProjectById(projectId, userId);
+    
+    // Get user info for AI service authentication
+    const User = require("../models/User");
+    const user = await User.findById(userId).select("username email");
+    
+    // Generate Dockerfile using AI
+    const dockerfileConfig = await aiService.generateDockerfile(
+      projectId,
+      project.technology,
+      {
+        buildCommand: buildConfig.buildCommand || project.settings?.buildSettings?.buildCommand,
+        startCommand: buildConfig.startCommand || project.deployment?.startCommand,
+        port: buildConfig.port || 3000,
+      },
+      user
+    );
+    
+    // Update project with Dockerfile generation status
+    const updateData = {
+      "ai.dockerfileGenerated": true,
+      "deployment.buildCommand": buildConfig.buildCommand || dockerfileConfig.build_instructions?.[0],
+    };
+    
+    await updateProject(projectId, userId, updateData);
+    
+    return dockerfileConfig;
+  } catch (error) {
+    throw new Error(`Dockerfile generation failed: ${error.message}`);
+  }
+};
+
+// Get optimization suggestions for project
+const getProjectOptimizations = async (projectId, userId) => {
+  try {
+    const project = await getProjectById(projectId, userId);
+    
+    // Get user info for AI service authentication
+    const User = require("../models/User");
+    const user = await User.findById(userId).select("username email");
+    
+    // Prepare current configuration
+    const currentConfig = {
+      technology: project.technology,
+      deployment: project.deployment,
+      settings: project.settings,
+      analytics: project.analytics,
+    };
+    
+    // Get performance metrics (mock data for now)
+    const performanceMetrics = {
+      averageBuildTime: project.analytics.averageBuildTime,
+      successRate: parseFloat(project.successRate),
+      totalDeployments: project.analytics.totalDeployments,
+    };
+    
+    // Analyze optimization opportunities
+    const optimizationAnalysis = await aiService.analyzeOptimization(
+      projectId,
+      currentConfig,
+      performanceMetrics,
+      user
+    );
+    
+    // Update project with optimization suggestions
+    if (optimizationAnalysis.suggestions && optimizationAnalysis.suggestions.length > 0) {
+      const updateData = {
+        "ai.optimizationSuggestions": optimizationAnalysis.suggestions.map(suggestion => ({
+          type: suggestion.type,
+          title: suggestion.title,
+          description: suggestion.description,
+          priority: suggestion.priority,
+          implemented: false,
+          suggestedAt: new Date(),
+        })),
+      };
+      
+      await updateProject(projectId, userId, updateData);
+    }
+    
+    return optimizationAnalysis;
+  } catch (error) {
+    throw new Error(`Optimization analysis failed: ${error.message}`);
+  }
+};
+
+// Mark optimization suggestion as implemented
+const markOptimizationImplemented = async (projectId, userId, suggestionIndex) => {
+  try {
+    const project = await getProjectById(projectId, userId);
+    
+    if (project.ai.optimizationSuggestions && project.ai.optimizationSuggestions[suggestionIndex]) {
+      project.ai.optimizationSuggestions[suggestionIndex].implemented = true;
+      project.ai.optimizationSuggestions[suggestionIndex].implementedAt = new Date();
+      
+      await project.save();
+      
+      // Invalidate caches
+      await invalidateProjectCache(projectId, userId);
+      
+      return project;
+    } else {
+      throw new Error("Optimization suggestion not found");
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   createProject,
   getUserProjects,
@@ -663,4 +830,8 @@ module.exports = {
   updateDeploymentStatus,
   invalidateProjectCache,
   invalidateUserProjectsCache,
+  analyzeProjectWithAI,
+  generateProjectDockerfile,
+  getProjectOptimizations,
+  markOptimizationImplemented,
 };
