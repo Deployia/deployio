@@ -70,24 +70,10 @@ const StickyFeaturesSection = ({
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl font-bold text-white mb-6">{title}</h2>
+          <h2 className="text-4xl font-bold text-white mb-6">{title}</h2>{" "}
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
             {subtitle}
           </p>
-
-          {/* Progress Indicator */}
-          <div className="flex justify-center space-x-3">
-            {features.map((_, index) => (
-              <div
-                key={index}
-                className={`transition-all duration-500 ${
-                  activeFeature >= index
-                    ? `w-12 h-3 bg-gradient-to-r ${gradient} rounded-full`
-                    : "w-3 h-3 bg-gray-600 rounded-full"
-                }`}
-              />
-            ))}
-          </div>
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-12">
