@@ -100,7 +100,7 @@ const Pricing = () => {
   };
   return (
     <section
-      className="py-12 sm:py-16 md:py-20 bg-black relative overflow-hidden"
+      className="py-12 sm:py-16 md:py-16 pb-8 sm:pb-12 md:pb-8 bg-black relative overflow-hidden"
       id="pricing"
     >
       {/* Background Effects */}

@@ -19,30 +19,33 @@ const CTA = ({ onGetStarted }) => {
 
   const { user } = useSelector((state) => state.auth);
   return (
-    <section className="py-12 sm:py-16 md:py-20 bg-black relative overflow-hidden">
-      {/* Background Effects */}
+    <section className="pt-8 sm:pt-12 md:pt-8 pb-12 sm:pb-16 md:pb-20 bg-gradient-to-br from-black via-gray-900 to-black relative overflow-hidden">
+      {/* Enhanced Background Effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15)_0%,transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(147,51,234,0.15)_0%,transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(34,197,94,0.1)_0%,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2)_0%,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(147,51,234,0.2)_0%,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(34,197,94,0.15)_0%,transparent_50%)]" />
+
+        {/* Animated gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-green-600/5 animate-gradient opacity-50" />
 
         {/* Enhanced animated particles */}
-        <div className="absolute top-16 left-16 text-blue-400/20 animate-float">
+        <div className="absolute top-16 left-16 text-blue-400/30 animate-float">
           <FaCode className="w-5 h-5" />
         </div>
-        <div className="absolute top-32 right-24 text-purple-400/20 animate-float delay-1000">
+        <div className="absolute top-32 right-24 text-purple-400/30 animate-float delay-1000">
           <FaGithub className="w-6 h-6" />
         </div>
-        <div className="absolute bottom-24 left-32 text-green-400/20 animate-float delay-2000">
+        <div className="absolute bottom-24 left-32 text-green-400/30 animate-float delay-2000">
           <FaRocket className="w-5 h-5" />
         </div>
-        <div className="absolute top-20 left-1/3 text-cyan-400/20 animate-float delay-500">
+        <div className="absolute top-20 left-1/3 text-cyan-400/30 animate-float delay-500">
           <FaDocker className="w-4 h-4" />
         </div>
-        <div className="absolute bottom-32 right-1/3 text-yellow-400/20 animate-float delay-1500">
+        <div className="absolute bottom-32 right-1/3 text-yellow-400/30 animate-float delay-1500">
           <FaCloud className="w-6 h-6" />
         </div>
-        <div className="absolute top-40 right-1/4 text-indigo-400/20 animate-float delay-2500">
+        <div className="absolute top-40 right-1/4 text-indigo-400/30 animate-float delay-2500">
           <FaCode className="w-5 h-5" />
         </div>
       </div>

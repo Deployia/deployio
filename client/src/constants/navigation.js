@@ -90,12 +90,14 @@ export const resourcesItems = [
     href: "/resources/support",
     icon: FaLifeRing,
     description: "24/7 developer support",
+    comingSoon: "Coming Soon",
   },
   {
     label: "Community",
     href: "/resources/community",
     icon: FaUsers,
     description: "Join our developer community",
+    comingSoon: "Coming Soon",
   },
   {
     label: "Blog",

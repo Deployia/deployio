@@ -81,8 +81,9 @@ function Footer() {
             <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
               <FaRocket className="w-5 h-5 text-blue-400" />
               Products
-            </h3>
+            </h3>{" "}
             <ul className="space-y-4">
+              {" "}
               {footerNavigation.products.map((item, index) => {
                 const colorMap = ["blue", "green", "cyan", "orange", "red"];
                 const color = colorMap[index % colorMap.length];
@@ -94,9 +95,16 @@ function Footer() {
                       className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                     >
                       <span
-                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
+                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors flex-shrink-0`}
                       />
-                      {item.label}
+                      <span className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="flex-shrink-0">{item.label}</span>
+                        {item.comingSoon && (
+                          <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0">
+                            {item.comingSoon}
+                          </span>
+                        )}
+                      </span>
                     </Link>
                   </li>
                 );
@@ -163,7 +171,7 @@ function Footer() {
             <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
               <FaLifeRing className="w-5 h-5 text-green-400" />
               Resources
-            </h3>
+            </h3>{" "}
             <ul className="space-y-4">
               {footerNavigation.resources.map((item, index) => {
                 const colorMap = ["blue", "green", "yellow", "purple"];
@@ -176,9 +184,16 @@ function Footer() {
                       className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                     >
                       <span
-                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
+                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors flex-shrink-0`}
                       />
-                      {item.label}
+                      <span className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="flex-shrink-0">{item.label}</span>
+                        {item.comingSoon && (
+                          <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0">
+                            {item.comingSoon}
+                          </span>
+                        )}
+                      </span>
                     </Link>
                   </li>
                 );
