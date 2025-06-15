@@ -86,50 +86,66 @@ const Features = () => {
       demo: "Sub-100ms response ⚡",
     },
   ];
-
   return (
     <section
-      className="py-20 sm:py-24 md:py-32 bg-neutral-950 relative overflow-hidden"
+      className="py-12 sm:py-16 md:py-20 bg-neutral-950 relative overflow-hidden"
       id="features"
     >
       {/* Background Effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(59,130,246,0.1)_0%,transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(147,51,234,0.1)_0%,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(59,130,246,0.15)_0%,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(147,51,234,0.15)_0%,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(34,197,94,0.1)_0%,transparent_50%)]" />
 
-        {/* Floating tech icons */}
-        <div className="absolute top-20 left-20 text-blue-400/20 animate-float">
-          <FaGithub className="w-8 h-8" />
+        {/* Enhanced floating tech icons */}
+        <div className="absolute top-16 left-16 text-blue-400/20 animate-float">
+          <FaGithub className="w-6 h-6" />
         </div>
-        <div className="absolute top-40 right-32 text-purple-400/20 animate-float delay-1000">
-          <FaDocker className="w-6 h-6" />
+        <div className="absolute top-32 right-24 text-purple-400/20 animate-float delay-1000">
+          <FaDocker className="w-5 h-5" />
         </div>
-        <div className="absolute bottom-40 left-32 text-green-400/20 animate-float delay-2000">
-          <FaCloud className="w-10 h-10" />
+        <div className="absolute bottom-32 left-24 text-green-400/20 animate-float delay-2000">
+          <FaCloud className="w-7 h-7" />
+        </div>
+        <div className="absolute top-20 left-1/3 text-cyan-400/20 animate-float delay-500">
+          <FaBolt className="w-4 h-4" />
+        </div>
+        <div className="absolute bottom-40 right-1/3 text-yellow-400/20 animate-float delay-1500">
+          <FaShieldAlt className="w-6 h-6" />
+        </div>
+        <div className="absolute top-40 right-1/4 text-indigo-400/20 animate-float delay-2500">
+          <FaChartBar className="w-5 h-5" />
+        </div>
+        <div className="absolute bottom-20 left-1/2 text-orange-400/20 animate-float delay-3000">
+          <FaRocket className="w-6 h-6" />
+        </div>
+        <div className="absolute top-60 right-32 text-pink-400/20 animate-float delay-700">
+          <FaMicrochip className="w-4 h-4" />
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        {" "}
         {/* Section Header */}
         <motion.div
           ref={ref}
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-20"
+          className="text-center mb-12"
         >
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium mb-6">
+          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium mb-4">
             <FaBolt className="w-4 h-4 mr-2" />
             Powerful AI-Driven Features
           </div>
 
-          <h2 className="heading text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 px-4">
+          <h2 className="heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 px-4">
             Everything You Need for{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400">
               Modern DevOps
             </span>
           </h2>
-          <p className="body text-lg sm:text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed px-4">
+          <p className="body text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-4">
             From intelligent code analysis to production deployment - our AI
             handles the complexity while you focus on building amazing
             applications.
@@ -198,16 +214,16 @@ const Features = () => {
               </motion.div>
             );
           })}
-        </motion.div>
+        </motion.div>{" "}
         {/* Interactive Demo Terminal */}
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="mt-20 max-w-4xl mx-auto"
+          className="mt-12 max-w-4xl mx-auto"
         >
-          <div className="bg-neutral-900/80 backdrop-blur-lg rounded-2xl border border-neutral-700/50 p-6 sm:p-8 shadow-2xl">
-            <div className="flex items-center mb-6">
+          <div className="bg-neutral-900/80 backdrop-blur-lg rounded-xl border border-neutral-700/50 p-4 sm:p-6 shadow-2xl">
+            <div className="flex items-center mb-4">
               <div className="flex space-x-2">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                 <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
@@ -218,7 +234,7 @@ const Features = () => {
               </span>
             </div>
 
-            <div className="space-y-3 font-mono text-sm sm:text-base">
+            <div className="space-y-2 font-mono text-sm">
               <div className="text-green-400">
                 $ deployio deploy https://github.com/user/awesome-app
               </div>
@@ -247,14 +263,14 @@ const Features = () => {
             </div>
 
             {/* Progress Animation */}
-            <div className="mt-6">
+            <div className="mt-4">
               <div className="flex justify-between text-xs text-gray-400 mb-2">
                 <span>AI Analysis & Deployment Progress</span>
                 <span>100%</span>
               </div>
-              <div className="w-full bg-neutral-800 rounded-full h-3">
+              <div className="w-full bg-neutral-800 rounded-full h-2">
                 <motion.div
-                  className="bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 h-3 rounded-full"
+                  className="bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 h-2 rounded-full"
                   initial={{ width: "0%" }}
                   animate={inView ? { width: "100%" } : { width: "0%" }}
                   transition={{ duration: 3, delay: 1 }}
