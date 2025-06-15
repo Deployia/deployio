@@ -6,8 +6,10 @@ import {
   FaHeart,
   FaLifeRing,
   FaRocket,
+  FaDownload,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
+import { footerNavigation } from "@constants/navigation";
 
 function Footer() {
   const currentYear = new Date().getFullYear();
@@ -20,8 +22,9 @@ function Footer() {
       className="mt-auto bg-neutral-900/70 backdrop-blur-lg border-t border-neutral-800/30 body"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {" "}
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
           {/* Brand Section */}
           <div className="lg:col-span-2">
             {" "}
@@ -73,51 +76,88 @@ function Footer() {
               </motion.a>
             </div>
           </div>{" "}
-          {/* Product Section */}
+          {/* Products Section */}
           <div>
             <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
               <FaRocket className="w-5 h-5 text-blue-400" />
-              Product
+              Products
             </h3>
             <ul className="space-y-4">
-              <li>
-                <Link
-                  to="/products/ai-deployment"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
-                  AI Deployment
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/products/code-analysis"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
-                  Code Analysis
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/products/cloud-integration"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-cyan-400 transition-colors" />
-                  Cloud Integration
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/products/security-shield"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-red-400 transition-colors" />
-                  Security Shield
-                </Link>
-              </li>
+              {footerNavigation.products.map((item, index) => {
+                const colorMap = ["blue", "green", "cyan", "orange", "red"];
+                const color = colorMap[index % colorMap.length];
+
+                return (
+                  <li key={item.label}>
+                    <Link
+                      to={item.href}
+                      className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
+                      />
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
-          </div>
+          </div>{" "}
+          {/* Downloads Section */}
+          <div>
+            <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
+              <FaDownload className="w-5 h-5 text-cyan-400" />
+              Downloads
+            </h3>
+            <ul className="space-y-4">
+              {footerNavigation.downloads.map((item, index) => {
+                const colorMap = ["cyan", "purple", "gray"];
+                const color = colorMap[index % colorMap.length];
+
+                return (
+                  <li key={item.label}>
+                    {item.href.startsWith("http") ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
+                        />
+                        <span className="flex items-center gap-2">
+                          {item.label}
+                          {item.comingSoon && (
+                            <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full">
+                              {item.comingSoon}
+                            </span>
+                          )}
+                        </span>
+                      </a>
+                    ) : (
+                      <Link
+                        to={item.href}
+                        className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
+                        />
+                        <span className="flex items-center gap-2">
+                          {item.label}
+                          {item.comingSoon && (
+                            <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full">
+                              {item.comingSoon}
+                            </span>
+                          )}
+                        </span>
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>{" "}
           {/* Resources Section */}
           <div>
             <h3 className="text-white font-semibold text-lg mb-6 heading flex items-center gap-2">
@@ -125,64 +165,27 @@ function Footer() {
               Resources
             </h3>
             <ul className="space-y-4">
-              <li>
-                <Link
-                  to="/resources/docs"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
-                  Documentation
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/resources/support"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
-                  Support Center
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/resources/community"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-yellow-400 transition-colors" />
-                  Community
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/resources/blog"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-purple-400 transition-colors" />
-                  Blog
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/downloads/cli"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-orange-400 transition-colors" />
-                  CLI Tool
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/health"
-                  className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-green-400 transition-colors" />
-                  System Status
-                </Link>
-              </li>
+              {footerNavigation.resources.map((item, index) => {
+                const colorMap = ["blue", "green", "yellow", "purple"];
+                const color = colorMap[index % colorMap.length];
+
+                return (
+                  <li key={item.label}>
+                    <Link
+                      to={item.href}
+                      className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
+                      />
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
-
         {/* Bottom Section */}
         <div className="pt-8 border-t border-neutral-800/50">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">

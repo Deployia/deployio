@@ -1,4 +1,4 @@
-import { memo, useEffect, useCallback } from "react";
+import { memo, useEffect, useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,14 +15,26 @@ const MobileSidebar = memo(
     isOpen,
     onClose,
     navigationItems,
-    openDropdown,
-    toggleDropdown,
     scrollToSection,
     isAuthenticated,
     onLogout,
     isLoggingOut,
     user,
   }) => {
+    // Create internal state for mobile dropdown management
+    const [mobileOpenDropdown, setMobileOpenDropdown] = useState(null);
+
+    // Toggle function for mobile dropdowns
+    const toggleMobileDropdown = useCallback((dropdownId) => {
+      setMobileOpenDropdown((prev) => (prev === dropdownId ? null : dropdownId));
+    }, []);
+
+    // Close all dropdowns when sidebar is closed
+    useEffect(() => {
+      if (!isOpen) {
+        setMobileOpenDropdown(null);
+      }
+    }, [isOpen]);
     const getInitials = (user) => {
       if (user?.firstName && user?.lastName) {
         return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
@@ -42,8 +54,8 @@ const MobileSidebar = memo(
         const startX = touch.clientX;
         const startY = touch.clientY;
 
-        // Only allow swipe from left portion of the screen (first 20% of width)
-        if (startX > window.innerWidth * 0.2) return;
+        // Only allow swipe from the sidebar area (first 80% of width when open)
+        if (startX > window.innerWidth * 0.8) return;
 
         const handleTouchMove = (moveEvent) => {
           const moveTouch = moveEvent.touches[0];
@@ -52,9 +64,9 @@ const MobileSidebar = memo(
 
           // Only trigger if:
           // 1. Horizontal swipe is more dominant than vertical
-          // 2. Swipe is to the right (positive deltaX)
+          // 2. Swipe is to the left (negative deltaX) - close on left swipe
           // 3. Swipe distance is at least 80px
-          if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX > 80) {
+          if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX < -80) {
             onClose();
             document.removeEventListener("touchmove", handleTouchMove);
             document.removeEventListener("touchend", handleTouchEnd);
@@ -80,7 +92,35 @@ const MobileSidebar = memo(
       user?.profileImage ||
       `https://ui-avatars.com/api/?name=${encodeURIComponent(
         getInitials(user)
-      )}&background=4F46E5&color=ffffff&size=60`;
+      )}&background=4F46E5&color=ffffff&size=60`;    // Lock body scroll when sidebar is open
+    useEffect(() => {
+      if (isOpen) {
+        // Save current scroll position
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
+      } else {
+        // Restore scroll position
+        const scrollY = document.body.style.top;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+      }
+
+      return () => {
+        // Cleanup on unmount
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+      };
+    }, [isOpen]);
 
     // Close sidebar when screen size changes to large
     useEffect(() => {
@@ -148,16 +188,15 @@ const MobileSidebar = memo(
                         duration: 0.3,
                       }}
                     >
-                      {/* Main navigation button */}
-                      <button
-                        onClick={() => toggleDropdown(`mobile-${item.id}`)}
+                      {/* Main navigation button */}                      <button
+                        onClick={() => toggleMobileDropdown(item.id)}
                         className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-neutral-800/50 transition-all duration-200 font-medium text-sm body rounded-lg border border-transparent hover:border-neutral-700"
                       >
                         <span>{item.label}</span>
                         <motion.div
                           animate={{
                             rotate:
-                              openDropdown === `mobile-${item.id}` ? 180 : 0,
+                              mobileOpenDropdown === item.id ? 180 : 0,
                           }}
                           transition={{ duration: 0.2 }}
                         >
@@ -167,7 +206,7 @@ const MobileSidebar = memo(
 
                       {/* Dropdown Content - Exact same styling as desktop */}
                       <AnimatePresence>
-                        {openDropdown === `mobile-${item.id}` && (
+                        {mobileOpenDropdown === item.id && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
@@ -199,10 +238,17 @@ const MobileSidebar = memo(
                                         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                                         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg relative z-10">
                                           <Icon className="w-4 h-4 text-white" />
-                                        </div>
+                                        </div>{" "}
                                         <div className="flex-1 relative z-10">
-                                          <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
-                                            {subItem.label}
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
+                                              {subItem.label}
+                                            </div>
+                                            {subItem.comingSoon && (
+                                              <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse">
+                                                {subItem.comingSoon}
+                                              </span>
+                                            )}
                                           </div>
                                           <div className="text-gray-400 text-xs body mt-1 group-hover:text-gray-300 transition-colors">
                                             {subItem.description}
@@ -218,10 +264,17 @@ const MobileSidebar = memo(
                                         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                                         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg relative z-10">
                                           <Icon className="w-4 h-4 text-white" />
-                                        </div>
+                                        </div>{" "}
                                         <div className="flex-1 relative z-10">
-                                          <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
-                                            {subItem.label}
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
+                                              {subItem.label}
+                                            </div>
+                                            {subItem.comingSoon && (
+                                              <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse">
+                                                {subItem.comingSoon}
+                                              </span>
+                                            )}
                                           </div>
                                           <div className="text-gray-400 text-xs body mt-1 group-hover:text-gray-300 transition-colors">
                                             {subItem.description}
@@ -236,21 +289,29 @@ const MobileSidebar = memo(
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </motion.div>
-                  ))}{" "}
+                    </motion.div>                  ))}
+                  
                   {/* Pricing Button - Consistent with desktop */}
-                  <motion.button
+                  <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4, duration: 0.3 }}
-                    onClick={() => {
-                      scrollToSection("#pricing");
-                      onClose();
+                    transition={{
+                      delay: navigationItems.length * 0.1 + 0.2,
+                      duration: 0.3,
                     }}
-                    className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-neutral-800/50 transition-all duration-200 font-medium text-sm body rounded-lg border border-transparent hover:border-neutral-700"
-                  >
-                    <span>Pricing</span>
-                  </motion.button>
+                  >                    <button
+                      onClick={() => {
+                        onClose(); // Close sidebar first
+                        // Small delay to let animation complete
+                        setTimeout(() => {
+                          scrollToSection("#pricing");
+                        }, 100);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-neutral-800/50 transition-all duration-200 font-medium text-sm body rounded-lg border border-transparent hover:border-neutral-700"
+                    >
+                      <span>Pricing</span>
+                    </button>
+                  </motion.div>
                 </div>
               </div>
               {/* Footer - Profile Section for Authenticated Users */}
