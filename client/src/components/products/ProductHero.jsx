@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 
 const ProductHero = ({
   badge,
+  comingSoonBadge,
   title,
   subtitle,
   description,
@@ -35,7 +36,8 @@ const ProductHero = ({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            {badge && (
+            {" "}
+            {badge && !comingSoonBadge && (
               <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg mb-6">
                 {badge.icon && (
                   <badge.icon className="w-4 h-4 text-blue-400 mr-2" />
@@ -45,7 +47,30 @@ const ProductHero = ({
                 </span>
               </div>
             )}
-
+            {comingSoonBadge && (
+              <div className="flex items-center gap-3 mb-6">
+                {badge && (
+                  <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg">
+                    {badge.icon && (
+                      <badge.icon className="w-4 h-4 text-blue-400 mr-2" />
+                    )}
+                    <span className="text-blue-300 text-sm font-semibold">
+                      {badge.text}
+                    </span>
+                  </div>
+                )}
+                <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-lg animate-pulse">
+                  <span className="text-orange-300 text-sm font-bold">
+                    {comingSoonBadge.text}
+                  </span>
+                  {comingSoonBadge.highlight && (
+                    <span className="ml-2 px-2 py-1 bg-orange-500/30 text-orange-200 text-xs rounded-full">
+                      Coming Soon
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
               {title}
               <span
@@ -54,11 +79,9 @@ const ProductHero = ({
                 {subtitle}
               </span>
             </h1>
-
             <p className="text-xl text-gray-300 mb-8 leading-relaxed">
               {description}
             </p>
-
             <div className="flex flex-col sm:flex-row gap-4">
               {primaryCTA && (
                 <motion.button

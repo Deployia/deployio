@@ -19,22 +19,10 @@ import {
 // Products navigation items
 export const productsItems = [
   {
-    label: "AI Deployment",
-    href: "/products/ai-deployment",
-    icon: FaRocket,
-    description: "Automated deployment with AI",
-  },
-  {
     label: "Code Analysis",
     href: "/products/code-analysis",
     icon: FaCode,
     description: "Smart code quality analysis",
-  },
-  {
-    label: "Cloud Integration",
-    href: "/products/cloud-integration",
-    icon: FaCloud,
-    description: "Multi-cloud deployment",
   },
   {
     label: "DevOps Automation",
@@ -43,10 +31,25 @@ export const productsItems = [
     description: "CI/CD pipeline automation",
   },
   {
+    label: "Cloud Integration",
+    href: "/products/cloud-integration",
+    icon: FaCloud,
+    description: "Multi-cloud deployment",
+    comingSoon: "Q1 2026",
+  },
+  {
+    label: "AI Deployment",
+    href: "/products/ai-deployment",
+    icon: FaRocket,
+    description: "Automated deployment with AI",
+    comingSoon: "Q2 2026",
+  },
+  {
     label: "Security Shield",
     href: "/products/security-shield",
     icon: FaShieldAlt,
     description: "Enterprise-grade security",
+    comingSoon: "Q2 2026",
   },
 ];
 
