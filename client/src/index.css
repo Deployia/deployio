@@ -36,9 +36,25 @@ button {
   }
 }
 
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-10px) rotate(1deg);
+    opacity: 0.6;
+  }
+}
+
 .animate-gradient {
   background-size: 200% 200%;
   animation: gradient 3s ease infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
 
 /* Smooth scrolling */
