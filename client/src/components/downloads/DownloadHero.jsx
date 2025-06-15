@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 
 const DownloadHero = ({
   badge,
+  comingSoonBadge,
   title,
   subtitle,
   description,
@@ -32,6 +33,7 @@ const DownloadHero = ({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
+            {" "}
             {badge && (
               <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/30 rounded-lg mb-6">
                 {badge.icon && (
@@ -42,7 +44,17 @@ const DownloadHero = ({
                 </span>
               </div>
             )}
-
+            {comingSoonBadge && (
+              <div
+                className={`inline-flex items-center px-3 py-1 ml-3 rounded-full text-xs font-bold ${
+                  comingSoonBadge.highlight
+                    ? `bg-gradient-to-r ${gradient}/20 border border-white/30 text-white animate-pulse`
+                    : "bg-yellow-500/20 border border-yellow-500/30 text-yellow-300"
+                }`}
+              >
+                {comingSoonBadge.text}
+              </div>
+            )}
             <h1 className="text-5xl lg:text-6xl font-bold mb-6">
               <span className="text-white">{title}</span>
               {subtitle && (
@@ -53,18 +65,15 @@ const DownloadHero = ({
                 </span>
               )}
             </h1>
-
             {version && (
               <div className="inline-flex items-center px-3 py-1 bg-gray-800/50 border border-gray-700/50 rounded-full mb-4">
                 <span className="text-gray-300 text-sm">Latest Version: </span>
                 <span className="text-white font-bold ml-1">{version}</span>
               </div>
             )}
-
             <p className="text-xl text-gray-300 leading-relaxed mb-8">
               {description}
             </p>
-
             {downloadStats && (
               <div className="grid grid-cols-3 gap-4 mb-8">
                 {downloadStats.map((stat, index) => (
@@ -77,7 +86,6 @@ const DownloadHero = ({
                 ))}
               </div>
             )}
-
             <div className="flex flex-col sm:flex-row gap-4">
               {primaryCTA && (
                 <motion.button

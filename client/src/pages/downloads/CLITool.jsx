@@ -107,101 +107,6 @@ const CLITool = () => {
     ],
   };
 
-  /* UNUSED - const commands = [
-    {
-      title: "🚀 Initialize New Project",
-      command: "deployio init my-awesome-app --template react",
-      description: "Set up a new project with intelligent defaults",
-    },
-    {
-      title: "🤖 AI-Powered Analysis (Q1 2026)",
-      command: "deployio analyze --ai-insights --performance-check",
-      description: "Get AI recommendations for optimal deployment",
-    },
-    {
-      title: "⚡ One-Command Deploy",
-      command: "deployio deploy --auto-scale --zero-downtime",
-      description: "Deploy with intelligent scaling and zero downtime",
-    },
-    {
-      title: "📊 Smart Monitoring (Q2 2026)",
-      command: "deployio monitor --ai-alerts --real-time",
-      description: "Monitor with AI-powered alerts and insights",
-    },
-    {
-      title: "� Environment Sync",      command: "deployio env sync --validate --secure",
-      description: "Sync environments with validation and security checks",
-    },
-  ]; */
-
-  /* UNUSED - const features = [
-    {
-      icon: FaRocket,
-      title: "AI-Powered Stack Detection",
-      description:
-        "Automatically analyzes your repository and intelligently detects your technology stack, dependencies, and optimal deployment strategy.",
-      benefits: [
-        "Smart framework recognition",
-        "Dependency analysis",
-        "Optimized Docker generation",
-      ],
-    },
-    {
-      icon: FaTerminal,
-      title: "Intelligent CLI Assistant",
-      description:
-        "AI-guided workflows that provide contextual suggestions and automate complex DevOps tasks based on your project structure.",
-      benefits: [
-        "Context-aware commands",
-        "Smart auto-completion",
-        "Proactive error prevention",
-      ],
-    },
-    {
-      icon: FaCode,
-      title: "Auto-Generated CI/CD",
-      description:
-        "AI generates optimized GitHub Actions workflows, Dockerfiles, and deployment configurations tailored to your specific stack.",
-      benefits: [
-        "Zero-config pipeline creation",
-        "Performance optimizations",
-        "Best practice implementation",
-      ],
-    },
-    {
-      icon: FaCog,
-      title: "Smart Configuration",
-      description:
-        "AI-driven environment management that automatically configures deployment settings, environment variables, and security policies.",
-      benefits: [
-        "Intelligent env detection",
-        "Automated secret management",
-        "Security compliance checks",
-      ],
-    },
-    {
-      icon: FaBolt,
-      title: "Real-time AI Monitoring",
-      description:
-        "AI-powered monitoring that predicts issues, optimizes performance, and provides intelligent insights about your deployments.",
-      benefits: [
-        "Predictive error detection",
-        "Performance optimization",
-        "Intelligent alerting",
-      ],
-    },
-    {
-      icon: FaShieldAlt,
-      title: "AI Security Analysis",
-      description:
-        "Continuous security scanning with AI-powered vulnerability detection and automated security hardening recommendations.",
-      benefits: [
-        "Automated vulnerability scans",
-        "Security best practices",
-        "Compliance monitoring",
-      ],    },
-  ]; */
-
   const stats = [
     { label: "Downloads", value: "500K+", icon: FaDownload },
     { label: "Commands", value: "25+", icon: FaTerminal },
@@ -212,6 +117,10 @@ const CLITool = () => {
     badge: {
       icon: FaBolt,
       text: "AI-Powered DevOps CLI",
+    },
+    comingSoonBadge: {
+      text: "Coming Q1 2026",
+      highlight: true,
     },
     title: "Deployio CLI",
     subtitle: "Intelligent DevOps Automation",
@@ -339,11 +248,10 @@ deployio scale --instances auto --ai-predict`,
       ],
     },
   ];
-
   const statsProps = {
     title: "CLI Statistics",
     stats,
-    gradient: "from-blue-400 to-cyan-400",
+    gradient: "from-blue-400 via-cyan-400 to-blue-600",
   };
   const ctaProps = {
     title: "Ready to Transform Your DevOps?",
@@ -354,7 +262,7 @@ deployio scale --instances auto --ai-predict`,
     onPrimary: () =>
       window.open("https://forms.gle/deployio-cli-waitlist", "_blank"),
     onSecondary: () => window.open("/docs/cli", "_blank"),
-    gradient: "from-blue-400 to-cyan-400",
+    gradient: "from-blue-400 via-cyan-400 to-blue-600",
   };
 
   return (
@@ -374,7 +282,7 @@ deployio scale --instances auto --ai-predict`,
           title="Quick Start Commands"
           subtitle="Get started with these powerful AI-driven commands"
           examples={examples}
-          gradient="from-blue-400 to-cyan-400"
+          gradient="from-blue-400 via-cyan-400"
         />
         <DownloadStats {...statsProps} />
         <DownloadCTA {...ctaProps} />
