@@ -24,7 +24,7 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {" "}
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
           {/* Brand Section */}
           <div className="lg:col-span-2">
             {" "}
@@ -92,19 +92,19 @@ function Footer() {
                   <li key={item.label}>
                     <Link
                       to={item.href}
-                      className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                      className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-start gap-2 group"
                     >
                       <span
-                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors flex-shrink-0`}
+                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors flex-shrink-0 mt-1`}
                       />
-                      <span className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
                         <span className="flex-shrink-0">{item.label}</span>
                         {item.comingSoon && (
-                          <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0">
+                          <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0 inline-block w-fit">
                             {item.comingSoon}
                           </span>
                         )}
-                      </span>
+                      </div>
                     </Link>
                   </li>
                 );
@@ -134,14 +134,14 @@ function Footer() {
                         <span
                           className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
                         />
-                        <span className="flex items-center gap-2">
+                        <div className="flex flex-col gap-1">
                           {item.label}
                           {item.comingSoon && (
-                            <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full">
+                            <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full w-fit">
                               {item.comingSoon}
                             </span>
                           )}
-                        </span>
+                        </div>
                       </a>
                     ) : (
                       <Link
@@ -151,14 +151,14 @@ function Footer() {
                         <span
                           className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors`}
                         />
-                        <span className="flex items-center gap-2">
+                        <div className="flex flex-col gap-1">
                           {item.label}
                           {item.comingSoon && (
-                            <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full">
+                            <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full w-fit">
                               {item.comingSoon}
                             </span>
                           )}
-                        </span>
+                        </div>
                       </Link>
                     )}
                   </li>
@@ -179,21 +179,22 @@ function Footer() {
 
                 return (
                   <li key={item.label}>
+                    {" "}
                     <Link
                       to={item.href}
-                      className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
+                      className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-start gap-2 group"
                     >
                       <span
-                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors flex-shrink-0`}
+                        className={`w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-${color}-400 transition-colors flex-shrink-0 mt-1`}
                       />
-                      <span className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
                         <span className="flex-shrink-0">{item.label}</span>
                         {item.comingSoon && (
-                          <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0">
+                          <span className="px-1.5 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0 inline-block w-fit">
                             {item.comingSoon}
                           </span>
                         )}
-                      </span>
+                      </div>
                     </Link>
                   </li>
                 );
@@ -204,13 +205,16 @@ function Footer() {
         {/* Bottom Section */}
         <div className="pt-8 border-t border-neutral-800/50">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            {" "}
             {/* Copyright */}
-            <div className="flex items-center gap-2 text-gray-400 body">
-              <span>© {currentYear} Deployio. Made with</span>
-              <FaHeart className="w-4 h-4 text-red-500 animate-pulse" />
-              <span>for developers worldwide</span>
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-1 text-gray-400 body text-sm">
+              <span>© {currentYear} Deployio.</span>
+              <div className="flex items-center gap-1">
+                <span>Made with</span>
+                <FaHeart className="w-4 h-4 text-red-500 animate-pulse flex-shrink-0" />
+                <span>for developers worldwide</span>
+              </div>
             </div>
-
             {/* Legal Links */}
             <div className="flex items-center gap-6">
               <Link
