@@ -331,7 +331,7 @@ export const seoConfig = {
       "Enterprise-grade security for your deployments. Automated vulnerability scanning, compliance monitoring, threat detection, and security best practices.",
     keywords:
       "deployment security, vulnerability scanning, compliance monitoring, threat detection, enterprise security, DevSecOps, security automation",
-    url: `${defaultSEO.url}/products/security`,
+    url: `${defaultSEO.url}/products/security-shield`,
   },
 
   // Marketing & Community pages
