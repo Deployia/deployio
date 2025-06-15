@@ -10,6 +10,7 @@ import {
   FaCode,
   FaCloud,
   FaShieldAlt,
+  FaCogs,
   FaBook,
   FaLifeRing,
   FaUsers,
@@ -51,8 +52,14 @@ const homeNavigationItems = [
         description: "Multi-cloud deployment",
       },
       {
+        label: "DevOps Automation",
+        href: "/products/devops-automation",
+        icon: FaCogs,
+        description: "CI/CD pipeline automation",
+      },
+      {
         label: "Security Shield",
-        href: "/products/security",
+        href: "/products/security-shield",
         icon: FaShieldAlt,
         description: "Enterprise-grade security",
       },
@@ -360,7 +367,16 @@ const Navbar = memo(() => {
   }, []);
 
   // Determine navbar positioning based on current route
-  const isHomePage = location.pathname === "/";
+  const isHomePage = useMemo(() => {
+    // Check for exact home page or top-level sections
+    const path = location.pathname;
+    return (
+      path === "/" ||
+      path.startsWith("/downloads/") ||
+      path.startsWith("/resources/") ||
+      path.startsWith("/products/")
+    );
+  }, [location.pathname]);
   const positionClass = isHomePage ? "fixed" : "sticky";
 
   return (

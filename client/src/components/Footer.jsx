@@ -109,7 +109,7 @@ function Footer() {
               </li>
               <li>
                 <Link
-                  to="/products/security"
+                  to="/products/security-shield"
                   className="text-gray-400 hover:text-white transition-colors duration-200 body flex items-center gap-2 group"
                 >
                   <span className="w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-red-400 transition-colors" />
