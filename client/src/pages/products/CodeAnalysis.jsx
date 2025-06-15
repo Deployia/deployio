@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import {
   FaSearchPlus,
   FaLayerGroup,
@@ -183,9 +184,12 @@ const CodeAnalysis = () => {
               color: "orange",
               confidence: "92%",
             },
-          ].map((step) => (
-            <div
+          ].map((step, index) => (
+            <motion.div
               key={step.title}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 1 + index * 0.2, duration: 0.5 }}
               className={`flex items-center justify-between p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
             >
               <div className="flex items-center">
@@ -198,10 +202,10 @@ const CodeAnalysis = () => {
               <div className="flex items-center space-x-2">
                 <div className={`text-${step.color}-400 font-bold text-sm`}>
                   {step.confidence}
-                </div>
+                </div>{" "}
                 <div className={`text-${step.color}-400 font-bold`}>✓</div>
               </div>
-            </div>
+            </motion.div>
           ))}
 
           <div className="mt-6 pt-6 border-t border-gray-700/50">
