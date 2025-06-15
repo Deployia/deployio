@@ -171,7 +171,6 @@ const Navbar = memo(() => {
     return (
       path === "/" ||
       path.startsWith("/downloads/") ||
-      path.startsWith("/resources/") ||
       path.startsWith("/products/")
     );
   }, [location.pathname]);
