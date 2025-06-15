@@ -1,356 +1,320 @@
-import { motion } from "framer-motion";
+import React, { useState } from "react";
 import {
   FaCloud,
   FaAws,
   FaGoogle,
   FaMicrosoft,
   FaRocket,
-  FaShieldAlt,
   FaChartLine,
-  FaGlobe,
-  FaCheck,
+  FaDocker,
+  FaCog,
+  FaPlay,
+  FaCloudUploadAlt,
 } from "react-icons/fa";
-import { SiDigitalocean, SiVercel, SiNetlify, SiHeroku } from "react-icons/si";
 import SEO from "@components/SEO";
+import {
+  ProductHero,
+  StickyFeaturesSection,
+  ProductStats,
+  ProductCTA,
+  ProductDemo,
+} from "@components/products";
 
 const CloudIntegration = () => {
-  const cloudProviders = [
-    {
-      name: "Amazon Web Services",
-      icon: FaAws,
-      color: "text-orange-500",
-      bgColor: "bg-orange-100 dark:bg-orange-900/20",
-      description: "Deploy to EC2, ECS, Lambda, and more AWS services",
-      features: ["Auto-scaling", "Load balancing", "Global regions"],
-    },
-    {
-      name: "Google Cloud Platform",
-      icon: FaGoogle,
-      color: "text-blue-500",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
-      description:
-        "Integrate with GCP services and Google's global infrastructure",
-      features: ["Kubernetes Engine", "Cloud Functions", "AI/ML services"],
-    },
-    {
-      name: "Microsoft Azure",
-      icon: FaMicrosoft,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
-      description: "Deploy to Azure's enterprise-grade cloud platform",
-      features: ["Azure DevOps", "Container Instances", "Active Directory"],
-    },
-    {
-      name: "DigitalOcean",
-      icon: SiDigitalocean,
-      color: "text-blue-400",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
-      description: "Simple cloud computing with developer-friendly pricing",
-      features: ["Droplets", "Kubernetes", "App Platform"],
-    },
-  ];
-
-  const platformProviders = [
-    {
-      name: "Vercel",
-      icon: SiVercel,
-      color: "text-gray-900 dark:text-white",
-      bgColor: "bg-gray-100 dark:bg-gray-800",
-      description: "Deploy modern web applications with zero configuration",
-    },
-    {
-      name: "Netlify",
-      icon: SiNetlify,
-      color: "text-teal-500",
-      bgColor: "bg-teal-100 dark:bg-teal-900/20",
-      description: "JAMstack deployments with continuous deployment",
-    },
-    {
-      name: "Heroku",
-      icon: SiHeroku,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100 dark:bg-purple-900/20",
-      description: "Platform as a service with Git-based deployments",
-    },
-  ];
+  const [demoData, setDemoData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const features = [
     {
-      icon: FaRocket,
-      title: "One-Click Deployment",
-      description: "Deploy to multiple cloud providers with a single command",
+      icon: FaCloud,
+      title: "Seamless Cloud Deployment",
+      description:
+        "Deploy your applications to leading cloud platforms with intelligent configuration",
+      details:
+        "Our AI automatically configures your application for optimal deployment across AWS, Google Cloud, Azure, and other major cloud providers with platform-specific optimizations and best practices.",
+      platforms: [
+        "AWS EC2",
+        "Google Cloud Run",
+        "Azure Container Instances",
+        "DigitalOcean Droplets",
+        "Vercel",
+        "Netlify",
+      ],
     },
     {
-      icon: FaShieldAlt,
-      title: "Secure by Default",
-      description: "Built-in security best practices and compliance standards",
+      icon: FaDocker,
+      title: "Containerized Infrastructure",
+      description:
+        "Automatic containerization with cloud-optimized Docker configurations",
+      details:
+        "Generate production-ready Docker containers with multi-stage builds, security scanning, and cloud-specific optimizations for faster deployment and better performance across all platforms.",
+      platforms: [
+        "Docker",
+        "Kubernetes",
+        "Container Registry",
+        "Orchestration",
+        "Auto-scaling",
+        "Load Balancing",
+      ],
+    },
+    {
+      icon: FaCog,
+      title: "Environment Management",
+      description:
+        "Manage staging, production, and development environments across cloud providers",
+      details:
+        "Automated environment provisioning with proper isolation, configuration management, and seamless promotion from development to production with zero-downtime deployments.",
+      platforms: [
+        "Staging",
+        "Production",
+        "Development",
+        "Testing",
+        "Blue-Green",
+        "Canary Deployment",
+      ],
     },
     {
       icon: FaChartLine,
-      title: "Performance Optimization",
-      description: "Automatic optimization for each cloud provider's strengths",
-    },
-    {
-      icon: FaGlobe,
-      title: "Global Distribution",
-      description: "Deploy across multiple regions for optimal performance",
+      title: "Performance Monitoring",
+      description:
+        "Real-time monitoring and optimization recommendations for cloud deployments",
+      details:
+        "AI-powered performance insights with automatic scaling recommendations, cost optimization, and health monitoring across all your cloud deployments with predictive analytics.",
+      platforms: [
+        "Metrics",
+        "Logging",
+        "Alerting",
+        "Optimization",
+        "Cost Analysis",
+        "Predictive Scaling",
+      ],
     },
   ];
 
-  const benefits = [
-    "Avoid vendor lock-in with multi-cloud strategies",
-    "Reduce deployment complexity across different platforms",
-    "Automatic failover and disaster recovery",
-    "Cost optimization through cloud provider comparison",
-    "Unified monitoring and management dashboard",
-    "Infrastructure as code with version control",
+  const stats = [
+    { label: "Cloud Providers", value: "15+", icon: FaCloud },
+    { label: "Deployment Success", value: "99.8%", icon: FaRocket },
+    { label: "Average Deploy Time", value: "2.1min", icon: FaCog },
+    { label: "Cost Optimization", value: "40%", icon: FaChartLine },
   ];
+
+  const demoCloudDeploy = async () => {
+    setIsLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      setDemoData({
+        provider: "AWS EC2",
+        region: "us-east-1",
+        deployTime: "2m 15s",
+        instances: 3,
+        status: "deployed",
+        url: "https://my-app.deployio.app",
+        costOptimization: 42,
+        performanceScore: 94,
+      });
+    } catch (error) {
+      console.error("Demo error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const heroProps = {
+    badge: {
+      icon: FaCloud,
+      text: "Multi-Cloud Platform",
+    },
+    title: "Deploy Anywhere,",
+    subtitle: "Scale Everywhere",
+    description:
+      "Connect to any cloud provider with intelligent deployment strategies. From AWS to Google Cloud, Azure to DigitalOcean - deploy with confidence across all major platforms.",
+    primaryCTA: {
+      text: "Connect Cloud",
+      icon: FaCloudUploadAlt,
+      onClick: () => console.log("Connect cloud"),
+    },
+    secondaryCTA: {
+      text: "Try Deployment",
+      icon: FaPlay,
+      onClick: demoCloudDeploy,
+      loading: isLoading,
+      loadingText: "Deploying...",
+    },
+    gradient: "from-cyan-400 via-blue-400 to-purple-400",
+    visual: (
+      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
+        <div className="space-y-4">
+          <div className="flex items-center text-cyan-400 text-sm font-semibold mb-6">
+            <div className="w-3 h-3 bg-cyan-500 rounded-full mr-3 animate-pulse"></div>
+            Multi-Cloud Platform Active
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            {[
+              {
+                icon: FaAws,
+                name: "AWS",
+                color: "orange",
+                status: "Connected",
+              },
+              {
+                icon: FaGoogle,
+                name: "GCP",
+                color: "blue",
+                status: "Connected",
+              },
+              {
+                icon: FaMicrosoft,
+                name: "Azure",
+                color: "blue",
+                status: "Connected",
+              },
+            ].map((provider) => (
+              <div
+                key={provider.name}
+                className={`p-3 bg-${provider.color}-500/10 border border-${provider.color}-500/20 rounded-lg text-center`}
+              >
+                <provider.icon
+                  className={`w-6 h-6 text-${provider.color}-400 mx-auto mb-2`}
+                />
+                <div className="text-white text-sm font-medium">
+                  {provider.name}
+                </div>
+                <div className={`text-${provider.color}-400 text-xs`}>
+                  {provider.status}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {[
+            {
+              icon: FaDocker,
+              title: "Container Build",
+              desc: "Multi-stage optimization",
+              color: "blue",
+              time: "45s",
+            },
+            {
+              icon: FaCloud,
+              title: "Cloud Deploy",
+              desc: "AWS EC2 + Load Balancer",
+              color: "green",
+              time: "1m 30s",
+            },
+            {
+              icon: FaChartLine,
+              title: "Performance",
+              desc: "Monitoring & scaling",
+              color: "purple",
+              time: "Real-time",
+            },
+          ].map((step) => (
+            <div
+              key={step.title}
+              className={`flex items-center justify-between p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
+            >
+              <div className="flex items-center">
+                <step.icon className={`w-5 h-5 text-${step.color}-400 mr-3`} />
+                <div>
+                  <div className="text-white font-medium">{step.title}</div>
+                  <div className="text-gray-400 text-sm">{step.desc}</div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`text-${step.color}-400 font-bold text-sm`}>
+                  {step.time}
+                </div>
+                <div className={`text-${step.color}-400 font-bold`}>✓</div>
+              </div>
+            </div>
+          ))}
+
+          <div className="mt-6 pt-6 border-t border-gray-700/50">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white mb-1">
+                my-app.deployio.app
+              </div>
+              <div className="text-cyan-400 text-sm">Live on AWS EC2</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  };
+
+  const featuresProps = {
+    title: "Multi-Cloud Deployment Platform",
+    subtitle:
+      "Deploy to any cloud provider with intelligent orchestration, monitoring, and optimization across all major platforms",
+    features,
+    gradient: "from-cyan-500 to-blue-500",
+  };
+
+  const statsProps = {
+    stats,
+    title: "Cloud Deployment Metrics",
+    description:
+      "Seamless multi-cloud deployments with industry-leading performance and reliability",
+    gradientClasses: "bg-gradient-to-r from-cyan-600/10 to-blue-600/10",
+  };
+
+  const ctaProps = {
+    title: "Ready to Deploy to the Cloud?",
+    description:
+      "Join thousands of developers deploying faster across multiple cloud providers",
+    primaryButton: {
+      text: "Start Deploying",
+      onClick: () => console.log("Start deploying"),
+    },
+    secondaryButton: {
+      text: "View Integrations",
+      onClick: () => console.log("View integrations"),
+    },
+    gradientClasses: "from-cyan-600 to-blue-600",
+  };
+  const resetDemo = () => {
+    setDemoData(null);
+  };
+
+  const demoProps = {
+    isVisible: !!demoData,
+    title: "Cloud Deployment Complete",
+    successMessage: `✓ Deployed to ${demoData?.provider} in ${demoData?.deployTime}`,
+    data: demoData
+      ? {
+          provider: demoData.provider,
+          region: demoData.region,
+          instances: `${demoData.instances} nodes`,
+          url: demoData.url,
+          costOptimization: `${demoData.costOptimization}% saved`,
+          performanceScore: `${demoData.performanceScore}/100`,
+        }
+      : {},
+    columns: 3,
+    onClose: resetDemo,
+    onReset: demoCloudDeploy,
+    demoType: "Cloud Deployment",
+  };
 
   return (
     <>
-      <SEO page="cloudIntegration" />
+      <SEO
+        title="Multi-Cloud Deployment Platform - Deploy Anywhere | Deployio"
+        description="Deploy your applications to AWS, Google Cloud, Azure, and 15+ cloud providers with intelligent orchestration, monitoring, and cost optimization."
+        keywords="multi-cloud deployment, AWS deployment, Google Cloud, Azure, cloud integration, containerization, DevOps platform"
+      />
 
-      <div className="min-h-screen bg-white dark:bg-gray-900">
-        {/* Hero Section */}
-        <section className="relative py-20 px-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-16"
-            >
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl mb-6">
-                <FaCloud className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              </div>
-              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-                Multi-Cloud
-                <span className="text-blue-600 dark:text-blue-400">
-                  {" "}
-                  Integration
-                </span>
-              </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
-                Deploy your applications across multiple cloud providers with
-                unified management, automated optimization, and seamless
-                scaling.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
-                  Start Free Trial
-                </button>
-                <button className="px-8 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-semibold transition-colors">
-                  View Documentation
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        </section>
+      <div className="min-h-screen">
+        <ProductHero {...heroProps} />
 
-        {/* Cloud Providers Section */}
-        <section className="py-20 px-4">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Supported Cloud Providers
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Deploy to your preferred cloud infrastructure with native
-                integration
-              </p>
-            </motion.div>
+        <ProductDemo {...demoProps} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-              {cloudProviders.map((provider, index) => {
-                const Icon = provider.icon;
-                return (
-                  <motion.div
-                    key={provider.name}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow"
-                  >
-                    <div className="flex items-center mb-4">
-                      <div
-                        className={`p-3 rounded-lg ${provider.bgColor} mr-4`}
-                      >
-                        <Icon className={`w-8 h-8 ${provider.color}`} />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        {provider.name}
-                      </h3>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">
-                      {provider.description}
-                    </p>
-                    <ul className="space-y-2">
-                      {provider.features.map((feature, idx) => (
-                        <li
-                          key={idx}
-                          className="flex items-center text-sm text-gray-600 dark:text-gray-300"
-                        >
-                          <FaCheck className="w-4 h-4 text-green-500 mr-2" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </motion.div>
-                );
-              })}
-            </div>
+        <StickyFeaturesSection {...featuresProps} />
 
-            {/* Platform Providers */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center mb-12"
-            >
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
-                Platform as a Service
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {platformProviders.map((platform, index) => {
-                  const Icon = platform.icon;
-                  return (
-                    <div
-                      key={platform.name}
-                      className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border border-gray-200 dark:border-gray-700"
-                    >
-                      <div
-                        className={`p-3 rounded-lg ${platform.bgColor} w-fit mx-auto mb-4`}
-                      >
-                        <Icon className={`w-6 h-6 ${platform.color}`} />
-                      </div>
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        {platform.name}
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        {platform.description}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </div>
-        </section>
+        <ProductStats {...statsProps} />
 
-        {/* Features Section */}
-        <section className="py-20 px-4 bg-gray-50 dark:bg-gray-800">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Powerful Features
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Everything you need to manage multi-cloud deployments
-              </p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <motion.div
-                    key={feature.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className="text-center"
-                  >
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl mb-6">
-                      <Icon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                      {feature.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {feature.description}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Benefits Section */}
-        <section className="py-20 px-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6 }}
-                viewport={{ once: true }}
-              >
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
-                  Why Choose Multi-Cloud?
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-                  Multi-cloud strategies provide flexibility, redundancy, and
-                  cost optimization that single-cloud deployments can't match.
-                </p>
-                <ul className="space-y-4">
-                  {benefits.map((benefit, index) => (
-                    <motion.li
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.1 }}
-                      viewport={{ once: true }}
-                      className="flex items-center text-gray-700 dark:text-gray-300"
-                    >
-                      <FaCheck className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                      {benefit}
-                    </motion.li>
-                  ))}
-                </ul>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6 }}
-                viewport={{ once: true }}
-                className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-8 text-white"
-              >
-                <h3 className="text-2xl font-bold mb-6">
-                  Ready to Get Started?
-                </h3>
-                <p className="text-blue-100 mb-8">
-                  Join thousands of developers already using Deployio for their
-                  multi-cloud deployment needs.
-                </p>
-                <div className="space-y-4">
-                  <button className="w-full py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                    Start Free Trial
-                  </button>
-                  <button className="w-full py-3 border border-blue-300 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">
-                    Schedule Demo
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </section>
+        <ProductCTA {...ctaProps} />
       </div>
     </>
   );

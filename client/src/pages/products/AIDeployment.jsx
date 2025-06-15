@@ -1,352 +1,265 @@
-import { motion } from "framer-motion";
+import React, { useState } from "react";
 import {
-  FaRocket,
   FaBrain,
-  FaCode,
-  FaChartLine,
+  FaBolt,
   FaShieldAlt,
-  FaCloud,
-  FaCheck,
-  FaArrowRight,
-  FaPlay,
+  FaRocket,
+  FaGithub,
+  FaDocker,
   FaCog,
-  FaUsers,
-  FaStar,
+  FaEye,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
-import { Link } from "react-router-dom";
+import {
+  ProductHero,
+  StickyFeaturesSection,
+  ProductStats,
+  ProductCTA,
+  ProductDemo,
+} from "@components/products";
 
 const AIDeployment = () => {
+  const [demoData, setDemoData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const features = [
     {
       icon: FaBrain,
-      title: "Intelligent Deployment",
+      title: "Smart Stack Detection",
       description:
-        "AI analyzes your code and automatically optimizes deployment configurations",
+        "AI automatically identifies your technology stack from GitHub repositories",
+      details:
+        "Our AI analyzes your codebase and intelligently detects MERN, Django, Flask, Spring Boot, and more, configuring optimal deployment settings for each stack.",
+      platforms: [
+        "MERN Stack",
+        "Django",
+        "Flask",
+        "Spring Boot",
+        "Laravel",
+        "Ruby on Rails",
+      ],
     },
     {
-      icon: FaCode,
-      title: "Smart Code Analysis",
-      description:
-        "Detects potential issues and suggests improvements before deployment",
+      icon: FaDocker,
+      title: "Intelligent Dockerfile Generation",
+      description: "Generate optimized Docker containers automatically",
+      details:
+        "AI creates production-ready Dockerfiles with multi-stage builds, security best practices, and performance optimizations tailored to your specific application.",
+      platforms: [
+        "Multi-stage Builds",
+        "Security Scanning",
+        "Performance Optimization",
+        "Production Ready",
+      ],
     },
     {
-      icon: FaChartLine,
-      title: "Performance Optimization",
-      description:
-        "AI-driven performance tuning for faster application response times",
+      icon: FaCog,
+      title: "CI/CD Pipeline Automation",
+      description: "Set up GitHub Actions workflows with zero configuration",
+      details:
+        "Automatically generate complete CI/CD pipelines with testing, security scanning, building, and deployment stages - all customized for your project.",
+      platforms: [
+        "GitHub Actions",
+        "Automated Testing",
+        "Security Scanning",
+        "Deployment Stages",
+      ],
     },
     {
-      icon: FaShieldAlt,
-      title: "Security Scanning",
+      icon: FaEye,
+      title: "Real-time Monitoring & Insights",
       description:
-        "Automated security vulnerability detection and remediation suggestions",
+        "Monitor deployments with AI-powered diagnostics and recommendations",
+      details:
+        "Get intelligent error diagnostics, performance insights, and optimization suggestions powered by AI analysis of your deployment patterns.",
+      platforms: [
+        "Error Diagnostics",
+        "Performance Insights",
+        "AI Analytics",
+        "Optimization Suggestions",
+      ],
     },
   ];
 
-  const benefits = [
-    "90% faster deployment times",
-    "60% reduction in deployment failures",
-    "Automated rollback on issues",
-    "Zero-downtime deployments",
-    "Intelligent resource allocation",
-    "Predictive scaling",
+  const stats = [
+    { label: "Applications Deployed", value: "5,000+", icon: FaRocket },
+    { label: "Deployment Time Reduction", value: "85%", icon: FaBolt },
+    { label: "Stack Detection Accuracy", value: "96%", icon: FaBrain },
+    { label: "Successful Deployments", value: "99.2%", icon: FaShieldAlt },
   ];
 
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "DevOps Engineer",
-      company: "TechCorp",
-      content:
-        "AI Deployment has transformed our workflow. What used to take hours now takes minutes, and the reliability is incredible.",
-      rating: 5,
-    },
-    {
-      name: "Michael Chen",
-      role: "CTO",
-      company: "StartupXYZ",
-      content:
-        "The intelligent optimization suggestions have improved our application performance by 40%. Game-changer!",
-      rating: 5,
-    },
-  ];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+  const demoAnalyzeRepo = async () => {
+    setIsLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      setDemoData({
+        detectedStack: "MERN Stack",
+        confidence: 96,
+        dockerfileGenerated: true,
+        cicdConfigured: true,
+        estimatedDeployTime: "3 minutes",
+        optimizationScore: 87,
+        securityScore: 94,
+      });
+    } catch (error) {
+      console.error("Demo error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-      },
+  const heroProps = {
+    badge: {
+      icon: FaBrain,
+      text: "AI-Powered DevOps Pipeline",
     },
+    title: "Deploy Smarter,",
+    subtitle: "Not Harder",
+    description:
+      "Let AI handle your entire deployment workflow. From detecting your tech stack to generating Dockerfiles and setting up CI/CD - we automate what takes hours into minutes.",
+    primaryCTA: {
+      text: "Start Deploying",
+      icon: FaRocket,
+      onClick: () => console.log("Start deploying"),
+    },
+    secondaryCTA: {
+      text: "See AI Demo",
+      icon: FaBrain,
+      onClick: demoAnalyzeRepo,
+      loading: isLoading,
+      loadingText: "AI Analyzing...",
+    },
+    gradient: "from-green-400 via-blue-400 to-purple-400",
+    visual: (
+      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
+        <div className="space-y-4">
+          <div className="flex items-center text-green-400 text-sm font-semibold mb-6">
+            <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
+            AI DevOps Pipeline Active
+          </div>
+
+          {[
+            {
+              icon: FaGithub,
+              title: "Repository Analysis",
+              desc: "Scanning project structure...",
+              color: "blue",
+            },
+            {
+              icon: FaBrain,
+              title: "Stack Detection",
+              desc: "MERN Stack identified (98%)",
+              color: "green",
+            },
+            {
+              icon: FaDocker,
+              title: "Configuration Generation",
+              desc: "Dockerfile & CI/CD created",
+              color: "purple",
+            },
+            {
+              icon: FaRocket,
+              title: "Live Deployment",
+              desc: "my-app.deployio.app",
+              color: "orange",
+            },
+          ].map((step) => (
+            <div
+              key={step.title}
+              className={`flex items-center p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
+            >
+              <step.icon className={`w-5 h-5 text-${step.color}-400 mr-3`} />
+              <div>
+                <div className="text-white font-medium">{step.title}</div>
+                <div className="text-gray-400 text-sm">{step.desc}</div>
+              </div>
+              <div className={`ml-auto text-${step.color}-400 font-bold`}>
+                ✓
+              </div>
+            </div>
+          ))}
+
+          <div className="mt-6 pt-6 border-t border-gray-700/50">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white mb-1">2m 34s</div>
+              <div className="text-gray-400 text-sm">Total Deployment Time</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  };
+
+  const featuresProps = {
+    title: "AI-Powered DevOps Automation Pipeline",
+    subtitle:
+      "Experience how our AI transforms your entire deployment workflow - from code analysis to production deployment",
+    features,
+    gradient: "from-green-500 to-blue-500",
+  };
+
+  const statsProps = {
+    stats,
+    title: "Deployment Performance",
+    description:
+      "Industry-leading automation metrics that accelerate your development workflow",
+    gradientClasses: "bg-gradient-to-r from-green-600/10 to-blue-600/10",
+  };
+
+  const ctaProps = {
+    title: "Ready to Automate Your Deployments?",
+    description:
+      "Join thousands of developers already deploying faster with AI-powered automation",
+    primaryButton: {
+      text: "Start Free Trial",
+      onClick: () => console.log("Start trial"),
+    },
+    secondaryButton: {
+      text: "View Documentation",
+      onClick: () => console.log("View docs"),
+    },
+    gradientClasses: "from-green-600 to-blue-600",
+  };
+  const resetDemo = () => {
+    setDemoData(null);
+  };
+
+  const demoProps = {
+    isVisible: !!demoData,
+    title: "Repository Analysis Complete",
+    successMessage: `✓ ${demoData?.detectedStack} Detected`,
+    data: demoData
+      ? {
+          confidence: `${demoData.confidence}%`,
+          deployTime: demoData.estimatedDeployTime,
+          optimizationScore: `${demoData.optimizationScore}/100`,
+          securityScore: `${demoData.securityScore}/100`,
+        }
+      : {},
+    columns: 4,
+    onClose: resetDemo,
+    onReset: demoAnalyzeRepo,
+    demoType: "AI Analysis",
   };
 
   return (
     <>
-      <SEO page="aiDeployment" />
+      <SEO
+        title="AI-Powered DevOps Automation - Deployio"
+        description="Transform your deployment process with AI that detects tech stacks, generates Dockerfiles, sets up CI/CD pipelines, and provides intelligent monitoring."
+        keywords="AI DevOps, automated deployment, CI/CD automation, Docker generation, GitHub Actions, deployment automation"
+      />
 
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-16"
-          >
-            {/* Hero Section */}
-            <motion.div variants={itemVariants} className="text-center">
-              <div className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900 rounded-full text-blue-800 dark:text-blue-200 text-sm font-medium mb-6">
-                <FaBrain className="mr-2" />
-                AI-Powered Deployment
-              </div>
-              <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-                Deploy with
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                  {" "}
-                  AI Intelligence
-                </span>
-              </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-8">
-                Harness the power of artificial intelligence to automate,
-                optimize, and secure your deployment process. Let AI handle the
-                complexity while you focus on building great products.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/register"
-                  className="inline-flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                >
-                  <FaPlay className="mr-2" />
-                  Start Free Trial
-                </Link>
-                <button className="inline-flex items-center px-8 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <FaRocket className="mr-2" />
-                  Watch Demo
-                </button>
-              </div>
-            </motion.div>
+      <div className="min-h-screen">
+        <ProductHero {...heroProps} />
 
-            {/* Features Grid */}
-            <motion.div variants={itemVariants}>
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  Intelligent Features
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  AI-powered capabilities that transform your deployment
-                  workflow
-                </p>
-              </div>
+        <ProductDemo {...demoProps} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {features.map((feature, index) => (
-                  <motion.div
-                    key={index}
-                    variants={itemVariants}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center mb-4">
-                      <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg mr-4">
-                        <feature.icon className="text-2xl text-blue-600" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        {feature.title}
-                      </h3>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {feature.description}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
+        <StickyFeaturesSection {...featuresProps} />
 
-            {/* Benefits Section */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-12 shadow-sm border border-gray-200 dark:border-gray-700"
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-                    Measurable Results
-                  </h2>
-                  <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
-                    Our AI deployment platform delivers quantifiable
-                    improvements to your development workflow.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {benefits.map((benefit, index) => (
-                      <div key={index} className="flex items-center">
-                        <FaCheck className="text-green-600 mr-3 flex-shrink-0" />
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {benefit}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="relative">
-                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-8 text-white">
-                    <div className="text-center">
-                      <div className="text-4xl font-bold mb-2">90%</div>
-                      <div className="text-blue-100 mb-6">
-                        Faster Deployments
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                          <div className="text-2xl font-bold">60%</div>
-                          <div className="text-blue-100 text-sm">
-                            Less Failures
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-2xl font-bold">99.9%</div>
-                          <div className="text-blue-100 text-sm">Uptime</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+        <ProductStats {...statsProps} />
 
-            {/* How It Works */}
-            <motion.div variants={itemVariants}>
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  How AI Deployment Works
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Simple steps to intelligent automation
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                  {
-                    step: "01",
-                    title: "Code Analysis",
-                    description:
-                      "AI analyzes your codebase to understand architecture and dependencies",
-                  },
-                  {
-                    step: "02",
-                    title: "Optimization",
-                    description:
-                      "Intelligent algorithms optimize deployment configuration and resource allocation",
-                  },
-                  {
-                    step: "03",
-                    title: "Deploy & Monitor",
-                    description:
-                      "Automated deployment with continuous monitoring and predictive scaling",
-                  },
-                ].map((step, index) => (
-                  <div key={index} className="text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-xl font-bold mb-4">
-                      {step.step}
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                      {step.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {step.description}
-                    </p>
-                    {index < 2 && (
-                      <FaArrowRight className="hidden md:inline-block text-gray-400 mt-4 ml-8" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Testimonials */}
-            <motion.div variants={itemVariants}>
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  What Our Users Say
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Join thousands of developers who trust AI Deployment
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {testimonials.map((testimonial, index) => (
-                  <div
-                    key={index}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="flex items-center mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <FaStar key={i} className="text-yellow-400" />
-                      ))}
-                    </div>
-                    <p className="text-gray-700 dark:text-gray-300 mb-6 italic">
-                      "{testimonial.content}"
-                    </p>
-                    <div className="flex items-center">
-                      <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-4">
-                        <FaUsers className="text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {testimonial.name}
-                        </div>
-                        <div className="text-gray-600 dark:text-gray-400 text-sm">
-                          {testimonial.role} at {testimonial.company}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* CTA Section */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-center text-white"
-            >
-              <h2 className="text-3xl font-bold mb-4">
-                Ready to Deploy with AI?
-              </h2>
-              <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-                Join the future of deployment automation. Start your free trial
-                today and experience the power of AI-driven DevOps.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/register"
-                  className="inline-flex items-center px-8 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-semibold"
-                >
-                  <FaRocket className="mr-2" />
-                  Start Free Trial
-                </Link>
-                <Link
-                  to="/docs"
-                  className="inline-flex items-center px-8 py-3 border border-white text-white rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
-                >
-                  <FaCog className="mr-2" />
-                  View Documentation
-                </Link>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
+        <ProductCTA {...ctaProps} />
       </div>
     </>
   );

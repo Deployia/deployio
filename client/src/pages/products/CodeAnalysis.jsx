@@ -1,455 +1,298 @@
-import { motion } from "framer-motion";
+import React, { useState } from "react";
 import {
-  FaCode,
-  FaBug,
-  FaShieldAlt,
-  FaChartLine,
-  FaCheck,
-  FaPlay,
-  FaDownload,
-  FaEye,
+  FaSearchPlus,
+  FaLayerGroup,
+  FaDocker,
   FaCog,
+  FaCode,
+  FaBrain,
   FaRocket,
-  FaUsers,
-  FaStar,
-  FaArrowRight,
+  FaGithub,
+  FaEye,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
-import { Link } from "react-router-dom";
+import {
+  ProductHero,
+  StickyFeaturesSection,
+  ProductStats,
+  ProductCTA,
+  ProductDemo,
+} from "@components/products";
 
 const CodeAnalysis = () => {
+  const [demoData, setDemoData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const features = [
     {
-      icon: FaBug,
-      title: "Bug Detection",
+      icon: FaSearchPlus,
+      title: "Smart Stack Detection",
       description:
-        "Automatically identify potential bugs and logic errors before they reach production",
-      color: "red",
+        "AI automatically identifies your technology stack from repository structure and dependencies",
+      details:
+        "Our AI analyzes package.json, requirements.txt, Gemfile, pom.xml and other config files to accurately detect your tech stack with 96% accuracy. We support over 50+ different technology stacks and frameworks.",
+      platforms: [
+        "MERN",
+        "Django",
+        "Flask",
+        "Spring Boot",
+        "Laravel",
+        "Ruby on Rails",
+        "Next.js",
+        "Vue.js",
+      ],
     },
     {
-      icon: FaShieldAlt,
-      title: "Security Analysis",
+      icon: FaLayerGroup,
+      title: "Dependency Analysis",
       description:
-        "Comprehensive security vulnerability scanning and remediation suggestions",
-      color: "green",
+        "Deep analysis of your project dependencies and their optimal configurations",
+      details:
+        "Comprehensive dependency mapping with version compatibility checks, security vulnerability scanning, and optimization recommendations. Get insights into your entire dependency tree.",
+      platforms: [
+        "Node.js",
+        "Python",
+        "Java",
+        "PHP",
+        "Ruby",
+        "Go",
+        "Maven",
+        "Gradle",
+      ],
     },
     {
-      icon: FaChartLine,
-      title: "Performance Insights",
+      icon: FaDocker,
+      title: "Configuration Generation",
       description:
-        "Analyze code performance bottlenecks and get optimization recommendations",
-      color: "blue",
+        "Generate production-ready Dockerfiles and deployment configurations automatically",
+      details:
+        "AI creates optimized multi-stage Dockerfiles with security best practices, environment-specific configurations, and performance optimizations tailored to your stack.",
+      platforms: [
+        "Docker",
+        "Kubernetes",
+        "Docker Compose",
+        "CI/CD",
+        "Multi-stage Builds",
+        "Security Scanning",
+      ],
     },
     {
       icon: FaCog,
-      title: "Code Quality",
+      title: "Build Optimization",
       description:
-        "Maintain high code quality standards with automated quality metrics",
-      color: "purple",
-    },
-  ];
-
-  const languages = [
-    { name: "JavaScript", logo: "🟨", support: "Full" },
-    { name: "TypeScript", logo: "🔷", support: "Full" },
-    { name: "Python", logo: "🐍", support: "Full" },
-    { name: "Java", logo: "☕", support: "Full" },
-    { name: "Go", logo: "🐹", support: "Full" },
-    { name: "PHP", logo: "🐘", support: "Full" },
-    { name: "Ruby", logo: "💎", support: "Full" },
-    { name: "C#", logo: "🔶", support: "Full" },
-    { name: "Rust", logo: "🦀", support: "Beta" },
-    { name: "Kotlin", logo: "🎯", support: "Beta" },
-  ];
-
-  const metrics = [
-    { label: "Bugs Prevented", value: "10,000+", icon: FaBug },
-    { label: "Security Issues Fixed", value: "5,000+", icon: FaShieldAlt },
-    { label: "Performance Improvements", value: "40%", icon: FaChartLine },
-    { label: "Code Quality Score", value: "A+", icon: FaCode },
-  ];
-
-  const analysisTypes = [
-    {
-      title: "Static Analysis",
-      description: "Analyze code without execution to find potential issues",
-      features: [
-        "Syntax errors",
-        "Type checking",
-        "Dead code detection",
-        "Unused variables",
-      ],
-    },
-    {
-      title: "Dynamic Analysis",
-      description: "Runtime analysis to catch issues during execution",
-      features: [
-        "Memory leaks",
-        "Performance bottlenecks",
-        "Runtime errors",
-        "Resource usage",
-      ],
-    },
-    {
-      title: "Security Scanning",
-      description: "Comprehensive security vulnerability assessment",
-      features: [
-        "OWASP Top 10",
-        "Dependency vulnerabilities",
-        "Code injection",
-        "Data exposure",
+        "Optimize build processes and deployment strategies for your specific stack",
+      details:
+        "Intelligent build optimization with caching strategies, parallel processing, and minimal image sizes for faster deployments. Reduce build times by up to 70%.",
+      platforms: [
+        "Webpack",
+        "Vite",
+        "Maven",
+        "Gradle",
+        "npm",
+        "pip",
+        "Caching",
+        "Parallel Builds",
       ],
     },
   ];
 
-  const testimonials = [
-    {
-      name: "Alex Rodriguez",
-      role: "Senior Developer",
-      company: "DevCorp",
-      content:
-        "Code Analysis caught critical security vulnerabilities that could have been catastrophic. It's an essential tool for any serious development team.",
-      rating: 5,
-    },
-    {
-      name: "Emily Zhang",
-      role: "Tech Lead",
-      company: "InnovateTech",
-      content:
-        "The performance insights have helped us optimize our application by 40%. The recommendations are spot-on and easy to implement.",
-      rating: 5,
-    },
+  const stats = [
+    { label: "Stacks Detected", value: "50+", icon: FaCode },
+    { label: "Detection Accuracy", value: "96%", icon: FaBrain },
+    { label: "Configuration Success", value: "99.2%", icon: FaCog },
+    { label: "Time Saved", value: "85%", icon: FaRocket },
   ];
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+  const demoStackAnalysis = async () => {
+    setIsLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      setDemoData({
+        detectedStack: "MERN Stack",
+        confidence: 96,
+        dependencies: 24,
+        devDependencies: 12,
+        securityIssues: 0,
+        optimizationScore: 87,
+        buildTime: "2.3s",
+        recommendations: 5,
+      });
+    } catch (error) {
+      console.error("Demo error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-      },
+  const heroProps = {
+    badge: {
+      icon: FaBrain,
+      text: "AI-Powered Stack Detection",
     },
+    title: "Analyze Code,",
+    subtitle: "Deploy Smarter",
+    description:
+      "Let AI understand your codebase automatically. Our intelligent analysis detects technology stacks, analyzes dependencies, and generates optimal deployment configurations.",
+    primaryCTA: {
+      text: "Analyze Repository",
+      icon: FaGithub,
+      onClick: () => console.log("Analyze repository"),
+    },
+    secondaryCTA: {
+      text: "Try Demo",
+      icon: FaEye,
+      onClick: demoStackAnalysis,
+      loading: isLoading,
+      loadingText: "Analyzing...",
+    },
+    gradient: "from-blue-400 via-purple-400 to-indigo-400",
+    visual: (
+      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
+        <div className="space-y-4">
+          <div className="flex items-center text-blue-400 text-sm font-semibold mb-6">
+            <div className="w-3 h-3 bg-blue-500 rounded-full mr-3 animate-pulse"></div>
+            Code Analysis Engine Active
+          </div>
+
+          {[
+            {
+              icon: FaGithub,
+              title: "Repository Scan",
+              desc: "Analyzing project structure...",
+              color: "blue",
+              confidence: "98%",
+            },
+            {
+              icon: FaSearchPlus,
+              title: "Stack Detection",
+              desc: "MERN Stack identified",
+              color: "green",
+              confidence: "96%",
+            },
+            {
+              icon: FaLayerGroup,
+              title: "Dependency Map",
+              desc: "24 dependencies analyzed",
+              color: "purple",
+              confidence: "94%",
+            },
+            {
+              icon: FaDocker,
+              title: "Config Generation",
+              desc: "Dockerfile & CI/CD ready",
+              color: "orange",
+              confidence: "92%",
+            },
+          ].map((step) => (
+            <div
+              key={step.title}
+              className={`flex items-center justify-between p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
+            >
+              <div className="flex items-center">
+                <step.icon className={`w-5 h-5 text-${step.color}-400 mr-3`} />
+                <div>
+                  <div className="text-white font-medium">{step.title}</div>
+                  <div className="text-gray-400 text-sm">{step.desc}</div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`text-${step.color}-400 font-bold text-sm`}>
+                  {step.confidence}
+                </div>
+                <div className={`text-${step.color}-400 font-bold`}>✓</div>
+              </div>
+            </div>
+          ))}
+
+          <div className="mt-6 pt-6 border-t border-gray-700/50">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-white mb-1">87</div>
+                <div className="text-gray-400 text-sm">Optimization Score</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-white mb-1">2.3s</div>
+                <div className="text-gray-400 text-sm">Build Time</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  };
+
+  const featuresProps = {
+    title: "Intelligent Code Analysis & Stack Detection",
+    subtitle:
+      "Our AI engine analyzes your codebase to understand your technology stack, dependencies, and optimal deployment strategies",
+    features,
+    gradient: "from-blue-500 to-purple-500",
+  };
+
+  const statsProps = {
+    stats,
+    title: "Code Analysis Performance",
+    description:
+      "Advanced AI algorithms deliver accurate stack detection and optimization recommendations",
+    gradientClasses: "bg-gradient-to-r from-blue-600/10 to-purple-600/10",
+  };
+
+  const ctaProps = {
+    title: "Ready to Analyze Your Code?",
+    description:
+      "Get instant insights into your codebase and optimize your deployment strategy with AI",
+    primaryButton: {
+      text: "Start Analysis",
+      onClick: () => console.log("Start analysis"),
+    },
+    secondaryButton: {
+      text: "View Examples",
+      onClick: () => console.log("View examples"),
+    },
+    gradientClasses: "from-blue-600 to-purple-600",
+  };
+  const resetDemo = () => {
+    setDemoData(null);
+  };
+
+  const demoProps = {
+    isVisible: !!demoData,
+    title: "Stack Analysis Complete",
+    successMessage: `✓ ${demoData?.detectedStack} Detected (${demoData?.confidence}% confidence)`,
+    data: demoData
+      ? {
+          dependencies: `${demoData.dependencies} deps`,
+          devDependencies: `${demoData.devDependencies} devDeps`,
+          securityIssues: `${demoData.securityIssues} issues`,
+          optimizationScore: `${demoData.optimizationScore}/100`,
+          buildTime: demoData.buildTime,
+          recommendations: `${demoData.recommendations} tips`,
+        }
+      : {},
+    columns: 3,
+    onClose: resetDemo,
+    onReset: demoStackAnalysis,
+    demoType: "Stack Analysis",
   };
 
   return (
     <>
-      {" "}
-      <SEO page="codeAnalysis" />
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-16"
-          >
-            {/* Hero Section */}
-            <motion.div variants={itemVariants} className="text-center">
-              <div className="inline-flex items-center px-4 py-2 bg-green-100 dark:bg-green-900 rounded-full text-green-800 dark:text-green-200 text-sm font-medium mb-6">
-                <FaCode className="mr-2" />
-                Smart Code Analysis
-              </div>
-              <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-                Analyze Code
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600">
-                  {" "}
-                  Like a Pro
-                </span>
-              </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-8">
-                Comprehensive code analysis that catches bugs, security
-                vulnerabilities, and performance issues before they impact your
-                users. Keep your codebase clean, secure, and optimized.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/register"
-                  className="inline-flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                >
-                  <FaPlay className="mr-2" />
-                  Try Free Analysis
-                </Link>
-                <button className="inline-flex items-center px-8 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <FaEye className="mr-2" />
-                  See Demo
-                </button>
-              </div>
-            </motion.div>
+      <SEO
+        title="Smart Stack Detection - AI-Powered Code Analysis | Deployio"
+        description="Deployio's AI automatically detects your technology stack, analyzes dependencies, and generates optimal deployment configurations for any codebase."
+        keywords="stack detection, code analysis, AI deployment, dependency analysis, configuration generation, DevOps automation"
+      />
 
-            {/* Metrics */}
-            <motion.div
-              variants={itemVariants}
-              className="grid grid-cols-2 md:grid-cols-4 gap-6"
-            >
-              {metrics.map((metric, index) => (
-                <div key={index} className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 mb-4">
-                    <metric.icon className="text-2xl text-green-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                    {metric.value}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {metric.label}
-                  </div>
-                </div>
-              ))}
-            </motion.div>
+      <div className="min-h-screen">
+        <ProductHero {...heroProps} />
 
-            {/* Features Grid */}
-            <motion.div variants={itemVariants}>
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  Comprehensive Analysis Features
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Advanced analysis capabilities to ensure code quality and
-                  security
-                </p>
-              </div>
+        <ProductDemo {...demoProps} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {features.map((feature, index) => (
-                  <motion.div
-                    key={index}
-                    variants={itemVariants}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center mb-4">
-                      <div
-                        className={`p-3 bg-${feature.color}-100 dark:bg-${feature.color}-900 rounded-lg mr-4`}
-                      >
-                        <feature.icon
-                          className={`text-2xl text-${feature.color}-600`}
-                        />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        {feature.title}
-                      </h3>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {feature.description}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
+        <StickyFeaturesSection {...featuresProps} />
 
-            {/* Language Support */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-12 shadow-sm border border-gray-200 dark:border-gray-700"
-            >
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  Multi-Language Support
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Analyze code in your favorite programming languages
-                </p>
-              </div>
+        <ProductStats {...statsProps} />
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-                {languages.map((lang, index) => (
-                  <div
-                    key={index}
-                    className="text-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <div className="text-3xl mb-3">{lang.logo}</div>
-                    <div className="font-medium text-gray-900 dark:text-white mb-1">
-                      {lang.name}
-                    </div>
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        lang.support === "Full"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                      }`}
-                    >
-                      {lang.support}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Analysis Types */}
-            <motion.div variants={itemVariants}>
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  Analysis Types
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Multiple analysis methods for comprehensive code review
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {analysisTypes.map((type, index) => (
-                  <div
-                    key={index}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700"
-                  >
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                      {type.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 mb-6">
-                      {type.description}
-                    </p>
-                    <ul className="space-y-2">
-                      {type.features.map((feature, featureIndex) => (
-                        <li
-                          key={featureIndex}
-                          className="flex items-center text-gray-700 dark:text-gray-300"
-                        >
-                          <FaCheck className="text-green-600 mr-3 flex-shrink-0" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* How It Works */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl p-12 text-white"
-            >
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold mb-4">
-                  How Code Analysis Works
-                </h2>
-                <p className="text-xl text-green-100">
-                  Simple integration, powerful results
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                {[
-                  {
-                    step: "1",
-                    title: "Connect Repository",
-                    description:
-                      "Link your Git repository or upload code directly",
-                  },
-                  {
-                    step: "2",
-                    title: "Run Analysis",
-                    description:
-                      "Automated scanning across multiple analysis engines",
-                  },
-                  {
-                    step: "3",
-                    title: "Review Results",
-                    description: "Get detailed reports with prioritized issues",
-                  },
-                  {
-                    step: "4",
-                    title: "Fix & Deploy",
-                    description: "Apply fixes and redeploy with confidence",
-                  },
-                ].map((step, index) => (
-                  <div key={index} className="text-center">
-                    <div className="inline-flex items-center justify-center w-12 h-12 bg-white text-green-600 rounded-full text-lg font-bold mb-4">
-                      {step.step}
-                    </div>
-                    <h3 className="text-lg font-semibold mb-3">{step.title}</h3>
-                    <p className="text-green-100 text-sm">{step.description}</p>
-                    {index < 3 && (
-                      <FaArrowRight className="hidden md:inline-block text-green-200 mt-4 ml-8" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Testimonials */}
-            <motion.div variants={itemVariants}>
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  Trusted by Developers
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  See what developers say about our code analysis
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {testimonials.map((testimonial, index) => (
-                  <div
-                    key={index}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="flex items-center mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <FaStar key={i} className="text-yellow-400" />
-                      ))}
-                    </div>
-                    <p className="text-gray-700 dark:text-gray-300 mb-6 italic">
-                      "{testimonial.content}"
-                    </p>
-                    <div className="flex items-center">
-                      <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mr-4">
-                        <FaUsers className="text-green-600" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {testimonial.name}
-                        </div>
-                        <div className="text-gray-600 dark:text-gray-400 text-sm">
-                          {testimonial.role} at {testimonial.company}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* CTA Section */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center shadow-sm border border-gray-200 dark:border-gray-700"
-            >
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                Start Analyzing Your Code Today
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-                Join thousands of developers who trust our code analysis to keep
-                their applications secure, performant, and bug-free.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/register"
-                  className="inline-flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                >
-                  <FaRocket className="mr-2" />
-                  Get Started Free
-                </Link>
-                <Link
-                  to="/docs"
-                  className="inline-flex items-center px-8 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <FaDownload className="mr-2" />
-                  Download Report Sample
-                </Link>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
+        <ProductCTA {...ctaProps} />
       </div>
     </>
   );

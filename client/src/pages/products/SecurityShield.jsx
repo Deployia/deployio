@@ -1,361 +1,352 @@
-import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import {
   FaShieldAlt,
   FaLock,
   FaKey,
   FaEye,
-  FaUserShield,
-  FaCloud,
-  FaServer,
-  FaCheck,
-  FaBug,
-  FaExclamationTriangle,
   FaCheckCircle,
+  FaPlay,
+  FaBolt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import {
+  ProductHero,
+  StickyFeaturesSection,
+  ProductStats,
+  ProductCTA,
+  ProductDemo,
+} from "@components/products";
 
 const SecurityShield = () => {
-  const securityFeatures = [
+  const [selectedFeature, setSelectedFeature] = useState(0);
+  const [demoData, setDemoData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { scrollY } = useScroll();
+
+  // Scroll-triggered feature progression
+  const featureProgress = useTransform(
+    scrollY,
+    [0, 400, 800, 1200],
+    [0, 1, 2, 3]
+  );
+
+  useEffect(() => {
+    const unsubscribe = featureProgress.onChange((latest) => {
+      setSelectedFeature(Math.floor(latest));
+    });
+    return () => unsubscribe();
+  }, [featureProgress]);
+
+  const features = [
+    {
+      icon: FaShieldAlt,
+      title: "Secure Deployment Pipeline",
+      description:
+        "Built-in security scanning and compliance checks throughout the deployment process",
+      color: "blue",
+      details:
+        "Every deployment includes automated security scanning, vulnerability detection, and compliance validation to ensure your applications meet security standards before going live.",
+      platforms: [
+        "OWASP Top 10",
+        "CVE Database",
+        "License Scanning",
+        "Secret Detection",
+      ],
+    },
     {
       icon: FaLock,
-      title: "End-to-End Encryption",
+      title: "Infrastructure Security",
       description:
-        "All data encrypted in transit and at rest using AES-256 encryption",
-      color: "text-blue-600",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
+        "Secure containerization and encrypted communications for all deployments",
+      color: "green",
+      details:
+        "All containers are built with security best practices, encrypted connections, and isolated environments to protect your applications and data.",
+      platforms: [
+        "TLS/SSL",
+        "Container Isolation",
+        "Network Security",
+        "Access Control",
+      ],
     },
     {
       icon: FaKey,
-      title: "Multi-Factor Authentication",
-      description: "Secure access with 2FA, TOTP, and hardware security keys",
-      color: "text-green-600",
-      bgColor: "bg-green-100 dark:bg-green-900/20",
+      title: "Secrets Management",
+      description:
+        "Secure handling and injection of environment variables and sensitive data",
+      color: "purple",
+      details:
+        "Automated secrets management with encrypted storage, secure injection, and rotation capabilities for API keys, database credentials, and other sensitive data.",
+      platforms: [
+        "Environment Variables",
+        "API Keys",
+        "Database Credentials",
+        "Certificates",
+      ],
     },
     {
       icon: FaEye,
-      title: "Vulnerability Scanning",
+      title: "Security Monitoring",
       description:
-        "Automated security scans for dependencies and code vulnerabilities",
-      color: "text-purple-600",
-      bgColor: "bg-purple-100 dark:bg-purple-900/20",
-    },
-    {
-      icon: FaUserShield,
-      title: "Role-Based Access Control",
-      description:
-        "Granular permissions and access control for teams and projects",
-      color: "text-orange-600",
-      bgColor: "bg-orange-100 dark:bg-orange-900/20",
-    },
-    {
-      icon: FaCloud,
-      title: "Cloud Security Posture",
-      description: "Monitor and enforce cloud security best practices",
-      color: "text-cyan-600",
-      bgColor: "bg-cyan-100 dark:bg-cyan-900/20",
-    },
-    {
-      icon: FaServer,
-      title: "Infrastructure Protection",
-      description:
-        "Secure your infrastructure with automated compliance checks",
-      color: "text-red-600",
-      bgColor: "bg-red-100 dark:bg-red-900/20",
+        "Real-time security monitoring and threat detection for deployed applications",
+      color: "orange",
+      details:
+        "Continuous monitoring for security threats, anomalous behavior, and compliance violations with instant alerts and automated responses.",
+      platforms: [
+        "Threat Detection",
+        "Anomaly Detection",
+        "Compliance Monitoring",
+        "Security Alerts",
+      ],
     },
   ];
 
-  const complianceStandards = [
-    { name: "SOC 2 Type II", icon: FaCheckCircle },
-    { name: "ISO 27001", icon: FaCheckCircle },
-    { name: "GDPR", icon: FaCheckCircle },
-    { name: "HIPAA", icon: FaCheckCircle },
-    { name: "PCI DSS", icon: FaCheckCircle },
-    { name: "FedRAMP", icon: FaCheckCircle },
+  const securityFeatures = [
+    {
+      name: "Vulnerability Scanning",
+      status: "Active",
+      severity: "High",
+      description: "Automated dependency and container scanning",
+    },
+    {
+      name: "Secrets Detection",
+      status: "Active",
+      severity: "Critical",
+      description: "Prevent credential leaks in code",
+    },
+    {
+      name: "Compliance Checks",
+      status: "Active",
+      severity: "Medium",
+      description: "SOC 2, GDPR compliance validation",
+    },
+    {
+      name: "Access Control",
+      status: "Active",
+      severity: "High",
+      description: "Role-based permissions and audit logs",
+    },
+    {
+      name: "Data Encryption",
+      status: "Active",
+      severity: "Critical",
+      description: "End-to-end encryption in transit and at rest",
+    },
+    {
+      name: "Security Monitoring",
+      status: "Active",
+      severity: "High",
+      description: "24/7 threat detection and response",
+    },
   ];
 
-  const threatDetection = [
-    {
-      type: "Critical",
-      count: 0,
-      color: "text-red-600",
-      bgColor: "bg-red-100 dark:bg-red-900/20",
-      description: "Immediate action required",
-    },
-    {
-      type: "High",
-      count: 2,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100 dark:bg-orange-900/20",
-      description: "High priority issues",
-    },
-    {
-      type: "Medium",
-      count: 5,
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
-      description: "Moderate risk issues",
-    },
-    {
-      type: "Low",
-      count: 12,
-      color: "text-green-600",
-      bgColor: "bg-green-100 dark:bg-green-900/20",
-      description: "Low risk informational",
-    },
+  const stats = [
+    { label: "Security Scans", value: "10,000+", icon: FaShieldAlt },
+    { label: "Vulnerabilities Blocked", value: "99.8%", icon: FaLock },
+    { label: "Compliance Rate", value: "100%", icon: FaCheckCircle },
+    { label: "Mean Response Time", value: "&lt;5min", icon: FaBolt },
   ];
 
-  const securityMetrics = [
-    { label: "Security Score", value: "98%", trend: "+2%" },
-    { label: "Vulnerabilities Fixed", value: "847", trend: "+15%" },
-    { label: "Compliance Rating", value: "A+", trend: "stable" },
-    { label: "Response Time", value: "< 2min", trend: "-30%" },
-  ];
+  const demoSecurityScan = async () => {
+    setIsLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      setDemoData({
+        vulnerabilities: 0,
+        compliance: "SOC 2 Type II",
+        encryption: "AES-256",
+        accessControl: "RBAC",
+        monitoring: "24/7",
+        securityScore: 98,
+      });
+    } catch (error) {
+      console.error("Demo error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const heroProps = {
+    badge: {
+      icon: FaShieldAlt,
+      text: "Enterprise-Grade Security",
+    },
+    title: "Deploy with",
+    subtitle: "Military-Grade Security",
+    description:
+      "Every deployment automatically includes comprehensive security scanning, threat detection, and compliance validation. Deploy confidently knowing your applications are protected by industry-leading security measures.",
+    primaryCTA: {
+      text: "Enable Security Features",
+      icon: FaShieldAlt,
+      onClick: () => console.log("Enable security"),
+    },
+    secondaryCTA: {
+      text: "Run Security Demo",
+      icon: FaPlay,
+      onClick: demoSecurityScan,
+      loading: isLoading,
+      loadingText: "Scanning...",
+    },
+    visual: (
+      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
+        <div className="flex items-center mb-6">
+          <FaShieldAlt className="w-6 h-6 text-green-400 mr-3" />
+          <span className="text-white font-semibold">Security Dashboard</span>
+        </div>
+
+        <div className="space-y-4">
+          {securityFeatures.slice(0, 4).map((feature, index) => (
+            <motion.div
+              key={feature.name}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 1 + index * 0.2, duration: 0.5 }}
+              className="flex items-center justify-between p-4 bg-gray-800/40 border border-gray-700/50 rounded-lg"
+            >
+              <div className="flex items-center">
+                <div
+                  className={`w-3 h-3 rounded-full mr-3 ${
+                    feature.severity === "Critical"
+                      ? "bg-red-400"
+                      : feature.severity === "High"
+                      ? "bg-orange-400"
+                      : "bg-yellow-400"
+                  }`}
+                ></div>
+                <div>
+                  <div className="text-white font-medium text-sm">
+                    {feature.name}
+                  </div>
+                  <div className="text-gray-400 text-xs">
+                    {feature.description}
+                  </div>
+                </div>
+              </div>
+              <div className="text-green-400 text-sm font-medium">
+                {feature.status}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    ),
+  };
+
+  const featuresProps = {
+    title: "Complete Security Pipeline",
+    description:
+      "From code analysis to runtime protection - comprehensive security at every stage",
+    features,
+    selectedFeature,
+    setSelectedFeature,
+    featureProgress,
+    gradientClasses: "from-red-600/30 to-orange-600/30",
+  };
+
+  const statsProps = {
+    stats,
+    title: "Security Performance",
+    description:
+      "Industry-leading security metrics that protect your deployments",
+    gradientClasses: "bg-gradient-to-r from-red-600/10 to-orange-600/10",
+  };
+  const ctaProps = {
+    title: "Ready to Secure Your Deployments?",
+    description:
+      "Enable enterprise-grade security for all your applications with automated scanning and monitoring",
+    gradientClasses: "from-red-600 to-orange-600",
+  };
+  const resetDemo = () => {
+    setDemoData(null);
+  };
+
+  const demoProps = {
+    isVisible: !!demoData,
+    title: "Security Scan Complete",
+    successMessage: `Security Score: ${demoData?.securityScore}% - All systems secure`,
+    data: demoData || {},
+    columns: 3,
+    onClose: resetDemo,
+    onReset: demoSecurityScan,
+    demoType: "Security Scan",
+  };
 
   return (
     <>
-      {" "}
-      <SEO page="securityShield" />
-      <div className="min-h-screen bg-white dark:bg-gray-900">
-        {/* Hero Section */}
-        <section className="relative py-20 px-4 bg-gradient-to-br from-red-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <SEO
+        title="Security & Compliance - Automated Security Scanning | Deployio"
+        description="Deploy with confidence using Deployio's built-in security scanning, compliance validation, and threat monitoring for all your applications."
+        keywords="deployment security, vulnerability scanning, compliance, OWASP, security monitoring, DevSecOps"
+      />
+
+      <div className="min-h-screen">
+        <ProductHero {...heroProps} />
+
+        <ProductDemo {...demoProps} />
+
+        {/* Security Features Showcase */}
+        <section className="py-20 px-6">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
               className="text-center mb-16"
             >
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl mb-6">
-                <FaShieldAlt className="w-8 h-8 text-red-600 dark:text-red-400" />
-              </div>
-              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-                Security
-                <span className="text-red-600 dark:text-red-400"> Shield</span>
-              </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
-                Enterprise-grade security for your deployments. Automated
-                vulnerability scanning, compliance monitoring, and threat
-                detection built for modern DevOps.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors">
-                  Start Security Scan
-                </button>
-                <button className="px-8 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-semibold transition-colors">
-                  View Security Report
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Security Metrics Dashboard */}
-        <section className="py-20 px-4 bg-gray-50 dark:bg-gray-800">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Security Dashboard
+              <h2 className="text-4xl font-bold text-white mb-6">
+                Built-in Security Features
               </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Real-time security monitoring and threat detection
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Every deployment includes comprehensive security measures
+                without any additional configuration
               </p>
             </motion.div>
 
-            {/* Security Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-              {securityMetrics.map((metric, index) => (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {securityFeatures.map((feature, index) => (
                 <motion.div
-                  key={metric.label}
+                  key={index}
                   initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+                  className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-6 hover:border-red-500/50 transition-all duration-300"
                 >
-                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                    {metric.label}
-                  </h3>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {metric.value}
-                    </span>
-                    <span
-                      className={`text-sm ${
-                        metric.trend.startsWith("+")
-                          ? "text-green-600"
-                          : metric.trend.startsWith("-")
-                          ? "text-red-600"
-                          : "text-gray-500"
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white">
+                      {feature.name}
+                    </h3>
+                    <div
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        feature.severity === "Critical"
+                          ? "bg-red-500/20 text-red-300"
+                          : feature.severity === "High"
+                          ? "bg-orange-500/20 text-orange-300"
+                          : "bg-yellow-500/20 text-yellow-300"
                       }`}
                     >
-                      {metric.trend}
+                      {feature.severity}
+                    </div>
+                  </div>
+                  <p className="text-gray-400 text-sm mb-4">
+                    {feature.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-green-400 text-sm font-medium">
+                      Status
+                    </span>
+                    <span className="text-green-400 font-bold">
+                      {feature.status}
                     </span>
                   </div>
                 </motion.div>
               ))}
             </div>
-
-            {/* Threat Detection */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="bg-white dark:bg-gray-900 rounded-xl p-8 shadow-lg border border-gray-200 dark:border-gray-700"
-            >
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                Threat Detection Summary
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {threatDetection.map((threat, index) => (
-                  <div key={threat.type} className="text-center">
-                    <div
-                      className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${threat.bgColor} mb-4`}
-                    >
-                      <span className={`text-2xl font-bold ${threat.color}`}>
-                        {threat.count}
-                      </span>
-                    </div>
-                    <h4
-                      className={`text-lg font-semibold ${threat.color} mb-2`}
-                    >
-                      {threat.type}
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {threat.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
           </div>
         </section>
 
-        {/* Security Features */}
-        <section className="py-20 px-4">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Comprehensive Security Features
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Protect every aspect of your deployment pipeline
-              </p>
-            </motion.div>
+        <StickyFeaturesSection {...featuresProps} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {securityFeatures.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <motion.div
-                    key={feature.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow"
-                  >
-                    <div
-                      className={`inline-flex items-center justify-center w-14 h-14 rounded-xl ${feature.bgColor} mb-6`}
-                    >
-                      <Icon className={`w-7 h-7 ${feature.color}`} />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                      {feature.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {feature.description}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+        <ProductStats {...statsProps} />
 
-        {/* Compliance Section */}
-        <section className="py-20 px-4 bg-gray-50 dark:bg-gray-800">
-          <div className="max-w-7xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Compliance & Certifications
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Meet industry standards and regulatory requirements
-              </p>
-            </motion.div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-              {complianceStandards.map((standard, index) => {
-                const Icon = standard.icon;
-                return (
-                  <motion.div
-                    key={standard.name}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 text-center hover:shadow-xl transition-shadow"
-                  >
-                    <Icon className="w-8 h-8 text-green-600 mx-auto mb-3" />
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {standard.name}
-                    </h3>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-20 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="bg-gradient-to-r from-red-600 to-pink-600 rounded-2xl p-12 text-white"
-            >
-              <FaShieldAlt className="w-16 h-16 mx-auto mb-6 opacity-80" />
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Secure Your Deployments Today
-              </h2>
-              <p className="text-xl text-red-100 mb-8 max-w-2xl mx-auto">
-                Don't wait for a security incident. Start protecting your
-                applications with enterprise-grade security features designed
-                for modern DevOps teams.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="px-8 py-4 bg-white text-red-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                  Start Free Security Audit
-                </button>
-                <button className="px-8 py-4 border border-red-300 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors">
-                  Contact Security Team
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        </section>
+        <ProductCTA {...ctaProps} />
       </div>
     </>
   );
