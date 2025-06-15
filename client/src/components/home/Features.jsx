@@ -173,25 +173,25 @@ const Features = () => {
                 }
                 transition={{ duration: 0.6, delay: 0.1 * index }}
                 onHoverStart={() => setActiveFeature(index)}
-                className={`group relative bg-neutral-900/60 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border transition-all duration-500 cursor-pointer hover:transform hover:scale-105 hover:shadow-2xl ${
+                className={`group relative bg-neutral-900/60 backdrop-blur-sm p-6 sm:p-8 rounded-2xl border transition-all duration-500 cursor-pointer hover:transform hover:scale-105 hover:shadow-2xl ${
                   activeFeature === index
                     ? "bg-gradient-to-br from-blue-500/20 via-purple-500/15 to-neutral-900/60 border-blue-500/40 shadow-blue-500/20"
                     : "border-neutral-700/50 hover:border-blue-500/30 hover:shadow-blue-500/10"
                 }`}
               >
                 {/* Animated background effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />{" "}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
+
                 <div className="relative z-10">
                   {/* Icon */}
                   <div
-                    className={`w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-xl bg-gradient-to-r ${feature.color} p-3 sm:p-4 mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}
+                    className={`w-16 h-16 sm:w-18 sm:h-18 rounded-xl bg-gradient-to-r ${feature.color} p-4 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}
                   >
                     <IconComponent className="w-full h-full text-white" />
-                  </div>
-
+                  </div>{" "}
                   {/* Title */}
-                  <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
-                    <h3 className="text-white font-bold text-base sm:text-lg md:text-xl group-hover:text-blue-400 transition-colors leading-tight flex-1">
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <h3 className="text-white font-bold text-lg sm:text-xl group-hover:text-blue-400 transition-colors leading-tight flex-1">
                       {feature.title}
                     </h3>
                     {feature.comingSoon && (
@@ -200,17 +200,16 @@ const Features = () => {
                       </span>
                     )}
                   </div>
-
-                  {/* Description - Hidden on mobile */}
-                  <p className="hidden sm:block text-gray-400 text-sm md:text-base leading-relaxed mb-4">
+                  {/* Description */}
+                  <p className="text-gray-400 text-sm sm:text-base leading-relaxed mb-4">
                     {feature.description}
                   </p>
-
-                  {/* Demo badge - Hidden on mobile */}
-                  <div className="hidden sm:inline-block text-xs md:text-sm font-mono text-green-400 bg-green-400/10 px-3 py-2 rounded-full border border-green-400/20 group-hover:bg-green-400/20 transition-colors">
+                  {/* Demo badge */}
+                  <div className="text-xs sm:text-sm font-mono text-green-400 bg-green-400/10 px-3 py-2 rounded-full inline-block border border-green-400/20 group-hover:bg-green-400/20 transition-colors">
                     {feature.demo}
                   </div>
                 </div>
+
                 {/* Floating particles on hover */}
                 <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-30 transition-opacity duration-500">
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
