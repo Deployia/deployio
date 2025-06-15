@@ -3,217 +3,15 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "@redux/index";
 import { toast } from "react-hot-toast";
 import { useState, memo, useCallback, useRef, useEffect, useMemo } from "react";
-import {
-  FaBars,
-  FaChevronDown,
-  FaRocket,
-  FaCode,
-  FaCloud,
-  FaShieldAlt,
-  FaCogs,
-  FaBook,
-  FaLifeRing,
-  FaUsers,
-  FaBlog,
-  FaDownload,
-  FaGithub,
-  FaTachometerAlt,
-  FaProjectDiagram,
-  FaServer,
-  FaChartLine,
-} from "react-icons/fa";
+import { FaBars, FaChevronDown } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileAvatar from "./ProfileAvatar";
 import MobileSidebar from "./MobileSidebar";
 import { useScrollToSection as useScrollHook } from "@hooks/useScrollToSection";
-
-// Home page navigation structure
-const homeNavigationItems = [
-  {
-    label: "Products",
-    id: "products",
-    items: [
-      {
-        label: "AI Deployment",
-        href: "/products/ai-deployment",
-        icon: FaRocket,
-        description: "Automated deployment with AI",
-      },
-      {
-        label: "Code Analysis",
-        href: "/products/code-analysis",
-        icon: FaCode,
-        description: "Smart code quality analysis",
-      },
-      {
-        label: "Cloud Integration",
-        href: "/products/cloud-integration",
-        icon: FaCloud,
-        description: "Multi-cloud deployment",
-      },
-      {
-        label: "DevOps Automation",
-        href: "/products/devops-automation",
-        icon: FaCogs,
-        description: "CI/CD pipeline automation",
-      },
-      {
-        label: "Security Shield",
-        href: "/products/security-shield",
-        icon: FaShieldAlt,
-        description: "Enterprise-grade security",
-      },
-    ],
-  },
-  {
-    label: "Downloads",
-    id: "downloads",
-    items: [
-      {
-        label: "CLI Tool",
-        href: "/downloads/cli",
-        icon: FaDownload,
-        description: "Command line interface",
-      },
-      {
-        label: "SDK",
-        href: "/downloads/sdk",
-        icon: FaCode,
-        description: "Software development kit",
-      },
-      {
-        label: "GitHub Repository",
-        href: "https://github.com/deployio/deployio",
-        icon: FaGithub,
-        description: "Open source repository",
-      },
-    ],
-  },
-  {
-    label: "Resources",
-    id: "resources",
-    items: [
-      {
-        label: "Documentation",
-        href: "/resources/docs",
-        icon: FaBook,
-        description: "Complete guides and API docs",
-      },
-      {
-        label: "Support Center",
-        href: "/resources/support",
-        icon: FaLifeRing,
-        description: "24/7 developer support",
-      },
-      {
-        label: "Community",
-        href: "/resources/community",
-        icon: FaUsers,
-        description: "Join our developer community",
-      },
-      {
-        label: "Blog",
-        href: "/resources/blog",
-        icon: FaBlog,
-        description: "Latest updates and tutorials",
-      },
-    ],
-  },
-];
-
-// Dashboard/authenticated user navigation structure
-const dashboardNavigationItems = [
-  {
-    label: "Dashboard",
-    id: "dashboard",
-    items: [
-      {
-        label: "Overview",
-        href: "/dashboard",
-        icon: FaTachometerAlt,
-        description: "Your deployment overview",
-      },
-      {
-        label: "Projects",
-        href: "/dashboard/projects",
-        icon: FaProjectDiagram,
-        description: "Manage your projects",
-      },
-      {
-        label: "Deployments",
-        href: "/dashboard/deployments",
-        icon: FaRocket,
-        description: "View deployment history",
-      },
-      {
-        label: "Analytics",
-        href: "/dashboard/analytics",
-        icon: FaChartLine,
-        description: "Performance analytics",
-      },
-    ],
-  },
-  {
-    label: "Tools",
-    id: "tools",
-    items: [
-      {
-        label: "CLI Generator",
-        href: "/dashboard/cli",
-        icon: FaCode,
-        description: "Generate CLI commands",
-      },
-      {
-        label: "API Tester",
-        href: "/dashboard/api-tester",
-        icon: FaCloud,
-        description: "Test your APIs",
-      },
-      {
-        label: "Monitoring",
-        href: "/dashboard/monitoring",
-        icon: FaChartLine,
-        description: "System monitoring",
-      },
-      {
-        label: "Integrations",
-        href: "/dashboard/integrations",
-        icon: FaGithub,
-        description: "Third-party integrations",
-      },
-    ],
-  },
-  {
-    label: "Resources",
-    id: "resources",
-    items: [
-      {
-        label: "Documentation",
-        href: "/docs",
-        icon: FaBook,
-        description: "Complete guides and API docs",
-      },
-      {
-        label: "Support Center",
-        href: "/resources/support",
-        icon: FaLifeRing,
-        description: "24/7 developer support",
-      },
-      {
-        label: "Community",
-        href: "/resources/community",
-        icon: FaUsers,
-        description: "Join our developer community",
-      },
-      {
-        label: "API Reference",
-        href: "/docs/api",
-        icon: FaServer,
-        description: "Complete API documentation",
-      },
-    ],
-  },
-];
+import {
+  homeNavigationItems,
+  dashboardNavigationItems,
+} from "@constants/navigation";
 
 // Memoize the component to prevent unnecessary re-renders
 const Navbar = memo(() => {
@@ -345,7 +143,7 @@ const Navbar = memo(() => {
     // Add a longer delay before closing to improve UX
     const timeout = setTimeout(() => {
       setOpenDropdown(null);
-    }, 300);
+    }, 700); // Increased to 700ms for better UX
     setHoverTimeout(timeout);
   }, []);
 
@@ -437,8 +235,12 @@ const Navbar = memo(() => {
                           onMouseEnter={keepDropdownOpen}
                           onMouseLeave={closeDropdown}
                           className={`absolute top-full mt-2 w-80 bg-neutral-800/95 backdrop-blur-lg border border-neutral-700/50 rounded-xl shadow-2xl overflow-hidden z-50 ${
-                            item.id === "downloads" ? "right-0" : "left-0"
-                          }`}
+                            item.id === "resources"
+                              ? "right-0"
+                              : item.id === "downloads"
+                              ? "left-1/2 transform -translate-x-1/2"
+                              : "left-0"
+                          } max-w-[calc(100vw-2rem)] lg:max-w-80`}
                         >
                           <div className="p-2">
                             {item.items.map((subItem, index) => {
@@ -464,10 +266,17 @@ const Navbar = memo(() => {
                                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                                       <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-lg relative z-10">
                                         <Icon className="w-4 h-4 text-white" />
-                                      </div>
+                                      </div>{" "}
                                       <div className="flex-1 relative z-10">
-                                        <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
-                                          {subItem.label}
+                                        <div className="flex items-center justify-between">
+                                          <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
+                                            {subItem.label}
+                                          </div>
+                                          {subItem.comingSoon && (
+                                            <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse">
+                                              {subItem.comingSoon}
+                                            </span>
+                                          )}
                                         </div>
                                         <div className="text-gray-400 text-xs body mt-1 group-hover:text-gray-300 transition-colors">
                                           {subItem.description}
@@ -485,8 +294,15 @@ const Navbar = memo(() => {
                                         <Icon className="w-4 h-4 text-white" />
                                       </div>
                                       <div className="flex-1 relative z-10">
-                                        <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
-                                          {subItem.label}
+                                        <div className="flex items-center justify-between">
+                                          <div className="text-white font-medium text-sm body group-hover:text-blue-400 transition-colors">
+                                            {subItem.label}
+                                          </div>
+                                          {subItem.comingSoon && (
+                                            <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse">
+                                              {subItem.comingSoon}
+                                            </span>
+                                          )}
                                         </div>
                                         <div className="text-gray-400 text-xs body mt-1 group-hover:text-gray-300 transition-colors">
                                           {subItem.description}
@@ -520,6 +336,8 @@ const Navbar = memo(() => {
                       isOpen={openDropdown === "profile"}
                       toggleDropdown={() => toggleDropdown("profile")}
                       closeDropdown={closeDropdown}
+                      openDropdownOnHover={openDropdownOnHover}
+                      keepDropdownOpen={keepDropdownOpen}
                       onLogout={onLogout}
                       isLoggingOut={isLoggingOut}
                     />
@@ -557,15 +375,11 @@ const Navbar = memo(() => {
             </motion.button>
           </div>
         </div>
-      </header>
-
-      {/* Mobile Sidebar */}
+      </header>      {/* Mobile Sidebar */}
       <MobileSidebar
         isOpen={isMobileSidebarOpen}
         onClose={closeMobileSidebar}
         navigationItems={navigationItems}
-        openDropdown={openDropdown}
-        toggleDropdown={toggleDropdown}
         scrollToSection={scrollToSection}
         isAuthenticated={isAuthenticated}
         onLogout={onLogout}

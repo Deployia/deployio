@@ -20,6 +20,8 @@ const ProfileAvatar = memo(
     onLogout,
     isLoggingOut,
     className = "",
+    openDropdownOnHover,
+    keepDropdownOpen,
   }) => {
     const profileMenuItems = [
       {
@@ -79,9 +81,12 @@ const ProfileAvatar = memo(
       `https://ui-avatars.com/api/?name=${encodeURIComponent(
         getInitials(user)
       )}&background=4F46E5&color=ffffff&size=40`;
-
     return (
-      <div className={`relative ${className}`}>
+      <div
+        className={`relative ${className}`}
+        onMouseEnter={() => openDropdownOnHover("profile")}
+        onMouseLeave={closeDropdown}
+      >
         {" "}
         <motion.button
           onClick={toggleDropdown}
@@ -108,6 +113,8 @@ const ProfileAvatar = memo(
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
+              onMouseEnter={keepDropdownOpen}
+              onMouseLeave={closeDropdown}
               className="absolute top-full right-0 mt-2 w-80 bg-neutral-800/95 backdrop-blur-md border border-neutral-700/50 rounded-xl shadow-2xl overflow-hidden z-50"
             >
               {/* Profile Header */}
