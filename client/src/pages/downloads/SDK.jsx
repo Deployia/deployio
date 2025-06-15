@@ -192,11 +192,14 @@ print(f"Expected load: {prediction.forecast}")`,
     { label: "Developers", value: "15K+", icon: FaUsers },
     { label: "Uptime", value: "99.99%", icon: FaChartLine },
   ];
-
   const heroProps = {
     badge: {
       icon: FaCode,
       text: "AI-Powered Developer SDKs",
+    },
+    comingSoonBadge: {
+      text: "Coming Q2 2026",
+      highlight: true,
     },
     title: "Deployio SDKs",
     subtitle: "Build Intelligent Deployments",
@@ -258,11 +261,10 @@ print(f"Expected load: {prediction.forecast}")`,
       </div>
     ),
   };
-
   const statsProps = {
     title: "SDK Impact",
     stats,
-    gradient: "from-purple-400 to-indigo-400",
+    gradient: "from-purple-400 via-blue-400 to-indigo-400",
   };
 
   const ctaProps = {
@@ -274,7 +276,7 @@ print(f"Expected load: {prediction.forecast}")`,
     onPrimary: () =>
       window.open("https://forms.gle/deployio-sdk-waitlist", "_blank"),
     onSecondary: () => window.open("/docs/sdk", "_blank"),
-    gradient: "from-purple-400 to-indigo-400",
+    gradient: "from-purple-400 via-blue-400 to-indigo-400",
   };
 
   return (
@@ -292,7 +294,7 @@ print(f"Expected load: {prediction.forecast}")`,
           title="Code Examples"
           subtitle="Explore powerful deployment automation across languages"
           examples={examples}
-          gradient="from-purple-400 to-indigo-400"
+          gradient="from-purple-400 via-blue-400 to-indigo-400"
         />
 
         <DownloadStats {...statsProps} />
