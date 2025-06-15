@@ -234,7 +234,7 @@ const Testimonials = () => {
         >
           {" "}
           {/* Main Testimonial Card */}
-          <div className="relative bg-gradient-to-r from-neutral-900/80 via-neutral-800/80 to-neutral-900/80 backdrop-blur-lg rounded-3xl border border-neutral-700/50 p-8 sm:p-12 md:p-16 shadow-2xl min-h-[400px] flex items-center mx-8 sm:mx-16">
+          <div className="relative bg-gradient-to-r from-neutral-900/80 via-neutral-800/80 to-neutral-900/80 backdrop-blur-lg rounded-2xl sm:rounded-3xl border border-neutral-700/50 p-6 sm:p-8 md:p-12 lg:p-16 shadow-2xl min-h-[350px] sm:min-h-[400px] flex items-center mx-2 sm:mx-8 md:mx-16">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentIndex}
@@ -245,17 +245,17 @@ const Testimonials = () => {
                 className="w-full"
               >
                 {" "}
-                <div className="flex flex-col lg:flex-row gap-8 items-center justify-center">
+                <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 items-center justify-center">
                   {/* Testimonial Content */}
-                  <div className="flex-1 max-w-3xl space-y-6 text-center lg:text-left">
-                    <FaQuoteLeft className="text-4xl text-blue-400/50 mx-auto lg:mx-0" />
-                    <blockquote className="text-xl sm:text-2xl md:text-3xl text-white leading-relaxed font-light">
+                  <div className="flex-1 max-w-3xl space-y-4 sm:space-y-6 text-center lg:text-left">
+                    <FaQuoteLeft className="text-3xl sm:text-4xl text-blue-400/50 mx-auto lg:mx-0" />
+                    <blockquote className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white leading-relaxed font-light">
                       &ldquo;{currentTestimonial.content}&rdquo;
                     </blockquote>
 
-                    <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 rounded-full">
-                      <div className="w-2 h-2 bg-green-400 rounded-full mr-3 animate-pulse"></div>
-                      <span className="text-green-300 text-sm font-medium">
+                    <div className="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 rounded-full">
+                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2 sm:mr-3 animate-pulse"></div>
+                      <span className="text-green-300 text-xs sm:text-sm font-medium">
                         {currentTestimonial.highlight}
                       </span>
                     </div>
