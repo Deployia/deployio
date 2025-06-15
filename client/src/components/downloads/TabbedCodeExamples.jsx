@@ -100,21 +100,24 @@ const TabbedCodeExamples = ({
 
   const currentExample = examples[activeExample];
   const currentTab = currentExample?.tabs.find((tab) => tab.id === activeTab);
-
   return (
-    <section className="py-20 px-6">
+    <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
+          className="text-center mb-12 sm:mb-16"
         >
-          <h2 className="text-4xl font-bold text-white mb-6">{title}</h2>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">{subtitle}</p>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6">
+            {title}
+          </h2>
+          <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto">
+            {subtitle}
+          </p>
         </motion.div>
 
         {/* Example Category Tabs */}
-        <div className="flex flex-wrap justify-center gap-3 mb-8">
+        <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6 sm:mb-8">
           {examples.map((example, index) => (
             <motion.button
               key={example.id}
@@ -124,7 +127,7 @@ const TabbedCodeExamples = ({
                 setActiveExample(index);
                 setActiveTab(example.tabs[0]?.id || "");
               }}
-              className={`px-6 py-3 rounded-lg transition-all duration-300 ${
+              className={`px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg transition-all duration-300 text-sm sm:text-base ${
                 activeExample === index
                   ? `bg-gradient-to-r ${gradient}/20 border border-white/30 text-white`
                   : "bg-gray-800/50 border border-gray-700/50 text-gray-400 hover:text-gray-200"
@@ -144,19 +147,21 @@ const TabbedCodeExamples = ({
             className="bg-gray-800/30 backdrop-blur-lg border border-gray-700/50 rounded-2xl overflow-hidden"
           >
             {/* Language Tabs */}
-            <div className="flex border-b border-gray-700/50">
+            <div className="flex flex-wrap border-b border-gray-700/50">
               {currentExample.tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-6 py-4 transition-all duration-200 ${
+                  className={`flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 transition-all duration-200 text-sm sm:text-base ${
                     activeTab === tab.id
                       ? "bg-gray-700/50 text-white border-b-2 border-white/30"
                       : "text-gray-400 hover:text-gray-200 hover:bg-gray-700/20"
                   }`}
                 >
                   <tab.icon
-                    className={`w-5 h-5 ${tab.color || "text-current"}`}
+                    className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                      tab.color || "text-current"
+                    }`}
                   />
                   <span className="font-medium">{tab.name}</span>
                 </button>
@@ -165,10 +170,10 @@ const TabbedCodeExamples = ({
 
             {/* Code Content */}
             {currentTab && (
-              <div className="p-8">
+              <div className="p-4 sm:p-6 lg:p-8">
                 {/* Installation Command */}
                 {currentTab.install && (
-                  <div className="mb-6">
+                  <div className="mb-4 sm:mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-lg font-semibold text-white flex items-center">
                         <FaDownload className="w-4 h-4 mr-2 text-green-400" />

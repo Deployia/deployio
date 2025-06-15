@@ -224,38 +224,37 @@ print(f"Expected load: {prediction.forecast}")`,
       { label: "Success Rate", value: "99.8%" },
     ],
     visual: (
-      <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-        <div className="flex items-center mb-4">
-          <div className="flex space-x-2 mr-4">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+      <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-4 sm:p-6">
+        <div className="flex items-center mb-3 sm:mb-4">
+          <div className="flex space-x-1 sm:space-x-2 mr-3 sm:mr-4">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
           </div>
-          <div className="text-gray-400 text-sm">main.js</div>
+          <div className="text-gray-400 text-xs sm:text-sm">main.js</div>
         </div>
-        <div className="font-mono text-sm space-y-1">
-          {" "}
-          <div className="text-purple-400">
+        <div className="font-mono text-xs sm:text-sm space-y-1 overflow-x-auto">
+          <div className="text-purple-400 whitespace-nowrap">
             import &#123; DeployioSDK &#125; from &apos;@deployio/sdk&apos;;
           </div>
-          <div className="text-gray-500">
+          <div className="text-gray-500 whitespace-nowrap">
             {/* AI-powered deployment automation */}
           </div>
-          <div className="text-blue-400">
+          <div className="text-blue-400 whitespace-nowrap">
             const deployio = new DeployioSDK();
-          </div>{" "}
-          <div className="text-gray-400">
+          </div>
+          <div className="text-gray-400 whitespace-nowrap">
             <span className="text-yellow-400">const result</span> =
             <span className="text-green-400"> await</span> deployio.deploy({"{"}
           </div>
-          <div className="text-gray-400 ml-4">
+          <div className="text-gray-400 ml-2 sm:ml-4 whitespace-nowrap">
             project:{" "}
             <span className="text-orange-400">&apos;./my-app&apos;</span>,
           </div>
-          <div className="text-gray-400 ml-4">
+          <div className="text-gray-400 ml-2 sm:ml-4 whitespace-nowrap">
             aiOptimize: <span className="text-cyan-400">true</span>
           </div>
-          <div className="text-gray-400">{"}"});</div>
+          <div className="text-gray-400 whitespace-nowrap">{"}"});</div>
           <div className="text-indigo-400 animate-pulse">_</div>
         </div>
       </div>
