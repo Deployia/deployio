@@ -94,7 +94,7 @@ const StickyFeaturesSection = ({
           {" "}
           {/* Left Sidebar - Sticky Navigation */}
           <div className="lg:sticky lg:top-24 lg:self-start">
-            <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl border border-gray-700/50 p-6">
+            <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl p-6">
               <div className="space-y-3">
                 {features.map((feature, index) => (
                   <motion.div
@@ -105,8 +105,8 @@ const StickyFeaturesSection = ({
                     onClick={() => scrollToFeature(index)}
                     className={`group cursor-pointer p-4 rounded-lg transition-all duration-300 ${
                       activeFeature === index
-                        ? `bg-gradient-to-r ${gradient}/20 border border-white/30 shadow-lg`
-                        : "bg-gray-800/40 hover:bg-gray-800/60 border border-transparent"
+                        ? `bg-gradient-to-r ${gradient} shadow-lg`
+                        : "bg-gray-800/40 hover:bg-gray-800/60 border-transparent"
                     }`}
                   >
                     <div className="flex items-center space-x-3">
@@ -130,7 +130,7 @@ const StickyFeaturesSection = ({
                         <h3 className="text-base font-semibold text-white mb-1 truncate">
                           {feature.title}
                         </h3>
-                        <p className="text-gray-400 text-xs line-clamp-2">
+                        <p className="text-gray-200 text-xs line-clamp-2">
                           {feature.description}
                         </p>
                       </div>{" "}
@@ -211,18 +211,18 @@ const StickyFeaturesSection = ({
                   {/* Success Metrics */}
                   <div className="grid grid-cols-2 gap-4 mb-8">
                     <div
-                      className={`bg-gradient-to-r ${gradient}/20 rounded-lg p-4 border border-white/30`}
+                      className={`bg-gradient-to-r ${gradient} rounded-lg p-4 border border-white/30`}
                     >
                       <div className="text-white text-2xl font-bold">99.9%</div>
-                      <div className="text-gray-400 text-sm">Success Rate</div>
+                      <div className="text-gray-200 text-sm">Success Rate</div>
                     </div>
                     <div
-                      className={`bg-gradient-to-r ${gradient}/20 rounded-lg p-4 border border-white/30`}
+                      className={`bg-gradient-to-r ${gradient} rounded-lg p-4 border border-white/30`}
                     >
                       <div className="text-white text-2xl font-bold">
                         &lt;2min
                       </div>
-                      <div className="text-gray-400 text-sm">Avg Time</div>
+                      <div className="text-gray-200 text-sm">Avg Time</div>
                     </div>
                   </div>
                   {/* CTA Button */}
