@@ -148,11 +148,14 @@ const CodeAnalysis = () => {
     },
     gradient: "from-blue-400 via-purple-400 to-indigo-400",
     visual: (
-      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
-        <div className="space-y-4">
-          <div className="flex items-center text-blue-400 text-sm font-semibold mb-6">
-            <div className="w-3 h-3 bg-blue-500 rounded-full mr-3 animate-pulse"></div>
-            Code Analysis Engine Active
+      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-4 sm:p-6 md:p-8">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-center text-blue-400 text-xs sm:text-sm font-semibold mb-4 sm:mb-6">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full mr-2 sm:mr-3 animate-pulse"></div>
+            <span className="hidden sm:inline">
+              Code Analysis Engine Active
+            </span>
+            <span className="sm:hidden">Analysis Active</span>
           </div>
 
           {[
@@ -190,33 +193,53 @@ const CodeAnalysis = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1 + index * 0.2, duration: 0.5 }}
-              className={`flex items-center justify-between p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
+              className={`flex items-center justify-between p-3 sm:p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
             >
-              <div className="flex items-center">
-                <step.icon className={`w-5 h-5 text-${step.color}-400 mr-3`} />
-                <div>
-                  <div className="text-white font-medium">{step.title}</div>
-                  <div className="text-gray-400 text-sm">{step.desc}</div>
+              <div className="flex items-center min-w-0 flex-1">
+                <step.icon
+                  className={`w-4 h-4 sm:w-5 sm:h-5 text-${step.color}-400 mr-2 sm:mr-3 flex-shrink-0`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-white font-medium text-sm sm:text-base truncate">
+                    {step.title}
+                  </div>
+                  <div className="text-gray-400 text-xs sm:text-sm truncate">
+                    {step.desc}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className={`text-${step.color}-400 font-bold text-sm`}>
+              <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
+                <div
+                  className={`text-${step.color}-400 font-bold text-xs sm:text-sm`}
+                >
                   {step.confidence}
-                </div>{" "}
-                <div className={`text-${step.color}-400 font-bold`}>✓</div>
+                </div>
+                <div
+                  className={`text-${step.color}-400 font-bold text-sm sm:text-base`}
+                >
+                  ✓
+                </div>
               </div>
             </motion.div>
           ))}
 
-          <div className="mt-6 pt-6 border-t border-gray-700/50">
-            <div className="grid grid-cols-2 gap-4 text-center">
+          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-700/50">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-white mb-1">87</div>
-                <div className="text-gray-400 text-sm">Optimization Score</div>
+                <div className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1">
+                  87
+                </div>
+                <div className="text-gray-400 text-xs sm:text-sm">
+                  Optimization Score
+                </div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-white mb-1">2.3s</div>
-                <div className="text-gray-400 text-sm">Build Time</div>
+                <div className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1">
+                  2.3s
+                </div>
+                <div className="text-gray-400 text-xs sm:text-sm">
+                  Build Time
+                </div>
               </div>
             </div>
           </div>
@@ -250,8 +273,8 @@ const CodeAnalysis = () => {
       onClick: () => console.log("Start analysis"),
     },
     secondaryButton: {
-      text: "View Examples",
-      onClick: () => console.log("View examples"),
+      text: "View Documentation",
+      onClick: () => window.open("/resources/docs/code-analysis", "_blank"),
     },
     gradientClasses: "from-blue-600 to-purple-600",
   };

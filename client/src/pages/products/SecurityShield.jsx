@@ -158,29 +158,31 @@ const SecurityShield = () => {
         window.open("https://forms.gle/deployio-security-waitlist", "_blank"),
     },
     secondaryCTA: {
-      text: "Security Preview",
+      text: "View Documentation",
       icon: FaPlay,
-      onClick: () => window.open("/docs/security-preview", "_blank"),
+      onClick: () => window.open("/resources/docs/security-shield", "_blank"),
     },
     visual: (
-      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
-        <div className="flex items-center mb-6">
-          <FaShieldAlt className="w-6 h-6 text-green-400 mr-3" />
-          <span className="text-white font-semibold">Security Dashboard</span>
+      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-4 sm:p-6 md:p-8">
+        <div className="flex items-center mb-4 sm:mb-6">
+          <FaShieldAlt className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-green-400 mr-2 sm:mr-3" />
+          <span className="text-white font-semibold text-sm sm:text-base">
+            Security Dashboard
+          </span>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {securityFeatures.slice(0, 4).map((feature, index) => (
             <motion.div
               key={feature.name}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1 + index * 0.2, duration: 0.5 }}
-              className="flex items-center justify-between p-4 bg-gray-800/40 border border-gray-700/50 rounded-lg"
+              className="flex items-center justify-between p-3 sm:p-4 bg-gray-800/40 border border-gray-700/50 rounded-lg"
             >
-              <div className="flex items-center">
+              <div className="flex items-center min-w-0 flex-1">
                 <div
-                  className={`w-3 h-3 rounded-full mr-3 ${
+                  className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full mr-2 sm:mr-3 flex-shrink-0 ${
                     feature.severity === "Critical"
                       ? "bg-red-400"
                       : feature.severity === "High"
@@ -188,16 +190,16 @@ const SecurityShield = () => {
                       : "bg-yellow-400"
                   }`}
                 ></div>
-                <div>
-                  <div className="text-white font-medium text-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="text-white font-medium text-xs sm:text-sm truncate">
                     {feature.name}
                   </div>
-                  <div className="text-gray-400 text-xs">
+                  <div className="text-gray-400 text-xs truncate">
                     {feature.description}
                   </div>
                 </div>
               </div>
-              <div className="text-green-400 text-sm font-medium">
+              <div className="text-green-400 text-xs sm:text-sm font-medium flex-shrink-0 ml-2">
                 {feature.status}
               </div>
             </motion.div>
@@ -242,8 +244,8 @@ const SecurityShield = () => {
         window.open("https://forms.gle/deployio-security-waitlist", "_blank"),
     },
     secondaryButton: {
-      text: "View Security Preview",
-      onClick: () => window.open("/docs/security-preview", "_blank"),
+      text: "View Documentation",
+      onClick: () => window.open("/docs/security-shield", "_blank"),
     },
     gradientClasses: "from-red-600 to-orange-600",
   };
