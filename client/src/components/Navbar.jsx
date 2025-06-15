@@ -375,7 +375,8 @@ const Navbar = memo(() => {
             </motion.button>
           </div>
         </div>
-      </header>      {/* Mobile Sidebar */}
+      </header>{" "}
+      {/* Mobile Sidebar */}
       <MobileSidebar
         isOpen={isMobileSidebarOpen}
         onClose={closeMobileSidebar}
