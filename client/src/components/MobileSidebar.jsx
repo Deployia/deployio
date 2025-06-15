@@ -26,7 +26,9 @@ const MobileSidebar = memo(
 
     // Toggle function for mobile dropdowns
     const toggleMobileDropdown = useCallback((dropdownId) => {
-      setMobileOpenDropdown((prev) => (prev === dropdownId ? null : dropdownId));
+      setMobileOpenDropdown((prev) =>
+        prev === dropdownId ? null : dropdownId
+      );
     }, []);
 
     // Close all dropdowns when sidebar is closed
@@ -92,33 +94,33 @@ const MobileSidebar = memo(
       user?.profileImage ||
       `https://ui-avatars.com/api/?name=${encodeURIComponent(
         getInitials(user)
-      )}&background=4F46E5&color=ffffff&size=60`;    // Lock body scroll when sidebar is open
+      )}&background=4F46E5&color=ffffff&size=60`; // Lock body scroll when sidebar is open
     useEffect(() => {
       if (isOpen) {
         // Save current scroll position
         const scrollY = window.scrollY;
-        document.body.style.position = 'fixed';
+        document.body.style.position = "fixed";
         document.body.style.top = `-${scrollY}px`;
-        document.body.style.width = '100%';
-        document.body.style.overflow = 'hidden';
+        document.body.style.width = "100%";
+        document.body.style.overflow = "hidden";
       } else {
         // Restore scroll position
         const scrollY = document.body.style.top;
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.width = "";
+        document.body.style.overflow = "";
         if (scrollY) {
-          window.scrollTo(0, parseInt(scrollY || '0') * -1);
+          window.scrollTo(0, parseInt(scrollY || "0") * -1);
         }
       }
 
       return () => {
         // Cleanup on unmount
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.width = "";
+        document.body.style.overflow = "";
       };
     }, [isOpen]);
 
@@ -188,22 +190,21 @@ const MobileSidebar = memo(
                         duration: 0.3,
                       }}
                     >
-                      {/* Main navigation button */}                      <button
+                      {/* Main navigation button */}{" "}
+                      <button
                         onClick={() => toggleMobileDropdown(item.id)}
                         className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-neutral-800/50 transition-all duration-200 font-medium text-sm body rounded-lg border border-transparent hover:border-neutral-700"
                       >
                         <span>{item.label}</span>
                         <motion.div
                           animate={{
-                            rotate:
-                              mobileOpenDropdown === item.id ? 180 : 0,
+                            rotate: mobileOpenDropdown === item.id ? 180 : 0,
                           }}
                           transition={{ duration: 0.2 }}
                         >
                           <FaChevronDown className="w-3 h-3 ml-1" />
                         </motion.div>
                       </button>
-
                       {/* Dropdown Content - Exact same styling as desktop */}
                       <AnimatePresence>
                         {mobileOpenDropdown === item.id && (
@@ -289,8 +290,9 @@ const MobileSidebar = memo(
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </motion.div>                  ))}
-                  
+                    </motion.div>
+                  ))}
+
                   {/* Pricing Button - Consistent with desktop */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -299,7 +301,9 @@ const MobileSidebar = memo(
                       delay: navigationItems.length * 0.1 + 0.2,
                       duration: 0.3,
                     }}
-                  >                    <button
+                  >
+                    {" "}
+                    <button
                       onClick={() => {
                         onClose(); // Close sidebar first
                         // Small delay to let animation complete
