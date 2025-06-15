@@ -21,7 +21,6 @@ import {
 const SecurityShield = () => {
   const [selectedFeature, setSelectedFeature] = useState(0);
   const [demoData, setDemoData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const { scrollY } = useScroll();
 
   // Scroll-triggered feature progression
@@ -139,52 +138,29 @@ const SecurityShield = () => {
       description: "24/7 threat detection and response",
     },
   ];
-
-  const stats = [
-    { label: "Security Scans", value: "10,000+", icon: FaShieldAlt },
-    { label: "Vulnerabilities Blocked", value: "99.8%", icon: FaLock },
-    { label: "Compliance Rate", value: "100%", icon: FaCheckCircle },
-    { label: "Mean Response Time", value: "&lt;5min", icon: FaBolt },
-  ];
-
-  const demoSecurityScan = async () => {
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      setDemoData({
-        vulnerabilities: 0,
-        compliance: "SOC 2 Type II",
-        encryption: "AES-256",
-        accessControl: "RBAC",
-        monitoring: "24/7",
-        securityScore: 98,
-      });
-    } catch (error) {
-      console.error("Demo error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
   const heroProps = {
     badge: {
       icon: FaShieldAlt,
       text: "Enterprise-Grade Security",
+    },
+    comingSoonBadge: {
+      text: "Coming Q2 2026",
+      highlight: true,
     },
     title: "Deploy with",
     subtitle: "Military-Grade Security",
     description:
       "Every deployment automatically includes comprehensive security scanning, threat detection, and compliance validation. Deploy confidently knowing your applications are protected by industry-leading security measures.",
     primaryCTA: {
-      text: "Enable Security Features",
+      text: "Join Waitlist",
       icon: FaShieldAlt,
-      onClick: () => console.log("Enable security"),
+      onClick: () =>
+        window.open("https://forms.gle/deployio-security-waitlist", "_blank"),
     },
     secondaryCTA: {
-      text: "Run Security Demo",
+      text: "Security Preview",
       icon: FaPlay,
-      onClick: demoSecurityScan,
-      loading: isLoading,
-      loadingText: "Scanning...",
+      onClick: () => window.open("/docs/security-preview", "_blank"),
     },
     visual: (
       <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
@@ -231,6 +207,13 @@ const SecurityShield = () => {
     ),
   };
 
+  const stats = [
+    { label: "Security Scans", value: "10,000+", icon: FaShieldAlt },
+    { label: "Vulnerabilities Blocked", value: "99.8%", icon: FaLock },
+    { label: "Compliance Rate", value: "100%", icon: FaCheckCircle },
+    { label: "Mean Response Time", value: "<5min", icon: FaBolt },
+  ];
+
   const featuresProps = {
     title: "Complete Security Pipeline",
     description:
@@ -241,7 +224,6 @@ const SecurityShield = () => {
     featureProgress,
     gradientClasses: "from-red-600/30 to-orange-600/30",
   };
-
   const statsProps = {
     stats,
     title: "Security Performance",
@@ -249,10 +231,20 @@ const SecurityShield = () => {
       "Industry-leading security metrics that protect your deployments",
     gradientClasses: "bg-gradient-to-r from-red-600/10 to-orange-600/10",
   };
+
   const ctaProps = {
     title: "Ready to Secure Your Deployments?",
     description:
-      "Enable enterprise-grade security for all your applications with automated scanning and monitoring",
+      "Join the waitlist to be first in line when our enterprise-grade security features launch in Q2 2026",
+    primaryButton: {
+      text: "Join Security Waitlist",
+      onClick: () =>
+        window.open("https://forms.gle/deployio-security-waitlist", "_blank"),
+    },
+    secondaryButton: {
+      text: "View Security Preview",
+      onClick: () => window.open("/docs/security-preview", "_blank"),
+    },
     gradientClasses: "from-red-600 to-orange-600",
   };
   const resetDemo = () => {
@@ -266,8 +258,8 @@ const SecurityShield = () => {
     data: demoData || {},
     columns: 3,
     onClose: resetDemo,
-    onReset: demoSecurityScan,
-    demoType: "Security Scan",
+    onReset: resetDemo,
+    demoType: "Security Preview",
   };
 
   return (

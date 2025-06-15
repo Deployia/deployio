@@ -22,7 +22,6 @@ import {
 
 const CloudIntegration = () => {
   const [demoData, setDemoData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const features = [
     {
@@ -98,47 +97,29 @@ const CloudIntegration = () => {
     { label: "Cost Optimization", value: "40%", icon: FaChartLine },
   ];
 
-  const demoCloudDeploy = async () => {
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      setDemoData({
-        provider: "AWS EC2",
-        region: "us-east-1",
-        deployTime: "2m 15s",
-        instances: 3,
-        status: "deployed",
-        url: "https://my-app.deployio.app",
-        costOptimization: 42,
-        performanceScore: 94,
-      });
-    } catch (error) {
-      console.error("Demo error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const heroProps = {
     badge: {
       icon: FaCloud,
       text: "Multi-Cloud Platform",
+    },
+    comingSoonBadge: {
+      text: "Coming Q1 2026",
+      highlight: true,
     },
     title: "Deploy Anywhere,",
     subtitle: "Scale Everywhere",
     description:
       "Connect to any cloud provider with intelligent deployment strategies. From AWS to Google Cloud, Azure to DigitalOcean - deploy with confidence across all major platforms.",
     primaryCTA: {
-      text: "Connect Cloud",
+      text: "Join Waitlist",
       icon: FaCloudUploadAlt,
-      onClick: () => console.log("Connect cloud"),
+      onClick: () =>
+        window.open("https://forms.gle/deployio-cloud-waitlist", "_blank"),
     },
     secondaryCTA: {
-      text: "Try Deployment",
+      text: "Learn More",
       icon: FaPlay,
-      onClick: demoCloudDeploy,
-      loading: isLoading,
-      loadingText: "Deploying...",
+      onClick: () => window.open("/docs/cloud-preview", "_blank"),
     },
     gradient: "from-cyan-400 via-blue-400 to-purple-400",
     visual: (
@@ -258,18 +239,18 @@ const CloudIntegration = () => {
       "Seamless multi-cloud deployments with industry-leading performance and reliability",
     gradientClasses: "bg-gradient-to-r from-cyan-600/10 to-blue-600/10",
   };
-
   const ctaProps = {
     title: "Ready to Deploy to the Cloud?",
     description:
       "Join thousands of developers deploying faster across multiple cloud providers",
     primaryButton: {
-      text: "Start Deploying",
-      onClick: () => console.log("Start deploying"),
+      text: "Join Waitlist",
+      onClick: () =>
+        window.open("https://forms.gle/deployio-cloud-waitlist", "_blank"),
     },
     secondaryButton: {
-      text: "View Integrations",
-      onClick: () => console.log("View integrations"),
+      text: "View Cloud Preview",
+      onClick: () => window.open("/docs/cloud-preview", "_blank"),
     },
     gradientClasses: "from-cyan-600 to-blue-600",
   };
@@ -293,8 +274,8 @@ const CloudIntegration = () => {
       : {},
     columns: 3,
     onClose: resetDemo,
-    onReset: demoCloudDeploy,
-    demoType: "Cloud Deployment",
+    onReset: resetDemo,
+    demoType: "Cloud Deployment Preview",
   };
 
   return (

@@ -20,7 +20,6 @@ import {
 
 const AIDeployment = () => {
   const [demoData, setDemoData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const features = [
     {
@@ -88,46 +87,29 @@ const AIDeployment = () => {
     { label: "Successful Deployments", value: "99.2%", icon: FaShieldAlt },
   ];
 
-  const demoAnalyzeRepo = async () => {
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-      setDemoData({
-        detectedStack: "MERN Stack",
-        confidence: 96,
-        dockerfileGenerated: true,
-        cicdConfigured: true,
-        estimatedDeployTime: "3 minutes",
-        optimizationScore: 87,
-        securityScore: 94,
-      });
-    } catch (error) {
-      console.error("Demo error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const heroProps = {
     badge: {
       icon: FaBrain,
       text: "AI-Powered DevOps Pipeline",
+    },
+    comingSoonBadge: {
+      text: "Coming Q2 2026",
+      highlight: true,
     },
     title: "Deploy Smarter,",
     subtitle: "Not Harder",
     description:
       "Let AI handle your entire deployment workflow. From detecting your tech stack to generating Dockerfiles and setting up CI/CD - we automate what takes hours into minutes.",
     primaryCTA: {
-      text: "Start Deploying",
+      text: "Join Waitlist",
       icon: FaRocket,
-      onClick: () => console.log("Start deploying"),
+      onClick: () =>
+        window.open("https://forms.gle/deployio-ai-waitlist", "_blank"),
     },
     secondaryCTA: {
-      text: "See AI Demo",
+      text: "View AI Preview",
       icon: FaBrain,
-      onClick: demoAnalyzeRepo,
-      loading: isLoading,
-      loadingText: "AI Analyzing...",
+      onClick: () => window.open("/docs/ai-preview", "_blank"),
     },
     gradient: "from-green-400 via-blue-400 to-purple-400",
     visual: (
@@ -205,18 +187,18 @@ const AIDeployment = () => {
       "Industry-leading automation metrics that accelerate your development workflow",
     gradientClasses: "bg-gradient-to-r from-green-600/10 to-blue-600/10",
   };
-
   const ctaProps = {
     title: "Ready to Automate Your Deployments?",
     description:
       "Join thousands of developers already deploying faster with AI-powered automation",
     primaryButton: {
-      text: "Start Free Trial",
-      onClick: () => console.log("Start trial"),
+      text: "Join Waitlist",
+      onClick: () =>
+        window.open("https://forms.gle/deployio-ai-waitlist", "_blank"),
     },
     secondaryButton: {
-      text: "View Documentation",
-      onClick: () => console.log("View docs"),
+      text: "View AI Preview",
+      onClick: () => window.open("/docs/ai-preview", "_blank"),
     },
     gradientClasses: "from-green-600 to-blue-600",
   };
@@ -238,8 +220,8 @@ const AIDeployment = () => {
       : {},
     columns: 4,
     onClose: resetDemo,
-    onReset: demoAnalyzeRepo,
-    demoType: "AI Analysis",
+    onReset: resetDemo,
+    demoType: "AI Analysis Preview",
   };
 
   return (
