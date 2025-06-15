@@ -19,7 +19,6 @@ const Features = () => {
   });
 
   const [activeFeature, setActiveFeature] = useState(0);
-
   const features = [
     {
       icon: FaGithub,
@@ -60,6 +59,7 @@ const Features = () => {
         "Automated security scanning and vulnerability detection for peace of mind.",
       color: "from-red-400 to-red-600",
       demo: "Security scan: 100% ✓",
+      comingSoon: "Coming Soon",
     },
     {
       icon: FaChartBar,
@@ -68,6 +68,7 @@ const Features = () => {
         "Comprehensive monitoring with performance metrics and intelligent alerts.",
       color: "from-yellow-400 to-yellow-600",
       demo: "99.9% uptime monitored",
+      comingSoon: "Coming Soon",
     },
     {
       icon: FaCloud,
@@ -76,6 +77,7 @@ const Features = () => {
         "Deploy across AWS, Azure, GCP with unified management and scaling.",
       color: "from-cyan-400 to-cyan-600",
       demo: "3 clouds configured ☁️",
+      comingSoon: "Coming Soon",
     },
     {
       icon: FaBolt,
@@ -186,18 +188,22 @@ const Features = () => {
                     className={`w-16 h-16 sm:w-18 sm:h-18 rounded-xl bg-gradient-to-r ${feature.color} p-4 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}
                   >
                     <IconComponent className="w-full h-full text-white" />
-                  </div>
-
+                  </div>{" "}
                   {/* Title */}
-                  <h3 className="text-white font-bold text-lg sm:text-xl mb-4 group-hover:text-blue-400 transition-colors leading-tight">
-                    {feature.title}
-                  </h3>
-
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <h3 className="text-white font-bold text-lg sm:text-xl group-hover:text-blue-400 transition-colors leading-tight flex-1">
+                      {feature.title}
+                    </h3>
+                    {feature.comingSoon && (
+                      <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0">
+                        {feature.comingSoon}
+                      </span>
+                    )}
+                  </div>
                   {/* Description */}
                   <p className="text-gray-400 text-sm sm:text-base leading-relaxed mb-4">
                     {feature.description}
                   </p>
-
                   {/* Demo badge */}
                   <div className="text-xs sm:text-sm font-mono text-green-400 bg-green-400/10 px-3 py-2 rounded-full inline-block border border-green-400/20 group-hover:bg-green-400/20 transition-colors">
                     {feature.demo}

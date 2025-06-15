@@ -244,10 +244,11 @@ const Testimonials = () => {
                 transition={{ duration: 0.5 }}
                 className="w-full"
               >
-                <div className="grid lg:grid-cols-3 gap-8 items-center">
+                {" "}
+                <div className="flex flex-col lg:flex-row gap-8 items-center justify-center">
                   {/* Testimonial Content */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <FaQuoteLeft className="text-4xl text-blue-400/50" />
+                  <div className="flex-1 max-w-3xl space-y-6 text-center lg:text-left">
+                    <FaQuoteLeft className="text-4xl text-blue-400/50 mx-auto lg:mx-0" />
                     <blockquote className="text-xl sm:text-2xl md:text-3xl text-white leading-relaxed font-light">
                       &ldquo;{currentTestimonial.content}&rdquo;
                     </blockquote>
@@ -261,7 +262,7 @@ const Testimonials = () => {
                   </div>
 
                   {/* Author Info */}
-                  <div className="flex lg:flex-col items-center lg:items-center space-x-4 lg:space-x-0 lg:space-y-4">
+                  <div className="flex lg:flex-col items-center lg:items-center space-x-4 lg:space-x-0 lg:space-y-4 flex-shrink-0">
                     <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                       {currentTestimonial.avatar}
                     </div>
