@@ -15,7 +15,7 @@ const DownloadHero = ({
   downloadStats,
 }) => {
   return (
-    <section className="relative py-16 px-6 overflow-hidden">
+    <section className="relative py-12 sm:py-16 lg:py-20 px-4 sm:px-6 overflow-hidden">
       <div className="absolute inset-0 opacity-10">
         <div
           className="absolute inset-0"
@@ -27,15 +27,15 @@ const DownloadHero = ({
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
+            className="text-center lg:text-left"
           >
-            {" "}
             {badge && (
-              <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/30 rounded-lg mb-6">
+              <div className="inline-flex items-center px-3 sm:px-4 py-2 bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/30 rounded-lg mb-4 sm:mb-6">
                 {badge.icon && (
                   <badge.icon className="w-4 h-4 text-green-400 mr-2" />
                 )}
@@ -55,7 +55,7 @@ const DownloadHero = ({
                 {comingSoonBadge.text}
               </div>
             )}
-            <h1 className="text-5xl lg:text-6xl font-bold mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
               <span className="text-white">{title}</span>
               {subtitle && (
                 <span
@@ -71,39 +71,41 @@ const DownloadHero = ({
                 <span className="text-white font-bold ml-1">{version}</span>
               </div>
             )}
-            <p className="text-xl text-gray-300 leading-relaxed mb-8">
+            <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-6 sm:mb-8">
               {description}
             </p>
             {downloadStats && (
-              <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
                 {downloadStats.map((stat, index) => (
                   <div key={index} className="text-center">
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-white">
                       {stat.value}
                     </div>
-                    <div className="text-gray-400 text-sm">{stat.label}</div>
+                    <div className="text-gray-400 text-xs sm:text-sm">
+                      {stat.label}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               {primaryCTA && (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={primaryCTA.onClick}
                   disabled={primaryCTA.loading}
-                  className={`flex items-center justify-center px-8 py-4 bg-gradient-to-r ${gradient} text-black font-bold rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl`}
+                  className={`flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r ${gradient} text-black font-bold rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl text-sm sm:text-base`}
                 >
                   {primaryCTA.loading ? (
                     <>
-                      <div className="animate-spin w-5 h-5 border-2 border-black border-t-transparent rounded-full mr-3"></div>
+                      <div className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-black border-t-transparent rounded-full mr-2 sm:mr-3"></div>
                       {primaryCTA.loadingText || "Loading..."}
                     </>
                   ) : (
                     <>
                       {primaryCTA.icon && (
-                        <primaryCTA.icon className="w-5 h-5 mr-3" />
+                        <primaryCTA.icon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
                       )}
                       {primaryCTA.text}
                     </>
@@ -117,17 +119,17 @@ const DownloadHero = ({
                   whileTap={{ scale: 0.98 }}
                   onClick={secondaryCTA.onClick}
                   disabled={secondaryCTA.loading}
-                  className="flex items-center justify-center px-8 py-4 border-2 border-gray-600 text-white hover:border-gray-400 transition-all duration-300 rounded-lg"
+                  className="flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 border-2 border-gray-600 text-white hover:border-gray-400 transition-all duration-300 rounded-lg text-sm sm:text-base"
                 >
                   {secondaryCTA.loading ? (
                     <>
-                      <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"></div>
+                      <div className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full mr-2 sm:mr-3"></div>
                       {secondaryCTA.loadingText || "Loading..."}
                     </>
                   ) : (
                     <>
                       {secondaryCTA.icon && (
-                        <secondaryCTA.icon className="w-5 h-5 mr-3" />
+                        <secondaryCTA.icon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
                       )}
                       {secondaryCTA.text}
                     </>
@@ -142,7 +144,6 @@ const DownloadHero = ({
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="lg:block"
             >
               {visual}
             </motion.div>

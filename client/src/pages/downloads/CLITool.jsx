@@ -145,28 +145,36 @@ const CLITool = () => {
       { label: "Success Rate", value: "99.9%" },
     ],
     visual: (
-      <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-        <div className="flex items-center mb-4">
-          <div className="flex space-x-2 mr-4">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+      <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-4 sm:p-6">
+        <div className="flex items-center mb-3 sm:mb-4">
+          <div className="flex space-x-1 sm:space-x-2 mr-3 sm:mr-4">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
           </div>
-          <div className="text-gray-400 text-sm">~/my-app</div>
-        </div>{" "}
-        <div className="font-mono text-sm space-y-2">
-          <div className="text-cyan-400">$ deployio init</div>
-          <div className="text-green-400">
+          <div className="text-gray-400 text-xs sm:text-sm">~/my-app</div>
+        </div>
+        <div className="font-mono text-xs sm:text-sm space-y-1 sm:space-y-2 overflow-x-auto">
+          <div className="text-cyan-400 whitespace-nowrap">$ deployio init</div>
+          <div className="text-green-400 whitespace-nowrap">
             ✓ Detected MERN Stack application
           </div>
-          <div className="text-green-400">✓ Generated deployio.config.js</div>
-          <div className="text-green-400">
+          <div className="text-green-400 whitespace-nowrap">
+            ✓ Generated deployio.config.js
+          </div>
+          <div className="text-green-400 whitespace-nowrap">
             ✓ Project initialized successfully
           </div>
-          <div className="text-cyan-400 mt-4">$ deployio deploy</div>
-          <div className="text-blue-400">🚀 Deploying to production...</div>
-          <div className="text-green-400">✓ Build completed in 2m 15s</div>
-          <div className="text-green-400">
+          <div className="text-cyan-400 mt-2 sm:mt-4 whitespace-nowrap">
+            $ deployio deploy
+          </div>
+          <div className="text-blue-400 whitespace-nowrap">
+            🚀 Deploying to production...
+          </div>
+          <div className="text-green-400 whitespace-nowrap">
+            ✓ Build completed in 2m 15s
+          </div>
+          <div className="text-green-400 whitespace-nowrap">
             ✓ Deployed to{" "}
             <span className="text-yellow-400">https://my-app.deployio.app</span>
           </div>
