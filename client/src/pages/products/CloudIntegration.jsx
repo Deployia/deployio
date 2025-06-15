@@ -118,20 +118,23 @@ const CloudIntegration = () => {
         window.open("https://forms.gle/deployio-cloud-waitlist", "_blank"),
     },
     secondaryCTA: {
-      text: "Learn More",
+      text: "View Documentation",
       icon: FaPlay,
-      onClick: () => window.open("/docs/cloud-preview", "_blank"),
+      onClick: () => window.open("/resources/docs/cloud-integration", "_blank"),
     },
     gradient: "from-cyan-400 via-blue-400 to-purple-400",
     visual: (
-      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8">
-        <div className="space-y-4">
-          <div className="flex items-center text-cyan-400 text-sm font-semibold mb-6">
-            <div className="w-3 h-3 bg-cyan-500 rounded-full mr-3 animate-pulse"></div>
-            Multi-Cloud Platform Active
+      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-4 sm:p-6 md:p-8">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-center text-cyan-400 text-xs sm:text-sm font-semibold mb-4 sm:mb-6">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-cyan-500 rounded-full mr-2 sm:mr-3 animate-pulse"></div>
+            <span className="hidden sm:inline">
+              Multi-Cloud Platform Active
+            </span>
+            <span className="sm:hidden">Multi-Cloud Active</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6">
             {[
               {
                 icon: FaAws,
@@ -157,15 +160,17 @@ const CloudIntegration = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.5 + index * 0.1, duration: 0.4 }}
-                className={`p-3 bg-${provider.color}-500/10 border border-${provider.color}-500/20 rounded-lg text-center`}
+                className={`p-2 sm:p-3 bg-${provider.color}-500/10 border border-${provider.color}-500/20 rounded-lg text-center`}
               >
                 <provider.icon
-                  className={`w-6 h-6 text-${provider.color}-400 mx-auto mb-2`}
+                  className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-${provider.color}-400 mx-auto mb-1 sm:mb-2`}
                 />
-                <div className="text-white text-sm font-medium">
+                <div className="text-white text-xs sm:text-sm font-medium">
                   {provider.name}
-                </div>{" "}
-                <div className={`text-${provider.color}-400 text-xs`}>
+                </div>
+                <div
+                  className={`text-${provider.color}-400 text-xs hidden sm:block`}
+                >
                   {provider.status}
                 </div>
               </motion.div>
@@ -200,30 +205,44 @@ const CloudIntegration = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1 + index * 0.2, duration: 0.5 }}
-              className={`flex items-center justify-between p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
+              className={`flex items-center justify-between p-3 sm:p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
             >
-              <div className="flex items-center">
-                <step.icon className={`w-5 h-5 text-${step.color}-400 mr-3`} />
-                <div>
-                  <div className="text-white font-medium">{step.title}</div>
-                  <div className="text-gray-400 text-sm">{step.desc}</div>
+              <div className="flex items-center min-w-0 flex-1">
+                <step.icon
+                  className={`w-4 h-4 sm:w-5 sm:h-5 text-${step.color}-400 mr-2 sm:mr-3 flex-shrink-0`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-white font-medium text-sm sm:text-base truncate">
+                    {step.title}
+                  </div>
+                  <div className="text-gray-400 text-xs sm:text-sm truncate">
+                    {step.desc}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className={`text-${step.color}-400 font-bold text-sm`}>
+              <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
+                <div
+                  className={`text-${step.color}-400 font-bold text-xs sm:text-sm`}
+                >
                   {step.time}
-                </div>{" "}
-                <div className={`text-${step.color}-400 font-bold`}>✓</div>
+                </div>
+                <div
+                  className={`text-${step.color}-400 font-bold text-sm sm:text-base`}
+                >
+                  ✓
+                </div>
               </div>
             </motion.div>
           ))}
 
-          <div className="mt-6 pt-6 border-t border-gray-700/50">
+          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-700/50">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-1">
+              <div className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 truncate">
                 my-app.deployio.app
               </div>
-              <div className="text-cyan-400 text-sm">Live on AWS EC2</div>
+              <div className="text-cyan-400 text-xs sm:text-sm">
+                Live on AWS EC2
+              </div>
             </div>
           </div>
         </div>
@@ -256,8 +275,8 @@ const CloudIntegration = () => {
         window.open("https://forms.gle/deployio-cloud-waitlist", "_blank"),
     },
     secondaryButton: {
-      text: "View Cloud Preview",
-      onClick: () => window.open("/docs/cloud-preview", "_blank"),
+      text: "View Documentation",
+      onClick: () => window.open("/docs/cloud-integration", "_blank"),
     },
     gradientClasses: "from-cyan-600 to-blue-600",
   };

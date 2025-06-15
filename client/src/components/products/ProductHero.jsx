@@ -13,44 +13,41 @@ const ProductHero = ({
   gradient = "from-blue-400 via-purple-400 to-green-400",
 }) => {
   return (
-    <section className="relative py-20 px-6 overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 opacity-5">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `
-            radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.4) 0%, transparent 30%),
-            radial-gradient(circle at 75% 75%, rgba(147, 51, 234, 0.4) 0%, transparent 30%),
-            radial-gradient(circle at 40% 40%, rgba(34, 197, 94, 0.3) 0%, transparent 30%)
-          `,
-          }}
-        ></div>
-      </div>
-
-      <div className="max-w-6xl mx-auto relative z-10">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+    <section className="relative min-h-screen py-16 lg:py-24 px-4 sm:px-6 overflow-hidden flex items-center">
+      <div className="max-w-7xl mx-auto relative z-10">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Left Content */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
+            initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="text-center lg:text-left space-y-8"
           >
-            {" "}
             {badge && !comingSoonBadge && (
-              <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg mb-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-full backdrop-blur-sm"
+              >
                 {badge.icon && (
                   <badge.icon className="w-4 h-4 text-blue-400 mr-2" />
                 )}
                 <span className="text-blue-300 text-sm font-semibold">
                   {badge.text}
                 </span>
-              </div>
+              </motion.div>
             )}
+
             {comingSoonBadge && (
-              <div className="flex items-center gap-3 mb-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3"
+              >
                 {badge && (
-                  <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg">
+                  <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-full backdrop-blur-sm">
                     {badge.icon && (
                       <badge.icon className="w-4 h-4 text-blue-400 mr-2" />
                     )}
@@ -59,7 +56,7 @@ const ProductHero = ({
                     </span>
                   </div>
                 )}
-                <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-lg animate-pulse">
+                <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-full animate-pulse backdrop-blur-sm">
                   <span className="text-orange-300 text-sm font-bold">
                     {comingSoonBadge.text}
                   </span>
@@ -69,69 +66,96 @@ const ProductHero = ({
                     </span>
                   )}
                 </div>
-              </div>
+              </motion.div>
             )}
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
+
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight"
+            >
               {title}
-              <span
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.8 }}
                 className={`block bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}
               >
                 {subtitle}
-              </span>
-            </h1>
-            <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+              </motion.span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              className="text-xl md:text-2xl text-gray-300 leading-relaxed max-w-2xl mx-auto lg:mx-0"
+            >
               {description}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.8 }}
+              className="flex flex-col sm:flex-row gap-4 md:gap-6"
+            >
               {primaryCTA && (
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={primaryCTA.onClick}
                   disabled={primaryCTA.disabled}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 flex items-center justify-center"
+                  className="group px-8 md:px-10 py-4 md:py-5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 flex items-center justify-center text-base md:text-lg relative overflow-hidden"
                 >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   {primaryCTA.icon && (
-                    <primaryCTA.icon className="w-5 h-5 mr-2" />
+                    <primaryCTA.icon className="w-5 h-5 md:w-6 md:h-6 mr-3 relative z-10" />
                   )}
-                  {primaryCTA.text}
+                  <span className="relative z-10">{primaryCTA.text}</span>
                 </motion.button>
               )}
 
               {secondaryCTA && (
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={secondaryCTA.onClick}
                   disabled={secondaryCTA.disabled}
-                  className="px-8 py-4 border border-gray-600 text-gray-300 font-semibold rounded-xl hover:border-blue-500/50 hover:text-white transition-all duration-300 flex items-center justify-center"
+                  className="group px-8 md:px-10 py-4 md:py-5 border-2 border-gray-600 hover:border-blue-500/50 text-gray-300 hover:text-white font-bold rounded-2xl transition-all duration-300 flex items-center justify-center text-base md:text-lg backdrop-blur-sm bg-black/20 hover:bg-black/30"
                 >
                   {secondaryCTA.loading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2" />
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3" />
                       {secondaryCTA.loadingText}
                     </>
                   ) : (
                     <>
                       {secondaryCTA.icon && (
-                        <secondaryCTA.icon className="w-4 h-4 mr-2" />
+                        <secondaryCTA.icon className="w-5 h-5 mr-3" />
                       )}
                       {secondaryCTA.text}
                     </>
                   )}
                 </motion.button>
               )}
-            </div>
+            </motion.div>
           </motion.div>
 
           {/* Right Visual */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
+            initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
+            transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
             className="relative"
           >
-            {visual}
+            <motion.div
+              animate={{ y: [-10, 10, -10] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            >
+              {visual}
+            </motion.div>
           </motion.div>
         </div>
       </div>
