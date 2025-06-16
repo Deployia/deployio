@@ -123,7 +123,6 @@ class DocumentationService {
       throw error;
     }
   }
-
   /**
    * Get documentation by slug and category
    */
@@ -132,7 +131,17 @@ class DocumentationService {
       let doc = await Documentation.findBySlug(slug, category);
 
       if (!doc) {
-        logger.warn(`Documentation not found: ${slug} in category ${category}`);
+        logger.warn(
+          `Documentation not found: ${slug} in category ${category || "any"}`
+        );
+        return null;
+      }
+
+      // If category was provided but document doesn't match, return null
+      if (category && doc.category !== category) {
+        logger.warn(
+          `Document ${slug} found but in wrong category: ${doc.category} (expected: ${category})`
+        );
         return null;
       }
 

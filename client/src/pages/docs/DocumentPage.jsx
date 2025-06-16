@@ -13,10 +13,12 @@ import {
   FaPrint,
   FaExternalLinkAlt,
   FaChevronRight,
+  FaChevronDown,
   FaEdit,
   FaCode,
   FaThumbsUp,
   FaThumbsDown,
+  FaBars,
   // FaHeart,
   // FaRegHeart,
 } from "react-icons/fa";
@@ -27,6 +29,7 @@ import {
   fetchDocumentBySlug,
   markDocumentHelpful,
   markDocumentNotHelpful,
+  clearCurrentDocument,
 } from "@redux/slices/documentationSlice";
 import { LoadingCard } from "@components/LoadingSpinner";
 
@@ -37,6 +40,7 @@ const DocumentPage = () => {
   const { currentDocument, loading, documents } = useOutletContext();
   const isLoadingDocument = loading.document || false;
   const [tableOfContents, setTableOfContents] = useState([]);
+  const [showMobileTOC, setShowMobileTOC] = useState(false);
   // const [activeHeading, setActiveHeading] = useState(""); // Disabled for now
   const [helpfulStatus, setHelpfulStatus] = useState(null); // null, 'helpful', 'not-helpful'
 
@@ -58,13 +62,26 @@ const DocumentPage = () => {
       .replace(/\s+/g, "-") // Replace spaces with hyphens
       .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
   };
-
   useEffect(() => {
-    // Fetch document if we don't have it or it doesn't have content
-    if (slug && (!document || !document.content)) {
+    // Always fetch document when category or slug changes to ensure correct content
+    if (slug && category) {
       dispatch(fetchDocumentBySlug({ slug, category }));
     }
-  }, [slug, category, document, dispatch]);
+  }, [slug, category, dispatch]);
+  // Clear current document when navigating to ensure fresh content
+  useEffect(() => {
+    return () => {
+      // Clear current document when component unmounts or route changes
+      dispatch(clearCurrentDocument());
+    };
+  }, [dispatch]);
+
+  // Close mobile TOC when clicking outside or when document loads
+  useEffect(() => {
+    if (document?.content) {
+      setShowMobileTOC(false);
+    }
+  }, [document?.content]);
   useEffect(() => {
     // Generate table of contents from content
     if (document?.content) {
@@ -190,14 +207,13 @@ const DocumentPage = () => {
       setHelpfulStatus(storedStatus);
     }
   }, [document?.slug]);
-
   const MarkdownComponents = {
     h1: ({ children, ...props }) => {
       const id = generateHeadingId(children);
       return (
         <h1
           id={id}
-          className="text-3xl font-bold text-white mb-6 mt-8 first:mt-0"
+          className="text-2xl lg:text-3xl font-bold text-white mb-4 lg:mb-6 mt-6 lg:mt-8 first:mt-0"
           {...props}
         >
           {children}
@@ -209,7 +225,7 @@ const DocumentPage = () => {
       return (
         <h2
           id={id}
-          className="text-2xl font-semibold text-white mb-4 mt-8"
+          className="text-xl lg:text-2xl font-semibold text-white mb-3 lg:mb-4 mt-6 lg:mt-8"
           {...props}
         >
           {children}
@@ -221,7 +237,7 @@ const DocumentPage = () => {
       return (
         <h3
           id={id}
-          className="text-xl font-semibold text-white mb-3 mt-6"
+          className="text-lg lg:text-xl font-semibold text-white mb-2 lg:mb-3 mt-4 lg:mt-6"
           {...props}
         >
           {children}
@@ -233,7 +249,7 @@ const DocumentPage = () => {
       return (
         <h4
           id={id}
-          className="text-lg font-semibold text-white mb-3 mt-4"
+          className="text-base lg:text-lg font-semibold text-white mb-2 lg:mb-3 mt-3 lg:mt-4"
           {...props}
         >
           {children}
@@ -241,25 +257,30 @@ const DocumentPage = () => {
       );
     },
     p: ({ children, ...props }) => (
-      <p className="text-gray-300 mb-4 leading-relaxed" {...props}>
+      <p
+        className="text-gray-300 mb-3 lg:mb-4 leading-relaxed text-sm lg:text-base"
+        {...props}
+      >
         {children}
       </p>
     ),
     code: ({ inline, className, children, ...props }) => {
       const match = /language-(\w+)/.exec(className || "");
       return !inline && match ? (
-        <SyntaxHighlighter
-          style={atomDark}
-          language={match[1]}
-          PreTag="div"
-          className="rounded-lg my-4"
-          {...props}
-        >
-          {String(children).replace(/\n$/, "")}
-        </SyntaxHighlighter>
+        <div className="overflow-x-auto">
+          <SyntaxHighlighter
+            style={atomDark}
+            language={match[1]}
+            PreTag="div"
+            className="rounded-lg my-3 lg:my-4 text-xs lg:text-sm"
+            {...props}
+          >
+            {String(children).replace(/\n$/, "")}
+          </SyntaxHighlighter>
+        </div>
       ) : (
         <code
-          className="bg-neutral-800 px-2 py-1 rounded text-blue-400 text-sm"
+          className="bg-neutral-800 px-1.5 lg:px-2 py-0.5 lg:py-1 rounded text-blue-400 text-xs lg:text-sm break-all"
           {...props}
         >
           {children}
@@ -268,7 +289,7 @@ const DocumentPage = () => {
     },
     blockquote: ({ children, ...props }) => (
       <blockquote
-        className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-500/10 italic text-gray-300"
+        className="border-l-4 border-blue-500 pl-3 lg:pl-4 py-2 my-3 lg:my-4 bg-blue-500/10 italic text-gray-300 text-sm lg:text-base"
         {...props}
       >
         {children}
@@ -276,7 +297,7 @@ const DocumentPage = () => {
     ),
     ul: ({ children, ...props }) => (
       <ul
-        className="list-disc list-inside text-gray-300 mb-4 space-y-1"
+        className="list-disc list-inside text-gray-300 mb-3 lg:mb-4 space-y-1 text-sm lg:text-base pl-2"
         {...props}
       >
         {children}
@@ -284,7 +305,7 @@ const DocumentPage = () => {
     ),
     ol: ({ children, ...props }) => (
       <ol
-        className="list-decimal list-inside text-gray-300 mb-4 space-y-1"
+        className="list-decimal list-inside text-gray-300 mb-3 lg:mb-4 space-y-1 text-sm lg:text-base pl-2"
         {...props}
       >
         {children}
@@ -308,13 +329,15 @@ const DocumentPage = () => {
       </a>
     ),
     table: ({ children, ...props }) => (
-      <div className="overflow-x-auto my-4">
-        <table
-          className="min-w-full border border-neutral-700 rounded-lg"
-          {...props}
-        >
-          {children}
-        </table>
+      <div className="overflow-x-auto my-3 lg:my-4 -mx-2 lg:mx-0">
+        <div className="inline-block min-w-full px-2 lg:px-0">
+          <table
+            className="min-w-full border border-neutral-700 rounded-lg text-xs lg:text-sm"
+            {...props}
+          >
+            {children}
+          </table>
+        </div>
       </div>
     ),
     thead: ({ children, ...props }) => (
@@ -324,7 +347,7 @@ const DocumentPage = () => {
     ),
     th: ({ children, ...props }) => (
       <th
-        className="px-4 py-3 text-left text-white font-semibold border-b border-neutral-700"
+        className="px-2 lg:px-4 py-2 lg:py-3 text-left text-white font-semibold border-b border-neutral-700 text-xs lg:text-sm"
         {...props}
       >
         {children}
@@ -332,7 +355,7 @@ const DocumentPage = () => {
     ),
     td: ({ children, ...props }) => (
       <td
-        className="px-4 py-3 text-gray-300 border-b border-neutral-700"
+        className="px-2 lg:px-4 py-2 lg:py-3 text-gray-300 border-b border-neutral-700 text-xs lg:text-sm"
         {...props}
       >
         {children}
@@ -379,31 +402,33 @@ const DocumentPage = () => {
         >
           <FaArrowLeft className="group-hover:-translate-x-1 transition-transform" />
           Back to Documentation
-        </button>
+        </button>{" "}
         {/* Document Header */}
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+        <div className="flex flex-col gap-6">
           <div className="flex-1">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
-              <span>Documentation</span>
-              <FaChevronRight className="w-3 h-3" />
-              <span className="capitalize">{document.category}</span>
-              <FaChevronRight className="w-3 h-3" />
-              <span className="text-blue-400">{document.title}</span>
+            <div className="flex items-center gap-2 text-sm text-gray-400 mb-3 overflow-x-auto">
+              <span className="whitespace-nowrap">Documentation</span>
+              <FaChevronRight className="w-3 h-3 flex-shrink-0" />
+              <span className="capitalize whitespace-nowrap">
+                {document.category}
+              </span>
+              <FaChevronRight className="w-3 h-3 flex-shrink-0" />
+              <span className="text-blue-400 truncate">{document.title}</span>
             </div>
 
-            <h1 className="text-3xl font-bold text-white mb-4">
+            <h1 className="text-2xl lg:text-3xl font-bold text-white mb-4">
               {document.title}
             </h1>
 
             {document.description && (
-              <p className="text-lg text-gray-300 mb-4">
+              <p className="text-base lg:text-lg text-gray-300 mb-4">
                 {document.description}
               </p>
             )}
 
             {/* Document Meta */}
-            <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400">
+            <div className="flex flex-wrap items-center gap-4 lg:gap-6 text-sm text-gray-400">
               <div className="flex items-center gap-2">
                 <FaClock className="w-4 h-4" />
                 {formatReadTime(document.content)}
@@ -415,7 +440,8 @@ const DocumentPage = () => {
               {document.updatedAt && (
                 <div className="flex items-center gap-2">
                   <FaCalendar className="w-4 h-4" />
-                  Updated {formatDate(document.updatedAt)}
+                  <span className="hidden sm:inline">Updated </span>
+                  {formatDate(document.updatedAt)}
                 </div>
               )}
               {document.author && (
@@ -425,24 +451,26 @@ const DocumentPage = () => {
                 </div>
               )}
             </div>
-          </div>{" "}
+          </div>
+
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+            {" "}
             {/* Helpful/Not Helpful buttons */}
             <div className="flex items-center gap-2">
               <button
                 onClick={handleHelpful}
                 disabled={helpfulStatus === "helpful"}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+                className={`inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg transition-all text-xs lg:text-sm ${
                   helpfulStatus === "helpful"
                     ? "bg-green-500/20 text-green-400 cursor-not-allowed"
                     : "bg-neutral-800/50 hover:bg-green-500/20 text-gray-300 hover:text-green-400"
                 }`}
               >
-                <FaThumbsUp className="w-4 h-4" />
-                Helpful
+                <FaThumbsUp className="w-3 h-3 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Helpful</span>
                 {document?.helpfulCount > 0 && (
-                  <span className="text-xs bg-neutral-700 px-1.5 py-0.5 rounded-full">
+                  <span className="text-xs bg-neutral-700 px-1 lg:px-1.5 py-0.5 rounded-full">
                     {document.helpfulCount}
                   </span>
                 )}
@@ -450,76 +478,100 @@ const DocumentPage = () => {
               <button
                 onClick={handleNotHelpful}
                 disabled={helpfulStatus === "not-helpful"}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+                className={`inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg transition-all text-xs lg:text-sm ${
                   helpfulStatus === "not-helpful"
                     ? "bg-red-500/20 text-red-400 cursor-not-allowed"
                     : "bg-neutral-800/50 hover:bg-red-500/20 text-gray-300 hover:text-red-400"
                 }`}
               >
-                <FaThumbsDown className="w-4 h-4" />
-                Not helpful
+                <FaThumbsDown className="w-3 h-3 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Not helpful</span>
                 {document?.notHelpfulCount > 0 && (
-                  <span className="text-xs bg-neutral-700 px-1.5 py-0.5 rounded-full">
+                  <span className="text-xs bg-neutral-700 px-1 lg:px-1.5 py-0.5 rounded-full">
                     {document.notHelpfulCount}
                   </span>
                 )}
               </button>
             </div>
-
             <button
               onClick={handleShare}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all"
+              className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-xs lg:text-sm"
             >
-              <FaShare className="w-4 h-4" />
-              Share
+              <FaShare className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline">Share</span>
             </button>
             <button
               onClick={() => window.print()}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all"
+              className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-xs lg:text-sm"
             >
-              <FaPrint className="w-4 h-4" />
-              Print
+              <FaPrint className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline">Print</span>
             </button>
           </div>
-        </div>
+        </div>{" "}
         {/* Tags */}
         {document.tags && document.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4">
             {document.tags.map((tag, index) => (
               <span
                 key={index}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm"
+                className="inline-flex items-center gap-1 px-2 lg:px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs lg:text-sm"
               >
-                <FaTag className="w-3 h-3" />
+                <FaTag className="w-2 h-2 lg:w-3 lg:h-3" />
                 {tag}
               </span>
             ))}
           </div>
         )}
-      </motion.div>
+      </motion.div>{" "}
+      <div className="flex flex-col lg:grid lg:grid-cols-4 gap-6 lg:gap-8">
+        {/* Mobile Table of Contents Toggle */}
+        {tableOfContents.length > 0 && (
+          <div className="lg:hidden">
+            <button
+              onClick={() => setShowMobileTOC(!showMobileTOC)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl text-white mb-4"
+            >
+              <span className="flex items-center gap-2">
+                <FaBars className="w-4 h-4" />
+                Table of Contents
+              </span>
+              <motion.div
+                animate={{ rotate: showMobileTOC ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <FaChevronDown className="w-4 h-4" />
+              </motion.div>
+            </button>
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Table of Contents (if available) */}
+        {/* Table of Contents */}
         {tableOfContents.length > 0 && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="lg:col-span-1"
+            className={`lg:col-span-1 ${
+              showMobileTOC ? "block" : "hidden lg:block"
+            }`}
           >
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 sticky top-24">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-6 lg:sticky lg:top-24">
               <h3 className="text-lg font-semibold text-white mb-4">
                 Table of Contents
-              </h3>{" "}
+              </h3>
               <nav className="space-y-1">
                 {tableOfContents.map((item, index) => (
                   <button
                     key={index}
-                    onClick={() => scrollToHeading(item.id)}
+                    onClick={() => {
+                      scrollToHeading(item.id);
+                      setShowMobileTOC(false); // Close mobile TOC on selection
+                    }}
                     className={`w-full text-left text-sm transition-all duration-200 block relative py-1.5 px-2 rounded-md ${
-                      item.level > 2 ? "ml-4" : ""
+                      item.level > 2 ? "ml-2 lg:ml-4" : ""
                     } ${
-                      item.level > 3 ? "ml-8" : ""
+                      item.level > 3 ? "ml-4 lg:ml-8" : ""
                     } text-gray-400 hover:text-blue-400 hover:bg-neutral-800/30`}
                   >
                     {item.text}
@@ -539,7 +591,7 @@ const DocumentPage = () => {
             tableOfContents.length > 0 ? "lg:col-span-3" : "lg:col-span-4"
           }
         >
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-8">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-8">
             <div className="prose prose-invert max-w-none">
               {document.content ? (
                 <ReactMarkdown components={MarkdownComponents}>
@@ -554,27 +606,26 @@ const DocumentPage = () => {
             </div>
           </div>
         </motion.div>
-      </div>
-
+      </div>{" "}
       {/* Document Footer */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-6"
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col gap-4">
           <div>
             <p className="text-gray-400 text-sm">
               Was this page helpful? Let us know how we can improve.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <a
               href={`https://github.com/deployio/docs/edit/main/${document.category}/${document.slug}.md`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-sm"
+              className="inline-flex items-center gap-2 px-3 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-sm"
             >
               <FaEdit className="w-4 h-4" />
               Edit on GitHub
