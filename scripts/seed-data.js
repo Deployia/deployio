@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const User = require("./models/User");
-const Project = require("./models/Project");
-const Deployment = require("./models/Deployment");
+const User = require("../models/User");
+const Project = require("../models/Project");
+const Deployment = require("../models/Deployment");
 require("dotenv").config();
 
 // Connect to MongoDB
