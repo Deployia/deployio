@@ -1,0 +1,262 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2024-12-19",
+    "description": "Blog metadata for Deployio platform",
+    "structure": "category-based organization with markdown files"
+  },
+  "categories": {
+    "engineering": {
+      "title": "Engineering",
+      "description": "Technical deep-dives, architecture decisions, and engineering best practices",
+      "basePath": "engineering/",
+      "posts": [
+        {
+          "slug": "microservices-architecture-guide",
+          "title": "Building Scalable Microservices: A Complete Guide",
+          "excerpt": "Learn how to design, implement, and deploy microservices architecture for modern applications.",
+          "file": "microservices-architecture-guide.md",
+          "featured": true,
+          "readingTime": 12,
+          "tags": ["microservices", "architecture", "scalability", "devops"],
+          "metaTitle": "Microservices Architecture Guide - Deployio Engineering",
+          "metaDescription": "Complete guide to building scalable microservices architecture with best practices, patterns, and real-world examples.",
+          "socialImage": "/images/blog/microservices-guide-social.png"
+        },
+        {
+          "slug": "container-orchestration-kubernetes",
+          "title": "Container Orchestration with Kubernetes: From Basics to Production",
+          "excerpt": "Master Kubernetes for container orchestration, from fundamental concepts to production-ready deployments.",
+          "file": "container-orchestration-kubernetes.md",
+          "featured": false,
+          "readingTime": 15,
+          "tags": ["kubernetes", "containers", "orchestration", "devops"],
+          "metaTitle": "Kubernetes Container Orchestration Guide",
+          "metaDescription": "Learn Kubernetes container orchestration from basics to production deployment with practical examples."
+        }
+      ]
+    },
+    "product": {
+      "title": "Product",
+      "description": "Product updates, feature announcements, and roadmap insights",
+      "basePath": "product/",
+      "posts": [
+        {
+          "slug": "introducing-deployio-v2",
+          "title": "Introducing Deployio v2.0: Faster, Smarter, More Reliable",
+          "excerpt": "Discover the new features and improvements in Deployio v2.0 that make deployment faster and more reliable.",
+          "file": "introducing-deployio-v2.md",
+          "featured": true,
+          "readingTime": 8,
+          "tags": ["product", "announcement", "features", "release"],
+          "metaTitle": "Deployio v2.0 Launch - New Features and Improvements",
+          "metaDescription": "Explore Deployio v2.0's new features including enhanced performance, improved reliability, and advanced deployment capabilities."
+        },
+        {
+          "slug": "ai-powered-deployment-optimization",
+          "title": "AI-Powered Deployment Optimization: The Future is Here",
+          "excerpt": "How our new AI features automatically optimize your deployments for better performance and cost efficiency.",
+          "file": "ai-powered-deployment-optimization.md",
+          "featured": true,
+          "readingTime": 10,
+          "tags": ["ai", "optimization", "automation", "performance"],
+          "metaTitle": "AI-Powered Deployment Optimization - Deployio",
+          "metaDescription": "Discover how Deployio's AI features automatically optimize deployments for better performance and reduced costs."
+        }
+      ]
+    },
+    "tutorials": {
+      "title": "Tutorials",
+      "description": "Step-by-step tutorials and how-to guides for deployment best practices",
+      "basePath": "tutorials/",
+      "posts": [
+        {
+          "slug": "zero-downtime-deployment-guide",
+          "title": "Zero-Downtime Deployments: Complete Tutorial",
+          "excerpt": "Learn how to implement zero-downtime deployments with blue-green and rolling deployment strategies.",
+          "file": "zero-downtime-deployment-guide.md",
+          "featured": false,
+          "readingTime": 18,
+          "tags": ["deployment", "tutorial", "zero-downtime", "strategies"],
+          "metaTitle": "Zero-Downtime Deployment Tutorial - Complete Guide",
+          "metaDescription": "Step-by-step tutorial on implementing zero-downtime deployments using blue-green and rolling strategies."
+        },
+        {
+          "slug": "docker-security-best-practices",
+          "title": "Docker Security Best Practices: Securing Your Containers",
+          "excerpt": "Essential security practices for Docker containers, from image scanning to runtime protection.",
+          "file": "docker-security-best-practices.md",
+          "featured": false,
+          "readingTime": 14,
+          "tags": ["docker", "security", "containers", "best-practices"],
+          "metaTitle": "Docker Security Best Practices Guide",
+          "metaDescription": "Learn essential Docker security practices for container hardening, image scanning, and runtime protection."
+        }
+      ]
+    },
+    "company": {
+      "title": "Company",
+      "description": "Company news, culture, team updates, and behind-the-scenes stories",
+      "basePath": "company/",
+      "posts": [
+        {
+          "slug": "our-journey-to-100k-deployments",
+          "title": "Our Journey to 100,000 Deployments: Lessons Learned",
+          "excerpt": "Reflecting on our growth journey and the key lessons learned while scaling to 100,000 successful deployments.",
+          "file": "our-journey-to-100k-deployments.md",
+          "featured": false,
+          "readingTime": 7,
+          "tags": ["company", "milestone", "growth", "lessons"],
+          "metaTitle": "Deployio's Journey to 100K Deployments - Lessons Learned",
+          "metaDescription": "Discover the key lessons learned during Deployio's growth journey to 100,000 successful deployments."
+        },
+        {
+          "slug": "building-remote-first-culture",
+          "title": "Building a Remote-First Engineering Culture",
+          "excerpt": "How we built a thriving remote-first engineering culture that scales across time zones and continents.",
+          "file": "building-remote-first-culture.md",
+          "featured": false,
+          "readingTime": 9,
+          "tags": ["culture", "remote-work", "engineering", "team"],
+          "metaTitle": "Building Remote-First Engineering Culture - Deployio",
+          "metaDescription": "Learn how Deployio built a successful remote-first engineering culture that scales globally."
+        }
+      ]
+    },
+    "case-studies": {
+      "title": "Case Studies",
+      "description": "Real-world customer success stories and implementation case studies",
+      "basePath": "case-studies/",
+      "posts": [
+        {
+          "slug": "fintech-startup-scaling-story",
+          "title": "How a Fintech Startup Scaled from 10 to 10M Users with Deployio",
+          "excerpt": "A detailed case study of how a fintech startup used Deployio to scale their infrastructure seamlessly.",
+          "file": "fintech-startup-scaling-story.md",
+          "featured": true,
+          "readingTime": 11,
+          "tags": ["case-study", "fintech", "scaling", "success-story"],
+          "metaTitle": "Fintech Scaling Success Story - Deployio Case Study",
+          "metaDescription": "Learn how a fintech startup scaled from 10 to 10M users using Deployio's deployment platform."
+        }
+      ]
+    },
+    "devops": {
+      "title": "DevOps",
+      "description": "DevOps practices, CI/CD pipelines, and infrastructure automation",
+      "basePath": "devops/",
+      "posts": [
+        {
+          "slug": "cicd-pipeline-optimization",
+          "title": "CI/CD Pipeline Optimization: Speed Up Your Deployments",
+          "excerpt": "Practical strategies to optimize your CI/CD pipelines for faster, more reliable deployments.",
+          "file": "cicd-pipeline-optimization.md",
+          "featured": false,
+          "readingTime": 13,
+          "tags": ["cicd", "optimization", "devops", "automation"],
+          "metaTitle": "CI/CD Pipeline Optimization Guide - Deployio DevOps",
+          "metaDescription": "Learn proven strategies to optimize CI/CD pipelines for faster, more reliable software deployments."
+        },
+        {
+          "slug": "infrastructure-as-code-terraform",
+          "title": "Infrastructure as Code with Terraform: Complete Guide",
+          "excerpt": "Master Infrastructure as Code using Terraform for scalable, version-controlled infrastructure management.",
+          "file": "infrastructure-as-code-terraform.md",
+          "featured": false,
+          "readingTime": 16,
+          "tags": ["terraform", "iac", "infrastructure", "automation"],
+          "metaTitle": "Infrastructure as Code with Terraform - Complete Guide",
+          "metaDescription": "Complete guide to Infrastructure as Code using Terraform for scalable infrastructure management."
+        }
+      ]
+    },
+    "security": {
+      "title": "Security",
+      "description": "Security best practices, compliance, and threat protection strategies",
+      "basePath": "security/",
+      "posts": [
+        {
+          "slug": "deployment-security-checklist",
+          "title": "The Ultimate Deployment Security Checklist",
+          "excerpt": "A comprehensive security checklist to ensure your deployments are secure and compliant.",
+          "file": "deployment-security-checklist.md",
+          "featured": false,
+          "readingTime": 10,
+          "tags": ["security", "checklist", "compliance", "best-practices"],
+          "metaTitle": "Deployment Security Checklist - Ultimate Guide",
+          "metaDescription": "Comprehensive deployment security checklist covering best practices, compliance, and threat protection."
+        }
+      ]
+    },
+    "announcements": {
+      "title": "Announcements",
+      "description": "Platform updates, new features, and important announcements",
+      "basePath": "announcements/",
+      "posts": [
+        {
+          "slug": "series-a-funding-announcement",
+          "title": "Deployio Raises $25M Series A to Democratize Cloud Deployments",
+          "excerpt": "We're excited to announce our Series A funding round and what it means for the future of deployment automation.",
+          "file": "series-a-funding-announcement.md",
+          "featured": true,
+          "readingTime": 6,
+          "tags": ["announcement", "funding", "growth", "company"],
+          "metaTitle": "Deployio Raises $25M Series A Funding",
+          "metaDescription": "Deployio announces $25M Series A funding to democratize cloud deployments and expand platform capabilities."
+        }
+      ]
+    }
+  },
+  "storage": {
+    "local": {
+      "basePath": "blogs/",
+      "enabled": true
+    },
+    "cdn": {
+      "baseUrl": "https://cdn.deployio.dev/blogs/",
+      "enabled": false
+    }
+  },
+  "settings": {
+    "defaultAuthor": "Deployio Team",
+    "fallbackToLocal": true,
+    "postsPerPage": 10,
+    "featuredLimit": 6,
+    "searchEnabled": true,
+    "commentsEnabled": true,
+    "socialSharing": true,
+    "newsletter": {
+      "enabled": true,
+      "signupCta": "Subscribe to get the latest posts delivered right to your inbox."
+    },
+    "seo": {
+      "defaultMetaImage": "/images/blog/default-social.png",
+      "siteName": "Deployio Blog",
+      "twitterHandle": "@deployio"
+    }
+  },
+  "todo": {
+    "enhancement_notes": [
+      "TODO: Add author profiles and bio pages",
+      "TODO: Implement blog series/collections feature",
+      "TODO: Add estimated reading time calculation",
+      "TODO: Implement blog comments system",
+      "TODO: Add newsletter integration",
+      "TODO: Implement social sharing buttons",
+      "TODO: Add related posts recommendation engine",
+      "TODO: Implement blog analytics and metrics",
+      "TODO: Add blog post scheduling feature",
+      "TODO: Implement content tagging and taxonomy",
+      "TODO: Add blog RSS/Atom feeds",
+      "TODO: Implement blog search with faceted filtering"
+    ],
+    "content_creation": [
+      "Create comprehensive markdown content for all referenced blog posts",
+      "Add high-quality images and diagrams for technical posts",
+      "Implement consistent formatting and style guidelines",
+      "Add code examples and interactive demos where applicable",
+      "Create social sharing images for each post",
+      "Implement proper internal linking between related posts"
+    ]
+  }
+}
