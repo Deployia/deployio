@@ -341,15 +341,23 @@ const resetPassword = async (token, newPassword) => {
  */
 const logoutUser = async (userId, refreshToken) => {
   try {
-    const redisClient = getRedisClient();
-
-    // Remove refresh token from database
-    const user = await User.findById(userId);
-    if (user) {
-      user.refreshTokens = user.refreshTokens.filter(
-        (rt) => rt.token !== refreshToken
-      );
-      await user.save();
+    const redisClient = getRedisClient(); // Remove refresh token from database using atomic update
+    if (refreshToken) {
+      try {
+        await User.findByIdAndUpdate(
+          userId,
+          { $pull: { refreshTokens: { token: refreshToken } } },
+          { new: true }
+        );
+      } catch (error) {
+        logger.warn(
+          "Failed to remove refresh token from database during logout",
+          {
+            error: error.message,
+            userId,
+          }
+        );
+      }
     } // Remove refresh token from Redis (only if Redis is available)
     if (redisClient && redisClient.isReady) {
       try {
@@ -444,27 +452,77 @@ async function storeRefreshToken(userId, token) {
     }
 
     const expiresAt = new Date(decoded.exp * 1000);
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new Error("User not found for storing refresh token");
-    }
-
-    // Clean up expired tokens before adding new one
     const now = new Date();
-    user.refreshTokens = user.refreshTokens.filter(
-      (rt) => rt.expiresAt && rt.expiresAt > now
-    );
-
-    // Limit the number of refresh tokens per user (prevent token accumulation)
     const maxTokens = 5;
-    if (user.refreshTokens.length >= maxTokens) {
-      // Remove oldest token
-      user.refreshTokens.sort((a, b) => a.createdAt - b.createdAt);
-      user.refreshTokens = user.refreshTokens.slice(1);
+
+    // Use atomic update to prevent version conflicts
+    try {
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: userId },
+        [
+          {
+            $set: {
+              refreshTokens: {
+                $let: {
+                  vars: {
+                    // Remove expired tokens
+                    filteredTokens: {
+                      $filter: {
+                        input: "$refreshTokens",
+                        cond: { $gt: ["$$this.expiresAt", now] },
+                      },
+                    },
+                  },
+                  in: {
+                    $concatArrays: [
+                      // Keep only the most recent tokens if over limit
+                      {
+                        $cond: {
+                          if: {
+                            $gte: [{ $size: "$$filteredTokens" }, maxTokens],
+                          },
+                          then: {
+                            $slice: [
+                              {
+                                $sortArray: {
+                                  input: "$$filteredTokens",
+                                  sortBy: { createdAt: -1 },
+                                },
+                              },
+                              maxTokens - 1,
+                            ],
+                          },
+                          else: "$$filteredTokens",
+                        },
+                      },
+                      // Add the new token
+                      [
+                        {
+                          token: token,
+                          expiresAt: expiresAt,
+                          createdAt: "$$NOW",
+                        },
+                      ],
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ],
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        throw new Error("User not found for storing refresh token");
+      }
+    } catch (dbError) {
+      logger.error("Failed to store refresh token in database", {
+        error: dbError.message,
+        userId,
+      });
+      throw dbError;
     }
-    user.refreshTokens.push({ token, expiresAt });
-    await user.save();
 
     // Store token in Redis for fast validation with TTL (only if Redis is available)
     if (redisClient && redisClient.isReady) {
