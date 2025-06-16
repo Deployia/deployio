@@ -122,8 +122,7 @@ const DocsOverview = () => {
             </div>
           ) : (
             <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-lg md:rounded-xl p-3 md:p-4 lg:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-3 lg:gap-4">
-                {" "}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
                 {currentSectionDocs.map((doc, _index) => (
                   <motion.div
                     key={doc._id}
@@ -133,14 +132,14 @@ const DocsOverview = () => {
                     onClick={() => handleDocumentClick(doc)}
                     className="p-3 md:p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 hover:bg-neutral-800/70 cursor-pointer transition-all group touch-manipulation"
                   >
-                    <h4 className="font-medium text-white mb-2 group-hover:text-blue-400 transition-colors text-sm md:text-base">
+                    <h4 className="font-medium text-white mb-2 group-hover:text-blue-400 transition-colors text-sm md:text-base line-clamp-2">
                       {doc.title}
                     </h4>
-                    <p className="text-xs md:text-sm text-gray-400 mb-2 line-clamp-2">
+                    <p className="text-xs md:text-sm text-gray-400 mb-3 line-clamp-2">
                       {doc.description || doc.excerpt}
                     </p>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 md:gap-3 lg:gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-2 md:gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
                           <FaClock className="w-3 h-3 flex-shrink-0" />
                           <span className="hidden sm:inline">
@@ -152,7 +151,12 @@ const DocsOverview = () => {
                         </span>
                         <span className="flex items-center gap-1">
                           <FaEye className="w-3 h-3 flex-shrink-0" />
-                          {formatViews(doc.views)}
+                          <span className="hidden sm:inline">
+                            {formatViews(doc.views)} views
+                          </span>
+                          <span className="sm:hidden">
+                            {formatViews(doc.views)}
+                          </span>
                         </span>
                       </div>
                       <FaChevronRight className="w-3 h-3 text-gray-500 group-hover:text-blue-400 transition-colors flex-shrink-0" />
@@ -193,27 +197,26 @@ const DocsOverview = () => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-                {" "}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
                 {currentSectionDocs.map((doc, _index) => (
                   <motion.div
                     key={doc._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     onClick={() => handleDocumentClick(doc)}
-                    className="p-3 md:p-4 lg:p-6 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-blue-500/50 hover:bg-neutral-800/70 cursor-pointer transition-all group touch-manipulation"
+                    className="p-4 lg:p-5 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-blue-500/50 hover:bg-neutral-800/70 cursor-pointer transition-all group touch-manipulation h-full flex flex-col"
                   >
-                    <div className="flex items-start justify-between mb-2 md:mb-3">
-                      <h3 className="text-base md:text-lg font-semibold text-white group-hover:text-blue-400 transition-colors flex-1 min-w-0 pr-2">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-base md:text-lg font-semibold text-white group-hover:text-blue-400 transition-colors flex-1 min-w-0 pr-2 line-clamp-2">
                         {doc.title}
                       </h3>
                       <FaChevronRight className="text-gray-400 group-hover:text-blue-400 flex-shrink-0 mt-1 transition-colors" />
                     </div>
-                    <p className="text-xs md:text-sm text-gray-400 mb-2 md:mb-3 line-clamp-3">
+                    <p className="text-xs md:text-sm text-gray-400 mb-4 line-clamp-3 flex-grow">
                       {doc.description || doc.excerpt}
                     </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 md:gap-3 lg:gap-4 text-xs md:text-sm text-gray-500">
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
                           <FaClock className="w-3 h-3 flex-shrink-0" />
                           <span className="hidden sm:inline">
@@ -237,10 +240,10 @@ const DocsOverview = () => {
                         Read more
                         <FaArrowRight className="w-3 h-3" />
                       </span>
-                    </div>{" "}
+                    </div>
                     {/* Tags */}
                     {doc.tags && doc.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 md:gap-2 mt-2 md:mt-3">
+                      <div className="flex flex-wrap gap-1 md:gap-2 mt-3 md:mt-4">
                         {doc.tags.slice(0, 3).map((tag, tagIndex) => (
                           <span
                             key={tagIndex}
@@ -250,7 +253,7 @@ const DocsOverview = () => {
                           </span>
                         ))}
                       </div>
-                    )}
+                    )}{" "}
                   </motion.div>
                 ))}
               </div>
