@@ -25,7 +25,7 @@ jobs:
         run: echo "${{ secrets.ENV_CLIENT_PROD }}" > client/.env.production
 
       - name: Write backend .env.production
-        run: echo "${{ secrets.ENV_BACKEND_PROD }}" > backend/.env.production
+        run: echo "${{ secrets.ENV_BACKEND_PROD }}" > .env.production
 
       - name: Write ai_service .env.production
         run: echo "${{ secrets.ENV_FASTAPI_PROD }}" > ai_service/.env.production
