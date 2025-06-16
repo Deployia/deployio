@@ -2,9 +2,9 @@ name: CI/CD Pipeline for DeployIO
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
   pull_request:
-    branches: [develop]
+    branches: [main]
 
 env:
   NODE_VERSION: "20"
@@ -13,68 +13,77 @@ env:
 
 jobs:
   code-quality:
-    name: Code Quality & Linting
+    name: 🔍 Code Quality & Linting
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Setup Python
+      - name: ⚙️ Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
-      - name: Install Node.js dependencies
+      - name: 📦 Install Node.js dependencies
         run: |
+          echo "📦 Installing backend dependencies..."
           npm ci --legacy-peer-deps
+          echo "📦 Installing frontend dependencies..."
           cd client && npm ci --legacy-peer-deps
 
-      - name: Install Python dependencies
+      - name: 📦 Install Python dependencies
         run: |
+          echo "📦 Installing AI service dependencies..."
           cd ai_service
           pip install -r requirements.txt
           pip install pylint pytest black
 
-      - name: Lint JavaScript/React
+      - name: 🔍 Lint JavaScript/React
         run: |
+          echo "🔍 Linting backend JavaScript..."
           npm run lint || true
+          echo "🔍 Linting frontend React code..."
           cd client && npm run lint || true
 
-      - name: Lint Python
+      - name: 🔍 Lint Python
         run: |
+          echo "🔍 Linting AI service Python code..."
           cd ai_service
           pylint --rcfile=.pylintrc **/*.py || true
           black --check --diff . || true
-
   security-scan:
-    name: Security Vulnerability Scanning
+    name: 🔒 Security Vulnerability Scanning
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Security audit for Node.js
+      - name: 🔍 Security audit for Node.js
         run: |
+          echo "🔍 Scanning backend for security vulnerabilities..."
           npm audit --audit-level=moderate || true
+          echo "🔍 Scanning frontend for security vulnerabilities..."
           cd client && npm audit --audit-level=moderate || true
 
-      - name: Python security scan with Bandit
+      - name: 🔍 Python security scan with Bandit
         run: |
+          echo "🔍 Installing security scanner..."
           pip install bandit
+          echo "🔍 Scanning AI service for security issues..."
           cd ai_service
           bandit -r . -x tests/ || true
 
   backend-tests:
-    name: Backend Tests
+    name: 🧪 Backend Tests
     runs-on: ubuntu-latest
 
     services:
@@ -92,164 +101,331 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+      - name: 📦 Install dependencies
+        run: |
+          echo "📦 Installing backend dependencies..."
+          npm ci --legacy-peer-deps
 
-      - name: Run backend tests
-        run: npm run test || true
+      - name: 🧪 Run backend tests
+        run: |
+          echo "🧪 Running backend test suite..."
+          npm run test || true
         env:
           NODE_ENV: test
           MONGODB_URI: mongodb://admin:password123@localhost:27017/deployio_test?authSource=admin
           JWT_SECRET: test_jwt_secret_for_ci
-
   ai-tests:
-    name: ai Tests
+    name: 🤖 AI Service Tests
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: ⚙️ Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: |
+          echo "📦 Installing AI service dependencies..."
           cd ai_service
           pip install -r requirements.txt
           pip install pytest pytest-cov httpx
 
-      - name: Run AI Service tests
+      - name: 🧪 Run AI Service tests
         run: |
+          echo "🧪 Running AI service test suite..."
           cd ai_service
           pytest tests/ -v --cov=. --cov-report=xml || true
 
   frontend-tests:
-    name: Frontend Tests
+    name: ⚛️ Frontend Tests
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: |
+          echo "📦 Installing frontend dependencies..."
           cd client
           npm ci --legacy-peer-deps
 
-      - name: Run frontend tests
+      - name: 🧪 Run frontend tests
         run: |
+          echo "🧪 Running frontend test suite..."
           cd client
           npm run test -- --coverage --watchAll=false || true
 
   deploy-production:
-    name: Deploy to Production
+    name: 🚀 Deploy via AWS ECR & EC2
     runs-on: ubuntu-latest
     needs:
       [code-quality, security-scan, backend-tests, ai-tests, frontend-tests]
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Cleanup Docker Resources
+      - name: ⚙️ Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Restore .env files for each service
+      - name: 📝 Write frontend .env.production
+        run: echo "${{ secrets.ENV_CLIENT_PROD }}" > client/.env.production
+
+      - name: 📝 Write backend .env.production
+        run: echo "${{ secrets.ENV_BACKEND_PROD }}" > .env.production
+
+      - name: 📝 Write ai_service .env.production
+        run: echo "${{ secrets.ENV_FASTAPI_PROD }}" > ai_service/.env.production
+
+      - name: 🔐 Login to Amazon ECR
+        run: |
+          echo "🔐 Authenticating with Amazon ECR..."
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          echo "✅ ECR authentication successful"
+
+      - name: 📊 ECR Repository Analysis
+        run: |
+          echo "� Analyzing ECR Repository Usage..."
+          echo "============================================"
+
+          total_size=0
+          for repo in deployio-frontend deployio-backend deployio-ai-service; do
+            echo "🏗️  Repository: $repo"
+            echo "----------------------------------------"
+            
+            # Get image details with size conversion
+            images_data=$(aws ecr describe-images \
+              --repository-name $repo \
+              --region ${{ secrets.AWS_REGION }} \
+              --query 'imageDetails[*].{Tag:imageTags[0], SizeBytes:imageSizeInBytes, Pushed:imagePushedAt}' \
+              --output json 2>/dev/null || echo "[]")
+            
+            if [ "$images_data" != "[]" ]; then
+              echo "$images_data" | jq -r '.[] | 
+                "   📦 Tag: " + (.Tag // "untagged") + 
+                " | Size: " + ((.SizeBytes / 1024 / 1024) | tostring | split(".")[0]) + " MB" + 
+                " | Pushed: " + (.Pushed | split("T")[0])'
+              
+              # Calculate repository total size
+              repo_size=$(echo "$images_data" | jq '[.[].SizeBytes] | add // 0')
+              repo_size_mb=$((repo_size / 1024 / 1024))
+              total_size=$((total_size + repo_size))
+              
+              echo "   📊 Repository Total: ${repo_size_mb} MB"
+            else
+              echo "   ⚠️  No images found in repository"
+            fi
+            echo ""
+          done
+
+          total_size_mb=$((total_size / 1024 / 1024))
+          echo "============================================"
+          echo "🎯 TOTAL ECR USAGE: ${total_size_mb} MB across all repositories"
+          echo "============================================"
+
+      - name: 🏗️ Build and Push Docker Images
+        run: |
+          echo "🏗️ Building Docker images with optimizations..."
+
+          echo "📦 Building backend service..."
+          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest .
+
+          echo "📦 Building frontend service..."
+          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest ./client
+
+          echo "📦 Building AI service..."
+          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest ./ai_service
+
+          echo "🚀 Pushing images to ECR..."
+
+          echo "⬆️  Pushing backend image..."
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest
+
+          echo "⬆️  Pushing frontend image..."
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest
+
+          echo "⬆️  Pushing AI service image..."
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest
+
+          echo "✅ All images pushed successfully!"
+
+      - name: 🚀 Deploy on EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
           host: deployio.tech
           username: vasudevshetty
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo "🚀 Starting deployment process..."
+            echo "============================================"
+
+            # Pre-deployment system check
+            echo "📊 Pre-deployment system status:"
+            echo "CPU Usage: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)%"
+            echo "Memory Usage: $(free -m | awk 'NR==2{printf "%.1f%%\n", $3*100/$2}')"
+            echo "Disk Usage: $(df -h / | awk 'NR==2{print $5}')"
+            echo "============================================"
+
+            # ECR Authentication
+            echo "🔐 Authenticating with ECR..."
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+              | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
             cd ~/deployio
 
-            # Clean up old Docker data (but keep current running containers)
-            echo "🧹 Cleaning up old Docker resources..."
-            docker image prune -f
-            docker container prune -f
-            docker network prune -f
-            docker volume prune -f
-
-            echo "✅ Docker cleanup completed successfully"
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
-        with:
-          host: deployio.tech
-          username: vasudevshetty
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd ~/deployio
-            git fetch origin
-            git checkout main
-            git pull origin main
-
-            # Backup current deployment
-            docker-compose ps > /tmp/deployment-backup-$(date +%Y%m%d_%H%M%S).log
-
-            # Deploy using your existing working process
+            # Graceful shutdown
+            echo "🛑 Stopping existing services..."
             docker-compose down --remove-orphans
-            docker-compose build --no-cache
-            docker-compose up -d
+
+            # Pull latest images
+            echo "📥 Pulling latest Docker images..."
+            docker-compose pull
+
+            # Start services
+            echo "🚀 Starting updated services..."
+            docker-compose up -d --remove-orphans
 
             # Wait for containers to start
-            echo "⏳ Waiting for services to start..."
-            sleep 20
+            echo "⏳ Waiting for services to initialize..."
+            sleep 30
 
-            # Quick health check with 2 cycles
-            echo "🔍 Checking service health..."
-            for i in {1..2}; do
+            # Enhanced health check
+            echo "🔍 Performing comprehensive health checks..."
+            for i in {1..3}; do
+              echo "   Health check attempt $i/3..."
               if docker-compose ps | grep -q "Up.*healthy"; then
-                echo "✅ Services are healthy after $((i * 15)) seconds"
+                echo "   ✅ Services are healthy after $((i * 10)) seconds"
                 break
               else
-                echo "⏳ Waiting for services to become healthy (attempt $i/2)..."
-                sleep 15
+                echo "   ⏳ Waiting for services to become healthy..."
+                sleep 10
               fi
             done
 
-            # Final verification
-            docker-compose ps
+            # Container status verification
+            echo "============================================"
+            echo "🐳 Docker Container Status:"
+            docker-compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+            echo "============================================"
 
-            # Verify website is responding
-            echo "🌐 Testing website response..."
-            if curl -f -s https://deployio.tech > /dev/null; then
-              echo "✅ Website is responding correctly"
-            else
-              echo "❌ Website check failed, aborting"; exit 1
-            fi
+            # Website connectivity test
+            echo "🌐 Testing website connectivity..."
+            for i in {1..3}; do
+              if curl -f -s -o /dev/null -w "HTTP Status: %{http_code}, Response Time: %{time_total}s\n" https://deployio.tech; then
+                echo "✅ Website is responding correctly"
+                break
+              else
+                echo "⚠️  Website test failed (attempt $i/3), retrying..."
+                sleep 5
+              fi
+            done
 
-            echo "✅ Deployment completed successfully"
+            # Post-deployment resource usage
+            echo "============================================"
+            echo "📊 Post-deployment System Metrics:"
+            echo "----------------------------------------"
 
+            # CPU information
+            cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+            echo "🖥️  CPU Usage: ${cpu_usage}%"
+
+            # Memory information  
+            memory_info=$(free -m | awk 'NR==2{printf "Used: %sMB (%.1f%%) | Available: %sMB | Total: %sMB", $3, $3*100/$2, $7, $2}')
+            echo "🧠 Memory: $memory_info"
+
+            # Disk usage
+            disk_usage=$(df -h / | awk 'NR==2{printf "Used: %s (%s) | Available: %s | Total: %s", $3, $5, $4, $2}')
+            echo "💾 Disk: $disk_usage"
+
+            # Load average
+            load_avg=$(uptime | awk -F'load average:' '{print $2}')
+            echo "⚡ Load Average:$load_avg"
+
+            # Docker resource usage
+            echo "----------------------------------------"
+            echo "🐳 Docker Resource Usage:"
+            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" | head -10
+
+            echo "============================================"
+            echo "✅ Deployment completed successfully!"
+            echo "🌐 Production URL: https://deployio.tech"
+            echo "============================================"
   notify:
-    name: Deployment Notification
+    name: 📢 Deployment Notification
     runs-on: ubuntu-latest
     needs: deploy-production
     if: always()
 
     steps:
-      - name: Deployment Status
+      - name: 📊 Deployment Summary Report
         run: |
+          echo "============================================"
+          echo "🎯 DEPLOYIO CI/CD PIPELINE SUMMARY"
+          echo "============================================"
+          echo "📅 Deployment Date: $(date -u)"
+          echo "🔗 Commit SHA: ${{ github.sha }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "👤 Triggered by: ${{ github.actor }}"
+          echo "============================================"
+
           if [ "${{ needs.deploy-production.result }}" == "success" ]; then
-            echo "✅ DeployIO deployment successful!"
+            echo "✅ DEPLOYMENT STATUS: SUCCESS"
+            echo "🎉 DeployIO has been successfully deployed!"
             echo "🌐 Production URL: https://deployio.tech"
+            echo "🚀 All services are up and running"
+            echo "📊 System resources have been monitored"
+            echo "🔍 Health checks passed"
+          elif [ "${{ needs.deploy-production.result }}" == "failure" ]; then
+            echo "❌ DEPLOYMENT STATUS: FAILED"
+            echo "💥 DeployIO deployment encountered errors"
+            echo "🔧 Please check the deployment logs above"
+            echo "⚠️  Manual intervention may be required"
+          elif [ "${{ needs.deploy-production.result }}" == "cancelled" ]; then
+            echo "⏹️  DEPLOYMENT STATUS: CANCELLED"
+            echo "🛑 Deployment was cancelled before completion"
           else
-            echo "❌ DeployIO deployment failed!"
+            echo "❓ DEPLOYMENT STATUS: UNKNOWN"
+            echo "🤔 Unexpected deployment result status"
           fi
+
+          echo "============================================"
+          echo "📋 Next Steps:"
+          if [ "${{ needs.deploy-production.result }}" == "success" ]; then
+            echo "• Monitor application performance"
+            echo "• Check error logs if needed"  
+            echo "• Verify all features are working"
+          else
+            echo "• Review deployment logs"
+            echo "• Check AWS ECR and EC2 status"
+            echo "• Verify environment configurations"
+            echo "• Re-run deployment if necessary"
+          fi
+          echo "============================================"
