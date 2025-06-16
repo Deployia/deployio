@@ -1,154 +1,388 @@
 {
-  "documentation": {
+  "lastUpdated": "2025-06-16T00:00:00Z",
+  "version": "1.0.0",
+  "todo": {
+    "enhanceDocumentation": [
+      "Expand guides/docker-guide.md with comprehensive Docker best practices",
+      "Enhance guides/ci-cd-workflows.md with more CI/CD platform examples",
+      "Improve guides/monitoring-logging.md with detailed monitoring setup",
+      "Add more content to guides/scaling-strategies.md with real-world examples",
+      "Expand guides/troubleshooting.md with common issues and solutions",
+      "Enhance security/encryption.md with implementation examples",
+      "Improve security/access-control.md with detailed RBAC setup",
+      "Add practical examples to security/compliance.md",
+      "Expand security/vulnerability-management.md with scanning procedures",
+      "Enhance security/incident-response.md with playbook templates"
+    ],
+    "priority": "medium",
+    "assignedTo": "documentation-team",
+    "dueDate": "2025-07-01"
+  },
+  "categories": {
     "getting-started": {
-      "quick-start": {
-        "title": "Quick Start Guide",
-        "description": "Get up and running with Deployio in minutes. Learn how to deploy your first application using our AI-powered platform.",
-        "author": "Deployio Team",
-        "order": 1,
-        "isFeatured": true,
-        "tags": ["getting-started", "quick-start", "deployment", "beginner"],
-        "difficulty": "beginner",
-        "metaDescription": "Get started with Deployio in minutes. Learn how to deploy your first application using our AI-powered deployment platform.",
-        "keywords": [
-          "deployio",
-          "quick start",
-          "deployment",
-          "getting started",
-          "tutorial"
-        ]
-      },
-      "installation": {
-        "title": "Installation Guide",
-        "description": "Complete installation guide for Deployio CLI, SDK, and browser extensions.",
-        "author": "Deployio Team",
-        "order": 2,
-        "tags": ["getting-started", "installation", "cli", "setup"],
-        "difficulty": "beginner",
-        "metaDescription": "Complete installation guide for Deployio CLI and tools. Get set up quickly with our step-by-step instructions.",
-        "keywords": ["deployio", "installation", "cli", "setup", "npm"]
-      }
-    },
-    "guides": {
-      "deployment": {
-        "title": "Deployment Guide",
-        "description": "Learn how to deploy your applications with Deployio's AI-powered deployment platform.",
-        "author": "Deployio Team",
-        "order": 1,
-        "tags": ["deployment", "guide", "platform", "tutorial"],
-        "difficulty": "intermediate",
-        "metaDescription": "Learn how to deploy applications with Deployio's AI-powered platform. Support for Docker, AWS, Google Cloud, and more.",
-        "keywords": ["deployment", "docker", "aws", "cloud", "microservices"]
-      }
-    },
-    "security": {
-      "best-practices": {
-        "title": "Security Best Practices",
-        "description": "Deployio takes security seriously. Follow these best practices to keep your deployments secure.",
-        "author": "Deployio Security Team",
-        "order": 1,
-        "isFeatured": true,
-        "tags": ["security", "best-practices", "compliance", "authentication"],
-        "difficulty": "intermediate",
-        "metaDescription": "Essential security best practices for Deployio deployments. Learn about access control, encryption, and compliance.",
-        "keywords": [
-          "security",
-          "authentication",
-          "encryption",
-          "compliance",
-          "best practices"
-        ]
-      }
+      "title": "Getting Started",
+      "description": "Quick start guides and installation instructions",
+      "icon": "📚",
+      "order": 1,
+      "documents": [
+        {
+          "slug": "quick-start",
+          "title": "Quick Start Guide",
+          "description": "Get up and running with Deployio in minutes",
+          "tags": ["beginner", "setup", "tutorial"],
+          "readingTime": 5,
+          "difficulty": "beginner",
+          "featured": true,
+          "popular": true,
+          "order": 1
+        },
+        {
+          "slug": "installation",
+          "title": "Installation Guide",
+          "description": "Complete installation instructions for all platforms",
+          "tags": ["installation", "setup", "cli"],
+          "readingTime": 10,
+          "difficulty": "beginner",
+          "featured": true,
+          "order": 2
+        },
+        {
+          "slug": "first-deployment",
+          "title": "Your First Deployment",
+          "description": "Deploy your first application step by step",
+          "tags": ["deployment", "tutorial", "beginner"],
+          "readingTime": 15,
+          "difficulty": "beginner",
+          "featured": true,
+          "popular": true,
+          "order": 3
+        },
+        {
+          "slug": "project-setup",
+          "title": "Project Setup",
+          "description": "How to structure and configure your projects",
+          "tags": ["setup", "configuration", "projects"],
+          "readingTime": 12,
+          "difficulty": "beginner",
+          "order": 4
+        },
+        {
+          "slug": "environment-variables",
+          "title": "Environment Variables",
+          "description": "Managing environment variables and secrets",
+          "tags": ["configuration", "security", "environment"],
+          "readingTime": 8,
+          "difficulty": "beginner",
+          "order": 5
+        }
+      ]
     },
     "products": {
-      "platform": {
-        "title": "Deployio Platform Overview",
-        "description": "Deployio is a comprehensive AI-powered deployment platform that simplifies the process of getting your applications from code to production.",
-        "author": "Deployio Team",
-        "order": 1,
-        "isFeatured": true,
-        "tags": ["platform", "overview", "features", "ai"],
-        "difficulty": "beginner",
-        "metaDescription": "Comprehensive overview of the Deployio platform. AI-powered deployment, multi-cloud support, and enterprise features.",
-        "keywords": [
-          "deployio",
-          "platform",
-          "ai",
-          "deployment",
-          "cloud",
-          "devops"
-        ]
-      },
-      "platform-overview": {
-        "title": "Platform Overview",
-        "description": "Detailed overview of Deployio platform capabilities and features.",
-        "author": "Deployio Team",
-        "order": 2,
-        "tags": ["platform", "overview", "features"],
-        "difficulty": "beginner",
-        "metaDescription": "Detailed overview of Deployio platform capabilities, features, and supported technologies.",
-        "keywords": ["platform", "features", "capabilities", "technologies"]
-      }
-    },
-    "api": {
-      "reference": {
-        "title": "API Reference",
-        "description": "Complete API reference for Deployio REST API endpoints.",
-        "author": "Deployio API Team",
-        "order": 1,
-        "tags": ["api", "reference", "rest", "endpoints"],
-        "difficulty": "advanced",
-        "metaDescription": "Complete API reference for Deployio REST API. Authentication, endpoints, examples, and best practices.",
-        "keywords": ["api", "rest", "endpoints", "authentication", "reference"]
-      }
+      "title": "Products",
+      "description": "Our comprehensive suite of deployment tools",
+      "icon": "🛠️",
+      "order": 2,
+      "documents": [
+        {
+          "slug": "ai-deployment",
+          "title": "AI Deployment",
+          "description": "Intelligent deployment automation with AI-powered optimization",
+          "tags": ["ai", "automation", "deployment"],
+          "readingTime": 10,
+          "difficulty": "intermediate",
+          "featured": true,
+          "order": 1
+        },
+        {
+          "slug": "code-analysis",
+          "title": "Code Analysis",
+          "description": "Advanced code quality and security analysis tools",
+          "tags": ["analysis", "quality", "security"],
+          "readingTime": 12,
+          "difficulty": "intermediate",
+          "order": 2
+        },
+        {
+          "slug": "cloud-integration",
+          "title": "Cloud Integration",
+          "description": "Seamless integration with major cloud providers",
+          "tags": ["cloud", "integration", "aws", "azure", "gcp"],
+          "readingTime": 15,
+          "difficulty": "intermediate",
+          "featured": true,
+          "order": 3
+        },
+        {
+          "slug": "devops-automation",
+          "title": "DevOps Automation",
+          "description": "Complete DevOps pipeline automation and management",
+          "tags": ["devops", "automation", "ci-cd"],
+          "readingTime": 18,
+          "difficulty": "advanced",
+          "order": 4
+        },
+        {
+          "slug": "security-shield",
+          "title": "Security Shield",
+          "description": "Enterprise-grade security and compliance tools",
+          "tags": ["security", "compliance", "enterprise"],
+          "readingTime": 14,
+          "difficulty": "intermediate",
+          "popular": true,
+          "order": 5
+        }
+      ]
     },
     "downloads": {
-      "cli-tools": {
-        "title": "Downloads",
-        "description": "Get access to Deployio's CLI tools, SDKs, and desktop applications.",
-        "author": "Deployio Team",
-        "order": 1,
-        "isFeatured": true,
-        "tags": ["downloads", "cli", "sdk", "tools", "desktop"],
-        "difficulty": "beginner",
-        "metaDescription": "Download Deployio CLI tools, SDKs, desktop applications, and browser extensions. Get started with our development tools.",
-        "keywords": [
-          "downloads",
-          "cli",
-          "sdk",
-          "tools",
-          "desktop",
-          "browser",
-          "extensions"
-        ]
-      }
+      "title": "Downloads",
+      "description": "CLI tools and SDKs",
+      "icon": "📦",
+      "order": 3,
+      "documents": [
+        {
+          "slug": "cli-tool",
+          "title": "CLI Tool",
+          "description": "Command-line interface for Deployio operations",
+          "tags": ["cli", "terminal", "tools"],
+          "readingTime": 8,
+          "difficulty": "beginner",
+          "featured": true,
+          "popular": true,
+          "order": 1
+        },
+        {
+          "slug": "sdk",
+          "title": "Software Development Kit",
+          "description": "SDKs for multiple programming languages",
+          "tags": ["sdk", "development", "integration"],
+          "readingTime": 12,
+          "difficulty": "intermediate",
+          "featured": true,
+          "order": 2
+        }
+      ]
+    },
+    "api": {
+      "title": "API Reference",
+      "description": "Complete API documentation",
+      "icon": "🔌",
+      "order": 4,
+      "documents": [
+        {
+          "slug": "authentication",
+          "title": "Authentication",
+          "description": "API authentication methods and token management",
+          "tags": ["api", "auth", "tokens"],
+          "readingTime": 10,
+          "difficulty": "intermediate",
+          "featured": true,
+          "order": 1
+        },
+        {
+          "slug": "projects-api",
+          "title": "Projects API",
+          "description": "Manage projects via REST API",
+          "tags": ["api", "projects", "rest"],
+          "readingTime": 15,
+          "difficulty": "intermediate",
+          "popular": true,
+          "order": 2
+        },
+        {
+          "slug": "deployments-api",
+          "title": "Deployments API",
+          "description": "Deploy and manage applications programmatically",
+          "tags": ["api", "deployments", "automation"],
+          "readingTime": 18,
+          "difficulty": "intermediate",
+          "featured": true,
+          "order": 3
+        },
+        {
+          "slug": "webhooks",
+          "title": "Webhooks",
+          "description": "Configure webhooks for real-time notifications",
+          "tags": ["webhooks", "notifications", "events"],
+          "readingTime": 12,
+          "difficulty": "intermediate",
+          "order": 4
+        },
+        {
+          "slug": "rate-limiting",
+          "title": "Rate Limiting",
+          "description": "Understanding API rate limits and best practices",
+          "tags": ["api", "limits", "performance"],
+          "readingTime": 8,
+          "difficulty": "intermediate",
+          "order": 5
+        },
+        {
+          "slug": "errors-handling",
+          "title": "Error Handling",
+          "description": "API error codes and troubleshooting guide",
+          "tags": ["api", "errors", "troubleshooting"],
+          "readingTime": 10,
+          "difficulty": "intermediate",
+          "order": 6
+        }
+      ]
+    },
+    "guides": {
+      "title": "Guides",
+      "description": "Best practices and tutorials",
+      "icon": "🎯",
+      "order": 5,
+      "documents": [
+        {
+          "slug": "best-practices",
+          "title": "Deployment Best Practices",
+          "description": "Industry best practices for reliable deployments",
+          "tags": ["best-practices", "deployment", "reliability"],
+          "readingTime": 20,
+          "difficulty": "intermediate",
+          "featured": true,
+          "popular": true,
+          "order": 1
+        },
+        {
+          "slug": "docker-guide",
+          "title": "Docker Integration Guide",
+          "description": "Complete guide to using Docker with Deployio",
+          "tags": ["docker", "containers", "integration"],
+          "readingTime": 25,
+          "difficulty": "intermediate",
+          "featured": true,
+          "order": 2
+        },
+        {
+          "slug": "ci-cd-workflows",
+          "title": "CI/CD Workflows",
+          "description": "Setting up continuous integration and deployment",
+          "tags": ["ci-cd", "automation", "workflows"],
+          "readingTime": 30,
+          "difficulty": "advanced",
+          "popular": true,
+          "order": 3
+        },
+        {
+          "slug": "monitoring-logging",
+          "title": "Monitoring and Logging",
+          "description": "Application monitoring and log management strategies",
+          "tags": ["monitoring", "logging", "observability"],
+          "readingTime": 22,
+          "difficulty": "intermediate",
+          "order": 4
+        },
+        {
+          "slug": "scaling-strategies",
+          "title": "Scaling Strategies",
+          "description": "Horizontal and vertical scaling techniques",
+          "tags": ["scaling", "performance", "architecture"],
+          "readingTime": 28,
+          "difficulty": "advanced",
+          "order": 5
+        },
+        {
+          "slug": "troubleshooting",
+          "title": "Troubleshooting Guide",
+          "description": "Common issues and their solutions",
+          "tags": ["troubleshooting", "debugging", "support"],
+          "readingTime": 18,
+          "difficulty": "intermediate",
+          "popular": true,
+          "order": 6
+        }
+      ]
+    },
+    "security": {
+      "title": "Security",
+      "description": "Security best practices and compliance",
+      "icon": "🛡️",
+      "order": 6,
+      "documents": [
+        {
+          "slug": "security-overview",
+          "title": "Security Overview",
+          "description": "Comprehensive overview of Deployio's security features",
+          "tags": ["security", "overview", "features"],
+          "readingTime": 15,
+          "difficulty": "beginner",
+          "featured": true,
+          "order": 1
+        },
+        {
+          "slug": "encryption",
+          "title": "Data Encryption",
+          "description": "Data encryption at rest and in transit",
+          "tags": ["encryption", "data-protection", "security"],
+          "readingTime": 12,
+          "difficulty": "intermediate",
+          "order": 2
+        },
+        {
+          "slug": "access-control",
+          "title": "Access Control",
+          "description": "User management and role-based access control",
+          "tags": ["access-control", "rbac", "permissions"],
+          "readingTime": 18,
+          "difficulty": "intermediate",
+          "featured": true,
+          "order": 3
+        },
+        {
+          "slug": "compliance",
+          "title": "Compliance Standards",
+          "description": "SOC 2, GDPR, and other compliance certifications",
+          "tags": ["compliance", "certifications", "regulations"],
+          "readingTime": 20,
+          "difficulty": "intermediate",
+          "popular": true,
+          "order": 4
+        },
+        {
+          "slug": "vulnerability-management",
+          "title": "Vulnerability Management",
+          "description": "Security scanning and vulnerability remediation",
+          "tags": ["vulnerabilities", "scanning", "security"],
+          "readingTime": 16,
+          "difficulty": "intermediate",
+          "order": 5
+        },
+        {
+          "slug": "incident-response",
+          "title": "Incident Response",
+          "description": "Security incident response procedures",
+          "tags": ["incident-response", "security", "procedures"],
+          "readingTime": 14,
+          "difficulty": "advanced",
+          "order": 6
+        }
+      ]
     }
   },
-  "storage": {
-    "local": {
-      "basePath": "docs/",
-      "enabled": true
-    },
-    "cdn": {
-      "provider": "cloudinary",
-      "basePath": "https://res.cloudinary.com/deployio/raw/upload/docs/",
-      "enabled": false,
-      "fallback": true
-    },
-    "s3": {
-      "bucket": "deployio-docs",
-      "region": "us-east-1",
-      "basePath": "docs/",
-      "enabled": false,
-      "fallback": true
-    }
-  },
-  "settings": {
-    "autoSync": true,
-    "cacheTimeout": 3600,
-    "defaultAuthor": "Deployio Team",
-    "supportedFormats": ["md", "mdx"],
-    "enableFrontmatter": true,
-    "fallbackToLocal": true
-  }
+  "featured": [
+    "getting-started/quick-start",
+    "getting-started/first-deployment",
+    "products/ai-deployment",
+    "products/cloud-integration",
+    "downloads/cli-tool",
+    "downloads/sdk",
+    "api/authentication",
+    "api/deployments-api",
+    "guides/best-practices",
+    "guides/docker-guide",
+    "security/security-overview",
+    "security/access-control"
+  ],
+  "popular": [
+    "getting-started/quick-start",
+    "getting-started/first-deployment",
+    "products/security-shield",
+    "downloads/cli-tool",
+    "api/projects-api",
+    "guides/best-practices",
+    "guides/ci-cd-workflows",
+    "guides/troubleshooting",
+    "security/compliance"
+  ]
 }

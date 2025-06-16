@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams, useOutletContext } from "react-router-dom";
+import { useParams, useOutletContext, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaChevronRight,
@@ -32,6 +32,7 @@ const categoryIcons = {
 
 const DocsOverview = () => {
   const { category } = useParams();
+  const navigate = useNavigate();
   const {
     documents,
     featuredDocuments,
@@ -293,15 +294,16 @@ const DocsOverview = () => {
                   for their deployment needs.
                 </p>{" "}
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  {" "}
                   <button
-                    onClick={() => window.open("/auth/register", "_self")}
+                    onClick={() => navigate("/auth/register")}
                     className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-semibold"
                   >
                     <FaPlay className="mr-2" />
                     Start Free Trial
                   </button>
                   <button
-                    onClick={() => window.open("/downloads/cli", "_self")}
+                    onClick={() => navigate("/downloads/cli")}
                     className="inline-flex items-center px-6 py-3 border border-white text-white rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
                   >
                     <FaDownload className="mr-2" />

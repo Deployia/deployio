@@ -55,20 +55,44 @@ class DocumentationService {
       };
     }
   }
-
   /**
    * Get metadata for a specific document
    */
   getDocumentMetadata(category, slug) {
-    const metadata = this.metadata?.documentation?.[category]?.[slug] || {};
-    const defaultMetadata = {
+    // Updated to work with new metadata.json structure
+    const categoryData = this.metadata?.categories?.[category];
+    if (!categoryData) {
+      return this.getDefaultMetadata();
+    }
+
+    const documentData = categoryData.documents?.find(
+      (doc) => doc.slug === slug
+    );
+    if (!documentData) {
+      return this.getDefaultMetadata();
+    }
+
+    return {
+      ...this.getDefaultMetadata(),
+      ...documentData,
+      // Map metadata fields to database fields
+      isFeatured: documentData.featured || false,
+      readingTimeMinutes: documentData.readingTime || 5,
+    };
+  }
+
+  /**
+   * Get default metadata values
+   */
+  getDefaultMetadata() {
+    return {
       author: this.metadata?.settings?.defaultAuthor || "Deployio Team",
       order: 0,
       tags: [],
       difficulty: "beginner",
       isFeatured: false,
+      readingTimeMinutes: 5,
     };
-    return { ...defaultMetadata, ...metadata };
   }
 
   /**
@@ -547,6 +571,40 @@ class DocumentationService {
         await this.createDocumentation(docData);
       }
     }
+  }
+
+  /**
+   * Get all documents from metadata.json structure
+   */
+  getAllDocumentsFromMetadata() {
+    if (!this.metadata?.categories) {
+      return [];
+    }
+
+    const allDocs = [];
+    Object.entries(this.metadata.categories).forEach(
+      ([category, categoryData]) => {
+        if (categoryData.documents) {
+          categoryData.documents.forEach((doc) => {
+            allDocs.push({
+              ...doc,
+              category,
+              categoryTitle: categoryData.title,
+              categoryIcon: categoryData.icon,
+              categoryOrder: categoryData.order,
+            });
+          });
+        }
+      }
+    );
+
+    return allDocs.sort((a, b) => {
+      // Sort by category order first, then by document order
+      if (a.categoryOrder !== b.categoryOrder) {
+        return a.categoryOrder - b.categoryOrder;
+      }
+      return (a.order || 0) - (b.order || 0);
+    });
   }
 }
 
