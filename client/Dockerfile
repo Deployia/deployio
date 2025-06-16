@@ -1,3 +1,4 @@
+# ---------- BUILD STAGE ----------
 FROM node:20-alpine3.19 AS build
 
 WORKDIR /app
@@ -6,55 +7,52 @@ WORKDIR /app
 RUN addgroup -g 1001 -S deployio && \
     adduser -S deployio -u 1001
 
-# Install security updates
-RUN apk update && \
-    apk upgrade && \
-    rm -rf /var/cache/apk/*
+# Install build dependencies
+RUN apk add --no-cache \
+    && rm -rf /var/cache/apk/*
 
-# Define build arguments with default values - these will be overridden by docker-compose
+# Define build arguments (can be overridden in docker-compose)
 ARG VITE_APP_ENV=production
 ARG VITE_APP_BACKEND_URL=/api/v1
 ARG VITE_APP_FASTAPI_URL=/service/v1
 
-# Copy package files and install dependencies
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps && \
-    npm cache clean --force
+# Set environment variables for Vite
+ENV VITE_APP_ENV=$VITE_APP_ENV \
+    VITE_APP_BACKEND_URL=$VITE_APP_BACKEND_URL \
+    VITE_APP_FASTAPI_URL=$VITE_APP_FASTAPI_URL
 
-# Copy all files
+# Copy package files & install dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps && npm cache clean --force
+
+# Copy all source files
 COPY . .
 
-# Create .env file from build args
-RUN echo "VITE_APP_ENV=$VITE_APP_ENV" > .env && \
-    echo "VITE_APP_BACKEND_URL=$VITE_APP_BACKEND_URL" >> .env && \
-    echo "VITE_APP_FASTAPI_URL=$VITE_APP_FASTAPI_URL" >> .env
-
-# Print environment variables for debugging
-RUN echo "Building with: VITE_APP_ENV=$VITE_APP_ENV VITE_APP_BACKEND_URL=$VITE_APP_BACKEND_URL VITE_APP_FASTAPI_URL=$VITE_APP_FASTAPI_URL"
-
-# Build the app
+# Build static frontend assets
 RUN npm run build
 
+# ---------- RUNTIME STAGE ----------
 FROM node:20-alpine3.19 AS runtime
+
 WORKDIR /app
 
 # Create non-root user
 RUN addgroup -g 1001 -S deployio && \
     adduser -S deployio -u 1001
 
-# Install security updates and serve
-RUN apk update && \
-    apk upgrade && \
-    rm -rf /var/cache/apk/* && \
+# Install only serve (production server)
+RUN apk add --no-cache && \
     npm install -g serve@14 && \
     npm cache clean --force
 
-# copy build artifacts
+# Copy built frontend files from build stage
 COPY --from=build /app/dist ./dist
 
-# Change ownership to non-root user
+# Set permissions and drop to non-root user
 RUN chown -R deployio:deployio /app
 USER deployio
 
 EXPOSE 80
+
+# Serve frontend from dist folder
 CMD ["serve", "-s", "dist", "-l", "80"]

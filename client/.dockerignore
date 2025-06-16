@@ -1,23 +1,33 @@
-# ignore dependencies
+# === Node.js Dependencies ===
 node_modules/
 
-# ignore dotenv and env files
+# === Environment Files ===
 .env
+.env.*
 
-# ignore build output and cache
+# === Build Output ===
 dist/
 build/
+.cache/
 
-# ignore IDE/editor directories
+# === Logs ===
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# === Editor Configs ===
 .vscode/
 .idea/
 
-# ignore logs
-npm-debug.log*
-
-# ignore docker files
+# === Docker & Compose Files ===
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
 
-# ignore legacy nginx configuration
+# === NGINX or Old Config Files ===
 inginx.conf
+
+# === OS/System Files ===
+.DS_Store
+Thumbs.db

@@ -1,9 +1,11 @@
-# Python
+# Python bytecode and cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Python packaging artifacts
 build/
 develop-eggs/
 dist/
@@ -28,18 +30,18 @@ env.bak/
 venv.bak/
 .venv/
 
-# Environment files
+# Environment files and secrets
 .env
 .env.*
 
-# IDE
+# IDE/editor settings
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -48,7 +50,7 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Testing
+# Testing outputs
 .pytest_cache/
 .coverage
 htmlcov/
@@ -58,17 +60,19 @@ htmlcov/
 # Logs
 *.log
 
-# Docker
+# Docker-related
 Dockerfile*
 docker-compose*
 .dockerignore
 
-# Git
-.git
+# Git and metadata
+.git/
 .gitignore
+
+# Docs
 README.md
 
-# Other services
+# Prevent copying unrelated services or monorepo parts (adjust if in a monorepo)
 ../client/
 ../node_modules/
 ../letsencrypt/
