@@ -7,6 +7,7 @@ import projectReducer from "./slices/projectSlice";
 import deploymentReducer from "./slices/deploymentSlice";
 import analyticsReducer from "./slices/analyticsSlice";
 import documentationReducer from "./slices/documentationSlice";
+import blogReducer from "./slices/blogSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -16,6 +17,7 @@ const rootReducer = combineReducers({
   deployments: deploymentReducer,
   analytics: analyticsReducer,
   documentation: documentationReducer,
+  blog: blogReducer,
 });
 
 export const store = configureStore({

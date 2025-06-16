@@ -413,10 +413,32 @@ const syncBlogFromFile = async (req, res) => {
   }
 };
 
+// @desc    Get blog categories with counts
+// @route   GET /api/v1/blog/categories
+// @access  Public
+const getBlogCategories = async (req, res) => {
+  try {
+    const categories = await blogService.getBlogCategories();
+
+    res.status(200).json({
+      success: true,
+      data: categories,
+    });
+  } catch (error) {
+    logger.error("Error fetching blog categories:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching blog categories",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 module.exports = {
   getAllBlogs,
   getBlogBySlug,
   getBlogsByCategory,
+  getBlogCategories,
   getFeaturedBlogs,
   getPopularBlogs,
   getRecentBlogs,

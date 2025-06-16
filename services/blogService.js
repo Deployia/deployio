@@ -351,6 +351,7 @@ class BlogService {
                 metaTitle: postData.metaTitle || blog.metaTitle,
                 metaDescription:
                   postData.metaDescription || blog.metaDescription,
+                image: postData.image || blog.image,
                 socialImage: postData.socialImage || blog.socialImage,
               });
 
@@ -382,6 +383,7 @@ class BlogService {
                 tags: postData.tags || [],
                 metaTitle: postData.metaTitle,
                 metaDescription: postData.metaDescription,
+                image: postData.image,
                 socialImage: postData.socialImage,
               });
 
@@ -477,6 +479,69 @@ class BlogService {
       logger.error("Error getting related posts:", error);
       throw error;
     }
+  }
+
+  /**
+   * Get blog categories with post counts
+   */
+  async getBlogCategories() {
+    try {
+      // Get all categories from blog posts with their counts
+      const categoriesAgg = await Blog.aggregate([
+        { $match: { status: "published" } },
+        { $group: { _id: "$category", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]);
+
+      // Transform to the expected format
+      const categories = categoriesAgg.map((cat) => ({
+        id: cat._id,
+        name:
+          cat._id.charAt(0).toUpperCase() + cat._id.slice(1).replace(/-/g, " "),
+        count: cat.count,
+        description: this.getCategoryDescription(cat._id),
+      }));
+
+      // Add default categories that might not have posts yet
+      const existingCategories = categoriesAgg.map((cat) => cat._id);
+      const missingCategories = this.supportedCategories.filter(
+        (cat) => !existingCategories.includes(cat)
+      );
+
+      missingCategories.forEach((cat) => {
+        categories.push({
+          id: cat,
+          name: cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " "),
+          count: 0,
+          description: this.getCategoryDescription(cat),
+        });
+      });
+
+      return categories;
+    } catch (error) {
+      logger.error("Error fetching blog categories:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get description for a category
+   */
+  getCategoryDescription(category) {
+    const descriptions = {
+      announcements: "Latest news and announcements from Deployio",
+      tutorials: "Step-by-step guides and how-to articles",
+      "case-studies": "Real-world examples and success stories",
+      engineering: "Technical deep-dives and engineering insights",
+      devops: "DevOps practices and deployment strategies",
+      security: "Security best practices and guidelines",
+      product: "Product updates and feature announcements",
+      company: "Company news and culture updates",
+      "ai-ml": "AI and machine learning content",
+    };
+    return (
+      descriptions[category] || `${category.replace(/-/g, " ")} related content`
+    );
   }
 
   /**

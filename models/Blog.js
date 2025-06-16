@@ -116,6 +116,12 @@ const blogSchema = new mongoose.Schema(
       },
     ],
 
+    // Media
+    image: {
+      type: String, // URL to blog post featured image
+      trim: true,
+    },
+
     // Social sharing
     socialImage: {
       type: String, // URL to social sharing image

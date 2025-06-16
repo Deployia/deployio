@@ -39,11 +39,13 @@ const APITester = lazy(() => import("@support/APITester"));
 const DocsLayout = lazy(() => import("@pages/docs/DocsLayout"));
 const DocsOverview = lazy(() => import("@pages/docs/DocsOverview"));
 const DocumentPage = lazy(() => import("@pages/docs/DocumentPage"));
+const BlogLayout = lazy(() => import("@pages/blog/BlogLayout"));
+const BlogOverview = lazy(() => import("@pages/blog/BlogOverview"));
+const BlogPostPage = lazy(() => import("@pages/blog/BlogPostPage"));
 const SupportCenter = lazy(() => import("@support/SupportCenter"));
 
 // Marketing Pages
 const Community = lazy(() => import("@marketing/Community"));
-const Blog = lazy(() => import("@marketing/Blog"));
 
 // Legal Pages
 const PrivacyPolicy = lazy(() => import("@legal/PrivacyPolicy"));
@@ -120,7 +122,7 @@ function App() {
               <Route path="cloud-integration" element={<CloudIntegration />} />
               <Route path="devops-automation" element={<DevOpsAutomation />} />
               <Route path="security-shield" element={<SecurityShield />} />
-            </Route>
+            </Route>{" "}
             {/* Resource Pages with Layout */}{" "}
             <Route path="resources" element={<ResourcesLayout />}>
               <Route path="docs" element={<DocsLayout />}>
@@ -130,10 +132,14 @@ function App() {
                 />
                 <Route path=":category" element={<DocsOverview />} />
                 <Route path=":category/:slug" element={<DocumentPage />} />
+              </Route>{" "}
+              <Route path="blogs" element={<BlogLayout />}>
+                <Route index element={<BlogOverview />} />
+                <Route path=":category" element={<BlogOverview />} />
+                <Route path=":category/:slug" element={<BlogPostPage />} />
               </Route>
               <Route path="support" element={<SupportCenter />} />
               <Route path="community" element={<Community />} />
-              <Route path="blog" element={<Blog />} />
             </Route>
             {/* Download Pages with Layout */}
             <Route path="downloads" element={<DownloadsLayout />}>

@@ -3,6 +3,7 @@ const {
   getAllBlogs,
   getBlogBySlug,
   getBlogsByCategory,
+  getBlogCategories,
   getFeaturedBlogs,
   getPopularBlogs,
   getRecentBlogs,
@@ -36,6 +37,12 @@ router.get("/search", searchBlogs);
 // @route   GET /api/v1/blog/stats
 // @access  Public
 router.get("/stats", getBlogStats);
+
+
+// @desc    Get blog categories
+// @route   GET /api/v1/blog/categories
+// @access  Public
+router.get("/categories", getBlogCategories);
 
 // @desc    Get featured blog posts
 // @route   GET /api/v1/blog/featured

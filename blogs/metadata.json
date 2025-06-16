@@ -19,6 +19,7 @@
           "featured": true,
           "readingTime": 12,
           "tags": ["microservices", "architecture", "scalability", "devops"],
+          "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Microservices Architecture Guide - Deployio Engineering",
           "metaDescription": "Complete guide to building scalable microservices architecture with best practices, patterns, and real-world examples.",
           "socialImage": "/images/blog/microservices-guide-social.png"
@@ -31,6 +32,7 @@
           "featured": false,
           "readingTime": 15,
           "tags": ["kubernetes", "containers", "orchestration", "devops"],
+          "image": "https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Kubernetes Container Orchestration Guide",
           "metaDescription": "Learn Kubernetes container orchestration from basics to production deployment with practical examples."
         }
@@ -49,6 +51,7 @@
           "featured": true,
           "readingTime": 8,
           "tags": ["product", "announcement", "features", "release"],
+          "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Deployio v2.0 Launch - New Features and Improvements",
           "metaDescription": "Explore Deployio v2.0's new features including enhanced performance, improved reliability, and advanced deployment capabilities."
         },
@@ -60,6 +63,7 @@
           "featured": true,
           "readingTime": 10,
           "tags": ["ai", "optimization", "automation", "performance"],
+          "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "AI-Powered Deployment Optimization - Deployio",
           "metaDescription": "Discover how Deployio's AI features automatically optimize deployments for better performance and reduced costs."
         }
@@ -78,6 +82,7 @@
           "featured": false,
           "readingTime": 18,
           "tags": ["deployment", "tutorial", "zero-downtime", "strategies"],
+          "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Zero-Downtime Deployment Tutorial - Complete Guide",
           "metaDescription": "Step-by-step tutorial on implementing zero-downtime deployments using blue-green and rolling strategies."
         },
@@ -89,6 +94,7 @@
           "featured": false,
           "readingTime": 14,
           "tags": ["docker", "security", "containers", "best-practices"],
+          "image": "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Docker Security Best Practices Guide",
           "metaDescription": "Learn essential Docker security practices for container hardening, image scanning, and runtime protection."
         }
@@ -107,6 +113,7 @@
           "featured": false,
           "readingTime": 7,
           "tags": ["company", "milestone", "growth", "lessons"],
+          "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Deployio's Journey to 100K Deployments - Lessons Learned",
           "metaDescription": "Discover the key lessons learned during Deployio's growth journey to 100,000 successful deployments."
         },
@@ -118,6 +125,7 @@
           "featured": false,
           "readingTime": 9,
           "tags": ["culture", "remote-work", "engineering", "team"],
+          "image": "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Building Remote-First Engineering Culture - Deployio",
           "metaDescription": "Learn how Deployio built a successful remote-first engineering culture that scales globally."
         }
@@ -136,6 +144,7 @@
           "featured": true,
           "readingTime": 11,
           "tags": ["case-study", "fintech", "scaling", "success-story"],
+          "image": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Fintech Scaling Success Story - Deployio Case Study",
           "metaDescription": "Learn how a fintech startup scaled from 10 to 10M users using Deployio's deployment platform."
         }
@@ -154,6 +163,7 @@
           "featured": false,
           "readingTime": 13,
           "tags": ["cicd", "optimization", "devops", "automation"],
+          "image": "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "CI/CD Pipeline Optimization Guide - Deployio DevOps",
           "metaDescription": "Learn proven strategies to optimize CI/CD pipelines for faster, more reliable software deployments."
         },
@@ -165,6 +175,7 @@
           "featured": false,
           "readingTime": 16,
           "tags": ["terraform", "iac", "infrastructure", "automation"],
+          "image": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Infrastructure as Code with Terraform - Complete Guide",
           "metaDescription": "Complete guide to Infrastructure as Code using Terraform for scalable infrastructure management."
         }
@@ -183,6 +194,7 @@
           "featured": false,
           "readingTime": 10,
           "tags": ["security", "checklist", "compliance", "best-practices"],
+          "image": "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Deployment Security Checklist - Ultimate Guide",
           "metaDescription": "Comprehensive deployment security checklist covering best practices, compliance, and threat protection."
         }
@@ -201,6 +213,7 @@
           "featured": true,
           "readingTime": 6,
           "tags": ["announcement", "funding", "growth", "company"],
+          "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=600&fit=crop&crop=entropy&auto=format",
           "metaTitle": "Deployio Raises $25M Series A Funding",
           "metaDescription": "Deployio announces $25M Series A funding to democratize cloud deployments and expand platform capabilities."
         }

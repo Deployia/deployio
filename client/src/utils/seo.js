@@ -350,13 +350,13 @@ export const seoConfig = {
       "Stay updated with the latest deployment best practices, tutorials, product updates, and news from the Deployio team and community.",
     keywords:
       "deployment blog, DevOps blog, deployment tutorials, DevOps best practices, CI/CD guides, deployment news, technical blog",
-    url: `${defaultSEO.url}/resources/blog`,
+    url: `${defaultSEO.url}/resources/blogs`,
     structuredData: {
       "@context": "https://schema.org",
       "@type": "Blog",
       name: "Deployio Blog",
       description: "Latest deployment tutorials and DevOps best practices",
-      url: `${defaultSEO.url}/resources/blog`,
+      url: `${defaultSEO.url}/resources/blogs`,
       publisher: {
         "@type": "Organization",
         name: defaultSEO.siteName,
