@@ -6,6 +6,7 @@ import twoFactorReducer from "./slices/twoFactorSlice";
 import projectReducer from "./slices/projectSlice";
 import deploymentReducer from "./slices/deploymentSlice";
 import analyticsReducer from "./slices/analyticsSlice";
+import documentationReducer from "./slices/documentationSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -14,6 +15,7 @@ const rootReducer = combineReducers({
   projects: projectReducer,
   deployments: deploymentReducer,
   analytics: analyticsReducer,
+  documentation: documentationReducer,
 });
 
 export const store = configureStore({
