@@ -40,7 +40,11 @@
     "benchmark:build": "node scripts/build-benchmark.js",
     "benchmark:network": "node scripts/network-benchmark.js",
     "benchmark:all": "npm run benchmark && npm run benchmark:network",
-    "test:all": "npm test && npm run ai:test && cd client && npm test"
+    "test:all": "npm test && npm run ai:test && cd client && npm test",
+    "docs:seed": "node scripts/seed-docs.js",
+    "docs:seed:force": "node scripts/seed-docs.js --force",
+    "docs:seed:dry-run": "node scripts/seed-docs.js --dry-run",
+    "docs:seed:prod": "NODE_ENV=production node scripts/seed-docs.js"
   },
   "keywords": [
     "deployio",
