@@ -122,6 +122,15 @@ const documentationSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Helpful/Not Helpful functionality
+    helpfulCount: {
+      type: Number,
+      default: 0,
+    },
+    notHelpfulCount: {
+      type: Number,
+      default: 0,
+    },
     readingTime: {
       type: Number, // in minutes
       default: 0,
@@ -321,6 +330,17 @@ documentationSchema.methods.incrementViews = function () {
 
 documentationSchema.methods.like = function () {
   this.likes = (this.likes || 0) + 1;
+  return this.save();
+};
+
+// Helpful/Not Helpful methods
+documentationSchema.methods.markHelpful = function () {
+  this.helpfulCount = (this.helpfulCount || 0) + 1;
+  return this.save();
+};
+
+documentationSchema.methods.markNotHelpful = function () {
+  this.notHelpfulCount = (this.notHelpfulCount || 0) + 1;
   return this.save();
 };
 

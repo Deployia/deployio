@@ -11,6 +11,8 @@ const {
   createDoc,
   updateDoc,
   deleteDoc,
+  markHelpful,
+  markNotHelpful,
 } = require("../controllers/documentationController");
 
 const router = express.Router();
@@ -47,6 +49,12 @@ router.delete("/:id", deleteDoc);
 
 // GET /api/v1/documentation/:category/:slug - Get single documentation by category and slug
 router.get("/:category/:slug", getDocBySlug);
+
+// POST /api/v1/documentation/:slug/helpful - Mark documentation as helpful
+router.post("/:slug/helpful", markHelpful);
+
+// POST /api/v1/documentation/:slug/not-helpful - Mark documentation as not helpful
+router.post("/:slug/not-helpful", markNotHelpful);
 
 // GET /api/v1/documentation/:slug - Get single documentation by slug (must be last)
 router.get("/:slug", getDocBySlug);

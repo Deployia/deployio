@@ -314,6 +314,86 @@ const deleteDoc = async (req, res) => {
   }
 };
 
+// @desc    Mark documentation as helpful
+// @route   POST /api/v1/documentation/:slug/helpful
+// @access  Public
+const markHelpful = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { category } = req.body;
+
+    const doc = await documentationService.getDocumentationBySlug(
+      slug,
+      category
+    );
+
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Documentation not found",
+      });
+    }
+
+    await doc.markHelpful();
+
+    res.status(200).json({
+      success: true,
+      message: "Marked as helpful",
+      data: {
+        helpfulCount: doc.helpfulCount,
+        notHelpfulCount: doc.notHelpfulCount,
+      },
+    });
+  } catch (error) {
+    logger.error("Error marking documentation as helpful:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while marking as helpful",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+// @desc    Mark documentation as not helpful
+// @route   POST /api/v1/documentation/:slug/not-helpful
+// @access  Public
+const markNotHelpful = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { category } = req.body;
+
+    const doc = await documentationService.getDocumentationBySlug(
+      slug,
+      category
+    );
+
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Documentation not found",
+      });
+    }
+
+    await doc.markNotHelpful();
+
+    res.status(200).json({
+      success: true,
+      message: "Marked as not helpful",
+      data: {
+        helpfulCount: doc.helpfulCount,
+        notHelpfulCount: doc.notHelpfulCount,
+      },
+    });
+  } catch (error) {
+    logger.error("Error marking documentation as not helpful:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while marking as not helpful",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 module.exports = {
   getAllDocs,
   getDocBySlug,
@@ -326,4 +406,6 @@ module.exports = {
   createDoc,
   updateDoc,
   deleteDoc,
+  markHelpful,
+  markNotHelpful,
 };
