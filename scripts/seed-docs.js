@@ -64,15 +64,23 @@ async function seedDocumentation() {
         logger.info(`  - ${doc.category}/${doc.slug}: ${doc.title}`);
       });
       return { syncCount: 0, errorCount: 0, dryRun: true };
-    }
-
-    // Check if docs already exist
+    } // Check if docs already exist
     const existingCount = await checkExistingDocs();
     if (existingCount > 0 && !FORCE_RESYNC) {
       logger.warn("⚠️  Documentation already exists in database");
       logger.info("💡 Use --force flag to resync all documents");
       logger.info("💡 Use --dry-run flag to see what would be synced");
       return { syncCount: 0, errorCount: 0, skipped: true };
+    }
+
+    // If force resync, clear existing documents
+    if (FORCE_RESYNC && existingCount > 0) {
+      logger.info("🗑️  Force resync enabled - clearing existing documents...");
+      const Documentation = require("../models/Documentation");
+      const deleteResult = await Documentation.deleteMany({});
+      logger.info(
+        `🗑️  Deleted ${deleteResult.deletedCount} existing documents`
+      );
     }
 
     // Perform the sync

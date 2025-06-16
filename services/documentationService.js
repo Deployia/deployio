@@ -283,10 +283,8 @@ class DocumentationService {
         .digest("hex");
 
       // Get metadata for this document
-      const docMetadata = this.getDocumentMetadata(category, slug);
-
-      // Find existing document
-      let doc = await Documentation.findOne({ slug, category });
+      const docMetadata = this.getDocumentMetadata(category, slug); // Find existing document
+      let doc = await Documentation.findOne({ slug });
 
       if (doc) {
         // Check if file has changed
@@ -303,6 +301,7 @@ class DocumentationService {
         doc.syncStatus = "synced";
         doc.syncError = null;
         doc.filePath = filePath;
+        doc.category = category; // Ensure category is updated
 
         // Extract title from content if available, otherwise use metadata
         const titleMatch = content.match(/^#\s+(.+)$/m);
