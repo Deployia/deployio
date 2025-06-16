@@ -13,6 +13,6 @@ router.use("/user", userRoutes);
 router.use("/projects", projectRoutes);
 router.use("/protected", protectedRoutes);
 router.use("/documentation", documentationRoutes);
-router.use("/blog", blogRoutes);
+router.use("/blogs", blogRoutes);
 
 module.exports = router;

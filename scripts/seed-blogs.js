@@ -246,7 +246,7 @@ function displayResults(results, options) {
   if (!options.dryRun && successful.length > 0) {
     console.log(`\n🎉 SUCCESS!`);
     console.log(`  ${successful.length} blog posts have been synchronized.`);
-    console.log(`  Check your blog at: http://localhost:3000/blog`);
+    console.log(`  Check your blog at: http://localhost:3000/resources/blogs`);
   }
 
   console.log("\n" + "=".repeat(60));
