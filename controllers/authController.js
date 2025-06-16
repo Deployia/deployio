@@ -594,26 +594,27 @@ const refreshToken = async (req, res) => {
         message:
           "Refresh token has been revoked or is invalid. Please log in again.",
       });
-    }
-
-    // Check if token is expired
+    } // Check if token is expired
     const tokenData = user.refreshTokens[tokenIndex];
     if (tokenData.expiresAt && new Date() > tokenData.expiresAt) {
-      // Remove expired token
-      user.refreshTokens.splice(tokenIndex, 1);
-      await user.save();
+      // Remove expired token using atomic update
+      try {
+        await User.findByIdAndUpdate(
+          decoded.id,
+          { $pull: { refreshTokens: { token: incomingToken } } },
+          { new: true }
+        );
+      } catch (error) {
+        logger.warn("Failed to remove expired token", { error: error.message });
+      }
       return res.status(403).json({
         success: false,
         message: "Refresh token has expired. Please log in again.",
       });
     }
 
-    // Remove the used refresh token (rotation)
-    user.refreshTokens.splice(tokenIndex, 1);
-    await user.save();
-
     // Generate new tokens with same sessionId if it exists
-    const sessionId = decoded.sessionId || new Date().getTime().toString();
+    const sessionId = decoded.sessionId || `session-${Date.now()}`;
     const payload = { id: decoded.id, sessionId: sessionId };
 
     const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -623,8 +624,109 @@ const refreshToken = async (req, res) => {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     });
 
-    // Store the new refresh token for rotation
-    await storeRefreshToken(decoded.id, newRefreshToken);
+    // Decode the new refresh token to get expiration
+    const newTokenDecoded = jwt.decode(newRefreshToken);
+    const newTokenExpiresAt = new Date(newTokenDecoded.exp * 1000);
+
+    // Clean up expired tokens and perform token rotation atomically
+    const now = new Date();
+    const maxTokens = 5;
+
+    try {
+      // Use findOneAndUpdate with atomic operations to prevent version conflicts
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: decoded.id },
+        [
+          {
+            $set: {
+              refreshTokens: {
+                $let: {
+                  vars: {
+                    // Remove the used token and expired tokens
+                    filteredTokens: {
+                      $filter: {
+                        input: "$refreshTokens",
+                        cond: {
+                          $and: [
+                            { $ne: ["$$this.token", incomingToken] }, // Remove used token
+                            { $gt: ["$$this.expiresAt", now] }, // Remove expired tokens
+                          ],
+                        },
+                      },
+                    },
+                  },
+                  in: {
+                    $concatArrays: [
+                      // Keep only the most recent tokens if over limit
+                      {
+                        $cond: {
+                          if: {
+                            $gte: [{ $size: "$$filteredTokens" }, maxTokens],
+                          },
+                          then: {
+                            $slice: [
+                              {
+                                $sortArray: {
+                                  input: "$$filteredTokens",
+                                  sortBy: { createdAt: -1 },
+                                },
+                              },
+                              maxTokens - 1,
+                            ],
+                          },
+                          else: "$$filteredTokens",
+                        },
+                      },
+                      // Add the new token
+                      [
+                        {
+                          token: newRefreshToken,
+                          expiresAt: newTokenExpiresAt,
+                          createdAt: "$$NOW",
+                        },
+                      ],
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ],
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        throw new Error("User not found during token rotation");
+      }
+
+      // Store the new refresh token in Redis for fast validation (if Redis is available)
+      try {
+        const { getRedisClient } = require("../config/redisClient");
+        const redisClient = getRedisClient();
+        if (redisClient && redisClient.isReady) {
+          const ttlSeconds = Math.floor((newTokenExpiresAt - now) / 1000);
+          await redisClient.setex(
+            `refresh_token:${newRefreshToken}`,
+            ttlSeconds,
+            decoded.id
+          );
+        }
+      } catch (redisError) {
+        logger.warn("Failed to store refresh token in Redis", {
+          error: redisError.message,
+        });
+        // Don't fail the request if Redis fails
+      }
+    } catch (error) {
+      logger.error("Token rotation failed", {
+        error: error.message,
+        userId: decoded.id,
+      });
+      return res.status(500).json({
+        success: false,
+        message: "Failed to refresh token. Please try again.",
+      });
+    }
 
     // Set cookies
     const cookieOptions = {

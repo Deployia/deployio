@@ -60,24 +60,37 @@ const protect = async (req, res, next) => {
             message: "Account not verified. Please verify your email.",
           });
         }
-      }
-
-      // Check that sessionId exists in user's sessions (if sessionId is provided)
+      } // Check that sessionId exists in user's sessions (if sessionId is provided)
       if (sessionId) {
         const sessionExists = user.sessions.some(
           (s) => s._id.toString() === sessionId
         );
         if (!sessionExists) {
-          return res.status(401).json({
-            success: false,
-            message: "Session expired or invalid. Please log in again.",
-          });
+          // If the specific session doesn't exist, but user has other valid sessions,
+          // allow the request but log it for monitoring
+          if (user.sessions && user.sessions.length > 0) {
+            logger.warn("Session mismatch but user has valid sessions", {
+              userId: user._id,
+              requestedSessionId: sessionId,
+              availableSessions: user.sessions.length,
+            });
+            // Use the most recent session as fallback
+            const latestSession = user.sessions.sort(
+              (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+            )[0];
+            req.sessionId = latestSession._id.toString();
+          } else {
+            return res.status(401).json({
+              success: false,
+              message: "Session expired or invalid. Please log in again.",
+            });
+          }
+        } else {
+          req.sessionId = sessionId;
         }
-      }
-
-      // Attach user and sessionId to request object
+      } // Attach user to request object
       req.user = user;
-      req.sessionId = sessionId;
+      // sessionId is already set above based on validation logic
       next();
     } catch (tokenError) {
       let message = "Authentication failed. Please log in again.";
