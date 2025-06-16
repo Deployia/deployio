@@ -44,7 +44,11 @@
     "docs:seed": "node scripts/seed-docs.js",
     "docs:seed:force": "node scripts/seed-docs.js --force",
     "docs:seed:dry-run": "node scripts/seed-docs.js --dry-run",
-    "docs:seed:prod": "NODE_ENV=production node scripts/seed-docs.js"
+    "docs:seed:prod": "NODE_ENV=production node scripts/seed-docs.js",
+    "blog:seed": "node scripts/seed-blogs.js",
+    "blog:seed:force": "node scripts/seed-blogs.js --force",
+    "blog:seed:dry-run": "node scripts/seed-blogs.js --dry-run",
+    "blog:seed:prod": "NODE_ENV=production node scripts/seed-blogs.js"
   },
   "keywords": [
     "deployio",
