@@ -15,11 +15,19 @@ import {
   FaChevronRight,
   FaEdit,
   FaCode,
+  FaThumbsUp,
+  FaThumbsDown,
+  // FaHeart,
+  // FaRegHeart,
 } from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { fetchDocumentBySlug } from "@redux/slices/documentationSlice";
+import {
+  fetchDocumentBySlug,
+  markDocumentHelpful,
+  markDocumentNotHelpful,
+} from "@redux/slices/documentationSlice";
 import { LoadingCard } from "@components/LoadingSpinner";
 
 const DocumentPage = () => {
@@ -29,14 +37,27 @@ const DocumentPage = () => {
   const { currentDocument, loading, documents } = useOutletContext();
   const isLoadingDocument = loading.document || false;
   const [tableOfContents, setTableOfContents] = useState([]);
+  // const [activeHeading, setActiveHeading] = useState(""); // Disabled for now
+  const [helpfulStatus, setHelpfulStatus] = useState(null); // null, 'helpful', 'not-helpful'
 
   const handleBackToCategory = () => {
     navigate(`/resources/docs/${category}`);
   };
-
   // Get document from state or find it in documents list
   const document =
     currentDocument || documents.find((doc) => doc.slug === slug);
+
+  // Helper function to generate consistent heading IDs
+  const generateHeadingId = (text) => {
+    if (!text) return "";
+    return text
+      .toString()
+      .replace(/[`*_]/g, "") // Remove markdown syntax
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "") // Remove special characters
+      .replace(/\s+/g, "-") // Replace spaces with hyphens
+      .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
+  };
 
   useEffect(() => {
     // Fetch document if we don't have it or it doesn't have content
@@ -44,20 +65,22 @@ const DocumentPage = () => {
       dispatch(fetchDocumentBySlug({ slug, category }));
     }
   }, [slug, category, document, dispatch]);
-
   useEffect(() => {
     // Generate table of contents from content
     if (document?.content) {
       const headings = document.content.match(/#{1,6}\s.+/g) || [];
       const toc = headings.map((heading, index) => {
         const level = heading.match(/^#+/)[0].length;
-        const text = heading.replace(/^#+\s/, "");
-        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const text = heading.replace(/^#+\s/, "").replace(/[`*_]/g, ""); // Clean markdown syntax
+        const id = generateHeadingId(text);
         return { id, text, level, index };
       });
       setTableOfContents(toc);
     }
   }, [document?.content]);
+
+  // Remove intersection observer for now - will fix scroll update later
+  // const [activeHeading, setActiveHeading] = useState("");
 
   const formatReadTime = (content) => {
     if (!content) return "5 min read";
@@ -98,20 +121,94 @@ const DocumentPage = () => {
       navigator.clipboard.writeText(window.location.href);
     }
   };
-
   const scrollToHeading = (id) => {
-    const element = document.getElementById(id);
+    const element = window.document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
+      // Calculate precise offset to align with table of contents position
+      // Navbar: sticky top-0 with py-4 padding (~80px)
+      // ResourcesLayout: py-4 top padding (~16px) - reduced from py-8
+      // Table of contents: sticky top-24 (96px) + p-6 padding (24px) + header height (~28px) + mb-4 (16px)
+      const navbarHeight = 80; // approximate navbar height
+      const layoutPadding = 16; // py-4 top padding from ResourcesLayout (reduced)
+      const tableOfContentsTop = 96; // top-24
+      const tablePadding = 24; // p-6
+      const headerHeight = 28; // approximate height of "Table of Contents" header
+      const headerMargin = 16; // mb-4
+      const totalOffset =
+        navbarHeight +
+        layoutPadding +
+        tableOfContentsTop +
+        tablePadding +
+        headerHeight +
+        headerMargin; // ~260px
+
+      // Get element position relative to the page
+      const elementPosition =
+        element.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = elementPosition - totalOffset;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+
+      // setActiveHeading(id); // Disabled for now - will fix scroll update later
+
+      // Add a subtle highlight effect to the target heading
+      element.style.transition = "background-color 0.3s ease";
+      element.style.backgroundColor = "rgba(59, 130, 246, 0.1)";
+      setTimeout(() => {
+        element.style.backgroundColor = "";
+      }, 1000);
+    }
+  }; // Remove like functionality for now - will implement helpful/not helpful instead
+
+  const handleHelpful = async () => {
+    if (!document?.slug || !document?.category) return;
+
+    try {
+      await dispatch(
+        markDocumentHelpful({
+          slug: document.slug,
+          category: document.category,
+        })
+      ).unwrap();
+      setHelpfulStatus("helpful");
+      // Store in localStorage
+      localStorage.setItem(`helpful_${document.slug}`, "helpful");
+    } catch (error) {
+      console.error("Error marking document as helpful:", error);
     }
   };
 
+  const handleNotHelpful = async () => {
+    if (!document?.slug || !document?.category) return;
+
+    try {
+      await dispatch(
+        markDocumentNotHelpful({
+          slug: document.slug,
+          category: document.category,
+        })
+      ).unwrap();
+      setHelpfulStatus("not-helpful");
+      // Store in localStorage
+      localStorage.setItem(`helpful_${document.slug}`, "not-helpful");
+    } catch (error) {
+      console.error("Error marking document as not helpful:", error);
+    }
+  };
+
+  // Check if document was already marked as helpful/not helpful
+  useEffect(() => {
+    if (document?.slug) {
+      const storedStatus = localStorage.getItem(`helpful_${document.slug}`);
+      setHelpfulStatus(storedStatus);
+    }
+  }, [document?.slug]);
+
   const MarkdownComponents = {
     h1: ({ children, ...props }) => {
-      const id = children
-        ?.toString()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-");
+      const id = generateHeadingId(children);
       return (
         <h1
           id={id}
@@ -123,10 +220,7 @@ const DocumentPage = () => {
       );
     },
     h2: ({ children, ...props }) => {
-      const id = children
-        ?.toString()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-");
+      const id = generateHeadingId(children);
       return (
         <h2
           id={id}
@@ -138,10 +232,7 @@ const DocumentPage = () => {
       );
     },
     h3: ({ children, ...props }) => {
-      const id = children
-        ?.toString()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-");
+      const id = generateHeadingId(children);
       return (
         <h3
           id={id}
@@ -153,10 +244,7 @@ const DocumentPage = () => {
       );
     },
     h4: ({ children, ...props }) => {
-      const id = children
-        ?.toString()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-");
+      const id = generateHeadingId(children);
       return (
         <h4
           id={id}
@@ -352,10 +440,47 @@ const DocumentPage = () => {
                 </div>
               )}
             </div>
-          </div>
-
+          </div>{" "}
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
+            {/* Helpful/Not Helpful buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleHelpful}
+                disabled={helpfulStatus === "helpful"}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+                  helpfulStatus === "helpful"
+                    ? "bg-green-500/20 text-green-400 cursor-not-allowed"
+                    : "bg-neutral-800/50 hover:bg-green-500/20 text-gray-300 hover:text-green-400"
+                }`}
+              >
+                <FaThumbsUp className="w-4 h-4" />
+                Helpful
+                {document?.helpfulCount > 0 && (
+                  <span className="text-xs bg-neutral-700 px-1.5 py-0.5 rounded-full">
+                    {document.helpfulCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={handleNotHelpful}
+                disabled={helpfulStatus === "not-helpful"}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+                  helpfulStatus === "not-helpful"
+                    ? "bg-red-500/20 text-red-400 cursor-not-allowed"
+                    : "bg-neutral-800/50 hover:bg-red-500/20 text-gray-300 hover:text-red-400"
+                }`}
+              >
+                <FaThumbsDown className="w-4 h-4" />
+                Not helpful
+                {document?.notHelpfulCount > 0 && (
+                  <span className="text-xs bg-neutral-700 px-1.5 py-0.5 rounded-full">
+                    {document.notHelpfulCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
             <button
               onClick={handleShare}
               className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all"
@@ -400,15 +525,17 @@ const DocumentPage = () => {
             <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 sticky top-24">
               <h3 className="text-lg font-semibold text-white mb-4">
                 Table of Contents
-              </h3>
-              <nav className="space-y-2">
+              </h3>{" "}
+              <nav className="space-y-1">
                 {tableOfContents.map((item, index) => (
                   <button
                     key={index}
                     onClick={() => scrollToHeading(item.id)}
-                    className={`w-full text-left text-sm text-gray-400 hover:text-blue-400 transition-colors block ${
-                      item.level > 2 ? "pl-4" : ""
-                    } ${item.level > 3 ? "pl-8" : ""}`}
+                    className={`w-full text-left text-sm transition-all duration-200 block relative py-1.5 px-2 rounded-md ${
+                      item.level > 2 ? "ml-4" : ""
+                    } ${
+                      item.level > 3 ? "ml-8" : ""
+                    } text-gray-400 hover:text-blue-400 hover:bg-neutral-800/30`}
                   >
                     {item.text}
                   </button>

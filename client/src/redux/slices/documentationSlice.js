@@ -298,6 +298,51 @@ export const deleteDocument = createAsyncThunk(
   }
 );
 
+// Mark Document as Helpful
+export const markDocumentHelpful = createAsyncThunk(
+  "documentation/markHelpful",
+  async ({ slug, category }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/documentation/${slug}/helpful`, {
+        category,
+      });
+      return {
+        slug,
+        category,
+        helpfulCount: response.data.data.helpfulCount,
+        notHelpfulCount: response.data.data.notHelpfulCount,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to mark document as helpful"
+      );
+    }
+  }
+);
+
+// Mark Document as Not Helpful
+export const markDocumentNotHelpful = createAsyncThunk(
+  "documentation/markNotHelpful",
+  async ({ slug, category }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/documentation/${slug}/not-helpful`, {
+        category,
+      });
+      return {
+        slug,
+        category,
+        helpfulCount: response.data.data.helpfulCount,
+        notHelpfulCount: response.data.data.notHelpfulCount,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          "Failed to mark document as not helpful"
+      );
+    }
+  }
+);
+
 // Documentation Slice
 const documentationSlice = createSlice({
   name: "documentation",
@@ -554,6 +599,52 @@ const documentationSlice = createSlice({
       .addCase(deleteDocument.rejected, (state, action) => {
         state.loading.delete = false;
         state.error.delete = action.payload;
+      }); // Mark Document as Helpful
+    builder
+      .addCase(markDocumentHelpful.pending, (state) => {
+        state.loading.document = true;
+        state.error.document = null;
+      })
+      .addCase(markDocumentHelpful.fulfilled, (state, action) => {
+        state.loading.document = false;
+        const { slug, helpfulCount, notHelpfulCount } = action.payload;
+        const index = state.documents.findIndex((doc) => doc.slug === slug);
+        if (index !== -1) {
+          state.documents[index].helpfulCount = helpfulCount;
+          state.documents[index].notHelpfulCount = notHelpfulCount;
+        }
+        if (state.currentDocument?.slug === slug) {
+          state.currentDocument.helpfulCount = helpfulCount;
+          state.currentDocument.notHelpfulCount = notHelpfulCount;
+        }
+      })
+      .addCase(markDocumentHelpful.rejected, (state, action) => {
+        state.loading.document = false;
+        state.error.document = action.payload;
+      });
+
+    // Mark Document as Not Helpful
+    builder
+      .addCase(markDocumentNotHelpful.pending, (state) => {
+        state.loading.document = true;
+        state.error.document = null;
+      })
+      .addCase(markDocumentNotHelpful.fulfilled, (state, action) => {
+        state.loading.document = false;
+        const { slug, helpfulCount, notHelpfulCount } = action.payload;
+        const index = state.documents.findIndex((doc) => doc.slug === slug);
+        if (index !== -1) {
+          state.documents[index].helpfulCount = helpfulCount;
+          state.documents[index].notHelpfulCount = notHelpfulCount;
+        }
+        if (state.currentDocument?.slug === slug) {
+          state.currentDocument.helpfulCount = helpfulCount;
+          state.currentDocument.notHelpfulCount = notHelpfulCount;
+        }
+      })
+      .addCase(markDocumentNotHelpful.rejected, (state, action) => {
+        state.loading.document = false;
+        state.error.document = action.payload;
       });
   },
 });
