@@ -124,23 +124,8 @@ const DocumentPage = () => {
   const scrollToHeading = (id) => {
     const element = window.document.getElementById(id);
     if (element) {
-      // Calculate precise offset to align with table of contents position
-      // Navbar: sticky top-0 with py-4 padding (~80px)
-      // ResourcesLayout: py-4 top padding (~16px) - reduced from py-8
-      // Table of contents: sticky top-24 (96px) + p-6 padding (24px) + header height (~28px) + mb-4 (16px)
       const navbarHeight = 80; // approximate navbar height
-      const layoutPadding = 16; // py-4 top padding from ResourcesLayout (reduced)
-      const tableOfContentsTop = 96; // top-24
-      const tablePadding = 24; // p-6
-      const headerHeight = 28; // approximate height of "Table of Contents" header
-      const headerMargin = 16; // mb-4
-      const totalOffset =
-        navbarHeight +
-        layoutPadding +
-        tableOfContentsTop +
-        tablePadding +
-        headerHeight +
-        headerMargin; // ~260px
+      const totalOffset = navbarHeight + 80;
 
       // Get element position relative to the page
       const elementPosition =
