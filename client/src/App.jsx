@@ -37,6 +37,7 @@ const Profile = lazy(() => import("@dashboard/Profile"));
 const CLI = lazy(() => import("@support/CLI"));
 const APITester = lazy(() => import("@support/APITester"));
 const Documentation = lazy(() => import("@support/Documentation"));
+const DocumentationPage = lazy(() => import("@support/DocumentationPage"));
 const SupportCenter = lazy(() => import("@support/SupportCenter"));
 
 // Marketing Pages
@@ -119,9 +120,13 @@ function App() {
               <Route path="devops-automation" element={<DevOpsAutomation />} />
               <Route path="security-shield" element={<SecurityShield />} />
             </Route>
-            {/* Resource Pages with Layout */}
+            {/* Resource Pages with Layout */}{" "}
             <Route path="resources" element={<ResourcesLayout />}>
               <Route path="docs" element={<Documentation />} />
+              <Route
+                path="docs/:category/:slug"
+                element={<DocumentationPage />}
+              />
               <Route path="support" element={<SupportCenter />} />
               <Route path="community" element={<Community />} />
               <Route path="blog" element={<Blog />} />

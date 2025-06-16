@@ -1,0 +1,133 @@
+{
+  "documentation": {
+    "getting-started": {
+      "quick-start": {
+        "title": "Quick Start Guide",
+        "description": "Get up and running with Deployio in minutes. Learn how to deploy your first application using our AI-powered platform.",
+        "author": "Deployio Team",
+        "order": 1,
+        "isFeatured": true,
+        "tags": ["getting-started", "quick-start", "deployment", "beginner"],
+        "difficulty": "beginner",
+        "metaDescription": "Get started with Deployio in minutes. Learn how to deploy your first application using our AI-powered deployment platform.",
+        "keywords": [
+          "deployio",
+          "quick start",
+          "deployment",
+          "getting started",
+          "tutorial"
+        ]
+      },
+      "installation": {
+        "title": "Installation Guide",
+        "description": "Complete installation guide for Deployio CLI, SDK, and browser extensions.",
+        "author": "Deployio Team",
+        "order": 2,
+        "tags": ["getting-started", "installation", "cli", "setup"],
+        "difficulty": "beginner",
+        "metaDescription": "Complete installation guide for Deployio CLI and tools. Get set up quickly with our step-by-step instructions.",
+        "keywords": ["deployio", "installation", "cli", "setup", "npm"]
+      }
+    },
+    "guides": {
+      "deployment": {
+        "title": "Deployment Guide",
+        "description": "Learn how to deploy your applications with Deployio's AI-powered deployment platform.",
+        "author": "Deployio Team",
+        "order": 1,
+        "tags": ["deployment", "guide", "platform", "tutorial"],
+        "difficulty": "intermediate",
+        "metaDescription": "Learn how to deploy applications with Deployio's AI-powered platform. Support for Docker, AWS, Google Cloud, and more.",
+        "keywords": ["deployment", "docker", "aws", "cloud", "microservices"]
+      }
+    },
+    "security": {
+      "best-practices": {
+        "title": "Security Best Practices",
+        "description": "Deployio takes security seriously. Follow these best practices to keep your deployments secure.",
+        "author": "Deployio Security Team",
+        "order": 1,
+        "isFeatured": true,
+        "tags": ["security", "best-practices", "compliance", "authentication"],
+        "difficulty": "intermediate",
+        "metaDescription": "Essential security best practices for Deployio deployments. Learn about access control, encryption, and compliance.",
+        "keywords": [
+          "security",
+          "authentication",
+          "encryption",
+          "compliance",
+          "best practices"
+        ]
+      }
+    },
+    "products": {
+      "platform": {
+        "title": "Deployio Platform Overview",
+        "description": "Deployio is a comprehensive AI-powered deployment platform that simplifies the process of getting your applications from code to production.",
+        "author": "Deployio Team",
+        "order": 1,
+        "isFeatured": true,
+        "tags": ["platform", "overview", "features", "ai"],
+        "difficulty": "beginner",
+        "metaDescription": "Comprehensive overview of the Deployio platform. AI-powered deployment, multi-cloud support, and enterprise features.",
+        "keywords": [
+          "deployio",
+          "platform",
+          "ai",
+          "deployment",
+          "cloud",
+          "devops"
+        ]
+      },
+      "platform-overview": {
+        "title": "Platform Overview",
+        "description": "Detailed overview of Deployio platform capabilities and features.",
+        "author": "Deployio Team",
+        "order": 2,
+        "tags": ["platform", "overview", "features"],
+        "difficulty": "beginner",
+        "metaDescription": "Detailed overview of Deployio platform capabilities, features, and supported technologies.",
+        "keywords": ["platform", "features", "capabilities", "technologies"]
+      }
+    },
+    "api": {
+      "reference": {
+        "title": "API Reference",
+        "description": "Complete API reference for Deployio REST API endpoints.",
+        "author": "Deployio API Team",
+        "order": 1,
+        "tags": ["api", "reference", "rest", "endpoints"],
+        "difficulty": "advanced",
+        "metaDescription": "Complete API reference for Deployio REST API. Authentication, endpoints, examples, and best practices.",
+        "keywords": ["api", "rest", "endpoints", "authentication", "reference"]
+      }
+    }
+  },
+  "storage": {
+    "local": {
+      "basePath": "docs/",
+      "enabled": true
+    },
+    "cdn": {
+      "provider": "cloudinary",
+      "basePath": "https://res.cloudinary.com/deployio/raw/upload/docs/",
+      "enabled": false,
+      "fallback": true
+    },
+    "s3": {
+      "bucket": "deployio-docs",
+      "region": "us-east-1",
+      "basePath": "docs/",
+      "enabled": false,
+      "fallback": true
+    }
+  },
+  "settings": {
+    "autoSync": true,
+    "cacheTimeout": 3600,
+    "defaultAuthor": "Deployio Team",
+    "supportedFormats": ["md", "mdx"],
+    "enableFrontmatter": true,
+    "fallbackToLocal": true
+  }
+}
