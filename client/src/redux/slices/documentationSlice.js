@@ -434,13 +434,13 @@ const documentationSlice = createSlice({
       .addCase(fetchDocument.rejected, (state, action) => {
         state.loading.document = false;
         state.error.document = action.payload;
-      });
-
-    // Fetch Document By Slug
+      }); // Fetch Document By Slug
     builder
       .addCase(fetchDocumentBySlug.pending, (state) => {
         state.loading.document = true;
         state.error.document = null;
+        // Clear current document to prevent showing stale content
+        state.currentDocument = null;
       })
       .addCase(fetchDocumentBySlug.fulfilled, (state, action) => {
         state.loading.document = false;
@@ -449,6 +449,7 @@ const documentationSlice = createSlice({
       .addCase(fetchDocumentBySlug.rejected, (state, action) => {
         state.loading.document = false;
         state.error.document = action.payload;
+        state.currentDocument = null;
       }); // Search Documents
     builder
       .addCase(searchDocuments.pending, (state) => {

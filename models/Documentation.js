@@ -268,7 +268,9 @@ documentationSchema.pre("save", function (next) {
 // Static methods
 documentationSchema.statics.findBySlug = function (slug, category = null) {
   const query = { slug, isPublished: true };
-  if (category) query.category = category;
+  if (category) {
+    query.category = category;
+  }
   return this.findOne(query);
 };
 
