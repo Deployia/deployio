@@ -20,7 +20,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      # --- Restore .env.production files from GitHub Secrets ---
+      # Restore env files
       - name: Write frontend .env.production
         run: echo "${{ secrets.ENV_CLIENT_PROD }}" > client/.env.production
 
@@ -30,22 +30,22 @@ jobs:
       - name: Write ai_service .env.production
         run: echo "${{ secrets.ENV_FASTAPI_PROD }}" > ai_service/.env.production
 
-      # --- Docker login to AWS ECR ---
       - name: Login to ECR
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
             | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-      # --- Build and Push Images ---
       - name: Build and push Docker images
         run: |
-          for service in backend frontend ai-service; do
-            docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-$service:latest ./$service
-            docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-$service:latest
-          done
+          docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest .
+          docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest ./client
+          docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest ./ai_service
 
-      # --- SSH into EC2 and restart services ---
-      - name: Deploy on EC2
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest
+
+      - name: Deploy on EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
           host: deployio.tech
@@ -56,7 +56,6 @@ jobs:
               | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
             cd ~/deployio
-
             docker-compose down --remove-orphans
             docker-compose pull
             docker-compose up -d --remove-orphans
