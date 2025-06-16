@@ -20,7 +20,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      # Restore env files
+      # Restore .env files for each service
       - name: Write frontend .env.production
         run: echo "${{ secrets.ENV_CLIENT_PROD }}" > client/.env.production
 
@@ -30,10 +30,23 @@ jobs:
       - name: Write ai_service .env.production
         run: echo "${{ secrets.ENV_FASTAPI_PROD }}" > ai_service/.env.production
 
-      - name: Login to ECR
+      - name: Login to Amazon ECR
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
             | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Print ECR image usage
+        run: |
+          echo "🔍 Checking ECR image sizes..."
+          for repo in deployio-frontend deployio-backend deployio-ai-service; do
+            echo "--- $repo ---"
+            aws ecr describe-images \
+              --repository-name $repo \
+              --region ${{ secrets.AWS_REGION }} \
+              --query 'imageDetails[*].{Tag:imageTags[0], SizeMB:imageSizeInBytes}' \
+              --output table
+            echo ""
+          done
 
       - name: Build and push Docker images
         run: |
