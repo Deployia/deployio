@@ -6,6 +6,9 @@ const initialState = {
   // Documentation data
   documents: [],
   currentDocument: null,
+  featuredDocuments: [],
+  popularDocuments: [],
+  stats: null,
   categories: [
     {
       id: "getting-started",
@@ -26,7 +29,7 @@ const initialState = {
       description: "CLI tools and SDKs",
     },
     {
-      id: "api-reference",
+      id: "api",
       title: "API Reference",
       icon: "🔌",
       description: "Complete API documentation",
@@ -56,20 +59,28 @@ const initialState = {
   loading: {
     documents: false,
     document: false,
+    featured: false,
+    popular: false,
+    stats: false,
     search: false,
     create: false,
     update: false,
     delete: false,
+    sync: false,
   },
 
   // Error states
   error: {
     documents: null,
     document: null,
+    featured: null,
+    popular: null,
+    stats: null,
     search: null,
     create: null,
     update: null,
     delete: null,
+    sync: null,
   },
 
   // Pagination
@@ -90,12 +101,17 @@ const initialState = {
 // Async Thunks
 export const fetchDocuments = createAsyncThunk(
   "documentation/fetchDocuments",
-  async ({ category, page = 1, limit = 10 } = {}, { rejectWithValue }) => {
+  async (
+    { category, page = 1, limit = 10, search, tag } = {},
+    { rejectWithValue }
+  ) => {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         ...(category && { category }),
+        ...(search && { search }),
+        ...(tag && { tag }),
       });
 
       const response = await api.get(`/documentation?${params}`);
@@ -136,12 +152,85 @@ export const fetchDocumentBySlug = createAsyncThunk(
   }
 );
 
+export const fetchDocumentsByCategory = createAsyncThunk(
+  "documentation/fetchDocumentsByCategory",
+  async ({ category, page = 1, limit = 10 }, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      const response = await api.get(
+        `/documentation/category/${category}?${params}`
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch documents by category"
+      );
+    }
+  }
+);
+
+export const fetchFeaturedDocuments = createAsyncThunk(
+  "documentation/fetchFeaturedDocuments",
+  async (limit = 6, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+      });
+
+      const response = await api.get(`/documentation/featured?${params}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch featured documents"
+      );
+    }
+  }
+);
+
+export const fetchPopularDocuments = createAsyncThunk(
+  "documentation/fetchPopularDocuments",
+  async (limit = 10, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+      });
+
+      const response = await api.get(`/documentation/popular?${params}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch popular documents"
+      );
+    }
+  }
+);
+
+export const fetchDocumentationStats = createAsyncThunk(
+  "documentation/fetchDocumentationStats",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/documentation/stats");
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch documentation stats"
+      );
+    }
+  }
+);
+
 export const searchDocuments = createAsyncThunk(
   "documentation/searchDocuments",
-  async ({ query, category }, { rejectWithValue }) => {
+  async ({ query, category, page = 1, limit = 20 }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams({
         q: query,
+        page: page.toString(),
+        limit: limit.toString(),
         ...(category && { category }),
       });
 
@@ -149,6 +238,20 @@ export const searchDocuments = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Search failed");
+    }
+  }
+);
+
+export const syncDocuments = createAsyncThunk(
+  "documentation/syncDocuments",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.post("/documentation/sync");
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to sync documents"
+      );
     }
   }
 );
@@ -253,12 +356,18 @@ const documentationSlice = createSlice({
       })
       .addCase(fetchDocuments.fulfilled, (state, action) => {
         state.loading.documents = false;
-        state.documents = action.payload.documents || [];
+        const { docs, stats, pagination } = action.payload.data || {};
+        state.documents = docs || [];
+        if (stats) {
+          state.stats = stats;
+        }
         state.pagination = {
-          currentPage: action.payload.currentPage || 1,
-          totalPages: action.payload.totalPages || 1,
-          totalItems: action.payload.totalItems || 0,
-          itemsPerPage: action.payload.itemsPerPage || 10,
+          currentPage: pagination?.page || 1,
+          totalPages:
+            Math.ceil((pagination?.total || 0) / (pagination?.limit || 10)) ||
+            1,
+          totalItems: pagination?.total || 0,
+          itemsPerPage: pagination?.limit || 10,
         };
         state.cache.lastFetch = Date.now();
       })
@@ -275,7 +384,7 @@ const documentationSlice = createSlice({
       })
       .addCase(fetchDocument.fulfilled, (state, action) => {
         state.loading.document = false;
-        state.currentDocument = action.payload;
+        state.currentDocument = action.payload.data;
       })
       .addCase(fetchDocument.rejected, (state, action) => {
         state.loading.document = false;
@@ -290,14 +399,12 @@ const documentationSlice = createSlice({
       })
       .addCase(fetchDocumentBySlug.fulfilled, (state, action) => {
         state.loading.document = false;
-        state.currentDocument = action.payload;
+        state.currentDocument = action.payload.data;
       })
       .addCase(fetchDocumentBySlug.rejected, (state, action) => {
         state.loading.document = false;
         state.error.document = action.payload;
-      });
-
-    // Search Documents
+      }); // Search Documents
     builder
       .addCase(searchDocuments.pending, (state) => {
         state.loading.search = true;
@@ -305,12 +412,88 @@ const documentationSlice = createSlice({
       })
       .addCase(searchDocuments.fulfilled, (state, action) => {
         state.loading.search = false;
-        state.searchResults = action.payload.results || [];
+        state.searchResults = action.payload.data || [];
       })
       .addCase(searchDocuments.rejected, (state, action) => {
         state.loading.search = false;
         state.error.search = action.payload;
         state.searchResults = [];
+      });
+
+    // Fetch Documents By Category
+    builder
+      .addCase(fetchDocumentsByCategory.pending, (state) => {
+        state.loading.documents = true;
+        state.error.documents = null;
+      })
+      .addCase(fetchDocumentsByCategory.fulfilled, (state, action) => {
+        state.loading.documents = false;
+        state.documents = action.payload.data || [];
+      })
+      .addCase(fetchDocumentsByCategory.rejected, (state, action) => {
+        state.loading.documents = false;
+        state.error.documents = action.payload;
+      });
+
+    // Fetch Featured Documents
+    builder
+      .addCase(fetchFeaturedDocuments.pending, (state) => {
+        state.loading.featured = true;
+        state.error.featured = null;
+      })
+      .addCase(fetchFeaturedDocuments.fulfilled, (state, action) => {
+        state.loading.featured = false;
+        state.featuredDocuments = action.payload.data || [];
+      })
+      .addCase(fetchFeaturedDocuments.rejected, (state, action) => {
+        state.loading.featured = false;
+        state.error.featured = action.payload;
+      });
+
+    // Fetch Popular Documents
+    builder
+      .addCase(fetchPopularDocuments.pending, (state) => {
+        state.loading.popular = true;
+        state.error.popular = null;
+      })
+      .addCase(fetchPopularDocuments.fulfilled, (state, action) => {
+        state.loading.popular = false;
+        state.popularDocuments = action.payload.data || [];
+      })
+      .addCase(fetchPopularDocuments.rejected, (state, action) => {
+        state.loading.popular = false;
+        state.error.popular = action.payload;
+      });
+
+    // Fetch Documentation Stats
+    builder
+      .addCase(fetchDocumentationStats.pending, (state) => {
+        state.loading.stats = true;
+        state.error.stats = null;
+      })
+      .addCase(fetchDocumentationStats.fulfilled, (state, action) => {
+        state.loading.stats = false;
+        state.stats = action.payload.data || null;
+      })
+      .addCase(fetchDocumentationStats.rejected, (state, action) => {
+        state.loading.stats = false;
+        state.error.stats = action.payload;
+      });
+
+    // Sync Documents
+    builder
+      .addCase(syncDocuments.pending, (state) => {
+        state.loading.sync = true;
+        state.error.sync = null;
+      })
+      .addCase(syncDocuments.fulfilled, (state, _action) => {
+        state.loading.sync = false;
+        // Optionally refresh documents after sync
+        state.cache.lastFetch = null;
+      })
+      .addCase(syncDocuments.rejected, (state, action) => {
+        state.loading.sync = false;
+        state.error.sync = action.payload;
       });
 
     // Create Document
@@ -321,7 +504,8 @@ const documentationSlice = createSlice({
       })
       .addCase(createDocument.fulfilled, (state, action) => {
         state.loading.create = false;
-        state.documents.unshift(action.payload);
+        const newDoc = action.payload.data;
+        state.documents.unshift(newDoc);
       })
       .addCase(createDocument.rejected, (state, action) => {
         state.loading.create = false;
@@ -336,14 +520,15 @@ const documentationSlice = createSlice({
       })
       .addCase(updateDocument.fulfilled, (state, action) => {
         state.loading.update = false;
+        const updatedDoc = action.payload.data;
         const index = state.documents.findIndex(
-          (doc) => doc._id === action.payload._id
+          (doc) => doc._id === updatedDoc._id
         );
         if (index !== -1) {
-          state.documents[index] = action.payload;
+          state.documents[index] = updatedDoc;
         }
-        if (state.currentDocument?._id === action.payload._id) {
-          state.currentDocument = action.payload;
+        if (state.currentDocument?._id === updatedDoc._id) {
+          state.currentDocument = updatedDoc;
         }
       })
       .addCase(updateDocument.rejected, (state, action) => {
@@ -389,6 +574,11 @@ export const {
 export const selectDocuments = (state) => state.documentation.documents;
 export const selectCurrentDocument = (state) =>
   state.documentation.currentDocument;
+export const selectFeaturedDocuments = (state) =>
+  state.documentation.featuredDocuments;
+export const selectPopularDocuments = (state) =>
+  state.documentation.popularDocuments;
+export const selectDocumentationStats = (state) => state.documentation.stats;
 export const selectCategories = (state) => state.documentation.categories;
 export const selectSearchResults = (state) => state.documentation.searchResults;
 export const selectSearchQuery = (state) => state.documentation.searchQuery;

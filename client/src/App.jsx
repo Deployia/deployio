@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, lazy, Suspense } from "react";
 
@@ -36,7 +36,9 @@ const Profile = lazy(() => import("@dashboard/Profile"));
 // Support Pages
 const CLI = lazy(() => import("@support/CLI"));
 const APITester = lazy(() => import("@support/APITester"));
-const Documentation = lazy(() => import("@support/Documentation"));
+const DocsLayout = lazy(() => import("@pages/docs/DocsLayout"));
+const DocsOverview = lazy(() => import("@pages/docs/DocsOverview"));
+const DocumentPage = lazy(() => import("@pages/docs/DocumentPage"));
 const SupportCenter = lazy(() => import("@support/SupportCenter"));
 
 // Marketing Pages
@@ -119,9 +121,16 @@ function App() {
               <Route path="devops-automation" element={<DevOpsAutomation />} />
               <Route path="security-shield" element={<SecurityShield />} />
             </Route>
-            {/* Resource Pages with Layout */}
+            {/* Resource Pages with Layout */}{" "}
             <Route path="resources" element={<ResourcesLayout />}>
-              <Route path="docs" element={<Documentation />} />
+              <Route path="docs" element={<DocsLayout />}>
+                <Route
+                  index
+                  element={<Navigate to="getting-started" replace />}
+                />
+                <Route path=":category" element={<DocsOverview />} />
+                <Route path=":category/:slug" element={<DocumentPage />} />
+              </Route>
               <Route path="support" element={<SupportCenter />} />
               <Route path="community" element={<Community />} />
               <Route path="blog" element={<Blog />} />
