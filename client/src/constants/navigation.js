@@ -71,7 +71,7 @@ export const downloadsItems = [
   },
   {
     label: "GitHub Repository",
-    href: "https://github.com/deployio/deployio",
+    href: "https://github.com/deployia/",
     icon: FaGithub,
     description: "Open source repository",
   },
@@ -86,6 +86,12 @@ export const resourcesItems = [
     description: "Complete guides and API docs",
   },
   {
+    label: "Blog",
+    href: "/resources/blogs",
+    icon: FaBlog,
+    description: "Latest updates and tutorials",
+  },
+  {
     label: "Support Center",
     href: "/resources/support",
     icon: FaLifeRing,
@@ -98,12 +104,6 @@ export const resourcesItems = [
     icon: FaUsers,
     description: "Join our developer community",
     comingSoon: "Coming Soon",
-  },
-  {
-    label: "Blog",
-    href: "/resources/blog",
-    icon: FaBlog,
-    description: "Latest updates and tutorials",
   },
 ];
 
@@ -172,6 +172,12 @@ export const dashboardResourcesItems = [
     description: "Complete guides and API docs",
   },
   {
+    label: "API Reference",
+    href: "resources/docs/api",
+    icon: FaServer,
+    description: "Complete API documentation",
+  },
+  {
     label: "Support Center",
     href: "/resources/support",
     icon: FaLifeRing,
@@ -182,12 +188,6 @@ export const dashboardResourcesItems = [
     href: "/resources/community",
     icon: FaUsers,
     description: "Join our developer community",
-  },
-  {
-    label: "API Reference",
-    href: "/docs/api",
-    icon: FaServer,
-    description: "Complete API documentation",
   },
 ];
 
