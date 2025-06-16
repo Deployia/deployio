@@ -101,6 +101,27 @@
         "metaDescription": "Complete API reference for Deployio REST API. Authentication, endpoints, examples, and best practices.",
         "keywords": ["api", "rest", "endpoints", "authentication", "reference"]
       }
+    },
+    "downloads": {
+      "cli-tools": {
+        "title": "Downloads",
+        "description": "Get access to Deployio's CLI tools, SDKs, and desktop applications.",
+        "author": "Deployio Team",
+        "order": 1,
+        "isFeatured": true,
+        "tags": ["downloads", "cli", "sdk", "tools", "desktop"],
+        "difficulty": "beginner",
+        "metaDescription": "Download Deployio CLI tools, SDKs, desktop applications, and browser extensions. Get started with our development tools.",
+        "keywords": [
+          "downloads",
+          "cli",
+          "sdk",
+          "tools",
+          "desktop",
+          "browser",
+          "extensions"
+        ]
+      }
     }
   },
   "storage": {
