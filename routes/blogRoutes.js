@@ -70,6 +70,14 @@ router.post("/:id/like", likeBlog);
 // @access  Public
 router.post("/:id/share", shareBlog);
 
+// Blog slug routes (must be before auth middleware to stay public)
+// @desc    Get single blog post by slug (with optional category)
+// @route   GET /api/v1/blog/:slug
+// @route   GET /api/v1/blog/:category/:slug
+// @access  Public
+router.get("/:category/:slug", getBlogBySlug);
+router.get("/:slug", getBlogBySlug);
+
 // Admin routes - Require authentication
 router.use(protect);
 
@@ -82,13 +90,5 @@ router.post("/sync", syncBlogs);
 // @route   POST /api/v1/blog/:id/sync
 // @access  Private (Admin)
 router.post("/:id/sync", syncBlogFromFile);
-
-// Blog slug routes (must be last to avoid conflicts)
-// @desc    Get single blog post by slug (with optional category)
-// @route   GET /api/v1/blog/:slug
-// @route   GET /api/v1/blog/:category/:slug
-// @access  Public
-router.get("/:category/:slug", getBlogBySlug);
-router.get("/:slug", getBlogBySlug);
 
 module.exports = router;
