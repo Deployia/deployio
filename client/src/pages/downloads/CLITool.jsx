@@ -275,12 +275,8 @@ deployio scale --instances auto --ai-predict`,
 
   return (
     <>
-      <SEO
-        title="Deployio CLI - Command Line Interface for Developers"
-        description="The most powerful deployment CLI for developers. Deploy, manage, and monitor applications from the command line with enterprise-grade reliability."
-        keywords="CLI tool, command line, deployment automation, developer tools, DevOps CLI, deployment CLI"
-      />
-
+      {" "}
+      <SEO page="cliTool" />
       <div className="min-h-screen">
         <DownloadHero {...heroProps} />
         <div id="install-section">

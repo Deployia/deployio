@@ -306,12 +306,8 @@ const CloudIntegration = () => {
 
   return (
     <>
-      <SEO
-        title="Multi-Cloud Deployment Platform - Deploy Anywhere | Deployio"
-        description="Deploy your applications to AWS, Google Cloud, Azure, and 15+ cloud providers with intelligent orchestration, monitoring, and cost optimization."
-        keywords="multi-cloud deployment, AWS deployment, Google Cloud, Azure, cloud integration, containerization, DevOps platform"
-      />
-
+      {" "}
+      <SEO page="cloudIntegration" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
 

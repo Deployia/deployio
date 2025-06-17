@@ -1,18 +1,34 @@
 User-agent: *
 Allow: /
 
-# Sitemap
-Sitemap: https://deployio.tech/sitemap.xml
-
-# Disallow admin pages from search engines (auth pages are now allowed)
-Disallow: /profile/
-Disallow: /admin/
-
-# Allow all other pages
-Allow: /
+# Important: Allow search engines to crawl public pages
+Allow: /auth/login
+Allow: /auth/register
 Allow: /privacy-policy
 Allow: /terms-of-service
 Allow: /cookie-policy
+Allow: /resources/
+Allow: /products/
+Allow: /downloads/
+Allow: /health
 
-# Crawl delay (optional)
+# Disallow protected dashboard pages
+Disallow: /dashboard/
+Disallow: /profile/
+Disallow: /admin/
+
+# Disallow temporary/development pages
+Disallow: /dev/
+Disallow: /test/
+
+# Allow important resources
+Allow: /favicon.ico
+Allow: /logo.png
+Allow: /og-image.jpg
+Allow: /manifest.json
+
+# Sitemap location
+Sitemap: https://deployio.tech/sitemap.xml
+
+# Crawl delay for respectful crawling
 Crawl-delay: 1

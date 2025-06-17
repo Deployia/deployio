@@ -280,12 +280,8 @@ print(f"Expected load: {prediction.forecast}")`,
 
   return (
     <>
-      <SEO
-        title="Deployio SDK - AI-Powered Deployment SDKs for Developers"
-        description="Integrate AI-powered deployment capabilities into your applications with Deployio SDKs. Available for JavaScript, Python, Java, and Go with comprehensive documentation."
-        keywords="SDK, deployment SDK, AI SDK, developer tools, deployment automation, JavaScript SDK, Python SDK"
-      />
-
+      {" "}
+      <SEO page="sdk" />
       <div className="min-h-screen">
         <DownloadHero {...heroProps} />
 
