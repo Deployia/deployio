@@ -215,7 +215,7 @@ print(f"Expected load: {prediction.forecast}")`,
     secondaryCTA: {
       text: "Documentation",
       icon: FaBook,
-      onClick: () => window.open("/docs/sdk", "_blank"),
+      onClick: () => window.open("/resources/docs/downloads/sdk", "_blank"),
     },
     gradient: "from-purple-400 via-blue-400 to-indigo-400",
     downloadStats: [

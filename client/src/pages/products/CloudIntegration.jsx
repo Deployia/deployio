@@ -120,7 +120,7 @@ const CloudIntegration = () => {
     secondaryCTA: {
       text: "View Documentation",
       icon: FaPlay,
-      onClick: () => window.open("/resources/docs/cloud-integration", "_blank"),
+      onClick: () => window.open("/resources/docs/products/cloud-integration", "_blank"),
     },
     gradient: "from-cyan-400 via-blue-400 to-purple-400",
     visual: (

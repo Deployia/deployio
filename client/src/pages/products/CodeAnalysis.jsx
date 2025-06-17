@@ -274,7 +274,7 @@ const CodeAnalysis = () => {
     },
     secondaryButton: {
       text: "View Documentation",
-      onClick: () => window.open("/resources/docs/code-analysis", "_blank"),
+      onClick: () => window.open("/resources/docs/products/code-analysis", "_blank"),
     },
     gradientClasses: "from-blue-600 to-purple-600",
   };

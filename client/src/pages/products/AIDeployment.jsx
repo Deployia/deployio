@@ -215,7 +215,7 @@ const AIDeployment = () => {
     },
     secondaryButton: {
       text: "View Documentation",
-      onClick: () => window.open("/docs/ai-deployment", "_blank"),
+      onClick: () => window.open("/resources/docs/products/ai-deployment", "_blank"),
     },
     gradientClasses: "from-green-600 to-blue-600",
   };
