@@ -1,0 +1,30 @@
+# Traefik Dynamic Configuration
+# This file will be automatically loaded by Traefik
+
+# Enable API and Dashboard
+api:
+  dashboard: true
+  insecure: true
+
+# Enable Docker provider
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: deployio-network
+
+# Entry points
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+# Enable access logs
+accessLog: {}
+
+# Enable metrics
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
