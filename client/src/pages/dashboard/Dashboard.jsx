@@ -12,6 +12,7 @@ import {
   FaPlus,
   FaArrowRight,
   FaGithub,
+  FaShieldAlt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
@@ -19,11 +20,11 @@ import { fetchDashboardStats } from "@redux/index";
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  // Redux state
+  const navigate = useNavigate(); // Redux state
   const { dashboardStats, loading: analyticsLoading } = useSelector(
     (state) => state.analytics
   );
+  const { user } = useSelector((state) => state.auth);
   // Fetch data on component mount
   useEffect(() => {
     // Only fetch dashboard stats - it now includes projects and deployments
@@ -91,12 +92,12 @@ const Dashboard = () => {
         return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
     }
   };
-
   // Navigation handlers
   const handleViewProjects = () => navigate("/dashboard/projects");
   const handleViewDeployments = () => navigate("/dashboard/deployments");
   const handleViewAnalytics = () => navigate("/dashboard/analytics");
   const handleCreateProject = () => navigate("/dashboard/projects/create");
+  const handleAdminPanel = () => navigate("/admin");
   const handleProjectClick = (projectId) =>
     navigate(`/dashboard/projects/${projectId}`);
 
@@ -308,9 +309,28 @@ const Dashboard = () => {
           <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
               Quick Actions
-            </h3>
-
+            </h3>{" "}
             <div className="space-y-3">
+              {/* Admin Panel for Admin Users */}
+              {user?.role === "admin" && (
+                <button
+                  onClick={handleAdminPanel}
+                  className="w-full p-3 bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-500/30 rounded-lg text-left hover:border-red-400/50 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-500/20 rounded-lg group-hover:bg-red-500/30 transition-colors">
+                      <FaShieldAlt className="w-4 h-4 text-red-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-white font-medium">Admin Panel</h4>
+                      <p className="text-gray-400 text-sm">
+                        Manage platform settings
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              )}
+
               <button
                 onClick={handleCreateProject}
                 className="w-full p-3 bg-gradient-to-r from-blue-500/20 to-purple-600/20 border border-blue-500/30 rounded-lg text-left hover:border-blue-400/50 transition-colors group"

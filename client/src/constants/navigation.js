@@ -275,11 +275,6 @@ export const dashboardNavigationItems = [
     id: "resources",
     items: dashboardResourcesItems,
   },
-  {
-    label: "Admin",
-    id: "admin",
-    items: adminItems,
-  },
 ];
 
 // Footer-specific grouped navigation for easier organization
