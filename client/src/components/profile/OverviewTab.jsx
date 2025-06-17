@@ -273,7 +273,7 @@ const OverviewTab = () => {
                 </div>{" "}
                 <div className="flex items-center gap-1">
                   <FaRocket />
-                  {dashboardStats?.projects || 0} Projects
+                  {dashboardStats?.projects?.total || 0} Projects
                 </div>
               </div>
             </div>
