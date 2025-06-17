@@ -146,14 +146,14 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {" "}
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>{" "}
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>{" "}
+        <p className="text-gray-400 mt-2">
           Overview of your platform&apos;s performance and activity
         </p>
       </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {statCards.map((stat, index) => (
@@ -162,22 +162,23 @@ const AdminDashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-lg shadow-sm border p-6"
+            className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6 hover:bg-neutral-800/70 transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">
+                {" "}
+                <p className="text-sm font-medium text-gray-400">
                   {stat.title}
                 </p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
+                <p className="text-3xl font-bold text-white mt-2">
                   {stat.value}
                 </p>
                 <div className="flex items-center mt-2">
                   <span
                     className={`text-sm font-medium ${
                       stat.changeType === "positive"
-                        ? "text-green-600"
-                        : "text-red-600"
+                        ? "text-green-400"
+                        : "text-red-400"
                     }`}
                   >
                     {stat.change}
@@ -187,20 +188,20 @@ const AdminDashboard = () => {
                   </span>
                 </div>
               </div>
-              <div className={`${stat.color} p-3 rounded-lg`}>
+              <div className={`${stat.color} p-3 rounded-lg shadow-lg`}>
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
             </div>
           </motion.div>
         ))}
       </div>
-
       {/* Activity Feed & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {" "}
         {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">
+        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg">
+          <div className="p-6 border-b border-neutral-700">
+            <h2 className="text-lg font-semibold text-white">
               Recent Activity
             </h2>
           </div>
@@ -208,12 +209,14 @@ const AdminDashboard = () => {
             <div className="space-y-4">
               {activities.map((activity) => (
                 <div key={activity.id} className="flex items-start space-x-3">
-                  <div className={`${activity.color} p-2 rounded-lg`}>
+                  <div
+                    className={`${activity.color} p-2 rounded-lg bg-opacity-20 border border-current border-opacity-30`}
+                  >
                     <activity.icon className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">{activity.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-sm text-white">{activity.message}</p>
+                    <p className="text-xs text-gray-400 mt-1">
                       {activity.timestamp}
                     </p>
                   </div>
@@ -222,37 +225,34 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Quick Actions
-            </h2>
-          </div>
+        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg">
+          <div className="p-6 border-b border-neutral-700">
+            <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
+          </div>{" "}
           <div className="p-6">
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                <FiUsers className="w-8 h-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-600">
+              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200 group">
+                <FiUsers className="w-8 h-8 text-gray-400 group-hover:text-blue-400 mb-2" />
+                <span className="text-sm font-medium text-gray-300 group-hover:text-blue-300">
                   Manage Users
                 </span>
               </button>
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors">
-                <FiBook className="w-8 h-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-600">
+              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-green-500 hover:bg-green-500/10 transition-all duration-200 group">
+                <FiBook className="w-8 h-8 text-gray-400 group-hover:text-green-400 mb-2" />
+                <span className="text-sm font-medium text-gray-300 group-hover:text-green-300">
                   Create Blog
                 </span>
               </button>
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors">
-                <FiDatabase className="w-8 h-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-600">
+              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-purple-500 hover:bg-purple-500/10 transition-all duration-200 group">
+                <FiDatabase className="w-8 h-8 text-gray-400 group-hover:text-purple-400 mb-2" />
+                <span className="text-sm font-medium text-gray-300 group-hover:text-purple-300">
                   View Deployments
                 </span>
               </button>
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-colors">
-                <FiTrendingUp className="w-8 h-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-600">
+              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-orange-500 hover:bg-orange-500/10 transition-all duration-200 group">
+                <FiTrendingUp className="w-8 h-8 text-gray-400 group-hover:text-orange-400 mb-2" />
+                <span className="text-sm font-medium text-gray-300 group-hover:text-orange-300">
                   Analytics
                 </span>
               </button>

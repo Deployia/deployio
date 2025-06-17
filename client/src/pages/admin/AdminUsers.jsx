@@ -84,29 +84,27 @@ const AdminUsers = () => {
     const matchesRole = filterRole === "all" || user.role === filterRole;
     return matchesSearch && matchesRole;
   });
-
   const getRoleColor = (role) => {
     switch (role) {
       case "admin":
-        return "bg-red-100 text-red-800";
+        return "bg-red-500/20 text-red-400 border border-red-500/30";
       case "user":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-500/20 text-gray-400 border border-gray-500/30";
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800";
+        return "bg-green-500/20 text-green-400 border border-green-500/30";
       case "inactive":
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-500/20 text-gray-400 border border-gray-500/30";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-500/20 text-gray-400 border border-gray-500/30";
     }
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -120,8 +118,8 @@ const AdminUsers = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-white">User Management</h1>
+          <p className="text-gray-400 mt-2">
             Manage platform users and their permissions
           </p>
         </div>
@@ -130,9 +128,8 @@ const AdminUsers = () => {
           <span>Add User</span>
         </button>
       </div>
-
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -141,7 +138,7 @@ const AdminUsers = () => {
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div className="flex items-center space-x-2">
@@ -149,7 +146,7 @@ const AdminUsers = () => {
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
@@ -158,50 +155,51 @@ const AdminUsers = () => {
           </div>
         </div>
       </div>
-
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg overflow-hidden">
+        {" "}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-neutral-700/50 border-b border-neutral-600">
               <tr>
-                <th className="text-left py-3 px-6 font-medium text-gray-900">
+                <th className="text-left py-3 px-6 font-medium text-white">
                   User
                 </th>
-                <th className="text-left py-3 px-6 font-medium text-gray-900">
+                <th className="text-left py-3 px-6 font-medium text-white">
                   Role
                 </th>
-                <th className="text-left py-3 px-6 font-medium text-gray-900">
+                <th className="text-left py-3 px-6 font-medium text-white">
                   Status
                 </th>
-                <th className="text-left py-3 px-6 font-medium text-gray-900">
+                <th className="text-left py-3 px-6 font-medium text-white">
                   Projects
                 </th>
-                <th className="text-left py-3 px-6 font-medium text-gray-900">
+                <th className="text-left py-3 px-6 font-medium text-white">
                   Last Login
                 </th>
-                <th className="text-left py-3 px-6 font-medium text-gray-900">
+                <th className="text-left py-3 px-6 font-medium text-white">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-neutral-600">
               {filteredUsers.map((user, index) => (
                 <motion.tr
                   key={user.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="hover:bg-gray-50"
+                  className="hover:bg-neutral-700/30"
                 >
+                  {" "}
                   <td className="py-4 px-6">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
                         <FiUser className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{user.name}</p>
-                        <p className="text-sm text-gray-500">{user.email}</p>
+                        <p className="font-medium text-white">{user.name}</p>
+                        <p className="text-sm text-gray-400">{user.email}</p>
                       </div>
                     </div>
                   </td>
@@ -224,26 +222,26 @@ const AdminUsers = () => {
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <span className="text-gray-900">{user.projects}</span>
+                    <span className="text-white">{user.projects}</span>
                   </td>
                   <td className="py-4 px-6">
-                    <div className="flex items-center space-x-1 text-sm text-gray-500">
+                    <div className="flex items-center space-x-1 text-sm text-gray-400">
                       <FiCalendar className="w-4 h-4" />
                       <span>{user.lastLogin}</span>
                     </div>
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center space-x-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <button className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors">
                         <FiEdit className="w-4 h-4" />
                       </button>
-                      <button className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                      <button className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/20 rounded-lg transition-colors">
                         <FiShield className="w-4 h-4" />
                       </button>
-                      <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <button className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors">
                         <FiTrash2 className="w-4 h-4" />
                       </button>
-                      <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                      <button className="p-2 text-gray-400 hover:text-gray-300 hover:bg-neutral-600/50 rounded-lg transition-colors">
                         <FiMoreVertical className="w-4 h-4" />
                       </button>
                     </div>
@@ -253,46 +251,45 @@ const AdminUsers = () => {
             </tbody>
           </table>
         </div>
-      </div>
-
+      </div>{" "}
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
           <div className="flex items-center space-x-3">
-            <FiUser className="w-8 h-8 text-blue-600" />
+            <FiUser className="w-8 h-8 text-blue-400" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-              <p className="text-sm text-gray-600">Total Users</p>
+              <p className="text-2xl font-bold text-white">{users.length}</p>
+              <p className="text-sm text-gray-400">Total Users</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
           <div className="flex items-center space-x-3">
-            <FiShield className="w-8 h-8 text-red-600" />
+            <FiShield className="w-8 h-8 text-red-400" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-white">
                 {users.filter((u) => u.role === "admin").length}
               </p>
-              <p className="text-sm text-gray-600">Admins</p>
+              <p className="text-sm text-gray-400">Admins</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
           <div className="flex items-center space-x-3">
-            <FiMail className="w-8 h-8 text-green-600" />
+            <FiMail className="w-8 h-8 text-green-400" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-white">
                 {users.filter((u) => u.status === "active").length}
               </p>
-              <p className="text-sm text-gray-600">Active Users</p>
+              <p className="text-sm text-gray-400">Active Users</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
           <div className="flex items-center space-x-3">
-            <FiCalendar className="w-8 h-8 text-purple-600" />
+            <FiCalendar className="w-8 h-8 text-purple-400" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-white">
                 {
                   users.filter(
                     (u) =>
@@ -301,7 +298,7 @@ const AdminUsers = () => {
                   ).length
                 }
               </p>
-              <p className="text-sm text-gray-600">New This Month</p>
+              <p className="text-sm text-gray-400">New This Month</p>
             </div>
           </div>
         </div>
