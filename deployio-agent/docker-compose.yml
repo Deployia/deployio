@@ -1,0 +1,115 @@
+version: "3.8"
+
+services:
+  # MongoDB for deployments and agent data
+  mongodb:
+    image: mongo:7
+    container_name: deployio-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-deployio123}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-deployio_agent}
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongodb/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "27017:27017"
+    networks:
+      - deployio-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Traefik reverse proxy for routing
+  traefik:
+    image: traefik:v3.0
+    container_name: deployio-traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --log.level=INFO
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik:/etc/traefik/dynamic:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - deployio-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${BASE_DOMAIN:-localhost}`)"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+
+  # DeployIO Agent
+  deployio-agent:
+    build: .
+    container_name: deployio-agent
+    restart: unless-stopped
+    environment:
+      # App configuration
+      DEBUG: ${DEBUG:-false}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      PORT: 8000
+
+      # MongoDB configuration
+      MONGODB_URL: mongodb://${MONGODB_USERNAME:-admin}:${MONGODB_PASSWORD:-deployio123}@mongodb:27017/${MONGODB_DATABASE:-deployio_agent}?authSource=admin
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-deployio_agent}
+
+      # Authentication
+      AGENT_SECRET: ${AGENT_SECRET}
+
+      # Docker configuration
+      DOCKER_SOCKET: /var/run/docker.sock
+      DOCKER_NETWORK: deployio-network
+
+      # Traefik configuration
+      TRAEFIK_API_URL: http://traefik:8080
+
+      # Domain configuration
+      BASE_DOMAIN: ${BASE_DOMAIN:-localhost}
+      WILDCARD_SSL_ENABLED: ${WILDCARD_SSL_ENABLED:-false}
+
+      # AWS configuration
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - mongodb
+      - traefik
+    networks:
+      - deployio-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.agent.rule=Host(`agent.${BASE_DOMAIN:-localhost}`) || Host(`${BASE_DOMAIN:-localhost}`) || HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.${BASE_DOMAIN:-localhost}`)"
+      - "traefik.http.services.agent.loadbalancer.server.port=8000"
+      - "traefik.http.routers.agent.entrypoints=web"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  deployio-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
