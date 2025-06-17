@@ -70,20 +70,29 @@ deployio-agent/
 2. **Create environment file:**
 
    ```bash
+   # For local development
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env with your local configuration
+
+   # For production deployment
+   cp .env.example .env.production
+   # Edit .env.production with your production configuration
    ```
 
-3. **Install Python dependencies:**
+3. **Install Python dependencies (for local development):**
 
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Run with Docker Compose (recommended):**
+4. **Run with Docker Compose:**
 
    ```bash
+   # For local development (uses .env)
    docker-compose up -d
+
+   # For production (uses .env.production)
+   docker-compose -f docker-compose.yml up -d
    ```
 
 5. **Or run locally for development:**
