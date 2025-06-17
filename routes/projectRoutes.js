@@ -37,9 +37,7 @@ const projectValidation = [
 ];
 
 const deploymentValidation = [
-  body("projectId")
-    .isMongoId()
-    .withMessage("Invalid project ID"),
+  body("projectId").isMongoId().withMessage("Invalid project ID"),
   body("deployment.environment")
     .isIn(["development", "staging", "production"])
     .withMessage("Environment must be development, staging, or production"),
@@ -60,26 +58,49 @@ router.delete("/:id", projectController.deleteProject);
 router.patch("/:id/archive", projectController.toggleArchiveProject);
 
 // Project collaborators
-router.post("/:id/collaborators", [
-  body("email").isEmail().withMessage("Valid email is required"),
-  body("role").optional().isIn(["developer", "admin"]).withMessage("Role must be developer or admin")
-], projectController.addCollaborator);
-router.delete("/:id/collaborators/:collaboratorId", projectController.removeCollaborator);
+router.post(
+  "/:id/collaborators",
+  [
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("role")
+      .optional()
+      .isIn(["developer", "admin"])
+      .withMessage("Role must be developer or admin"),
+  ],
+  projectController.addCollaborator
+);
+router.delete(
+  "/:id/collaborators/:collaboratorId",
+  projectController.removeCollaborator
+);
 
 // Project deployments
 router.get("/:id/deployments", projectController.getProjectDeployments);
-router.patch("/:id/deployment", projectController.updateProjectDeploymentStatus);
+router.patch(
+  "/:id/deployment",
+  projectController.updateProjectDeploymentStatus
+);
 
 // Project analytics
 router.get("/:id/analytics", projectController.getProjectAnalytics);
 
 // Deployment statistics
-router.get("/:projectId/deployments/stats", deploymentController.getDeploymentStats);
+router.get(
+  "/:projectId/deployments/stats",
+  deploymentController.getDeploymentStats
+);
 
 // Deployment Routes
-router.post("/deployments", deploymentValidation, deploymentController.createDeployment);
+router.post(
+  "/deployments",
+  deploymentValidation,
+  deploymentController.createDeployment
+);
 router.get("/deployments/:id", deploymentController.getDeployment);
-router.patch("/deployments/:id/status", deploymentController.updateDeploymentStatus);
+router.patch(
+  "/deployments/:id/status",
+  deploymentController.updateDeploymentStatus
+);
 router.get("/deployments/:id/logs", deploymentController.getDeploymentLogs);
 router.patch("/deployments/:id/cancel", deploymentController.cancelDeployment);
 
@@ -87,7 +108,15 @@ router.patch("/deployments/:id/cancel", deploymentController.cancelDeployment);
 router.post("/:id/analyze", aiController.analyzeProjectStack);
 router.post("/:id/dockerfile", aiController.generateDockerfile);
 router.get("/:id/optimize", aiController.getOptimizations);
-router.patch("/:id/optimize/:suggestionIndex/implement", aiController.markOptimizationImplemented);
+router.patch(
+  "/:id/optimize/:suggestionIndex/implement",
+  aiController.markOptimizationImplemented
+);
 router.post("/:id/ai-analysis", aiController.runFullAiAnalysis);
+
+// DevOps Automation routes
+router.post("/:id/pipeline", aiController.generatePipeline);
+router.post("/:id/environment", aiController.generateEnvironmentConfig);
+router.post("/:id/build-optimization", aiController.generateBuildOptimization);
 
 module.exports = router;
