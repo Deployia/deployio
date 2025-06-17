@@ -266,12 +266,8 @@ const SecurityShield = () => {
 
   return (
     <>
-      <SEO
-        title="Security & Compliance - Automated Security Scanning | Deployio"
-        description="Deploy with confidence using Deployio's built-in security scanning, compliance validation, and threat monitoring for all your applications."
-        keywords="deployment security, vulnerability scanning, compliance, OWASP, security monitoring, DevSecOps"
-      />
-
+      {" "}
+      <SEO page="securityShield" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
 

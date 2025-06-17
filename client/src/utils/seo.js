@@ -214,7 +214,6 @@ export const seoConfig = {
     url: `${defaultSEO.url}/dashboard/monitoring`,
     robots: "noindex, nofollow",
   },
-
   integrations: {
     title: "Integrations | Deployio - Connect Your Favorite Tools",
     description:
@@ -222,6 +221,36 @@ export const seoConfig = {
     keywords:
       "integrations, GitHub integration, Slack integration, AWS integration, Docker integration, CI/CD integrations, deployment integrations",
     url: `${defaultSEO.url}/dashboard/integrations`,
+    robots: "noindex, nofollow",
+  },
+
+  activity: {
+    title: "Activity | Deployio - Recent Activity & Deployment Logs",
+    description:
+      "View recent deployment activity, system events, and real-time logs. Track all deployment operations, user actions, and system notifications in one place.",
+    keywords:
+      "deployment activity, system logs, deployment history, activity feed, deployment tracking, system events",
+    url: `${defaultSEO.url}/dashboard/activity`,
+    robots: "noindex, nofollow",
+  },
+
+  "create-project": {
+    title: "Create Project | Deployio - New Project Setup",
+    description:
+      "Create a new project with Deployio's intelligent setup wizard. Connect your GitHub repository and let AI configure deployment settings automatically.",
+    keywords:
+      "create project, new project, project setup, GitHub integration, AI configuration, deployment setup",
+    url: `${defaultSEO.url}/dashboard/create-project`,
+    robots: "noindex, nofollow",
+  },
+
+  "project-details": {
+    title: "Project Details | Deployio - Project Management",
+    description:
+      "Manage your project deployments, view detailed analytics, configure settings, and monitor performance with comprehensive project insights.",
+    keywords:
+      "project management, project details, deployment configuration, project analytics, deployment monitoring",
+    url: `${defaultSEO.url}/dashboard/projects`,
     robots: "noindex, nofollow",
   },
 
@@ -324,7 +353,6 @@ export const seoConfig = {
       "cloud integration, multi-cloud deployment, AWS deployment, Google Cloud deployment, Azure deployment, cloud automation",
     url: `${defaultSEO.url}/products/cloud-integration`,
   },
-
   securityShield: {
     title: "Security Shield | Deployio - Enterprise Security Platform",
     description:
@@ -332,6 +360,15 @@ export const seoConfig = {
     keywords:
       "deployment security, vulnerability scanning, compliance monitoring, threat detection, enterprise security, DevSecOps, security automation",
     url: `${defaultSEO.url}/products/security-shield`,
+  },
+
+  devopsAutomation: {
+    title: "DevOps Automation | Deployio - CI/CD Pipeline Builder",
+    description:
+      "Automate your entire DevOps workflow with intelligent CI/CD pipelines, quality gates, multi-environment orchestration, and deployment automation.",
+    keywords:
+      "DevOps automation, CI/CD pipelines, GitHub Actions, build automation, deployment automation, quality gates, blue-green deployment",
+    url: `${defaultSEO.url}/products/devops-automation`,
   },
 
   // Marketing & Community pages
@@ -492,12 +529,10 @@ export const generateMetaTags = (seoData) => {
     { name: "twitter:creator", content: seoData.twitterCreator },
     { name: "twitter:title", content: seoData.title },
     { name: "twitter:description", content: seoData.description },
-    { name: "twitter:image", content: seoData.image },
-
-    // Additional SEO tags
+    { name: "twitter:image", content: seoData.image }, // Additional SEO tags
     { name: "viewport", content: "width=device-width, initial-scale=1.0" },
-    { name: "theme-color", content: "#3b82f6" },
-    { name: "msapplication-TileColor", content: "#3b82f6" },
+    { name: "theme-color", content: "#1e293b" },
+    { name: "msapplication-TileColor", content: "#1e293b" },
   ];
 
   // Add robots tag if specified
@@ -548,12 +583,15 @@ export const preloadSEOResources = () => {
     ogImageLink.as = "image";
     document.head.appendChild(ogImageLink);
 
-    // Preload favicon
+    // Preload favicon only
     const faviconLink = document.createElement("link");
     faviconLink.rel = "preload";
     faviconLink.href = "/favicon.png";
     faviconLink.as = "image";
     document.head.appendChild(faviconLink);
+
+    // Don't preload logo.png to avoid unused preload warnings
+    // Logo will be loaded when needed by navigation components
   }
 };
 

@@ -69,12 +69,10 @@ export const optimizeCoreWebVitals = () => {
         if (hint.crossorigin) link.crossOrigin = hint.crossorigin;
         document.head.appendChild(link);
       }
-    });
-
-    // Add performance optimization meta tags
+    }); // Add performance optimization meta tags
     const performanceMetas = [
-      { name: "theme-color", content: "#3B82F6" },
-      { name: "msapplication-TileColor", content: "#3B82F6" },
+      { name: "theme-color", content: "#1e293b" },
+      { name: "msapplication-TileColor", content: "#1e293b" },
       { name: "format-detection", content: "telephone=no" },
     ];
 

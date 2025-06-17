@@ -243,12 +243,8 @@ const AIDeployment = () => {
 
   return (
     <>
-      <SEO
-        title="AI-Powered DevOps Automation - Deployio"
-        description="Transform your deployment process with AI that detects tech stacks, generates Dockerfiles, sets up CI/CD pipelines, and provides intelligent monitoring."
-        keywords="AI DevOps, automated deployment, CI/CD automation, Docker generation, GitHub Actions, deployment automation"
-      />
-
+      {" "}
+      <SEO page="aiDeployment" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
 

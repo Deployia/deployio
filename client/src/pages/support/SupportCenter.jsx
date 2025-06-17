@@ -26,7 +26,7 @@ import {
   FaShieldAlt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
-import { 
+import {
   ResourcePageHeader,
   ResourceCard,
   ResourceSidebar,
@@ -120,63 +120,78 @@ const SupportCenter = () => {
     {
       category: "general",
       question: "How do I get started with Deployio?",
-      answer: "Follow our Quick Start Guide to deploy your first application in under 5 minutes.",
+      answer:
+        "Follow our Quick Start Guide to deploy your first application in under 5 minutes.",
       popularity: 95,
     },
     {
       category: "technical",
       question: "Why is my deployment failing?",
-      answer: "Check deployment logs, verify environment variables, and ensure your build process is working locally.",
+      answer:
+        "Check deployment logs, verify environment variables, and ensure your build process is working locally.",
       popularity: 88,
     },
     {
       category: "general",
       question: "What pricing plans are available?",
-      answer: "We offer free tier for personal projects, Pro for teams, and Enterprise for large organizations.",
+      answer:
+        "We offer free tier for personal projects, Pro for teams, and Enterprise for large organizations.",
       popularity: 82,
     },
     {
       category: "technical",
       question: "How do I configure custom domains?",
-      answer: "Go to Project Settings > Domains, add your custom domain, and update your DNS records.",
+      answer:
+        "Go to Project Settings > Domains, add your custom domain, and update your DNS records.",
       popularity: 76,
     },
     {
       category: "integrations",
       question: "How do I connect my GitHub repository?",
-      answer: "Navigate to Integrations, click GitHub, and authorize Deployio to access your repositories.",
+      answer:
+        "Navigate to Integrations, click GitHub, and authorize Deployio to access your repositories.",
       popularity: 71,
     },
     {
       category: "security",
       question: "How are environment variables secured?",
-      answer: "All environment variables are encrypted at rest and in transit using industry-standard encryption.",
+      answer:
+        "All environment variables are encrypted at rest and in transit using industry-standard encryption.",
       popularity: 68,
     },
   ];
 
   const quickLinks = [
     { title: "Documentation", icon: FaBook, href: "/resources/docs" },
-    { title: "System Status", icon: FaCheckCircle, href: "https://status.deployio.dev" },
+    {
+      title: "System Status",
+      icon: FaCheckCircle,
+      href: "https://status.deployio.dev",
+    },
     { title: "Community Forum", icon: FaUsers, href: "/resources/community" },
-    { title: "Discord Support", icon: FaDiscord, href: "https://discord.gg/deployio" },
+    {
+      title: "Discord Support",
+      icon: FaDiscord,
+      href: "https://discord.gg/deployio",
+    },
   ];
 
   const filteredFAQs = faqItems
-    .filter(item => 
-      selectedCategory === "all" || item.category === selectedCategory
+    .filter(
+      (item) => selectedCategory === "all" || item.category === selectedCategory
     )
-    .filter(item =>
-      searchQuery === "" ||
-      item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.answer.toLowerCase().includes(searchQuery.toLowerCase())
+    .filter(
+      (item) =>
+        searchQuery === "" ||
+        item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.answer.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => b.popularity - a.popularity);
 
   const getSupportOptionColor = (color) => {
     const colors = {
       blue: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-      green: "bg-green-500/20 text-green-400 border-green-500/30", 
+      green: "bg-green-500/20 text-green-400 border-green-500/30",
       purple: "bg-purple-500/20 text-purple-400 border-purple-500/30",
       red: "bg-red-500/20 text-red-400 border-red-500/30",
     };
@@ -195,7 +210,7 @@ const SupportCenter = () => {
 
   return (
     <div className="dashboard-page">
-      <SEO page="support" />
+      <SEO page="supportCenter" />
 
       {/* Header */}
       <ResourcePageHeader
@@ -235,17 +250,24 @@ const SupportCenter = () => {
               delay={0.3 + index * 0.1}
               className="text-center relative overflow-hidden"
             >
-              <div className={`p-4 rounded-xl mb-4 ${getSupportOptionColor(option.color)} inline-block`}>
+              <div
+                className={`p-4 rounded-xl mb-4 ${getSupportOptionColor(
+                  option.color
+                )} inline-block`}
+              >
                 <option.icon className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
                 {option.title}
               </h3>
-              <p className="text-gray-400 text-sm mb-4">
-                {option.description}
-              </p>
-              <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mb-4 ${getPriorityBadge(option.priority)}`}>
-                {option.priority.charAt(0).toUpperCase() + option.priority.slice(1)}
+              <p className="text-gray-400 text-sm mb-4">{option.description}</p>
+              <div
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mb-4 ${getPriorityBadge(
+                  option.priority
+                )}`}
+              >
+                {option.priority.charAt(0).toUpperCase() +
+                  option.priority.slice(1)}
               </div>
               <p className="text-xs text-gray-500 mb-4">
                 {option.availability}
@@ -262,10 +284,10 @@ const SupportCenter = () => {
         {/* Sidebar */}
         <ResourceSidebar
           title="Help Categories"
-          items={helpCategories.map(cat => ({ 
-            id: cat.id, 
-            title: cat.title, 
-            icon: cat.icon 
+          items={helpCategories.map((cat) => ({
+            id: cat.id,
+            title: cat.title,
+            icon: cat.icon,
           }))}
           activeItem={selectedCategory}
           onItemClick={setSelectedCategory}
@@ -278,7 +300,9 @@ const SupportCenter = () => {
             <div className="space-y-3">
               <div className="text-sm">
                 <p className="text-gray-300 font-medium">Live Chat</p>
-                <p className="text-xs text-gray-500">Average response: 2 minutes</p>
+                <p className="text-xs text-gray-500">
+                  Average response: 2 minutes
+                </p>
               </div>
               <div className="text-sm">
                 <p className="text-gray-300 font-medium">Email Support</p>
@@ -309,10 +333,11 @@ const SupportCenter = () => {
                 </span>
               </div>
               <p className="text-gray-400 mb-6">
-                {selectedCategory === "all" 
+                {selectedCategory === "all"
                   ? "Browse all frequently asked questions"
-                  : `Questions about ${helpCategories.find(c => c.id === selectedCategory)?.title.toLowerCase()}`
-                }
+                  : `Questions about ${helpCategories
+                      .find((c) => c.id === selectedCategory)
+                      ?.title.toLowerCase()}`}
               </p>
 
               <div className="space-y-4">
@@ -336,12 +361,13 @@ const SupportCenter = () => {
                         <FaArrowRight className="w-4 h-4 text-gray-500" />
                       </div>
                     </div>
-                    <p className="text-gray-400">
-                      {faq.answer}
-                    </p>
+                    <p className="text-gray-400">{faq.answer}</p>
                     <div className="mt-4 flex items-center gap-2">
                       <span className="text-xs px-2 py-1 bg-neutral-700/50 text-gray-400 rounded">
-                        {helpCategories.find(c => c.id === faq.category)?.title}
+                        {
+                          helpCategories.find((c) => c.id === faq.category)
+                            ?.title
+                        }
                       </span>
                     </div>
                   </motion.div>
@@ -355,9 +381,10 @@ const SupportCenter = () => {
                     No results found
                   </h3>
                   <p className="text-gray-500 mb-6">
-                    Try adjusting your search terms or browse a different category.
+                    Try adjusting your search terms or browse a different
+                    category.
                   </p>
-                  <button 
+                  <button
                     onClick={() => {
                       setSearchQuery("");
                       setSelectedCategory("general");

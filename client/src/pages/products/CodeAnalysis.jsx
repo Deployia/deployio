@@ -304,12 +304,8 @@ const CodeAnalysis = () => {
 
   return (
     <>
-      <SEO
-        title="Smart Stack Detection - AI-Powered Code Analysis | Deployio"
-        description="Deployio's AI automatically detects your technology stack, analyzes dependencies, and generates optimal deployment configurations for any codebase."
-        keywords="stack detection, code analysis, AI deployment, dependency analysis, configuration generation, DevOps automation"
-      />
-
+      {" "}
+      <SEO page="codeAnalysis" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
 
