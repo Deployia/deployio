@@ -125,6 +125,19 @@ function App() {
             <Route path="verify-otp" element={<VerifyOtp />} />
           </Route>
 
+          {/* Protected Admin Routes */}
+          <Route element={<ProtectedRoute admin={true} />}>
+            <Route path="admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="projects" element={<AdminProjects />} />
+              <Route path="blogs" element={<AdminBlogs />} />
+              <Route path="deployments" element={<AdminDeployments />} />
+              <Route path="security" element={<AdminSecurity />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
+          </Route>
+
           {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>
             {/* Public Pages */}
@@ -196,19 +209,6 @@ function App() {
                 <Route path="monitoring" element={<Monitoring />} />
                 <Route path="integrations" element={<Integrations />} />
                 <Route path="profile" element={<Profile />} />
-              </Route>
-            </Route>
-
-            {/* Protected Admin Routes */}
-            <Route element={<ProtectedRoute admin={true} />}>
-              <Route path="admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="projects" element={<AdminProjects />} />
-                <Route path="blogs" element={<AdminBlogs />} />
-                <Route path="deployments" element={<AdminDeployments />} />
-                <Route path="security" element={<AdminSecurity />} />
-                <Route path="settings" element={<AdminSettings />} />
               </Route>
             </Route>
 

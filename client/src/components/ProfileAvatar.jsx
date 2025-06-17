@@ -9,6 +9,7 @@ import {
   FaSpinner,
   FaShieldAlt,
   FaHistory,
+  FaUserShield,
 } from "react-icons/fa";
 
 const ProfileAvatar = memo(
@@ -49,6 +50,15 @@ const ProfileAvatar = memo(
         description: "View your recent activities",
       },
     ];
+
+    // Add admin panel link for admin users
+    const adminMenuItem = {
+      label: "Admin Panel",
+      href: "/admin",
+      icon: FaUserShield,
+      description: "Access admin dashboard",
+      isAdmin: true,
+    };
 
     // Close dropdown on window resize
     useEffect(() => {
@@ -138,10 +148,39 @@ const ProfileAvatar = memo(
                     </p>
                   </div>
                 </Link>
-              </div>
-
+              </div>{" "}
               {/* Menu Items */}
               <div className="p-2">
+                {/* Admin Panel Link for Admin Users */}
+                {user?.role === "admin" && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay: 0,
+                      duration: 0.15,
+                    }}
+                  >
+                    <Link
+                      to={adminMenuItem.href}
+                      onClick={closeDropdown}
+                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-red-700/60 transition-all duration-150 group border border-red-500/20 mb-2"
+                    >
+                      <div className="w-8 h-8 bg-gradient-to-br from-red-500/20 to-red-600/20 border border-red-500/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                        <adminMenuItem.icon className="w-4 h-4 text-red-400" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-white font-medium text-sm group-hover:text-red-400 transition-colors">
+                          {adminMenuItem.label}
+                        </div>
+                        <div className="text-gray-400 text-xs mt-1 group-hover:text-gray-300 transition-colors">
+                          {adminMenuItem.description}
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                )}
+
                 {profileMenuItems.map((item, index) => {
                   const Icon = item.icon;
                   return (
@@ -175,7 +214,6 @@ const ProfileAvatar = memo(
                   );
                 })}
               </div>
-
               {/* Logout Section */}
               <div className="p-2 border-t border-neutral-700/50">
                 <button
