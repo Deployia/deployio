@@ -522,9 +522,9 @@ const DocumentPage = () => {
               </span>
             ))}
           </div>
-        )}
+        )}{" "}
       </motion.div>{" "}
-      <div className="flex flex-col lg:grid lg:grid-cols-4 gap-6 lg:gap-8">
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8">
         {/* Mobile Table of Contents Toggle */}
         {tableOfContents.length > 0 && (
           <div className="lg:hidden">
@@ -544,15 +544,40 @@ const DocumentPage = () => {
               </motion.div>
             </button>
           </div>
-        )}
-
-        {/* Table of Contents */}
+        )}{" "}
+        {/* Document Content - Left aligned with header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className={
+            tableOfContents.length > 0
+              ? "lg:col-span-8 lg:order-1"
+              : "lg:col-span-9"
+          }
+        >
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-8">
+            <div className="prose prose-invert max-w-none">
+              {document.content ? (
+                <ReactMarkdown components={MarkdownComponents}>
+                  {document.content}
+                </ReactMarkdown>
+              ) : (
+                <div className="text-center py-8">
+                  <FaCode className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                  <p className="text-gray-400">Content is being loaded...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>{" "}
+        {/* Table of Contents - Right Side */}
         {tableOfContents.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className={`lg:col-span-1 ${
+            transition={{ delay: 0.3 }}
+            className={`lg:col-span-4 lg:order-2 ${
               showMobileTOC ? "block" : "hidden lg:block"
             }`}
           >
@@ -581,31 +606,6 @@ const DocumentPage = () => {
             </div>
           </motion.div>
         )}
-
-        {/* Document Content */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className={
-            tableOfContents.length > 0 ? "lg:col-span-3" : "lg:col-span-4"
-          }
-        >
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-8">
-            <div className="prose prose-invert max-w-none">
-              {document.content ? (
-                <ReactMarkdown components={MarkdownComponents}>
-                  {document.content}
-                </ReactMarkdown>
-              ) : (
-                <div className="text-center py-8">
-                  <FaCode className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                  <p className="text-gray-400">Content is being loaded...</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
       </div>{" "}
       {/* Document Footer */}
       <motion.div

@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, lazy, Suspense } from "react";
 
-// Components
+// Core Components
 import Spinner from "@components/Spinner";
 import Layout from "@components/Layout";
 import AuthLayout from "@components/auth/Layout";
@@ -10,8 +10,8 @@ import ProtectedRoute from "@components/ProtectedRoute";
 import Modal from "@components/Modal";
 import ScrollToTop from "@components/ScrollToTop";
 
-// Lazy load heavy components for better performance
-// Auth Pages
+// Lazy loaded components for performance optimization
+// Authentication Pages
 const Login = lazy(() => import("@auth/Login"));
 const Register = lazy(() => import("@auth/Register"));
 const ForgotPassword = lazy(() => import("@auth/ForgotPassword"));
@@ -63,12 +63,12 @@ const DevOpsAutomation = lazy(() => import("@products/DevOpsAutomation"));
 const CLITool = lazy(() => import("@downloads/CLITool"));
 const SDK = lazy(() => import("@downloads/SDK"));
 
-// Keep frequently accessed pages non-lazy
-import Home from "@marketing/Home";
+// Keep frequently accessed pages non-lazy for better performance
+import Home from "@pages/marketing/Home";
 import NotFound from "@pages/NotFound";
 import { getMe } from "@redux/index";
 
-// Other utility pages
+// Utility pages
 const Health = lazy(() => import("@pages/Health"));
 
 // Layout Components
@@ -83,14 +83,20 @@ const DownloadsLayout = lazy(() =>
 );
 const ProductsLayout = lazy(() => import("@components/layouts/ProductsLayout"));
 
+/**
+ * Main App Component
+ * Handles routing, authentication, and lazy loading
+ */
 function App() {
   const { loading } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
+  // Initialize authentication state on app load
   useEffect(() => {
     dispatch(getMe());
   }, [dispatch]);
 
+  // Show loading spinner while checking authentication
   if (loading.me) {
     return <Spinner fullScreen={true} />;
   }
@@ -99,32 +105,40 @@ function App() {
     <>
       <Suspense fallback={<Spinner fullScreen={true} />}>
         <Routes>
-          {/* Auth Layout Routes */}
+          {/* Authentication Routes */}
           <Route path="/auth" element={<AuthLayout />}>
+            <Route index element={<Navigate to="login" replace />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password/:token" element={<ResetPassword />} />
             <Route path="verify-otp" element={<VerifyOtp />} />
-          </Route>{" "}
-          {/* Main Layout Routes */}
+          </Route>
+
+          {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>
             {/* Public Pages */}
             <Route index element={<Home />} />
             <Route path="health" element={<Health />} />
+
+            {/* Legal Pages */}
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             <Route path="terms-of-service" element={<TermsOfService />} />
-            <Route path="cookie-policy" element={<CookiePolicy />} />{" "}
-            {/* Product Pages with Layout */}
+            <Route path="cookie-policy" element={<CookiePolicy />} />
+
+            {/* Product Pages */}
             <Route path="products" element={<ProductsLayout />}>
+              <Route index element={<Navigate to="ai-deployment" replace />} />
               <Route path="ai-deployment" element={<AIDeployment />} />
               <Route path="code-analysis" element={<CodeAnalysis />} />
               <Route path="cloud-integration" element={<CloudIntegration />} />
               <Route path="devops-automation" element={<DevOpsAutomation />} />
               <Route path="security-shield" element={<SecurityShield />} />
-            </Route>{" "}
-            {/* Resource Pages with Layout */}{" "}
+            </Route>
+
+            {/* Resources */}
             <Route path="resources" element={<ResourcesLayout />}>
+              {/* Documentation */}
               <Route path="docs" element={<DocsLayout />}>
                 <Route
                   index
@@ -132,34 +146,38 @@ function App() {
                 />
                 <Route path=":category" element={<DocsOverview />} />
                 <Route path=":category/:slug" element={<DocumentPage />} />
-              </Route>{" "}
+              </Route>
+
+              {/* Blog */}
               <Route path="blogs" element={<BlogLayout />}>
                 <Route index element={<BlogOverview />} />
                 <Route path=":category" element={<BlogOverview />} />
                 <Route path=":category/:slug" element={<BlogPostPage />} />
               </Route>
+
+              {/* Support & Community */}
               <Route path="support" element={<SupportCenter />} />
               <Route path="community" element={<Community />} />
             </Route>
-            {/* Download Pages with Layout */}
+
+            {/* Downloads */}
             <Route path="downloads" element={<DownloadsLayout />}>
+              <Route index element={<Navigate to="cli" replace />} />
               <Route path="cli" element={<CLITool />} />
               <Route path="sdk" element={<SDK />} />
-            </Route>{" "}
-            {/* Protected Dashboard Routes with Layout */}
+            </Route>
+
+            {/* Protected Dashboard Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<DashboardLayout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="projects" element={<Projects />} />
-                <Route
-                  path="projects/create"
-                  element={<CreateProject />}
-                />{" "}
+                <Route path="projects/create" element={<CreateProject />} />
                 <Route path="projects/:id" element={<ProjectDetails />}>
                   <Route path="deployments" element={<ProjectDeployments />} />
                   <Route path="analytics" element={<ProjectAnalytics />} />
                   <Route path="settings" element={<ProjectSettings />} />
-                </Route>{" "}
+                </Route>
                 <Route path="deployments" element={<Deployments />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="activity" element={<Activity />} />
@@ -170,10 +188,14 @@ function App() {
                 <Route path="profile" element={<Profile />} />
               </Route>
             </Route>
+
+            {/* 404 Page */}
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </Suspense>
+
+      {/* Global Components */}
       <Modal />
       <ScrollToTop />
     </>
