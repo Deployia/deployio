@@ -310,12 +310,8 @@ const DevOpsAutomation = () => {
 
   return (
     <>
-      <SEO
-        title="DevOps Automation Platform - CI/CD Pipeline Builder | Deployio"
-        description="Automate your entire DevOps workflow with intelligent CI/CD pipelines, quality gates, multi-environment orchestration, and deployment automation."
-        keywords="DevOps automation, CI/CD pipelines, GitHub Actions, build automation, deployment automation, quality gates, blue-green deployment"
-      />
-
+      {" "}
+      <SEO page="devopsAutomation" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
 
