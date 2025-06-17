@@ -1,5 +1,12 @@
 """
-CORS configuration for the DeployIO Agent
+CORS config        # Production - specific origins only
+        origins = [
+            "https://deployio.tech",
+            "https://app.deployio.tech",
+            "https://agent.deployio.tech",
+            "http://localhost:3000",  # Local development
+            "http://localhost:5173",  # Vite dev server
+        ]for the DeployIO Agent
 """
 
 from fastapi import FastAPI

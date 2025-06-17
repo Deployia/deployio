@@ -44,10 +44,10 @@ class Settings:
 
     # Deployment settings
     max_concurrent_deployments: int = int(os.getenv("MAX_CONCURRENT_DEPLOYMENTS", "5"))
-    deployment_timeout: int = int(os.getenv("DEPLOYMENT_TIMEOUT", "600"))  # 10 minutes
-
-    # Subdomain settings
-    base_domain: str = os.getenv("BASE_DOMAIN", "deployio.dev")
+    deployment_timeout: int = int(
+        os.getenv("DEPLOYMENT_TIMEOUT", "600")
+    )  # 10 minutes    # Subdomain settings
+    base_domain: str = os.getenv("BASE_DOMAIN", "deployio.tech")
     wildcard_ssl_enabled: bool = (
         os.getenv("WILDCARD_SSL_ENABLED", "false").lower() == "true"
     )
