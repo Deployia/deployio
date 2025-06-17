@@ -136,7 +136,7 @@ const CLITool = () => {
     secondaryCTA: {
       text: "Learn More",
       icon: FaBook,
-      onClick: () => window.open("/docs/cli-preview", "_blank"),
+      onClick: () => window.open("/resources/docs/downloads/cli-tool", "_blank"),
     },
     gradient: "from-blue-400 via-cyan-400 to-blue-600",
     downloadStats: [
@@ -269,7 +269,7 @@ deployio scale --instances auto --ai-predict`,
     secondaryText: "View Documentation",
     onPrimary: () =>
       window.open("https://forms.gle/deployio-cli-waitlist", "_blank"),
-    onSecondary: () => window.open("/docs/cli", "_blank"),
+    onSecondary: () => window.open("/resources/docs/downloads/cli-tool", "_blank"),
     gradient: "from-blue-400 via-cyan-400 to-blue-600",
   };
 

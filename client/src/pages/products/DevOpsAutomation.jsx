@@ -280,7 +280,7 @@ const DevOpsAutomation = () => {
     },
     secondaryButton: {
       text: "View Documentation",
-      onClick: () => window.open("/resources/docs/devops-automation", "_blank"),
+      onClick: () => window.open("/resources/docs/products/devops-automation", "_blank"),
     },
     gradientClasses: "from-orange-600 to-red-600",
   };
