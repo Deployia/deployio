@@ -234,11 +234,10 @@ const BlogLayout = () => {
             </div>
           </motion.div>
         )}
-      </motion.div>
-
+      </motion.div>{" "}
       <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-6 xl:gap-8">
         {/* Mobile Sidebar Toggle */}
-        <div className="lg:hidden">
+        <div className="lg:hidden mb-4">
           <button
             onClick={() => setShowMobileSidebar(!showMobileSidebar)}
             className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl text-white hover:bg-neutral-800/50 transition-colors"
@@ -266,12 +265,12 @@ const BlogLayout = () => {
           }`}
         >
           {" "}
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 md:p-4 lg:p-6 lg:sticky lg:top-24 space-y-4 lg:space-y-6">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 md:p-4 lg:p-6 lg:sticky lg:top-24 space-y-3 md:space-y-4 lg:space-y-6">
             {/* Categories */}
             <div>
               <h3 className="text-sm md:text-base lg:text-lg font-semibold text-white mb-2 md:mb-3 lg:mb-4">
                 Categories
-              </h3>{" "}
+              </h3>
               <nav className="space-y-1 lg:space-y-2">
                 <button
                   onClick={() => handleCategoryChange("all")}
@@ -302,13 +301,13 @@ const BlogLayout = () => {
                   );
                 })}
               </nav>
-            </div>
+            </div>{" "}
             {/* Featured Posts */}
             {featuredBlogs && featuredBlogs.length > 0 && (
-              <div className="pt-4 lg:pt-6 border-t border-neutral-800/50">
-                <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <FaFire className="w-3 h-3 lg:w-4 lg:h-4 text-orange-400" />
-                  Featured Posts
+              <div className="pt-3 md:pt-4 lg:pt-6 border-t border-neutral-800/50">
+                <h4 className="text-xs md:text-sm lg:text-base font-semibold text-white mb-2 md:mb-3 flex items-center gap-2">
+                  <FaFire className="w-3 h-3 lg:w-4 lg:h-4 text-orange-400 flex-shrink-0" />
+                  <span className="truncate">Featured Posts</span>
                 </h4>
                 <div className="space-y-2 lg:space-y-3">
                   {featuredBlogs.slice(0, 3).map((post, index) => (
@@ -317,21 +316,28 @@ const BlogLayout = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 + index * 0.05 }}
-                      className="cursor-pointer group"
+                      className="cursor-pointer group p-2 rounded-lg hover:bg-neutral-800/30 transition-colors touch-manipulation"
                       onClick={() => handleBlogClick(post)}
                     >
-                      <div className="text-xs lg:text-sm font-medium text-gray-300 group-hover:text-blue-400 transition-colors line-clamp-2 break-words">
+                      <div className="text-xs md:text-sm lg:text-sm font-medium text-gray-300 group-hover:text-blue-400 transition-colors line-clamp-2 break-words mb-1">
                         {post.title}
                       </div>
-                      <div className="text-xs text-gray-500 flex items-center gap-2 mt-1 flex-wrap">
+                      <div className="text-xs text-gray-500 flex items-center gap-1 md:gap-2 flex-wrap">
                         <div className="flex items-center gap-1">
-                          <FaCalendarAlt className="w-2 h-2 lg:w-3 lg:h-3" />
-                          {new Date(
-                            post.publishDate || post.createdAt
-                          ).toLocaleDateString()}
+                          <FaCalendarAlt className="w-2 h-2 lg:w-3 lg:h-3 flex-shrink-0" />
+                          <span className="truncate text-xs">
+                            {new Date(
+                              post.publishDate || post.createdAt
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
                         </div>
-                        <span className="hidden sm:inline">•</span>
-                        <span className="text-xs">{post.category}</span>
+                        <span className="hidden sm:inline text-xs">•</span>
+                        <span className="text-xs capitalize truncate">
+                          {post.category}
+                        </span>
                       </div>
                     </motion.div>
                   ))}

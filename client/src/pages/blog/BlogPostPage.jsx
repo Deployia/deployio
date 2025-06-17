@@ -3,9 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
-import rehypeRaw from "rehype-raw";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import {
   FaArrowLeft,
   FaShare,
@@ -27,12 +26,10 @@ import {
   FaUsers,
   FaThumbsUp,
   FaBuilding,
+  FaExternalLinkAlt,
 } from "react-icons/fa";
 import { fetchBlogBySlug, clearCurrentBlog } from "@redux/slices/blogSlice";
 import SEO from "@components/SEO";
-
-// Custom styles for markdown content
-import "highlight.js/styles/atom-one-dark.css";
 
 // Icon mapping for categories
 const categoryIcons = {
@@ -57,6 +54,175 @@ const BlogPostPage = () => {
 
   // Get specific loading state
   const isLoading = loading.blog || false;
+
+  // Helper function to generate consistent heading IDs
+  const generateHeadingId = (text) => {
+    if (!text) return "";
+    return text
+      .toString()
+      .replace(/[`*_]/g, "") // Remove markdown syntax
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "") // Remove special characters
+      .replace(/\s+/g, "-") // Replace spaces with hyphens
+      .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
+  };
+
+  // Markdown components consistent with DocumentPage
+  const MarkdownComponents = {
+    h1: ({ children, ...props }) => {
+      const id = generateHeadingId(children);
+      return (
+        <h1
+          id={id}
+          className="text-2xl lg:text-3xl font-bold text-white mb-4 lg:mb-6 mt-6 lg:mt-8 first:mt-0"
+          {...props}
+        >
+          {children}
+        </h1>
+      );
+    },
+    h2: ({ children, ...props }) => {
+      const id = generateHeadingId(children);
+      return (
+        <h2
+          id={id}
+          className="text-xl lg:text-2xl font-semibold text-white mb-3 lg:mb-4 mt-6 lg:mt-8"
+          {...props}
+        >
+          {children}
+        </h2>
+      );
+    },
+    h3: ({ children, ...props }) => {
+      const id = generateHeadingId(children);
+      return (
+        <h3
+          id={id}
+          className="text-lg lg:text-xl font-semibold text-white mb-2 lg:mb-3 mt-4 lg:mt-6"
+          {...props}
+        >
+          {children}
+        </h3>
+      );
+    },
+    h4: ({ children, ...props }) => {
+      const id = generateHeadingId(children);
+      return (
+        <h4
+          id={id}
+          className="text-base lg:text-lg font-semibold text-white mb-2 lg:mb-3 mt-3 lg:mt-4"
+          {...props}
+        >
+          {children}
+        </h4>
+      );
+    },
+    p: ({ children, ...props }) => (
+      <p
+        className="text-gray-300 mb-3 lg:mb-4 leading-relaxed text-sm lg:text-base"
+        {...props}
+      >
+        {children}
+      </p>
+    ),
+    code: ({ inline, className, children, ...props }) => {
+      const match = /language-(\w+)/.exec(className || "");
+      return !inline && match ? (
+        <div className="overflow-x-auto">
+          <SyntaxHighlighter
+            style={atomDark}
+            language={match[1]}
+            PreTag="div"
+            className="rounded-lg my-3 lg:my-4 text-xs lg:text-sm"
+            {...props}
+          >
+            {String(children).replace(/\n$/, "")}
+          </SyntaxHighlighter>
+        </div>
+      ) : (
+        <code
+          className="bg-neutral-800 px-1.5 lg:px-2 py-0.5 lg:py-1 rounded text-blue-400 text-xs lg:text-sm break-all"
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    },
+    blockquote: ({ children, ...props }) => (
+      <blockquote
+        className="border-l-4 border-blue-500 pl-3 lg:pl-4 py-2 my-3 lg:my-4 bg-blue-500/10 italic text-gray-300 text-sm lg:text-base"
+        {...props}
+      >
+        {children}
+      </blockquote>
+    ),
+    ul: ({ children, ...props }) => (
+      <ul
+        className="list-disc list-inside text-gray-300 mb-3 lg:mb-4 space-y-1 text-sm lg:text-base pl-2"
+        {...props}
+      >
+        {children}
+      </ul>
+    ),
+    ol: ({ children, ...props }) => (
+      <ol
+        className="list-decimal list-inside text-gray-300 mb-3 lg:mb-4 space-y-1 text-sm lg:text-base pl-2"
+        {...props}
+      >
+        {children}
+      </ol>
+    ),
+    li: ({ children, ...props }) => (
+      <li className="text-gray-300" {...props}>
+        {children}
+      </li>
+    ),
+    a: ({ children, href, ...props }) => (
+      <a
+        href={href}
+        className="text-blue-400 hover:text-blue-300 underline inline-flex items-center gap-1"
+        target={href?.startsWith("http") ? "_blank" : "_self"}
+        rel={href?.startsWith("http") ? "noopener noreferrer" : ""}
+        {...props}
+      >
+        {children}
+        {href?.startsWith("http") && <FaExternalLinkAlt className="w-3 h-3" />}
+      </a>
+    ),
+    table: ({ children, ...props }) => (
+      <div className="overflow-x-auto my-3 lg:my-4 -mx-2 lg:mx-0">
+        <div className="inline-block min-w-full px-2 lg:px-0">
+          <table
+            className="min-w-full border border-neutral-700 rounded-lg text-xs lg:text-sm"
+            {...props}
+          >
+            {children}
+          </table>
+        </div>
+      </div>
+    ),
+    thead: ({ children, ...props }) => (
+      <thead className="bg-neutral-800" {...props}>
+        {children}
+      </thead>
+    ),
+    th: ({ children, ...props }) => (
+      <th
+        className="px-2 lg:px-4 py-2 lg:py-3 text-left text-white font-semibold border-b border-neutral-700 text-xs lg:text-sm"
+        {...props}
+      >
+        {children}
+      </th>
+    ),
+    td: ({ children, ...props }) => (
+      <td
+        className="px-2 lg:px-4 py-2 lg:py-3 text-gray-300 border-b border-neutral-700 text-xs lg:text-sm"
+        {...props}
+      >
+        {children}
+      </td>
+    ),
+  };
 
   // Fetch blog post when component mounts or params change
   useEffect(() => {
@@ -238,24 +404,24 @@ const BlogPostPage = () => {
         title={currentBlog.title}
         description={currentBlog.excerpt || currentBlog.description}
         type="article"
-      />
+      />{" "}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-4xl mx-auto"
+        className="max-w-none w-full"
       >
         {/* Header Actions */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6 lg:mb-8 px-4 sm:px-0">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 px-3 md:px-4 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white hover:bg-neutral-800/70 transition-colors text-sm md:text-base"
+            className="inline-flex items-center gap-2 px-3 md:px-4 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white hover:bg-neutral-800/70 transition-colors text-sm md:text-base touch-manipulation"
           >
-            <FaArrowLeft className="w-4 h-4" />
+            <FaArrowLeft className="w-3 h-3 md:w-4 md:h-4" />
             <span className="hidden sm:inline">Back to Blog</span>
             <span className="sm:hidden">Back</span>
           </button>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-end">
             {/* Action Buttons */}
             <div className="flex items-center gap-1 md:gap-2">
               <button
@@ -323,57 +489,77 @@ const BlogPostPage = () => {
               </div>
             </div>
           </div>
-        </div>
-
+        </div>{" "}
         {/* Blog Post Content */}
-        <article className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-lg md:rounded-xl overflow-hidden">
+        <article className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-lg md:rounded-xl overflow-hidden mx-4 sm:mx-0">
           {/* Header */}
           <div className="p-4 md:p-6 lg:p-8 border-b border-neutral-800/50">
             {/* Category */}
-            <div className="flex items-center gap-2 mb-4">
-              <CategoryIcon className="w-5 h-5 text-blue-400" />
+            <div className="flex items-center gap-2 mb-3 md:mb-4">
+              <CategoryIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-400 flex-shrink-0" />
               <span className="text-blue-400 font-medium capitalize text-sm md:text-base">
                 {currentBlog.category?.replace(/-/g, " ")}
               </span>
             </div>
             {/* Title */}
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 md:mb-6 leading-tight">
+            <h1 className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-3 md:mb-4 lg:mb-6 leading-tight">
               {currentBlog.title}
             </h1>
             {/* Excerpt */}
             {currentBlog.excerpt && (
-              <p className="text-base md:text-lg text-gray-400 mb-4 md:mb-6 leading-relaxed">
+              <p className="text-sm md:text-base lg:text-lg text-gray-400 mb-3 md:mb-4 lg:mb-6 leading-relaxed">
                 {currentBlog.excerpt}
               </p>
             )}
             {/* Meta Information */}
-            <div className="flex flex-wrap items-center gap-3 md:gap-4 lg:gap-6 text-sm md:text-base text-gray-500 mb-4 md:mb-6">
-              <span className="flex items-center gap-2">
-                <FaUser className="w-4 h-4 flex-shrink-0" />
-                {currentBlog.author?.name || "Deployio Team"}
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 lg:gap-4 xl:gap-6 text-xs md:text-sm lg:text-base text-gray-500 mb-3 md:mb-4 lg:mb-6">
+              {" "}
+              <span className="flex items-center gap-1 md:gap-2">
+                <FaUser className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <span className="truncate">
+                  {currentBlog.author?.name || "Deployio Team"}
+                </span>
               </span>
-              <span className="flex items-center gap-2">
-                <FaCalendar className="w-4 h-4 flex-shrink-0" />
-                {formatDate(currentBlog.createdAt)}
+              <span className="flex items-center gap-1 md:gap-2">
+                <FaCalendar className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">
+                  {formatDate(currentBlog.createdAt)}
+                </span>
+                <span className="sm:hidden">
+                  {formatDate(currentBlog.createdAt)
+                    .split(" ")
+                    .slice(0, 2)
+                    .join(" ")}
+                </span>
               </span>
-              <span className="flex items-center gap-2">
-                <FaClock className="w-4 h-4 flex-shrink-0" />
-                {formatReadTime(currentBlog.content)}
+              <span className="flex items-center gap-1 md:gap-2">
+                <FaClock className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">
+                  {formatReadTime(currentBlog.content)}
+                </span>
+                <span className="sm:hidden">
+                  {formatReadTime(currentBlog.content).replace(" read", "")}
+                </span>
               </span>
-              <span className="flex items-center gap-2">
-                <FaEye className="w-4 h-4 flex-shrink-0" />
-                {formatViews(currentBlog.views)} views
+              <span className="flex items-center gap-1 md:gap-2">
+                <FaEye className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">
+                  {formatViews(currentBlog.views)} views
+                </span>
+                <span className="sm:hidden">
+                  {formatViews(currentBlog.views)}
+                </span>
               </span>
             </div>{" "}
             {/* Tags */}
             {currentBlog.tags && currentBlog.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 md:gap-3">
+              <div className="flex flex-wrap gap-1 md:gap-2 lg:gap-3">
                 {currentBlog.tags.map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700/50 text-gray-300 rounded-full text-xs md:text-sm"
+                    className="inline-flex items-center gap-1 px-2 md:px-3 py-1 bg-neutral-700/50 text-gray-300 rounded-full text-xs md:text-sm"
                   >
-                    <FaTag className="w-3 h-3" />
+                    <FaTag className="w-2 h-2 md:w-3 md:h-3" />
                     {tag}
                   </span>
                 ))}
@@ -381,11 +567,11 @@ const BlogPostPage = () => {
             )}
             {/* Featured Image */}
             {currentBlog.image && (
-              <div className="mt-6 md:mt-8">
+              <div className="mt-4 md:mt-6 lg:mt-8">
                 <img
                   src={currentBlog.image}
                   alt={currentBlog.title}
-                  className="w-full h-48 md:h-64 lg:h-80 object-cover rounded-lg border border-neutral-700/50"
+                  className="w-full h-32 sm:h-48 md:h-64 lg:h-80 object-cover rounded-lg border border-neutral-700/50"
                   onError={(e) => {
                     e.target.style.display = "none";
                   }}
@@ -394,96 +580,50 @@ const BlogPostPage = () => {
             )}
           </div>{" "}
           {/* Content */}
-          <div className="p-6 md:p-8 lg:p-12">
+          <div className="p-4 md:p-6 lg:p-8 xl:p-12">
             <article className="max-w-none">
-              <div
-                className="prose prose-invert prose-xl max-w-none
-                       prose-headings:text-white prose-headings:font-bold prose-headings:scroll-mt-24 prose-headings:tracking-tight
-                       prose-h1:text-3xl md:prose-h1:text-4xl lg:prose-h1:text-5xl prose-h1:mb-8 prose-h1:mt-12 prose-h1:leading-tight prose-h1:border-b prose-h1:border-neutral-700/30 prose-h1:pb-4
-                       prose-h2:text-2xl md:prose-h2:text-3xl lg:prose-h2:text-4xl prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-blue-300 prose-h2:leading-tight
-                       prose-h3:text-xl md:prose-h3:text-2xl lg:prose-h3:text-3xl prose-h3:mt-12 prose-h3:mb-6 prose-h3:text-gray-100 prose-h3:leading-tight
-                       prose-h4:text-lg md:prose-h4:text-xl prose-h4:mt-10 prose-h4:mb-4 prose-h4:text-gray-200 prose-h4:font-semibold
-                       prose-h5:text-base md:prose-h5:text-lg prose-h5:mt-8 prose-h5:mb-3 prose-h5:text-gray-300
-                       prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-8 prose-p:text-lg md:prose-p:text-xl prose-p:tracking-wide
-                       prose-a:text-blue-400 prose-a:no-underline hover:prose-a:text-blue-300 hover:prose-a:underline prose-a:font-medium prose-a:transition-colors
-                       prose-strong:text-white prose-strong:font-semibold
-                       prose-em:text-gray-200 prose-em:italic
-                       prose-code:text-blue-300 prose-code:bg-neutral-800/70 prose-code:px-3 prose-code:py-1.5 prose-code:rounded-md prose-code:text-base prose-code:font-mono prose-code:border prose-code:border-neutral-700/50
-                       prose-pre:bg-neutral-900/90 prose-pre:border prose-pre:border-neutral-700/50 prose-pre:rounded-xl prose-pre:p-8 prose-pre:overflow-x-auto prose-pre:shadow-2xl prose-pre:my-10
-                       prose-blockquote:border-l-4 prose-blockquote:border-blue-500/50 prose-blockquote:bg-neutral-800/40 prose-blockquote:pl-8 prose-blockquote:py-8 prose-blockquote:italic prose-blockquote:text-gray-300 prose-blockquote:rounded-r-xl prose-blockquote:my-10 prose-blockquote:shadow-lg prose-blockquote:text-lg
-                       prose-ul:text-gray-300 prose-ul:my-8 prose-ul:space-y-2 prose-ol:text-gray-300 prose-ol:my-8 prose-ol:space-y-2
-                       prose-li:mb-4 prose-li:leading-relaxed prose-li:text-lg md:prose-li:text-xl prose-li:pl-2
-                       prose-img:rounded-xl prose-img:border prose-img:border-neutral-700/50 prose-img:my-12 prose-img:shadow-2xl prose-img:w-full
-                       prose-hr:border-neutral-700/50 prose-hr:my-16 prose-hr:border-t-2
-                       prose-table:border prose-table:border-neutral-700/50 prose-table:rounded-xl prose-table:overflow-hidden prose-table:my-12 prose-table:shadow-lg                       prose-th:bg-neutral-800/60 prose-th:text-white prose-th:font-bold prose-th:p-6 prose-th:border-b prose-th:border-neutral-700/50 prose-th:text-left prose-th:text-base
-                       prose-td:p-6 prose-td:border-b prose-td:border-neutral-700/30 prose-td:text-gray-300 prose-td:text-base"
-              >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeHighlight, rehypeRaw]}
-                  components={{
-                    h1: ({ children }) => (
-                      <h1 className="text-3xl font-bold text-white mb-6 mt-8 border-b border-neutral-700/50 pb-4">
-                        {children}
-                      </h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-2xl font-bold text-blue-300 mb-4 mt-8">
-                        {children}
-                      </h2>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-blue-500/50 bg-neutral-800/30 pl-6 py-4 italic text-gray-300 rounded-r-lg my-6">
-                        {children}
-                      </blockquote>
-                    ),
-                    code: ({ inline, children, ...props }) => {
-                      return inline ? (
-                        <code
-                          className="text-blue-300 bg-neutral-800/50 px-2 py-1 rounded text-sm font-mono border border-neutral-700/50"
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      ) : (
-                        <code className="block" {...props}>
-                          {children}
-                        </code>
-                      );
-                    },
-                    pre: ({ children }) => (
-                      <pre className="bg-neutral-900/80 border border-neutral-700/50 rounded-lg p-4 overflow-x-auto shadow-lg my-6">
-                        {children}
-                      </pre>
-                    ),
-                  }}
-                >
-                  {currentBlog.content || "No content available."}
-                </ReactMarkdown>
+              <div className="prose prose-invert max-w-none">
+                {currentBlog.content ? (
+                  <ReactMarkdown components={MarkdownComponents}>
+                    {currentBlog.content}
+                  </ReactMarkdown>
+                ) : (
+                  <div className="text-center py-8">
+                    <FaCode className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                    <p className="text-gray-400">Content is being loaded...</p>
+                  </div>
+                )}
               </div>
             </article>
-          </div>
+          </div>{" "}
           {/* Footer */}
           <div className="p-4 md:p-6 lg:p-8 border-t border-neutral-800/50">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="text-sm text-gray-500">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4">
+              <div className="text-xs md:text-sm text-gray-500">
                 Last updated:{" "}
-                {formatDate(currentBlog.updatedAt || currentBlog.createdAt)}
+                <span className="hidden sm:inline">
+                  {formatDate(currentBlog.updatedAt || currentBlog.createdAt)}
+                </span>
+                <span className="sm:hidden">
+                  {formatDate(currentBlog.updatedAt || currentBlog.createdAt)
+                    .split(" ")
+                    .slice(0, 2)
+                    .join(" ")}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShareMenuOpen(!shareMenuOpen)}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-gray-400 hover:text-white hover:bg-neutral-800/70 transition-colors text-sm"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-gray-400 hover:text-white hover:bg-neutral-800/70 transition-colors text-xs md:text-sm touch-manipulation"
                 >
                   <FaShare className="w-3 h-3" />
-                  Share
+                  <span className="hidden sm:inline">Share</span>
                 </button>
               </div>
             </div>
           </div>
         </article>
-
         {/* Click outside to close share menu */}
         {shareMenuOpen && (
           <div
