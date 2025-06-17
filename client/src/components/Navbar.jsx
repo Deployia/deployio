@@ -22,16 +22,23 @@ const Navbar = memo(() => {
   const [hoverTimeout, setHoverTimeout] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { isAuthenticated, loading, user } = useSelector((state) => state.auth);
-  const dropdownRef = useRef(null);
-  // Determine which navigation items to use based on current route
+  const dropdownRef = useRef(null); // Determine which navigation items to use based on current route
   const navigationItems = useMemo(() => {
     // If user is on dashboard routes, show dashboard navigation
     if (location.pathname.startsWith("/dashboard")) {
+      // Filter out admin navigation if user is not admin
+      if (user?.role !== "admin") {
+        return dashboardNavigationItems.filter((item) => item.id !== "admin");
+      }
       return dashboardNavigationItems;
+    }
+    // For admin routes, show admin navigation
+    if (location.pathname.startsWith("/admin") && user?.role === "admin") {
+      return dashboardNavigationItems; // Admin sees all dashboard items including admin
     }
     // Otherwise show home navigation
     return homeNavigationItems;
-  }, [location.pathname]);
+  }, [location.pathname, user?.role]);
 
   // Close dropdowns when location changes
   useEffect(() => {

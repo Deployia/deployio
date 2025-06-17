@@ -5,6 +5,7 @@ const projectRoutes = require("./projectRoutes");
 const protectedRoutes = require("./protectedRoutes");
 const documentationRoutes = require("./documentationRoutes");
 const blogRoutes = require("./blogRoutes");
+const adminRoutes = require("./adminRoutes");
 
 const router = express.Router();
 
@@ -14,5 +15,6 @@ router.use("/projects", projectRoutes);
 router.use("/protected", protectedRoutes);
 router.use("/documentation", documentationRoutes);
 router.use("/blogs", blogRoutes);
+router.use("/admin", adminRoutes);
 
 module.exports = router;

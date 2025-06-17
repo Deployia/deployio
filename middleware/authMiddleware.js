@@ -122,6 +122,78 @@ const protect = async (req, res, next) => {
   }
 };
 
+/**
+ * Middleware to check if user has admin role
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const adminOnly = (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please log in.",
+      });
+    }
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    logger.error("Admin middleware error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?._id,
+    });
+    return res.status(500).json({
+      success: false,
+      message: "Server error during authorization check.",
+    });
+  }
+};
+
+/**
+ * Middleware to check if user has admin or moderator role
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const moderatorOrAdmin = (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please log in.",
+      });
+    }
+
+    if (!["admin", "moderator"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Moderator or Admin privileges required.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    logger.error("Moderator middleware error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?._id,
+    });
+    return res.status(500).json({
+      success: false,
+      message: "Server error during authorization check.",
+    });
+  }
+};
+
 module.exports = {
   protect,
+  adminOnly,
+  moderatorOrAdmin,
 };
