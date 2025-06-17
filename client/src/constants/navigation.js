@@ -14,6 +14,8 @@ import {
   FaProjectDiagram,
   FaServer,
   FaChartLine,
+  FaCog,
+  FaLock,
 } from "react-icons/fa";
 
 // Products navigation items
@@ -163,6 +165,52 @@ export const toolsItems = [
   },
 ];
 
+// Admin navigation items
+export const adminItems = [
+  {
+    label: "Admin Dashboard",
+    href: "/admin",
+    icon: FaTachometerAlt,
+    description: "Admin overview and statistics",
+  },
+  {
+    label: "User Management",
+    href: "/admin/users",
+    icon: FaUsers,
+    description: "Manage platform users",
+  },
+  {
+    label: "Project Management",
+    href: "/admin/projects",
+    icon: FaProjectDiagram,
+    description: "Manage user projects",
+  },
+  {
+    label: "Blog Management",
+    href: "/admin/blogs",
+    icon: FaBlog,
+    description: "Manage blog posts",
+  },
+  {
+    label: "Deployment Management",
+    href: "/admin/deployments",
+    icon: FaServer,
+    description: "Monitor deployments",
+  },
+  {
+    label: "Security Center",
+    href: "/admin/security",
+    icon: FaLock,
+    description: "Security settings",
+  },
+  {
+    label: "Platform Settings",
+    href: "/admin/settings",
+    icon: FaCog,
+    description: "System configuration",
+  },
+];
+
 // Dashboard resources (slightly different from home resources)
 export const dashboardResourcesItems = [
   {
@@ -226,6 +274,11 @@ export const dashboardNavigationItems = [
     label: "Resources",
     id: "resources",
     items: dashboardResourcesItems,
+  },
+  {
+    label: "Admin",
+    id: "admin",
+    items: adminItems,
   },
 ];
 
