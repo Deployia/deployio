@@ -400,10 +400,45 @@ const BlogPostPage = () => {
   const CategoryIcon = categoryIcons[currentBlog.category] || FaBullhorn;
   return (
     <>
+      {" "}
       <SEO
-        title={currentBlog.title}
-        description={currentBlog.excerpt || currentBlog.description}
-        type="article"
+        page="blog-post"
+        customSEO={{
+          title: currentBlog.metaTitle || currentBlog.title,
+          description:
+            currentBlog.metaDescription ||
+            currentBlog.excerpt ||
+            currentBlog.description,
+          keywords: currentBlog.keywords ? currentBlog.keywords.join(", ") : "",
+          image: currentBlog.socialImage || currentBlog.image,
+          url: window.location.href,
+          type: "article",
+        }}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          headline: currentBlog.title,
+          description: currentBlog.excerpt || currentBlog.description,
+          image: currentBlog.socialImage || currentBlog.image,
+          author: {
+            "@type": "Person",
+            name: currentBlog.author?.name || "Deployio Team",
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "Deployio",
+            logo: {
+              "@type": "ImageObject",
+              url: `${window.location.origin}/logo.png`,
+            },
+          },
+          datePublished: currentBlog.publishedAt || currentBlog.createdAt,
+          dateModified: currentBlog.updatedAt,
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": window.location.href,
+          },
+        }}
       />{" "}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

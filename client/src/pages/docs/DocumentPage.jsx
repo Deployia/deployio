@@ -32,6 +32,7 @@ import {
   clearCurrentDocument,
 } from "@redux/slices/documentationSlice";
 import { LoadingCard } from "@components/LoadingSpinner";
+import SEO from "@components/SEO";
 
 const DocumentPage = () => {
   const dispatch = useDispatch();
@@ -386,254 +387,291 @@ const DocumentPage = () => {
       </div>
     );
   }
-
   return (
-    <div className="space-y-6">
-      {/* Back Button and Document Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
-      >
-        {/* Back Button */}{" "}
-        <button
-          onClick={handleBackToCategory}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all mb-6 group"
-        >
-          <FaArrowLeft className="group-hover:-translate-x-1 transition-transform" />
-          Back to Documentation
-        </button>{" "}
-        {/* Document Header */}
-        <div className="flex flex-col gap-6">
-          <div className="flex-1">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-3 overflow-x-auto">
-              <span className="whitespace-nowrap">Documentation</span>
-              <FaChevronRight className="w-3 h-3 flex-shrink-0" />
-              <span className="capitalize whitespace-nowrap">
-                {document.category}
-              </span>
-              <FaChevronRight className="w-3 h-3 flex-shrink-0" />
-              <span className="text-blue-400 truncate">{document.title}</span>
-            </div>
-
-            <h1 className="text-2xl lg:text-3xl font-bold text-white mb-4">
-              {document.title}
-            </h1>
-
-            {document.description && (
-              <p className="text-base lg:text-lg text-gray-300 mb-4">
-                {document.description}
-              </p>
-            )}
-
-            {/* Document Meta */}
-            <div className="flex flex-wrap items-center gap-4 lg:gap-6 text-sm text-gray-400">
-              <div className="flex items-center gap-2">
-                <FaClock className="w-4 h-4" />
-                {formatReadTime(document.content)}
-              </div>
-              <div className="flex items-center gap-2">
-                <FaEye className="w-4 h-4" />
-                {formatViews(document.views)} views
-              </div>
-              {document.updatedAt && (
-                <div className="flex items-center gap-2">
-                  <FaCalendar className="w-4 h-4" />
-                  <span className="hidden sm:inline">Updated </span>
-                  {formatDate(document.updatedAt)}
-                </div>
-              )}
-              {document.author && (
-                <div className="flex items-center gap-2">
-                  <FaUser className="w-4 h-4" />
-                  {document.author}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 lg:gap-3">
-            {" "}
-            {/* Helpful/Not Helpful buttons */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleHelpful}
-                disabled={helpfulStatus === "helpful"}
-                className={`inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg transition-all text-xs lg:text-sm ${
-                  helpfulStatus === "helpful"
-                    ? "bg-green-500/20 text-green-400 cursor-not-allowed"
-                    : "bg-neutral-800/50 hover:bg-green-500/20 text-gray-300 hover:text-green-400"
-                }`}
-              >
-                <FaThumbsUp className="w-3 h-3 lg:w-4 lg:h-4" />
-                <span className="hidden sm:inline">Helpful</span>
-                {document?.helpfulCount > 0 && (
-                  <span className="text-xs bg-neutral-700 px-1 lg:px-1.5 py-0.5 rounded-full">
-                    {document.helpfulCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={handleNotHelpful}
-                disabled={helpfulStatus === "not-helpful"}
-                className={`inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg transition-all text-xs lg:text-sm ${
-                  helpfulStatus === "not-helpful"
-                    ? "bg-red-500/20 text-red-400 cursor-not-allowed"
-                    : "bg-neutral-800/50 hover:bg-red-500/20 text-gray-300 hover:text-red-400"
-                }`}
-              >
-                <FaThumbsDown className="w-3 h-3 lg:w-4 lg:h-4" />
-                <span className="hidden sm:inline">Not helpful</span>
-                {document?.notHelpfulCount > 0 && (
-                  <span className="text-xs bg-neutral-700 px-1 lg:px-1.5 py-0.5 rounded-full">
-                    {document.notHelpfulCount}
-                  </span>
-                )}
-              </button>
-            </div>
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-xs lg:text-sm"
-            >
-              <FaShare className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-xs lg:text-sm"
-            >
-              <FaPrint className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline">Print</span>
-            </button>
-          </div>
-        </div>{" "}
-        {/* Tags */}
-        {document.tags && document.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4">
-            {document.tags.map((tag, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center gap-1 px-2 lg:px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs lg:text-sm"
-              >
-                <FaTag className="w-2 h-2 lg:w-3 lg:h-3" />
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}{" "}
-      </motion.div>{" "}
-      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8">
-        {/* Mobile Table of Contents Toggle */}
-        {tableOfContents.length > 0 && (
-          <div className="lg:hidden">
-            <button
-              onClick={() => setShowMobileTOC(!showMobileTOC)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl text-white mb-4"
-            >
-              <span className="flex items-center gap-2">
-                <FaBars className="w-4 h-4" />
-                Table of Contents
-              </span>
-              <motion.div
-                animate={{ rotate: showMobileTOC ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <FaChevronDown className="w-4 h-4" />
-              </motion.div>
-            </button>
-          </div>
-        )}{" "}
-        {/* Document Content - Left aligned with header */}
+    <>
+      {" "}
+      <SEO
+        page="documentation"
+        customSEO={{
+          title: document.metaTitle || document.title,
+          description: document.metaDescription || document.description,
+          keywords: document.keywords ? document.keywords.join(", ") : "",
+          url: window.location.href,
+          type: "article",
+        }}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "TechArticle",
+          headline: document.title,
+          description: document.description,
+          author: {
+            "@type": "Person",
+            name: document.author || "Deployio Team",
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "Deployio",
+            logo: {
+              "@type": "ImageObject",
+              url: `${window.location.origin}/logo.png`,
+            },
+          },
+          datePublished: document.createdAt,
+          dateModified: document.updatedAt,
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": window.location.href,
+          },
+          proficiencyLevel: document.difficulty || "Beginner",
+        }}
+      />
+      <div className="space-y-6">
+        {/* Back Button and Document Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className={
-            tableOfContents.length > 0
-              ? "lg:col-span-8 lg:order-1"
-              : "lg:col-span-9"
-          }
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
         >
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-8">
-            <div className="prose prose-invert max-w-none">
-              {document.content ? (
-                <ReactMarkdown components={MarkdownComponents}>
-                  {document.content}
-                </ReactMarkdown>
-              ) : (
-                <div className="text-center py-8">
-                  <FaCode className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                  <p className="text-gray-400">Content is being loaded...</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>{" "}
-        {/* Table of Contents - Right Side */}
-        {tableOfContents.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className={`lg:col-span-4 lg:order-2 ${
-              showMobileTOC ? "block" : "hidden lg:block"
-            }`}
+          {/* Back Button */}{" "}
+          <button
+            onClick={handleBackToCategory}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all mb-6 group"
           >
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-6 lg:sticky lg:top-24">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Table of Contents
-              </h3>
-              <nav className="space-y-1">
-                {tableOfContents.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      scrollToHeading(item.id);
-                      setShowMobileTOC(false); // Close mobile TOC on selection
-                    }}
-                    className={`w-full text-left text-sm transition-all duration-200 block relative py-1.5 px-2 rounded-md ${
-                      item.level > 2 ? "ml-2 lg:ml-4" : ""
-                    } ${
-                      item.level > 3 ? "ml-4 lg:ml-8" : ""
-                    } text-gray-400 hover:text-blue-400 hover:bg-neutral-800/30`}
-                  >
-                    {item.text}
-                  </button>
-                ))}
-              </nav>
+            <FaArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+            Back to Documentation
+          </button>{" "}
+          {/* Document Header */}
+          <div className="flex flex-col gap-6">
+            <div className="flex-1">
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-2 text-sm text-gray-400 mb-3 overflow-x-auto">
+                <span className="whitespace-nowrap">Documentation</span>
+                <FaChevronRight className="w-3 h-3 flex-shrink-0" />
+                <span className="capitalize whitespace-nowrap">
+                  {document.category}
+                </span>
+                <FaChevronRight className="w-3 h-3 flex-shrink-0" />
+                <span className="text-blue-400 truncate">{document.title}</span>
+              </div>
+
+              <h1 className="text-2xl lg:text-3xl font-bold text-white mb-4">
+                {document.title}
+              </h1>
+
+              {document.description && (
+                <p className="text-base lg:text-lg text-gray-300 mb-4">
+                  {document.description}
+                </p>
+              )}
+
+              {/* Document Meta */}
+              <div className="flex flex-wrap items-center gap-4 lg:gap-6 text-sm text-gray-400">
+                <div className="flex items-center gap-2">
+                  <FaClock className="w-4 h-4" />
+                  {formatReadTime(document.content)}
+                </div>
+                <div className="flex items-center gap-2">
+                  <FaEye className="w-4 h-4" />
+                  {formatViews(document.views)} views
+                </div>
+                {document.updatedAt && (
+                  <div className="flex items-center gap-2">
+                    <FaCalendar className="w-4 h-4" />
+                    <span className="hidden sm:inline">Updated </span>
+                    {formatDate(document.updatedAt)}
+                  </div>
+                )}
+                {document.author && (
+                  <div className="flex items-center gap-2">
+                    <FaUser className="w-4 h-4" />
+                    {document.author}
+                  </div>
+                )}
+              </div>
             </div>
-          </motion.div>
-        )}
-      </div>{" "}
-      {/* Document Footer */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-6"
-      >
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-gray-400 text-sm">
-              Was this page helpful? Let us know how we can improve.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <a
-              href={`https://github.com/deployio/docs/edit/main/${document.category}/${document.slug}.md`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-sm"
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+              {" "}
+              {/* Helpful/Not Helpful buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleHelpful}
+                  disabled={helpfulStatus === "helpful"}
+                  className={`inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg transition-all text-xs lg:text-sm ${
+                    helpfulStatus === "helpful"
+                      ? "bg-green-500/20 text-green-400 cursor-not-allowed"
+                      : "bg-neutral-800/50 hover:bg-green-500/20 text-gray-300 hover:text-green-400"
+                  }`}
+                >
+                  <FaThumbsUp className="w-3 h-3 lg:w-4 lg:h-4" />
+                  <span className="hidden sm:inline">Helpful</span>
+                  {document?.helpfulCount > 0 && (
+                    <span className="text-xs bg-neutral-700 px-1 lg:px-1.5 py-0.5 rounded-full">
+                      {document.helpfulCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleNotHelpful}
+                  disabled={helpfulStatus === "not-helpful"}
+                  className={`inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg transition-all text-xs lg:text-sm ${
+                    helpfulStatus === "not-helpful"
+                      ? "bg-red-500/20 text-red-400 cursor-not-allowed"
+                      : "bg-neutral-800/50 hover:bg-red-500/20 text-gray-300 hover:text-red-400"
+                  }`}
+                >
+                  <FaThumbsDown className="w-3 h-3 lg:w-4 lg:h-4" />
+                  <span className="hidden sm:inline">Not helpful</span>
+                  {document?.notHelpfulCount > 0 && (
+                    <span className="text-xs bg-neutral-700 px-1 lg:px-1.5 py-0.5 rounded-full">
+                      {document.notHelpfulCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-xs lg:text-sm"
+              >
+                <FaShare className="w-3 h-3 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-xs lg:text-sm"
+              >
+                <FaPrint className="w-3 h-3 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Print</span>
+              </button>
+            </div>
+          </div>{" "}
+          {/* Tags */}
+          {document.tags && document.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {document.tags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center gap-1 px-2 lg:px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs lg:text-sm"
+                >
+                  <FaTag className="w-2 h-2 lg:w-3 lg:h-3" />
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}{" "}
+        </motion.div>{" "}
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8">
+          {/* Mobile Table of Contents Toggle */}
+          {tableOfContents.length > 0 && (
+            <div className="lg:hidden">
+              <button
+                onClick={() => setShowMobileTOC(!showMobileTOC)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl text-white mb-4"
+              >
+                <span className="flex items-center gap-2">
+                  <FaBars className="w-4 h-4" />
+                  Table of Contents
+                </span>
+                <motion.div
+                  animate={{ rotate: showMobileTOC ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <FaChevronDown className="w-4 h-4" />
+                </motion.div>
+              </button>
+            </div>
+          )}{" "}
+          {/* Document Content - Left aligned with header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className={
+              tableOfContents.length > 0
+                ? "lg:col-span-8 lg:order-1"
+                : "lg:col-span-9"
+            }
+          >
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-8">
+              <div className="prose prose-invert max-w-none">
+                {document.content ? (
+                  <ReactMarkdown components={MarkdownComponents}>
+                    {document.content}
+                  </ReactMarkdown>
+                ) : (
+                  <div className="text-center py-8">
+                    <FaCode className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                    <p className="text-gray-400">Content is being loaded...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>{" "}
+          {/* Table of Contents - Right Side */}
+          {tableOfContents.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className={`lg:col-span-4 lg:order-2 ${
+                showMobileTOC ? "block" : "hidden lg:block"
+              }`}
             >
-              <FaEdit className="w-4 h-4" />
-              Edit on GitHub
-            </a>
+              <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-6 lg:sticky lg:top-24">
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Table of Contents
+                </h3>
+                <nav className="space-y-1">
+                  {tableOfContents.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        scrollToHeading(item.id);
+                        setShowMobileTOC(false); // Close mobile TOC on selection
+                      }}
+                      className={`w-full text-left text-sm transition-all duration-200 block relative py-1.5 px-2 rounded-md ${
+                        item.level > 2 ? "ml-2 lg:ml-4" : ""
+                      } ${
+                        item.level > 3 ? "ml-4 lg:ml-8" : ""
+                      } text-gray-400 hover:text-blue-400 hover:bg-neutral-800/30`}
+                    >
+                      {item.text}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </motion.div>
+          )}
+        </div>{" "}
+        {/* Document Footer */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-6"
+        >
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-gray-400 text-sm">
+                Was this page helpful? Let us know how we can improve.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <a
+                href={`https://github.com/deployio/docs/edit/main/${document.category}/${document.slug}.md`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-sm"
+              >
+                <FaEdit className="w-4 h-4" />
+                Edit on GitHub
+              </a>
+            </div>{" "}
           </div>
-        </div>
-      </motion.div>
-    </div>
+        </motion.div>
+      </div>
+    </>
   );
 };
 
