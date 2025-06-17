@@ -26,11 +26,10 @@
     <meta name="revisit-after" content="7 days" />
     <meta name="application-name" content="Deployio" />
     <meta name="generator" content="Vite" />
-
     <!-- Theme and App Meta -->
-    <meta name="theme-color" content="#3b82f6" />
-    <meta name="msapplication-TileColor" content="#3b82f6" />
-    <meta name="msapplication-navbutton-color" content="#3b82f6" />
+    <meta name="theme-color" content="#1e293b" />
+    <meta name="msapplication-TileColor" content="#1e293b" />
+    <meta name="msapplication-navbutton-color" content="#1e293b" />
     <meta name="msapplication-starturl" content="/" />
     <meta name="msapplication-config" content="/browserconfig.xml" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -111,10 +110,9 @@
     <link rel="dns-prefetch" href="//api.deployio.tech" />
     <link rel="dns-prefetch" href="//fonts.googleapis.com" />
     <link rel="dns-prefetch" href="//fonts.gstatic.com" />
-
     <!-- Preload Critical Resources -->
     <link rel="preload" href="/favicon.png" as="image" type="image/png" />
-    <link rel="preload" href="/logo.png" as="image" type="image/png" />
+    <!-- Remove logo preload as it's not immediately critical and can cause warnings -->
 
     <!-- Structured Data for Search Engines -->
     <script type="application/ld+json">

@@ -529,12 +529,10 @@ export const generateMetaTags = (seoData) => {
     { name: "twitter:creator", content: seoData.twitterCreator },
     { name: "twitter:title", content: seoData.title },
     { name: "twitter:description", content: seoData.description },
-    { name: "twitter:image", content: seoData.image },
-
-    // Additional SEO tags
+    { name: "twitter:image", content: seoData.image }, // Additional SEO tags
     { name: "viewport", content: "width=device-width, initial-scale=1.0" },
-    { name: "theme-color", content: "#3b82f6" },
-    { name: "msapplication-TileColor", content: "#3b82f6" },
+    { name: "theme-color", content: "#1e293b" },
+    { name: "msapplication-TileColor", content: "#1e293b" },
   ];
 
   // Add robots tag if specified
@@ -585,12 +583,15 @@ export const preloadSEOResources = () => {
     ogImageLink.as = "image";
     document.head.appendChild(ogImageLink);
 
-    // Preload favicon
+    // Preload favicon only
     const faviconLink = document.createElement("link");
     faviconLink.rel = "preload";
     faviconLink.href = "/favicon.png";
     faviconLink.as = "image";
     document.head.appendChild(faviconLink);
+
+    // Don't preload logo.png to avoid unused preload warnings
+    // Logo will be loaded when needed by navigation components
   }
 };
 
