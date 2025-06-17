@@ -111,32 +111,46 @@ const OverviewTab = () => {
     if (score >= 60) return "text-yellow-400 bg-yellow-500/20";
     return "text-red-400 bg-red-500/20";
   };
-  const quickActions = [
-    {
-      label: "Update Profile",
-      icon: FaUser,
-      color: "bg-blue-500/20 text-blue-400",
-      href: "/dashboard/profile?tab=profile",
-    },
-    {
-      label: "Security Settings",
-      icon: FaShieldAlt,
-      color: "bg-red-500/20 text-red-400",
-      href: "/dashboard/profile?tab=security",
-    },
-    {
-      label: "View Analytics",
-      icon: FaChartLine,
-      color: "bg-purple-500/20 text-purple-400",
-      href: "/dashboard/profile?tab=analytics",
-    },
-    {
-      label: "Manage Sessions",
-      icon: FaServer,
-      color: "bg-orange-500/20 text-orange-400",
-      href: "/dashboard/profile?tab=sessions",
-    },
-  ];
+  const quickActions = useMemo(() => {
+    const baseActions = [
+      {
+        label: "Update Profile",
+        icon: FaUser,
+        color: "bg-blue-500/20 text-blue-400",
+        href: "/dashboard/profile?tab=profile",
+      },
+      {
+        label: "Security Settings",
+        icon: FaShieldAlt,
+        color: "bg-red-500/20 text-red-400",
+        href: "/dashboard/profile?tab=security",
+      },
+      {
+        label: "View Analytics",
+        icon: FaChartLine,
+        color: "bg-purple-500/20 text-purple-400",
+        href: "/dashboard/profile?tab=analytics",
+      },
+      {
+        label: "Manage Sessions",
+        icon: FaServer,
+        color: "bg-orange-500/20 text-orange-400",
+        href: "/dashboard/profile?tab=sessions",
+      },
+    ];
+
+    // Add Admin Panel for admin users
+    if (authUser?.role === "admin") {
+      baseActions.unshift({
+        label: "Admin Panel",
+        icon: FaShieldAlt,
+        color: "bg-red-600/30 text-red-300 border border-red-500/30",
+        href: "/admin",
+      });
+    }
+
+    return baseActions;
+  }, [authUser?.role]);
   const recommendations = useMemo(() => {
     const items = [];
 
@@ -244,15 +258,44 @@ const OverviewTab = () => {
                   )}&background=4F46E5&color=ffffff&size=120`
                 }
                 alt="Profile"
-                className="w-24 h-24 rounded-full border-4 border-white/20"
+                className={`w-24 h-24 rounded-full border-4 ${
+                  authUser?.role === "admin"
+                    ? "border-red-500/50 ring-4 ring-red-500/20"
+                    : "border-white/20"
+                }`}
               />
+              {/* Admin Shield Badge */}
+              {authUser?.role === "admin" && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg border-2 border-neutral-900"
+                  title="Admin User"
+                >
+                  <FaShieldAlt className="w-4 h-4 text-white" />
+                </motion.div>
+              )}
               <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full border-4 border-neutral-900"></div>
-            </div>
+            </div>{" "}
             <div className="flex-1">
-              <h2 className="text-3xl font-bold text-white mb-1">
-                Welcome back,{" "}
-                {authUser?.firstName || authUser?.username || "Developer"}!
-              </h2>
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="text-3xl font-bold text-white">
+                  Welcome back,{" "}
+                  {authUser?.firstName || authUser?.username || "Developer"}!
+                </h2>
+                {authUser?.role === "admin" && (
+                  <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="px-3 py-1 text-sm font-medium text-red-300 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2"
+                  >
+                    <FaShieldAlt className="w-3 h-3" />
+                    Admin
+                  </motion.div>
+                )}
+              </div>
               <p className="text-blue-200 mb-2">
                 {authUser?.email || "user@example.com"}
               </p>{" "}
@@ -387,14 +430,24 @@ const OverviewTab = () => {
               <Link
                 key={action.label}
                 to={action.href}
-                className="flex flex-col items-center gap-3 p-4 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors group"
+                className={`flex flex-col items-center gap-3 p-4 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-all group ${
+                  action.label === "Admin Panel"
+                    ? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/20"
+                    : ""
+                }`}
               >
                 <div
                   className={`p-3 rounded-full ${action.color} group-hover:scale-110 transition-transform`}
                 >
                   <action.icon className="w-5 h-5" />
                 </div>
-                <span className="text-sm text-white group-hover:text-blue-400 transition-colors">
+                <span
+                  className={`text-sm transition-colors ${
+                    action.label === "Admin Panel"
+                      ? "text-red-300 group-hover:text-red-200"
+                      : "text-white group-hover:text-blue-400"
+                  }`}
+                >
                   {action.label}
                 </span>
               </Link>

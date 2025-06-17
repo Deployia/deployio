@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "@redux/index";
 import { toast } from "react-hot-toast";
 import { useState, memo, useCallback, useRef, useEffect, useMemo } from "react";
-import { FaBars, FaChevronDown, FaShieldAlt } from "react-icons/fa";
+import { FaBars, FaChevronDown } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileAvatar from "./ProfileAvatar";
 import MobileSidebar from "./MobileSidebar";
@@ -334,18 +334,6 @@ const Navbar = memo(() => {
                     Pricing
                   </button>
                 </li>{" "}
-                {/* Admin Button for Admin Users */}
-                {isAuthenticated && user?.role === "admin" && (
-                  <li>
-                    <Link
-                      to="/admin"
-                      className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-red-800/50 transition-all duration-200 font-medium text-sm body border border-red-600/30 hover:border-red-500"
-                    >
-                      <FaShieldAlt className="w-4 h-4 mr-2" />
-                      Admin
-                    </Link>
-                  </li>
-                )}
                 {/* Authentication Links */}
                 {isAuthenticated ? (
                   <li>
