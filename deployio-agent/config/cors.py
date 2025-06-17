@@ -1,12 +1,5 @@
 """
 CORS config        # Production - specific origins only
-        origins = [
-            "https://deployio.tech",
-            "https://app.deployio.tech",
-            "https://agent.deployio.tech",
-            "http://localhost:3000",  # Local development
-            "http://localhost:5173",  # Vite dev server
-        ]for the DeployIO Agent
 """
 
 from fastapi import FastAPI
@@ -20,12 +13,11 @@ def setup_cors(app: FastAPI) -> None:
     # Development - allow all origins
     if settings.debug:
         origins = ["*"]
-    else:
-        # Production - specific origins only
+    else:  # Production - specific origins only
         origins = [
-            "https://deployio.dev",
-            "https://app.deployio.dev",
-            "https://dashboard.deployio.dev",
+            "https://deployio.tech",
+            "https://app.deployio.tech",
+            "https://agent.deployio.tech",
             "http://localhost:3000",  # Local development
             "http://localhost:5173",  # Vite dev server
         ]

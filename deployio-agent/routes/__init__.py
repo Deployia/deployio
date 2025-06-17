@@ -12,7 +12,7 @@ def create_routes() -> APIRouter:
 
     main_router = APIRouter()
 
-    # Include agent API routes
+    # Include agent API routes with /agent/v1 prefix
     main_router.include_router(agent_router, prefix="/agent/v1", tags=["agent"])
 
     # Include wildcard routes (for subdomain HTML responses)
