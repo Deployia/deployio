@@ -103,23 +103,52 @@ const CodeAnalysis = () => {
     { label: "Configuration Success", value: "99.2%", icon: FaCog },
     { label: "Time Saved", value: "85%", icon: FaRocket },
   ];
-
   const demoStackAnalysis = async () => {
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-      setDemoData({
-        detectedStack: "MERN Stack",
-        confidence: 96,
-        dependencies: 24,
-        devDependencies: 12,
-        securityIssues: 0,
-        optimizationScore: 87,
-        buildTime: "2.3s",
-        recommendations: 5,
-      });
+      // Simulate real API call to our AI service
+      const response = await fetch("/api/v1/ai/supported-technologies");
+
+      if (response.ok) {
+        // Simulate analysis completion
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        setDemoData({
+          detectedStack: "MERN Stack",
+          confidence: 96,
+          dependencies: 24,
+          devDependencies: 12,
+          securityIssues: 0,
+          optimizationScore: 87,
+          buildTime: "2.3s",
+          recommendations: 5,
+        });
+      } else {
+        // Fallback demo data
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        setDemoData({
+          detectedStack: "React App",
+          confidence: 94,
+          dependencies: 18,
+          devDependencies: 8,
+          securityIssues: 1,
+          optimizationScore: 82,
+          buildTime: "1.8s",
+          recommendations: 3,
+        });
+      }
     } catch (error) {
       console.error("Demo error:", error);
+      // Fallback demo data
+      setDemoData({
+        detectedStack: "Web Application",
+        confidence: 85,
+        dependencies: 15,
+        devDependencies: 5,
+        securityIssues: 0,
+        optimizationScore: 75,
+        buildTime: "3.1s",
+        recommendations: 4,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +166,10 @@ const CodeAnalysis = () => {
     primaryCTA: {
       text: "Analyze Repository",
       icon: FaGithub,
-      onClick: () => console.log("Analyze repository"),
+      onClick: () => {
+        // Navigate to the project creation page for code analysis
+        window.location.href = "/projects/new?source=code-analysis";
+      },
     },
     secondaryCTA: {
       text: "Try Demo",
@@ -274,7 +306,8 @@ const CodeAnalysis = () => {
     },
     secondaryButton: {
       text: "View Documentation",
-      onClick: () => window.open("/resources/docs/products/code-analysis", "_blank"),
+      onClick: () =>
+        window.open("/resources/docs/products/code-analysis", "_blank"),
     },
     gradientClasses: "from-blue-600 to-purple-600",
   };
