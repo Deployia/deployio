@@ -5,7 +5,7 @@ Agent API routes for DeployIO Agent
 import time
 import logging
 import docker
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from motor.motor_asyncio import AsyncIOMotorClient
 from config.settings import settings
 
@@ -19,9 +19,9 @@ server_start = time.time()
 async def check_mongodb_connection():
     """Check MongoDB connection"""
     try:
-        client = AsyncIOMotorClient(settings.mongodb_url)
+        client = AsyncIOMotorClient(settings.mongodb_uri)
         # Try to ping the database
-        await client.admin.command('ping')
+        await client.admin.command("ping")
         await client.close()
         return "connected"
     except Exception as e:
@@ -45,22 +45,24 @@ async def health_check():
     """Public health check endpoint for the DeployIO Agent"""
     try:
         uptime = time.time() - server_start
-        
+
         # Check service connections
         mongodb_status = await check_mongodb_connection()
         docker_status = check_docker_connection()
-        
+
         services_status = {
             "mongodb": mongodb_status,
             "docker": docker_status,
-            "traefik": "checking..."  # TODO: Add Traefik check
+            "traefik": "checking...",  # TODO: Add Traefik check
         }
-        
+
         # Determine overall status
-        overall_status = "ok" if all(
-            status == "connected" for status in [mongodb_status, docker_status]
-        ) else "degraded"
-        
+        overall_status = (
+            "ok"
+            if all(status == "connected" for status in [mongodb_status, docker_status])
+            else "degraded"
+        )
+
         return {
             "service_name": "DeployIO Agent",
             "status": overall_status,
@@ -69,7 +71,7 @@ async def health_check():
             "version": "1.0.0",
             "purpose": "Container deployment management",
             "environment": settings.environment,
-            "base_domain": settings.base_domain
+            "base_domain": settings.base_domain,
         }
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
@@ -85,40 +87,32 @@ async def health_check():
 async def agent_status():
     """Get detailed agent status (authenticated endpoint)"""
     uptime = time.time() - server_start
-    
+
     # Check service connections
     mongodb_status = await check_mongodb_connection()
     docker_status = check_docker_connection()
-    
+
     return {
         "agent": {
             "status": "running",
             "uptime": uptime,
             "version": "1.0.0",
             "environment": settings.environment,
-            "base_domain": settings.base_domain
+            "base_domain": settings.base_domain,
         },
         "services": {
             "mongodb": mongodb_status,
             "docker": docker_status,
-            "traefik": "checking..."
+            "traefik": "checking...",
         },
-        "deployments": {
-            "active": 0,
-            "total": 0,
-            "failed": 0
-        },
-        "resources": {
-            "cpu_usage": "0%",
-            "memory_usage": "0%",
-            "disk_usage": "0%"
-        },
+        "deployments": {"active": 0, "total": 0, "failed": 0},
+        "resources": {"cpu_usage": "0%", "memory_usage": "0%", "disk_usage": "0%"},
         "capabilities": [
             "container_deployment",
-            "mongodb_management", 
+            "mongodb_management",
             "traefik_routing",
-            "aws_ecr_integration"
-        ]
+            "aws_ecr_integration",
+        ],
     }
 
 
@@ -144,7 +138,11 @@ async def get_deployment(deployment_id: str):
 @router.delete("/deployments/{deployment_id}")
 async def delete_deployment(deployment_id: str):
     """Delete deployment - placeholder"""
-    return {"deployment_id": deployment_id, "action": "deleted", "status": "placeholder"}
+    return {
+        "deployment_id": deployment_id,
+        "action": "deleted",
+        "status": "placeholder",
+    }
 
 
 @router.get("/containers")
