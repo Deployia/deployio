@@ -24,6 +24,12 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
+# Install curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
 # Copy non-root user setup from builder
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
