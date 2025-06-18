@@ -97,12 +97,17 @@ services:
     restart: unless-stopped
     volumes:
       - ./wildcard-page:/usr/share/nginx/html:ro
-      - ./nginx-wildcard.conf:/etc/nginx/conf.d/default.conf:ro
-    labels:
+      - ./nginx-wildcard.conf:/etc/nginx/conf.d/default.conf:ro    labels:
       - "traefik.enable=true"
 
+      # Root domain routing
+      - "traefik.http.routers.root.rule=Host(`deployio.tech`)"
+      - "traefik.http.routers.root.entrypoints=websecure"
+      - "traefik.http.routers.root.tls.certresolver=cloudflare"
+      - "traefik.http.routers.root.service=wildcard-service"
+      - "traefik.http.routers.root.priority=50"
+
       # Wildcard subdomain routing (catch-all for non-specific subdomains)
-      # This rule has lower priority than specific routes
       - "traefik.http.routers.wildcard.rule=HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.deployio.tech`) && !Host(`agent.deployio.tech`) && !Host(`traefik.deployio.tech`) && !Host(`api.deployio.tech`) && !Host(`app.deployio.tech`) && !Host(`www.deployio.tech`)"
       - "traefik.http.routers.wildcard.entrypoints=websecure"
       - "traefik.http.routers.wildcard.tls.certresolver=cloudflare"
