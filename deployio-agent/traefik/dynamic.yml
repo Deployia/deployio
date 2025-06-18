@@ -1,0 +1,75 @@
+# Dynamic Traefik Configuration
+# This file contains additional routing rules and middlewares
+
+http:
+  # Middlewares
+  middlewares:
+    # Security headers
+    security-headers:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Frame-Options: "SAMEORIGIN"
+          X-Content-Type-Options: "nosniff"
+          X-XSS-Protection: "1; mode=block"
+          Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        burst: 100
+        average: 10
+
+    # CORS for API
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowOriginList:
+          - "https://app.deployio.tech"
+          - "https://www.deployio.tech"
+          - "https://deployio.tech"
+        accessControlAllowHeaders:
+          - "Authorization"
+          - "Content-Type"
+          - "X-Requested-With"
+        accessControlExposeHeaders:
+          - "X-Total-Count"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
+
+  # Additional routers (if needed)
+  routers:
+    # Root domain redirect
+    root-domain:
+      rule: "Host(`deployio.tech`)"
+      entryPoints:
+        - websecure
+      service: "wildcard-service@docker"
+      tls:
+        certResolver: cloudflare
+        domains:
+          - main: "*.deployio.tech"
+            sans:
+              - "deployio.tech"
+
+# TLS Configuration
+tls:
+  options:
+    default:
+      minVersion: "VersionTLS12"
+      sslProtocols:
+        - "TLSv1.2"
+        - "TLSv1.3"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_RSA_WITH_AES_128_GCM_SHA256"

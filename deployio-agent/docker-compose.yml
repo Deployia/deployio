@@ -1,99 +1,131 @@
+version: "3.8"
+
 services:
+  # Traefik Reverse Proxy
   traefik:
-    image: traefik:v2.9
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    env_file:
+      - .env.production
     command:
-      - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --entrypoints.websecure.address=:443
-      - --providers.docker
-      - --providers.docker.exposedByDefault=false
-      - --api.dashboard=true
-      # Use Let's Encrypt Staging Server for testing to avoid rate limits
-      - --certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
-      # Configure DNS Challenge for wildcard certificates (using Cloudflare as an example)
-      - --certificatesresolvers.myresolver.acme.dnschallenge=true
-      - --certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare
-      - --certificatesresolvers.myresolver.acme.email=admin@deployio.tech # Keep for account recovery
-      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
-      - --log.level=INFO
-      - --accesslog=true
+      # API
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # Providers
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+
+      # Certificate resolvers
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.cloudflare.acme.email=${CLOUDFLARE_EMAIL}"
+      - "--certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+
+      # Global redirect to HTTPS
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https" # Logging
+      - "--log.level=INFO"
+      - "--accesslog=true"
+
     ports:
       - "80:80"
       - "443:443"
+      - "8080:8080" # Traefik dashboard
+
     environment:
-      - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+      # Cloudflare credentials for DNS challenge
+      - CF_API_EMAIL=${CLOUDFLARE_EMAIL}
+      - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - letsencrypt:/letsencrypt
-    networks:
-      - web
+      - ./letsencrypt:/letsencrypt
+      - ./traefik:/etc/traefik/dynamic:ro
+
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.${BASE_DOMAIN:-deployio.tech}`)"
-      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=myresolver"
-    restart: unless-stopped
+
+      # Traefik Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`traefik.deployio.tech`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik.tls.domains[0].main=*.deployio.tech"
+      - "traefik.http.routers.traefik.tls.domains[0].sans=deployio.tech"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth" # Basic auth for dashboard (change credentials)
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$2y$$10$$8K1p.ytjBV6k2C5k6H4cLe7YvOq1M8QfZtYP4v8YVxF0Q1Y3k8W5C"
+
+  # DeployIO Agent FastAPI Service
   deployio-agent:
-    image: ${AGENT_IMAGE:-061446587946.dkr.ecr.ap-south-1.amazonaws.com/deployio-agent:latest}
-    user: agent
+    image: 061446587946.dkr.ecr.ap-south-1.amazonaws.com/deployio-agent:latest
+    container_name: deployio-agent
+    restart: unless-stopped
     env_file:
-      - ./.env.production
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp:noexec,nosuid,size=100m
+      - .env.production
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./agent.db}
+      - SECRET_KEY=${SECRET_KEY}
+      - AGENT_SECRET=${AGENT_SECRET}
+      - BASE_DOMAIN=${BASE_DOMAIN:-deployio.tech}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    group_add:
-      - docker
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl --no-progress-meter --fail http://localhost:8000/agent/v1/health || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./logs:/app/logs
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.agent.rule=Host(`agent.${BASE_DOMAIN:-deployio.tech}`)"
-      - "traefik.http.services.agent.loadbalancer.server.port=8000"
+
+      # Agent API routes
+      - "traefik.http.routers.agent.rule=Host(`agent.deployio.tech`)"
       - "traefik.http.routers.agent.entrypoints=websecure"
-      - "traefik.http.routers.agent.tls.certresolver=myresolver"
-      - "traefik.http.routers.agent.priority=10"
+      - "traefik.http.routers.agent.tls.certresolver=cloudflare"
+      - "traefik.http.routers.agent.tls.domains[0].main=*.deployio.tech"
+      - "traefik.http.routers.agent.tls.domains[0].sans=deployio.tech"
+      - "traefik.http.routers.agent.service=agent-service"
+      - "traefik.http.services.agent-service.loadbalancer.server.port=8000"
+
+      # Health check
+      - "traefik.http.routers.agent.middlewares=agent-headers"
+      - "traefik.http.middlewares.agent-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
     depends_on:
       - traefik
-    networks:
-      - web
-    restart: unless-stopped
 
-  wildcard:
+  # Wildcard Page Server (nginx serving static files)
+  wildcard-server:
     image: nginx:alpine
-    read_only: true
+    container_name: wildcard-server
+    restart: unless-stopped
     volumes:
       - ./wildcard-page:/usr/share/nginx/html:ro
-    networks:
-      - web
+      - ./nginx-wildcard.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wildcard.rule=HostRegexp(`{host:.+}.${BASE_DOMAIN:-deployio.tech}`)"
-      - "traefik.http.routers.wildcard.priority=1"
-      - "traefik.http.services.wildcard.loadbalancer.server.port=80"
+
+      # Wildcard subdomain routing (catch-all for non-specific subdomains)
+      # This rule has lower priority than specific routes
+      - "traefik.http.routers.wildcard.rule=HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.deployio.tech`) && !Host(`agent.deployio.tech`) && !Host(`traefik.deployio.tech`) && !Host(`api.deployio.tech`) && !Host(`app.deployio.tech`) && !Host(`www.deployio.tech`)"
       - "traefik.http.routers.wildcard.entrypoints=websecure"
-      - "traefik.http.routers.wildcard.tls.certresolver=myresolver"
-      - "traefik.http.routers.wildcard.tls.domains[0].main=${BASE_DOMAIN:-deployio.tech}"
-      - "traefik.http.routers.wildcard.tls.domains[0].sans=*.${BASE_DOMAIN:-deployio.tech}"
-    restart: unless-stopped
+      - "traefik.http.routers.wildcard.tls.certresolver=cloudflare"
+      - "traefik.http.routers.wildcard.tls.domains[0].main=*.deployio.tech"
+      - "traefik.http.routers.wildcard.tls.domains[0].sans=deployio.tech"
+      - "traefik.http.routers.wildcard.service=wildcard-service"
+      - "traefik.http.routers.wildcard.priority=1" # Lower priority than specific routes
+      - "traefik.http.services.wildcard-service.loadbalancer.server.port=80"
+    depends_on:
+      - traefik
+
+networks:
+  default:
+    name: deployio-network
+    external: false
 
 volumes:
   letsencrypt:
     driver: local
-
-networks:
-  web:
-    driver: bridge
