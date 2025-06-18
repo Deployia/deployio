@@ -280,7 +280,7 @@ jobs:
       - name: 🚀 Deploy on EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: deployio.tech
+          host: ${{ secrets.PLATFORM_HOST}}
           username: vasudevshetty
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
