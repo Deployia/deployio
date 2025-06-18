@@ -92,7 +92,7 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://127.0.0.1:8000/healthz || exit 1"]
+      test: ["CMD-SHELL", "curl --fail http://127.0.0.1:8000/service/v1/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
