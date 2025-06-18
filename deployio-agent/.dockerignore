@@ -1,0 +1,111 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Development files
+.env.example
+.env.development
+.env.test
+
+# Scripts
+*.sh
+!docker-entrypoint.sh
+
+# Logs
+logs/
+*.log
+
+# SSL/Certificates (these should be mounted)
+letsencrypt/
+*.pem
+*.key
+*.crt
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Traefik config (mounted at runtime)
+traefik/
+
+# Landing page (separate container)
+landing-page/
+
+# Development database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Node modules (if any)
+node_modules/
+npm-debug.log*
+
+# Test files
+test/
+tests/
+*_test.py
+test_*.py
+
+# Deployment scripts
+deploy.sh
+build-push-ecr.sh

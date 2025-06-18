@@ -130,9 +130,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Docker
-.dockerignore
-
 # DeployIO Agent specific
 *.pid
 *.sock

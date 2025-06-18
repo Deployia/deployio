@@ -1,25 +1,15 @@
 # -------- Base Builder Stage --------
 FROM python:3.12-slim-bookworm AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Create a non-root user and group for the application
-RUN groupadd -r agent && useradd --no-log-init -r -g agent agent
-
-# Install system dependencies required for building python packages and Docker CLI
+# Install system dependencies required for building python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     ca-certificates \
-    gnupg \
-    lsb-release \
- && mkdir -p /etc/apt/keyrings \
- && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
- && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
- && apt-get update \
- && apt-get install -y docker-ce-cli \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment
 ENV VIRTUAL_ENV=/opt/venv
@@ -28,45 +18,49 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# -------- Docker CLI Stage --------
+FROM docker:cli AS docker-cli
 
 # -------- Final Runtime Stage --------
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm AS runtime
 
 WORKDIR /app
 
-# Install Docker CLI in runtime stage
+# Install only essential runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     ca-certificates \
-    gnupg \
-    lsb-release \
- && mkdir -p /etc/apt/keyrings \
- && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
- && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
- && apt-get update \
- && apt-get install -y docker-ce-cli \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
 
 # Create a non-root user and group for the application
 RUN groupadd -r agent && useradd --no-log-init -r -g agent agent
 
-# Add a 'docker' group with the host's GID (988) to match the host system.
-# This is a workaround for environments where the Docker daemon's group lookup fails.
-RUN groupadd -g 988 docker
+# Add a 'docker' group with the host's GID (988) to match the host system
+RUN groupadd -g 988 docker || true
 
 # Add the application user to the docker group
 RUN usermod -aG docker agent
 
+# Copy Docker CLI from docker-cli stage
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+
 # Copy virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 
-# Copy application source code
+# Copy application source code (filtered by .dockerignore)
 COPY . .
 
 # Set ownership of the application directory
 RUN chown -R agent:agent /app
+
+# Create logs directory
+RUN mkdir -p /app/logs && chown agent:agent /app/logs
 
 # Switch to the non-root user
 USER agent
@@ -74,7 +68,18 @@ USER agent
 # Add the virtual environment to the PATH
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
 EXPOSE 8000
 
-# Use Uvicorn with production settings
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use Uvicorn with optimized production settings
+CMD ["uvicorn", "main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1", \
+     "--loop", "uvloop", \
+     "--http", "httptools", \
+     "--access-log", \
+     "--log-level", "info"]
