@@ -29,10 +29,7 @@ Complete MERN stack deployment automation with dynamic subdomain routing and bea
 # Clone and navigate to agent directory
 cd deployio-agent
 
-# Run setup script
-./setup.sh
-
-# Edit environment configuration
+# Configure environment
 cp .env.example .env
 nano .env  # Configure your settings
 ```
