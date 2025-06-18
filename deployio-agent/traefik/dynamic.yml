@@ -1,60 +1,66 @@
-# Dynamic Traefik Configuration
-# This file contains additional routing rules and middlewares
-
 http:
-  # Middlewares
+  routers:
+    # Agent API - Reserved subdomain
+    agent-api:
+      rule: "Host(`agent.deployio.tech`)"
+      service: agent-service
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - agent-cors
+
+    # App management interface - Reserved subdomain
+    app-interface:
+      rule: "Host(`app.deployio.tech`)"
+      service: agent-service
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - agent-cors
+
+    # Default landing page for all other subdomains
+    default-landing:
+      rule: "HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.deployio.tech`) && !Host(`agent.deployio.tech`) && !Host(`app.deployio.tech`)"
+      service: landing-service
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - landing-cors
+
+  services:
+    # DeployIO Agent service
+    agent-service:
+      loadBalancer:
+        servers:
+          - url: "http://deployio-agent:8000"
+
+    # Default landing page service
+    landing-service:
+      loadBalancer:
+        servers:
+          - url: "http://landing-page:80"
+
   middlewares:
-    # Security headers
-    security-headers:
+    agent-cors:
       headers:
-        customRequestHeaders:
-          X-Forwarded-Proto: "https"
-        customResponseHeaders:
-          X-Frame-Options: "SAMEORIGIN"
-          X-Content-Type-Options: "nosniff"
-          X-XSS-Protection: "1; mode=block"
-          Strict-Transport-Security: "max-age=31536000; includeSubDomains"
-          Referrer-Policy: "strict-origin-when-cross-origin"
-
-    # Rate limiting
-    rate-limit:
-      rateLimit:
-        burst: 100
-        average: 10
-
-    # CORS for API
-    cors-headers:
-      headers:
+        accessControlAllowOriginList:
+          - "https://deployio.tech"
+          - "https://*.deployio.tech"
         accessControlAllowMethods:
           - GET
           - POST
           - PUT
           - DELETE
           - OPTIONS
-        accessControlAllowOriginList:
-          - "https://app.deployio.tech"
-          - "https://www.deployio.tech"
-          - "https://deployio.tech"
         accessControlAllowHeaders:
-          - "Authorization"
-          - "Content-Type"
-          - "X-Requested-With"
-        accessControlExposeHeaders:
-          - "X-Total-Count"
-        accessControlAllowCredentials: true
-        accessControlMaxAge: 3600
-  # Additional routers (if needed)
-  # Note: Main routing is handled by docker-compose labels
+          - "*"
 
-# TLS Configuration
-tls:
-  options:
-    default:
-      minVersion: "VersionTLS12"
-      maxVersion: "VersionTLS13"
-      cipherSuites:
-        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
-        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
-        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
-        - "TLS_RSA_WITH_AES_256_GCM_SHA384"
-        - "TLS_RSA_WITH_AES_128_GCM_SHA256"
+    landing-cors:
+      headers:
+        accessControlAllowOriginList:
+          - "*"
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+        accessControlAllowHeaders:
+          - "*"

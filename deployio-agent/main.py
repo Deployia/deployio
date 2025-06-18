@@ -8,7 +8,7 @@ import docker
 import httpx
 from config import create_app
 from config.settings import settings
-from config.database import db
+from services.mongodb_service import mongodb_service
 from middleware import setup_exception_handlers, AuthMiddleware
 from routes import create_routes
 
@@ -62,7 +62,11 @@ async def health_check_detailed():
         # Use asyncio.wait_for to timeout after 5 seconds
         import asyncio
 
-        db_status = "ok" if await asyncio.wait_for(db.ping(), timeout=5.0) else "error"
+        db_status = (
+            "ok"
+            if await asyncio.wait_for(mongodb_service.ping(), timeout=5.0)
+            else "error"
+        )
     except asyncio.TimeoutError:
         db_status = "timeout"
     except Exception:
@@ -117,13 +121,13 @@ app.include_router(create_routes())
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    await db.connect()
+    await mongodb_service.connect()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean up services on shutdown"""
-    await db.close()
+    await mongodb_service.close()
 
 
 if __name__ == "__main__":

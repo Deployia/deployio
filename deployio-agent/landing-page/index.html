@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeployIO - Your App Will Be Here Soon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- Neural Network Background -->
+    <div class="neural-background">
+      <canvas id="neural-canvas"></canvas>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+      <div class="hero-section">
+        <!-- Logo -->
+        <div class="logo">
+          <div class="logo-icon">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 48 48"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect width="48" height="48" rx="12" fill="url(#gradient1)" />
+              <path
+                d="M24 8L36 16V32L24 40L12 32V16L24 8Z"
+                stroke="white"
+                stroke-width="2"
+                fill="none"
+              />
+              <circle cx="24" cy="24" r="4" fill="white" />
+              <defs>
+                <linearGradient
+                  id="gradient1"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" style="stop-color: #667eea" />
+                  <stop offset="100%" style="stop-color: #764ba2" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="logo-text">DeployIO</span>
+        </div>
+
+        <!-- Main Heading -->
+        <h1 class="main-title">
+          <span class="gradient-text">Your App Will Be Here Soon</span>
+        </h1>
+
+        <!-- Animated Subtitle -->
+        <div class="subtitle-container">
+          <p class="subtitle">
+            <span id="typed-text">Preparing your deployment experience...</span>
+            <span class="cursor">|</span>
+          </p>
+        </div>
+
+        <!-- Status Indicator -->
+        <div class="status-card">
+          <div class="status-indicator">
+            <div class="pulse-dot"></div>
+            <span>Subdomain Reserved</span>
+          </div>
+          <p class="status-text">
+            This subdomain is ready for deployment. Your MERN stack application
+            will be automatically deployed here once you complete the setup
+            process.
+          </p>
+        </div>
+
+        <!-- CTA Buttons -->
+        <div class="cta-section">
+          <a href="https://deployio.tech" class="btn btn-primary">
+            <span>Go to DeployIO Platform</span>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M4.16667 10H15.8333M15.8333 10L10.8333 5M15.8333 10L10.8333 15"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+          <a href="https://deployio.tech/docs" class="btn btn-secondary">
+            <span>View Documentation</span>
+          </a>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">🚀</div>
+            <h3>Instant Deployment</h3>
+            <p>Deploy your MERN apps in minutes with our AI-powered platform</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Zero Configuration</h3>
+            <p>
+              Our AI analyzes your code and generates optimal deployment configs
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Secure & Isolated</h3>
+            <p>
+              Each app runs in its own secure container with SSL certificates
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+          <p>&copy; 2025 DeployIO. Built with ❤️ for developers.</p>
+          <div class="footer-links">
+            <a href="https://deployio.tech/docs">Docs</a>
+            <a href="https://deployio.tech/support">Support</a>
+            <a href="https://github.com/deployio">GitHub</a>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Floating Elements -->
+    <div class="floating-elements">
+      <div class="float-element float-1"></div>
+      <div class="float-element float-2"></div>
+      <div class="float-element float-3"></div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -140,9 +140,6 @@ logs/
 temp/
 uploads/
 
-# MongoDB data (when running locally)
-mongodb_data/
-
 # Traefik data
 letsencrypt/
 traefik/acme.json
