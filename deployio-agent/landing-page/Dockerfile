@@ -8,7 +8,7 @@ RUN apk add --no-cache curl
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy static files (filtered by .dockerignore)
-COPY *.html *.css *.js /usr/share/nginx/html/
+COPY *.html *.css *.js *.png /usr/share/nginx/html/
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/nginx.conf

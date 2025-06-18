@@ -127,17 +127,19 @@ class TypingAnimation {
   constructor(element) {
     this.element = element;
     this.texts = [
-      "Preparing your deployment experience...",
-      "Setting up secure containers...",
-      "Configuring SSL certificates...",
-      "Optimizing performance...",
-      "Ready for your MERN stack app!",
+      "Deploy React apps in seconds...",
+      "Host Vue.js applications instantly...",
+      "Launch Node.js APIs effortlessly...",
+      "Deploy Python apps with ease...",
+      "Run Docker containers seamlessly...",
+      "Host static sites lightning fast...",
+      "Deploy any tech stack you need...",
     ];
     this.currentIndex = 0;
     this.currentText = "";
     this.isDeleting = false;
-    this.typeSpeed = 100;
-    this.deleteSpeed = 50;
+    this.typeSpeed = 80;
+    this.deleteSpeed = 40;
     this.pauseTime = 2000;
 
     this.type();

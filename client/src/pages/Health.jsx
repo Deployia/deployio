@@ -327,7 +327,7 @@ function Health() {
             message: agentHealthError
               ? `Error: ${agentHealthError}`
               : agentHealth?.service_name || "DeployIO Agent",
-            docker_status: agentHealth?.services?.docker || "unknown",
+            docker_status: agentHealth?.services?.docker === "ok" || "unknown",
             version: agentHealth?.version || "unknown",
             purpose: agentHealth?.purpose || "Container deployment management",
           },
