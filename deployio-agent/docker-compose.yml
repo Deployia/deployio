@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # Traefik Reverse Proxy
   traefik:
@@ -80,15 +78,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./logs:/app/logs
     labels:
-      - "traefik.enable=true"
-
-      # Agent API routes
+      - "traefik.enable=true" # Agent API routes
       - "traefik.http.routers.agent.rule=Host(`agent.deployio.tech`)"
       - "traefik.http.routers.agent.entrypoints=websecure"
       - "traefik.http.routers.agent.tls.certresolver=cloudflare"
       - "traefik.http.routers.agent.tls.domains[0].main=*.deployio.tech"
       - "traefik.http.routers.agent.tls.domains[0].sans=deployio.tech"
       - "traefik.http.routers.agent.service=agent-service"
+      - "traefik.http.routers.agent.priority=100"
       - "traefik.http.services.agent-service.loadbalancer.server.port=8000"
 
       # Health check
