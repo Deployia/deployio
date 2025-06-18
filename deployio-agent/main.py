@@ -4,6 +4,8 @@ DeployIO Agent - FastAPI Service for Container Deployment Management
 """
 
 import time
+import docker
+import httpx
 from config import create_app
 from config.settings import settings
 from config.database import db
@@ -21,34 +23,52 @@ app = create_app()
 @app.get("/agent/v1/health")
 async def health_check_direct():
     """Direct public health check endpoint that bypasses authentication"""
+    uptime = time.time() - server_start
+
+    # Check database connection
     try:
-        uptime = time.time() - server_start
-
-        # Check database connection
         db_status = "ok" if await db.ping() else "error"
+    except Exception:
+        db_status = "error"
 
-        # TODO: Add actual service checks (Docker, Traefik)
-        services_status = {
-            "mongodb": db_status,
-            "docker": "checking...",
-            "traefik": "checking...",
-        }
+    # Check Docker socket connection
+    try:
+        docker_client = docker.from_env()
+        docker_client.ping()
+        docker_status = "ok"
+    except Exception:
+        docker_status = "error"
 
-        return {
-            "service_name": "DeployIO Agent",
-            "status": "ok",
-            "uptime": uptime,
-            "services": services_status,
-            "version": "1.0.0",
-            "purpose": "Container deployment management",
-        }
-    except Exception as e:
-        return {
-            "service_name": "DeployIO Agent",
-            "status": "error",
-            "error": str(e),
-            "uptime": time.time() - server_start,
-        }
+    # Check Traefik API connection
+    try:
+        async with httpx.AsyncClient() as client:
+            # We query a traefik service that is always present
+            response = await client.get("http://traefik:8080/api/rawdata")
+            if response.status_code == 200:
+                traefik_status = "ok"
+            else:
+                traefik_status = "error"
+    except Exception:
+        traefik_status = "error"
+
+    services_status = {
+        "mongodb": db_status,
+        "docker": docker_status,
+        "traefik": traefik_status,
+    }
+
+    overall_status = (
+        "ok" if all(s == "ok" for s in services_status.values()) else "error"
+    )
+
+    return {
+        "service_name": "DeployIO Agent",
+        "status": overall_status,
+        "uptime": uptime,
+        "services": services_status,
+        "version": "1.0.0",
+        "purpose": "Container deployment management",
+    }
 
 
 # Setup exception handlers
@@ -65,8 +85,6 @@ app.include_router(create_routes())
 async def startup_event():
     """Initialize services on startup"""
     await db.connect()
-    # TODO: Initialize Docker client
-    # TODO: Check Traefik connectivity
 
 
 @app.on_event("shutdown")

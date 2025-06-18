@@ -9,7 +9,6 @@ services:
       - --providers.docker
       - --providers.docker.exposedByDefault=false
       - --api.dashboard=true
-      - --api.insecure=true
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
       - --certificatesresolvers.myresolver.acme.email=admin@deployio.tech
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
@@ -18,10 +17,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik:/etc/traefik/dynamic:ro
       - letsencrypt:/letsencrypt
     networks:
       - web
@@ -33,23 +30,23 @@ services:
       - "traefik.http.routers.dashboard.tls.certresolver=myresolver"
     restart: unless-stopped
   deployio-agent:
-    image: 061446587946.dkr.ecr.ap-south-1.amazonaws.com/deployio-agent:latest
+    image: ${AGENT_IMAGE:-061446587946.dkr.ecr.ap-south-1.amazonaws.com/deployio-agent:latest}
     env_file:
-      - ./.env.production
+      - .env.production
     security_opt:
       - no-new-privileges:true
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     group_add:
       - docker
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "curl --fail http://localhost:8000/agent/v1/health || exit 1",
+          "curl --no-progress-meter --fail http://localhost:8000/agent/v1/health || exit 1",
         ]
       interval: 10s
       timeout: 5s
@@ -57,17 +54,33 @@ services:
       start_period: 10s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.agent.rule=Host(`agent.${BASE_DOMAIN:-deployio.tech}`) || HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.${BASE_DOMAIN:-deployio.tech}`)"
+      - "traefik.http.routers.agent.rule=Host(`agent.${BASE_DOMAIN:-deployio.tech}`)"
       - "traefik.http.services.agent.loadbalancer.server.port=8000"
       - "traefik.http.routers.agent.entrypoints=websecure"
       - "traefik.http.routers.agent.tls.certresolver=myresolver"
-      - "traefik.http.routers.agent.tls.domains[0].main=${BASE_DOMAIN:-deployio.tech}"
-      - "traefik.http.routers.agent.tls.domains[0].sans=*.${BASE_DOMAIN:-deployio.tech},agent.${BASE_DOMAIN:-deployio.tech}"
-      - "traefik.http.routers.agent.priority=1"
+      - "traefik.http.routers.agent.priority=10"
     depends_on:
       - traefik
     networks:
       - web
+    restart: unless-stopped
+
+  wildcard:
+    image: nginx:alpine
+    read_only: true
+    volumes:
+      - ./wildcard-page:/usr/share/nginx/html:ro
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wildcard.rule=HostRegexp(`{host:.+}.${BASE_DOMAIN:-deployio.tech}`)"
+      - "traefik.http.routers.wildcard.priority=1"
+      - "traefik.http.services.wildcard.loadbalancer.server.port=80"
+      - "traefik.http.routers.wildcard.entrypoints=websecure"
+      - "traefik.http.routers.wildcard.tls.certresolver=myresolver"
+      - "traefik.http.routers.wildcard.tls.domains[0].main=${BASE_DOMAIN:-deployio.tech}"
+      - "traefik.http.routers.wildcard.tls.domains[0].sans=*.${BASE_DOMAIN:-deployio.tech}"
     restart: unless-stopped
 
 volumes:
