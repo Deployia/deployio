@@ -22,12 +22,49 @@ app = create_app()
 # Add public health check endpoint before middleware to avoid auth issues
 @app.get("/agent/v1/health")
 async def health_check_direct():
-    """Direct public health check endpoint that bypasses authentication"""
+    """Fast health check endpoint that bypasses authentication"""
     uptime = time.time() - server_start
 
-    # Check database connection
+    # Quick service checks with timeouts
+    services_status = {}
+
+    # Check Docker socket connection (fast)
     try:
-        db_status = "ok" if await db.ping() else "error"
+        docker_client = docker.from_env()
+        docker_client.ping()
+        services_status["docker"] = "ok"
+    except Exception:
+        services_status["docker"] = "error"
+
+    # Skip MongoDB and Traefik checks for fast response
+    # These can be checked in a separate detailed health endpoint
+
+    overall_status = "ok"  # Service is running if we got here
+
+    return {
+        "service_name": "DeployIO Agent",
+        "status": overall_status,
+        "uptime": uptime,
+        "services": services_status,
+        "version": "1.0.0",
+        "purpose": "Container deployment management",
+    }
+
+
+# Add detailed health check with external services
+@app.get("/agent/v1/health/detailed")
+async def health_check_detailed():
+    """Detailed health check that includes external services (may be slow)"""
+    uptime = time.time() - server_start
+
+    # Check database connection with timeout
+    try:
+        # Use asyncio.wait_for to timeout after 5 seconds
+        import asyncio
+
+        db_status = "ok" if await asyncio.wait_for(db.ping(), timeout=5.0) else "error"
+    except asyncio.TimeoutError:
+        db_status = "timeout"
     except Exception:
         db_status = "error"
 
@@ -39,15 +76,11 @@ async def health_check_direct():
     except Exception:
         docker_status = "error"
 
-    # Check Traefik API connection
+    # Check Traefik API connection with timeout
     try:
-        async with httpx.AsyncClient() as client:
-            # We query a traefik service that is always present
+        async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get("http://traefik:8080/api/rawdata")
-            if response.status_code == 200:
-                traefik_status = "ok"
-            else:
-                traefik_status = "error"
+            traefik_status = "ok" if response.status_code == 200 else "error"
     except Exception:
         traefik_status = "error"
 
@@ -58,7 +91,7 @@ async def health_check_direct():
     }
 
     overall_status = (
-        "ok" if all(s == "ok" for s in services_status.values()) else "error"
+        "ok" if all(s == "ok" for s in services_status.values()) else "degraded"
     )
 
     return {

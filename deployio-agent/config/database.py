@@ -18,7 +18,18 @@ class Database:
             raise ValueError("MONGODB_URI is not set. Cannot connect to the database.")
 
         print(f"Connecting to MongoDB at {settings.mongodb_uri}")
-        self.client = motor.motor_asyncio.AsyncIOMotorClient(settings.mongodb_uri)
+
+        # Add SSL configuration for MongoDB Atlas
+        self.client = motor.motor_asyncio.AsyncIOMotorClient(
+            settings.mongodb_uri,
+            ssl=True,
+            ssl_cert_reqs="CERT_REQUIRED",
+            ssl_ca_certs=None,
+            ssl_match_hostname=True,
+            serverSelectionTimeoutMS=5000,  # 5 second timeout
+            connectTimeoutMS=5000,  # 5 second connect timeout
+            socketTimeoutMS=5000,  # 5 second socket timeout
+        )
 
         # The database name can be derived from the URI if not explicitly set
         # or you can enforce a specific DB name convention.
