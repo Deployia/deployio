@@ -9,6 +9,7 @@ const hpp = require("hpp");
 const cors = require("cors");
 const compression = require("compression");
 const logger = require("./logger");
+const connectDB = require("./database"); // Import connectDB
 const {
   getRateLimiters,
   bypassHealthChecks,
@@ -17,6 +18,15 @@ const {
 } = require("../middleware/rateLimitMiddleware");
 
 module.exports = (app) => {
+  // Connect to the database and log the host
+  connectDB().then((conn) => {
+    if (conn) {
+      logger.info(
+        `Backend successfully connected to MongoDB at ${conn.connection.host}`
+      );
+    }
+  });
+
   // Trust proxy configuration - Critical for rate limiting behind reverse proxy
   // This must be configured BEFORE any rate limiting middleware
   if (process.env.NODE_ENV === "production") {
