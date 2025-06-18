@@ -4,8 +4,6 @@ services:
     image: traefik:v3.0
     container_name: traefik
     restart: unless-stopped
-    env_file:
-      - .env.production
     command:
       # API
       - "--api.dashboard=true"
@@ -61,19 +59,17 @@ services:
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.middlewares=traefik-auth" # Basic auth for dashboard (change credentials)
       - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$2y$$10$$8K1p.ytjBV6k2C5k6H4cLe7YvOq1M8QfZtYP4v8YVxF0Q1Y3k8W5C"
-
   # DeployIO Agent FastAPI Service
   deployio-agent:
     image: 061446587946.dkr.ecr.ap-south-1.amazonaws.com/deployio-agent:latest
     container_name: deployio-agent
     restart: unless-stopped
-    env_file:
-      - .env.production
     environment:
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./agent.db}
       - SECRET_KEY=${SECRET_KEY}
       - AGENT_SECRET=${AGENT_SECRET}
       - BASE_DOMAIN=${BASE_DOMAIN:-deployio.tech}
+      - MONGODB_URI=${MONGODB_URI}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./logs:/app/logs

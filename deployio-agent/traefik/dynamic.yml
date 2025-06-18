@@ -43,21 +43,8 @@ http:
           - "X-Total-Count"
         accessControlAllowCredentials: true
         accessControlMaxAge: 3600
-
   # Additional routers (if needed)
-  routers:
-    # Root domain redirect
-    root-domain:
-      rule: "Host(`deployio.tech`)"
-      entryPoints:
-        - websecure
-      service: "wildcard-service@docker"
-      tls:
-        certResolver: cloudflare
-        domains:
-          - main: "*.deployio.tech"
-            sans:
-              - "deployio.tech"
+  # Note: Main routing is handled by docker-compose labels
 
 # TLS Configuration
 tls:
