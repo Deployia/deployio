@@ -16,10 +16,14 @@ Services Stack:
 ├── React Frontend (Vite) - Port 3000
 ├── Express.js Backend - Port 5000
 ├── AI Service (FastAPI) - Port 8000
-├── MongoDB (metadata) - Port 27017
 ├── Redis (job queue) - Port 6379
 └── Traefik (reverse proxy) - Port 80/443
 ```
+
+**Database**: MongoDB Atlas (Shared Cluster)
+
+- **Platform Database**: `deployio_platform_metadata`
+- **Connectivity**: Via connection string from backend.
 
 **Responsibilities:**
 
@@ -39,11 +43,14 @@ Services Stack:
 Services Stack:
 ├── FastAPI Agent Server - Port 8000
 ├── Traefik (with wildcard SSL) - Port 80/443
-├── Docker Engine
-└── Shared MongoDB Pool (user apps) - Dynamic ports
-
-ECR Repository: deployio-agent (hosts all images)
+└── Docker Engine
 ```
+
+**Database**: MongoDB Atlas (Shared Cluster)
+
+- **Multi-Tenant Strategy**: Dynamically provisioned databases and users per deployment.
+- **Provisioning**: Managed by the DeployIO Platform via MongoDB Atlas Admin API.
+- **Connectivity**: Agent receives credentials for each deployment.
 
 **Responsibilities:**
 
@@ -51,7 +58,7 @@ ECR Repository: deployio-agent (hosts all images)
 - Pull user app images from ECR (Account 2)
 - Deploy MERN apps on isolated subdomains
 - Manage app lifecycle (start/stop/restart/delete)
-- Provide persistent MongoDB instances
+- Provide persistent MongoDB instances via Atlas
 - Auto-scaling within resource limits
 
 ## Deployment Flow
@@ -68,7 +75,7 @@ ECR Repository: deployio-agent (hosts all images)
    ├── Check for existing Dockerfile
    └── Analyze folder structure patterns
 5. Generate optimized Dockerfile + docker-compose.yml
-6. Store analysis results in Platform MongoDB
+6. Store analysis results in Platform MongoDB Atlas Database
 ```
 
 ### Phase 2: Image Building (GitHub Actions)
@@ -80,13 +87,13 @@ ECR Repository: deployio-agent (hosts all images)
    ├── Checkout user repo + generated files
    ├── Build React frontend (npm run build)
    ├── Build Express backend container
-   ├── Create MongoDB init scripts
+   ├── Create MongoDB init scripts (DEPRECATED)
    └── Push all images to ECR (Account 2)
 4. GitHub webhook notifies Platform of completion
 5. Platform updates deployment status
 ```
 
-### Phase 3: Deployment
+### Phase 3: Deployment & Database Provisioning
 
 ```
 1. Platform sends deployment request to Agent API:
@@ -98,21 +105,21 @@ ECR Repository: deployio-agent (hosts all images)
        "backend": "ecr-url/user-app:backend"
      },
      "environment": {...},
-     "mongoConfig": {
-       "database": "userapp_db",
-       "initScript": "..."
+     "atlas_credentials": {
+        "connection_string": "...",
+        "db_user": "...",
+        "db_password": "..."
      }
    }
-
-2. Agent processes deployment:
-   ├── Pull images from ECR
-   ├── Create isolated Docker network
-   ├── Spin up shared MongoDB instance (if needed)
-   ├── Deploy containers via docker-compose
-   ├── Configure Traefik routing rules
-   └── Return live URL
-
-3. User gets: https://user-app-name.deployio.tech
+2. **Atlas Provisioning (Platform Side)**:
+   - Before calling the agent, the Platform backend uses the MongoDB Atlas Admin API.
+   - It creates a new database user with limited permissions.
+   - It creates a new database (e.g., `project_id_db`).
+   - It grants the new user access to only that database.
+3. Agent receives deployment request with Atlas credentials.
+4. Agent injects the Atlas connection string into the backend container's environment variables.
+5. Agent starts the `docker-compose` stack.
+6. Platform updates deployment status and stores the Atlas credentials securely.
 ```
 
 ## Data Management
