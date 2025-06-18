@@ -1,0 +1,72 @@
+name: Deploy DeployIO Agent
+
+on:
+  push:
+    branches: []
+    paths:
+      - "deployio-agent/**"
+      - ".github/workflows/deploy-agent.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Agent
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials for Agent
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_AGENT }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_AGENT }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push Agent image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: deployio-agent
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./deployio-agent
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Deploy Agent to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.AGENT_HOST }}
+          username: ubuntu
+          key: ${{ secrets.AGENT_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/deployio/deployio-agent
+            echo "🔄 Pulling latest changes from git..."
+            git pull origin main
+
+            echo "Authenticating with ECR on EC2..."
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+
+            echo "Stopping and removing old containers..."
+            docker-compose down --remove-orphans
+
+            echo "Pulling latest Docker image..."
+            docker-compose pull
+
+            echo "Starting new containers..."
+            docker-compose up -d
+
+            echo "Cleaning up unused Docker images..."
+            docker image prune -f
+
+            echo "✅ Agent deployment successful!"

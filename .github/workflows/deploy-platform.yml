@@ -42,15 +42,9 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      # Restore .env files for each service
+      # Restore .env file for the frontend build process
       - name: 📝 Write frontend .env.production
         run: echo "${{ secrets.ENV_CLIENT_PROD }}" > client/.env.production
-
-      - name: 📝 Write backend .env.production
-        run: echo "${{ secrets.ENV_BACKEND_PROD }}" > .env.production
-
-      - name: 📝 Write ai_service .env.production
-        run: echo "${{ secrets.ENV_FASTAPI_PROD }}" > ai_service/.env.production
 
       - name: 🔐 Login to Amazon ECR
         run: |
