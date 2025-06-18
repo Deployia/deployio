@@ -31,8 +31,9 @@ services:
     restart: unless-stopped
   deployio-agent:
     image: ${AGENT_IMAGE:-061446587946.dkr.ecr.ap-south-1.amazonaws.com/deployio-agent:latest}
+    user: agent
     env_file:
-      - .env.production
+      - ./.env.production
     security_opt:
       - no-new-privileges:true
     read_only: true

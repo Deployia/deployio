@@ -3,47 +3,49 @@ FROM python:3.12-slim-bookworm AS builder
 
 WORKDIR /app
 
-# Create non-root user early
-RUN groupadd -r deployio && useradd -r -g deployio deployio
+# Create a non-root user and group for the application
+RUN groupadd -r agent && useradd --no-log-init -r -g agent agent
 
-# Install system dependencies (only what's needed to install deps)
+# Install system dependencies required for building python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies in a temporary virtualenv
+# Create and activate a virtual environment
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install Python dependencies
 COPY requirements.txt .
-RUN python -m venv /venv && \
-    /venv/bin/pip install --no-cache-dir --upgrade pip && \
-    /venv/bin/pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # -------- Final Runtime Stage --------
 FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# Copy non-root user setup from builder
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /etc/group /etc/group
+# Create a non-root user and group for the application
+RUN groupadd -r agent && useradd --no-log-init -r -g agent agent
 
-# Copy virtual environment
-COPY --from=builder /venv /venv
+# Copy virtual environment from the builder stage
+COPY --from=builder /opt/venv /opt/venv
 
-# Copy app source code
+# Copy application source code
 COPY . .
 
-# Set permissions for non-root user
-RUN chown -R deployio:deployio /app
+# Set ownership of the application directory
+RUN chown -R agent:agent /app
 
-# Switch to non-root user
-USER deployio
+# Switch to the non-root user
+USER agent
 
-# Use the virtual environment
-ENV PATH="/venv/bin:$PATH"
+# Add the virtual environment to the PATH
+ENV PATH="/opt/venv/bin:$PATH"
 
 EXPOSE 8000
 
 # Use Uvicorn with production settings
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
