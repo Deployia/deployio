@@ -68,9 +68,9 @@ function Health() {
       status: "unknown",
       uptime: 0,
       message: "",
-      mongodb_status: "unknown",
       docker_status: "unknown",
-      environment: "unknown",
+      version: "unknown",
+      purpose: "unknown",
     },
   });
 
@@ -144,18 +144,18 @@ function Health() {
       </div>
     );
   };
-
   // Component for individual service card
   const ServiceCard = ({ serviceKey, service }) => {
     const IconComponent = service.icon;
     const colorClasses = {
       green: "bg-green-600/20 text-green-400",
       blue: "bg-blue-600/20 text-blue-400",
+      purple: "bg-purple-600/20 text-purple-400",
     };
 
     return (
-      <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body shadow-lg bg-neutral-900/70 hover:bg-neutral-900 transition-all duration-300">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-4 md:p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body shadow-lg bg-neutral-900/70 hover:bg-neutral-900 transition-all duration-300">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div className="flex items-center">
             <div
               className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
@@ -164,61 +164,102 @@ function Health() {
             >
               <IconComponent className="h-5 w-5" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-white heading">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg font-semibold text-white heading truncate">
                 {service.name}
-              </h3>{" "}
+              </h3>
               <p className="text-xs text-neutral-400">
                 {serviceKey === "backend"
                   ? "Express.js API"
-                  : "AI Processing Service"}
+                  : serviceKey === "fastapi"
+                  ? "AI Processing Service"
+                  : "Container Management"}
               </p>
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center justify-end sm:justify-start">
             <StatusIndicator status={service.status} type="service" />
           </div>
-        </div>{" "}
-        {/* Database Status - Only show for backend */}
-        {serviceKey === "backend" && (
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center text-sm text-neutral-400">
-              <FaDatabase className="mr-2 text-neutral-500" />
-              Database
+        </div>
+
+        {/* Service-specific status indicators */}
+        <div className="space-y-3">
+          {/* Database Status - Only show for backend */}
+          {serviceKey === "backend" && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-neutral-400">
+                <FaDatabase className="mr-2 text-neutral-500 flex-shrink-0" />
+                <span>Database</span>
+              </div>
+              <StatusIndicator status={service.mongodb_status} />
             </div>
-            <StatusIndicator status={service.mongodb_status} />
+          )}
+
+          {/* Redis Status - Backend and FastAPI */}
+          {(serviceKey === "backend" || serviceKey === "fastapi") && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-neutral-400">
+                <FaMemory className="mr-2 text-neutral-500 flex-shrink-0" />
+                <span>Redis Cache</span>
+              </div>
+              <StatusIndicator status={service.redis_status} />
+            </div>
+          )}
+
+          {/* Docker Status - Agent only */}
+          {serviceKey === "agent" && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-neutral-400">
+                <FaServer className="mr-2 text-neutral-500 flex-shrink-0" />
+                <span>Docker Engine</span>
+              </div>
+              <StatusIndicator status={service.docker_status} />
+            </div>
+          )}
+
+          {/* Agent Version - Agent only */}
+          {serviceKey === "agent" && service.version !== "unknown" && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-neutral-400">
+                <FaCode className="mr-2 text-neutral-500 flex-shrink-0" />
+                <span>Version</span>
+              </div>
+              <div>
+                <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
+                  v{service.version}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Uptime */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm text-neutral-400">
+              <FaClock className="mr-2 text-neutral-500 flex-shrink-0" />
+              <span>Uptime</span>
+            </div>
+            <div>
+              <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
+                {formatUptime(service.uptime)}
+              </span>
+            </div>
           </div>
-        )}
-        {/* Redis Status */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center text-sm text-neutral-400">
-            <FaMemory className="mr-2 text-neutral-500" />
-            {serviceKey === "fastapi" ? "Redis Cache" : "Redis Cache"}
-          </div>
-          <StatusIndicator status={service.redis_status} />
-        </div>
-        {/* Uptime */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center text-sm text-neutral-400">
-            <FaClock className="mr-2 text-neutral-500" />
-            Uptime
-          </div>
-          <div>
-            <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
-              {formatUptime(service.uptime)}
-            </span>
-          </div>
-        </div>
-        {/* Response Message */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center text-sm text-neutral-400">
-            <FaCode className="mr-2 text-neutral-500" />
-            Response
-          </div>
-          <div>
-            <span className="text-white text-sm italic">
-              &quot;{service.message}&quot;
-            </span>
+
+          {/* Response Message or Purpose */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-center text-sm text-neutral-400">
+              <FaCode className="mr-2 text-neutral-500 flex-shrink-0 mt-0.5" />
+              <span>{serviceKey === "agent" ? "Purpose" : "Response"}</span>
+            </div>
+            <div className="text-right max-w-xs">
+              <span className="text-white text-sm italic break-words">
+                &quot;
+                {serviceKey === "agent" && service.purpose !== "unknown"
+                  ? service.purpose
+                  : service.message}
+                &quot;
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -286,9 +327,9 @@ function Health() {
             message: agentHealthError
               ? `Error: ${agentHealthError}`
               : agentHealth?.service_name || "DeployIO Agent",
-            mongodb_status: agentHealth?.services?.mongodb || "unknown",
             docker_status: agentHealth?.services?.docker || "unknown",
-            environment: agentHealth?.environment || "unknown",
+            version: agentHealth?.version || "unknown",
+            purpose: agentHealth?.purpose || "Container deployment management",
           },
         })); // Test protected endpoints if authenticated
         if (isAuthenticated) {
