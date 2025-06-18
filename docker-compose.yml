@@ -74,7 +74,6 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
       - "traefik.http.routers.backend.priority=2"
     depends_on:
-      - mongodb
       - redis
     networks:
       - web
@@ -108,24 +107,8 @@ services:
       - "traefik.http.routers.ai-service.tls.domains[0].sans=www.deployio.tech"
       - "traefik.http.services.ai-service.loadbalancer.server.port=8000"
       - "traefik.http.routers.ai-service.priority=2"
-    depends_on:
-      - mongodb
     networks:
       - web
-    restart: unless-stopped
-
-  mongodb:
-    image: mongo:latest
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - web
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
 
   redis:
@@ -144,8 +127,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  mongodb_data:
-    driver: local
   redis_data:
     driver: local
   letsencrypt:

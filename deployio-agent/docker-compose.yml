@@ -59,29 +59,12 @@ services:
       - "traefik.http.routers.agent.tls.domains[0].sans=*.${BASE_DOMAIN:-deployio.tech},agent.${BASE_DOMAIN:-deployio.tech}"
       - "traefik.http.routers.agent.priority=1"
     depends_on:
-      - mongodb
       - traefik
     networks:
       - web
     restart: unless-stopped
 
-  mongodb:
-    image: mongo:latest
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - web
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-
 volumes:
-  mongodb_data:
-    driver: local
   letsencrypt:
     driver: local
 
