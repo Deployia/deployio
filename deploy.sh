@@ -5,7 +5,7 @@ set -e
 
 # --- Help Function ---
 show_help() {
-    echo "Usage: ./deploy.sh [options] [service...]"
+    echo "Usage: ./deploy.sh [options] [service... | all]"
     echo ""
     echo "Builds and deploys specified services to AWS ECR and EC2."
     echo ""
@@ -14,8 +14,8 @@ show_help() {
     echo "  backend         Build and push the backend service."
     echo "  ai_service      Build and push the AI service."
     echo "  agent           Build and push the DeployIO agent."
-    echo "  *               Build and push all services (use quotes: './deploy.sh \"*\"')."
-    echo "  If no services are specified, all services will be built by default."
+    echo "  all             Build and push all services."
+    echo "  If no services are specified, 'all' is assumed."
     echo ""
     echo "Options:"
     echo "  -h, --help    Show this help message and exit."
@@ -28,8 +28,8 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
 fi
 
 services_to_build=()
-# If no args, or if '*' is an arg, build all.
-if [ "$#" -eq 0 ] || [[ " $@ " =~ " * " ]]; then
+# If no args, or if 'all' is an arg, build everything.
+if [ "$#" -eq 0 ] || [[ " $@ " =~ " all " ]]; then
     echo "▶️ Building all services."
     services_to_build=("frontend" "backend" "ai_service" "agent")
 else
@@ -39,7 +39,7 @@ else
             services_to_build+=("$arg")
             ;;
         *)
-            echo "⚠️ Warning: Ignoring invalid argument '$arg'. Valid options are 'frontend', 'backend', 'ai_service', 'agent', '*'"
+            echo "⚠️ Warning: Ignoring invalid argument '$arg'. Valid options are 'frontend', 'backend', 'ai_service', 'agent', 'all'"
             ;;
         esac
     done
