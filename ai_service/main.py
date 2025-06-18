@@ -16,7 +16,7 @@ app = create_app()
 
 
 # Add health check endpoint before CORS middleware to avoid CORS issues
-@app.get("/service/v1/health")
+@app.get("/healthz")
 async def health_check_direct():
     """Direct health check endpoint that bypasses CORS for Docker health checks"""
     try:
@@ -38,7 +38,7 @@ async def health_check_direct():
             "status": "ok",
             "redis_status": redis_status,
             "uptime": uptime,
-            "purpose": "AI processing microservice"
+            "purpose": "AI processing microservice",
         }
     except Exception as e:
         return {
