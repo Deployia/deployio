@@ -30,6 +30,13 @@ WORKDIR /app
 # Create a non-root user and group for the application
 RUN groupadd -r agent && useradd --no-log-init -r -g agent agent
 
+# Add a 'docker' group with the host's GID (988) to match the host system.
+# This is a workaround for environments where the Docker daemon's group lookup fails.
+RUN groupadd -g 988 docker
+
+# Add the application user to the docker group
+RUN usermod -aG docker agent
+
 # Copy virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 

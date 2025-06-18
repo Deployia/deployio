@@ -9,14 +9,20 @@ services:
       - --providers.docker
       - --providers.docker.exposedByDefault=false
       - --api.dashboard=true
-      - --certificatesresolvers.myresolver.acme.tlschallenge=true
-      - --certificatesresolvers.myresolver.acme.email=admin@deployio.tech
+      # Use Let's Encrypt Staging Server for testing to avoid rate limits
+      - --certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      # Configure DNS Challenge for wildcard certificates (using Cloudflare as an example)
+      - --certificatesresolvers.myresolver.acme.dnschallenge=true
+      - --certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.myresolver.acme.email=admin@deployio.tech # Keep for account recovery
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --log.level=INFO
       - --accesslog=true
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
