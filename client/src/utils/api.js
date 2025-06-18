@@ -1,6 +1,4 @@
 import axios from "axios";
-import store from "../redux/store";
-import { logout } from "../redux/slices/authSlice";
 
 // Simple in-memory cache for API responses
 const cache = new Map();
@@ -84,18 +82,6 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // Handle network errors where the backend is unreachable
-    if (!error.response) {
-      console.error("Network error or server is down:", error);
-      // Dispatch logout to clear client-side auth state
-      store.dispatch(logout());
-      // Forcing a reload to the login page is a robust way to handle it.
-      window.location.href = "/login";
-      return Promise.reject(
-        new Error("Server is unavailable. You have been logged out.")
-      );
-    }
-
     const originalRequest = error.config;
     if (
       error.response?.status === 401 &&
