@@ -81,7 +81,7 @@ Implementation:
 │   ├── Predictive scaling policies
 │   └── Spot instance integration
 └── Database High Availability:
-    ├── MongoDB Atlas with replication
+    ├── MongoDB Atlas with replication (Migration to Atlas is the first step)
     ├── Redis Cluster for caching
     ├── Connection pooling
     └── Automated backups
