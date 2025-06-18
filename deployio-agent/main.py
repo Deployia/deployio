@@ -18,7 +18,7 @@ app = create_app()
 
 
 # Add public health check endpoint before middleware to avoid auth issues
-@app.get("/health")
+@app.get("/agent/v1/health")
 async def health_check_direct():
     """Direct public health check endpoint that bypasses authentication"""
     try:

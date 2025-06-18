@@ -1,30 +1,49 @@
-FROM python:3.11-slim
+# -------- Base Builder Stage --------
+FROM python:3.12-slim-bookworm AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Create non-root user early
+RUN groupadd -r deployio && useradd -r -g deployio deployio
+
+# Install system dependencies (only what's needed to install deps)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies in a temporary virtualenv
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m venv /venv && \
+    /venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# -------- Final Runtime Stage --------
+FROM python:3.12-slim-bookworm
+
+WORKDIR /app
+
+# Copy non-root user setup from builder
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
+
+# Copy virtual environment
+COPY --from=builder /venv /venv
+
+# Copy app source code
 COPY . .
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+# Set permissions for non-root user
+RUN chown -R deployio:deployio /app
 
-# Expose port
+# Switch to non-root user
+USER deployio
+
+# Use the virtual environment
+ENV PATH="/venv/bin:$PATH"
+
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Run the application
-CMD ["python", "main.py"]
+# Use Uvicorn with production settings
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
