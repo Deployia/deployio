@@ -1,12 +1,12 @@
 name: 🔒 Security Scanning & Analysis Pipeline
 
 on:
-  schedule:
-    - cron: "0 2 * * *" # Daily security scan at 2 AM UTC
+  # schedule:
+    # - cron: "0 2 * * *" # Daily security scan at 2 AM UTC
   push:
-    branches: [main, develop]
+    branches: []
   pull_request:
-    branches: [main]
+    branches: []
 
 env:
   NODE_VERSION: "20"
