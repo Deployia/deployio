@@ -24,18 +24,23 @@ services:
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
     networks:
       - deployio-network
-
   # DeployIO Agent API
   deployio-agent:
-    build: .
+    # For local development, use: docker-compose up --build
+    # For production, use: ECR_IMAGE=your-account.dkr.ecr.region.amazonaws.com/deployio-agent:latest docker-compose up
+    image: ${ECR_IMAGE:-deployio-agent:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: deployio-agent
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./.env:/app/.env
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.agent.rule=Host(`agent.deployio.tech`)"

@@ -85,15 +85,38 @@ DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/deployio_agent?
 
 ### 4. Deploy the System
 
+#### Local Development:
+
 ```bash
-# Start all services
-docker-compose up -d
+# Build and start locally
+./deploy.sh
+
+# Or manually:
+docker-compose up --build -d
+```
+
+#### Production Deployment:
+
+```bash
+# 1. Build and push to ECR
+./build-push-ecr.sh
+
+# 2. Deploy from ECR
+export ECR_IMAGE=your-account.dkr.ecr.region.amazonaws.com/deployio-agent:latest
+./deploy.sh
+
+# Or on EC2:
+ECR_IMAGE=your-ecr-image docker-compose up -d
+```
 
 # Check status
+
 docker-compose ps
 
 # View logs
+
 docker-compose logs -f
+
 ```
 
 ## 🌐 Subdomain System
@@ -115,29 +138,35 @@ docker-compose logs -f
 ### Health Check
 
 ```
+
 GET /agent/v1/health
+
 ```
 
 ### Deployment Management
 
 ```
-POST   /agent/v1/deployments              # Create deployment
-GET    /agent/v1/deployments              # List deployments
-GET    /agent/v1/deployments/{id}         # Get deployment
-POST   /agent/v1/deployments/{id}/start   # Start deployment
-POST   /agent/v1/deployments/{id}/stop    # Stop deployment
-POST   /agent/v1/deployments/{id}/restart # Restart deployment
-DELETE /agent/v1/deployments/{id}         # Delete deployment
-GET    /agent/v1/deployments/{id}/logs    # Get logs
-GET    /agent/v1/deployments/{id}/status  # Get status
+
+POST /agent/v1/deployments # Create deployment
+GET /agent/v1/deployments # List deployments
+GET /agent/v1/deployments/{id} # Get deployment
+POST /agent/v1/deployments/{id}/start # Start deployment
+POST /agent/v1/deployments/{id}/stop # Stop deployment
+POST /agent/v1/deployments/{id}/restart # Restart deployment
+DELETE /agent/v1/deployments/{id} # Delete deployment
+GET /agent/v1/deployments/{id}/logs # Get logs
+GET /agent/v1/deployments/{id}/status # Get status
+
 ```
 
 ### Subdomain Management
 
 ```
+
 GET /agent/v1/deployments/subdomains/available/{subdomain}
 GET /agent/v1/deployments/subdomains/routes
-```
+
+````
 
 ## 🎨 Landing Page Features
 
@@ -203,7 +232,7 @@ pip install -r requirements.txt
 
 # Start services
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
+````
 
 ### Testing
 
