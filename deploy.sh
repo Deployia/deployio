@@ -127,13 +127,13 @@ if [[ " ${services_to_build[*]} " =~ " agent " ]]; then
         echo '🔄 Pulling latest changes from git...'; \
         git pull origin main; \
         echo '🔐 Authenticating with ECR on EC2...'; \
-        aws ecr get-login-password --region $AWS_REGION --profile deployio-agent | docker login --username AWS --password-stdin $(aws sts get-caller-identity --profile deployio-agent --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
+        aws ecr get-login-password --region $AWS_REGION --profile deployio-agent | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
         echo '🛑 Stopping and removing old containers...'; \
-        docker-compose down --remove-orphans; \
+        docker compose down --remove-orphans; \
         echo '📥 Pulling latest Docker image...'; \
-        docker-compose pull; \
+        docker compose pull; \
         echo '🚀 Starting new containers...'; \
-        docker-compose up -d; \
+        docker compose up -d; \
         echo '🧹 Cleaning up unused Docker images...'; \
         docker image prune -f; \
         echo '✅ Agent deployment successful!'"

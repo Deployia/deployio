@@ -33,7 +33,7 @@ services:
       - "traefik.http.routers.dashboard.tls.certresolver=myresolver"
     restart: unless-stopped
   deployio-agent:
-    build: .
+    image: 061446587946.dkr.ecr.ap-south-1.amazonaws.com/deployio-agent:latest
     env_file:
       - ./.env.production
     security_opt:

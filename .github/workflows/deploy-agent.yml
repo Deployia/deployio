@@ -58,13 +58,13 @@ jobs:
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
             echo "Stopping and removing old containers..."
-            docker-compose down --remove-orphans
+            docker compose down --remove-orphans
 
             echo "Pulling latest Docker image..."
-            docker-compose pull
+            docker compose pull
 
             echo "Starting new containers..."
-            docker-compose up -d
+            docker compose up -d
 
             echo "Cleaning up unused Docker images..."
             docker image prune -f
