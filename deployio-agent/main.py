@@ -4,9 +4,9 @@ DeployIO Agent - FastAPI Service for Container Deployment Management
 """
 
 import time
-import os
 from config import create_app
 from config.settings import settings
+from config.database import db
 from middleware import setup_exception_handlers, AuthMiddleware
 from routes import create_routes
 
@@ -24,9 +24,12 @@ async def health_check_direct():
     try:
         uptime = time.time() - server_start
 
-        # TODO: Add actual service checks (MongoDB, Docker, Traefik)
+        # Check database connection
+        db_status = "ok" if await db.ping() else "error"
+
+        # TODO: Add actual service checks (Docker, Traefik)
         services_status = {
-            "mongodb": "checking...",
+            "mongodb": db_status,
             "docker": "checking...",
             "traefik": "checking...",
         }
@@ -61,10 +64,15 @@ app.include_router(create_routes())
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    # TODO: Initialize MongoDB connection
+    await db.connect()
     # TODO: Initialize Docker client
     # TODO: Check Traefik connectivity
-    pass
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up services on shutdown"""
+    await db.close()
 
 
 if __name__ == "__main__":

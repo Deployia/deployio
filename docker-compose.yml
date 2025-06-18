@@ -41,8 +41,10 @@ services:
     networks:
       - web
     depends_on:
-      - backend
-      - ai-service
+      backend:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
     restart: unless-stopped
 
   backend:
@@ -74,7 +76,8 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
       - "traefik.http.routers.backend.priority=2"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - web
     restart: unless-stopped

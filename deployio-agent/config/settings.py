@@ -3,7 +3,7 @@ Settings configuration for the DeployIO Agent
 """
 
 import os
-from typing import Optional, List
+from typing import Optional
 
 
 class Settings:
@@ -30,6 +30,9 @@ class Settings:
     # Traefik settings
     traefik_config_path: str = os.getenv("TRAEFIK_CONFIG_PATH", "/etc/traefik")
     traefik_api_url: str = os.getenv("TRAEFIK_API_URL", "http://traefik:8080")
+
+    # MongoDB settings
+    mongodb_uri: Optional[str] = os.getenv("MONGODB_URI")
 
     # Authentication
     agent_secret: str = os.getenv(
