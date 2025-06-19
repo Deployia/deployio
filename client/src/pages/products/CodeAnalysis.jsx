@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   FaSearchPlus,
   FaLayerGroup,
@@ -17,12 +18,10 @@ import {
   StickyFeaturesSection,
   ProductStats,
   ProductCTA,
-  ProductDemo,
 } from "@components/products";
 
 const CodeAnalysis = () => {
-  const [demoData, setDemoData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const features = [
     {
@@ -96,63 +95,12 @@ const CodeAnalysis = () => {
       ],
     },
   ];
-
   const stats = [
     { label: "Stacks Detected", value: "50+", icon: FaCode },
     { label: "Detection Accuracy", value: "96%", icon: FaBrain },
     { label: "Configuration Success", value: "99.2%", icon: FaCog },
     { label: "Time Saved", value: "85%", icon: FaRocket },
   ];
-  const demoStackAnalysis = async () => {
-    setIsLoading(true);
-    try {
-      // Simulate real API call to our AI service
-      const response = await fetch("/api/v1/ai/supported-technologies");
-
-      if (response.ok) {
-        // Simulate analysis completion
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-        setDemoData({
-          detectedStack: "MERN Stack",
-          confidence: 96,
-          dependencies: 24,
-          devDependencies: 12,
-          securityIssues: 0,
-          optimizationScore: 87,
-          buildTime: "2.3s",
-          recommendations: 5,
-        });
-      } else {
-        // Fallback demo data
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        setDemoData({
-          detectedStack: "React App",
-          confidence: 94,
-          dependencies: 18,
-          devDependencies: 8,
-          securityIssues: 1,
-          optimizationScore: 82,
-          buildTime: "1.8s",
-          recommendations: 3,
-        });
-      }
-    } catch (error) {
-      console.error("Demo error:", error);
-      // Fallback demo data
-      setDemoData({
-        detectedStack: "Web Application",
-        confidence: 85,
-        dependencies: 15,
-        devDependencies: 5,
-        securityIssues: 0,
-        optimizationScore: 75,
-        buildTime: "3.1s",
-        recommendations: 4,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const heroProps = {
     badge: {
@@ -162,21 +110,19 @@ const CodeAnalysis = () => {
     title: "Analyze Code,",
     subtitle: "Deploy Smarter",
     description:
-      "Let AI understand your codebase automatically. Our intelligent analysis detects technology stacks, analyzes dependencies, and generates optimal deployment configurations.",
-    primaryCTA: {
+      "Let AI understand your codebase automatically. Our intelligent analysis detects technology stacks, analyzes dependencies, and generates optimal deployment configurations.",    primaryCTA: {
       text: "Analyze Repository",
       icon: FaGithub,
       onClick: () => {
-        // Navigate to the project creation page for code analysis
-        window.location.href = "/projects/new?source=code-analysis";
+        navigate("/dashboard/projects");
       },
     },
     secondaryCTA: {
-      text: "Try Demo",
+      text: "Interactive Demo",
       icon: FaEye,
-      onClick: demoStackAnalysis,
-      loading: isLoading,
-      loadingText: "Analyzing...",
+      onClick: () => {
+        navigate("/products/code-analysis/demo");
+      },
     },
     gradient: "from-blue-400 via-purple-400 to-indigo-400",
     visual: (
@@ -299,10 +245,9 @@ const CodeAnalysis = () => {
   const ctaProps = {
     title: "Ready to Analyze Your Code?",
     description:
-      "Get instant insights into your codebase and optimize your deployment strategy with AI",
-    primaryButton: {
+      "Get instant insights into your codebase and optimize your deployment strategy with AI",    primaryButton: {
       text: "Start Analysis",
-      onClick: () => console.log("Start analysis"),
+      onClick: () => navigate("/dashboard/projects"),
     },
     secondaryButton: {
       text: "View Documentation",
@@ -310,39 +255,11 @@ const CodeAnalysis = () => {
         window.open("/resources/docs/products/code-analysis", "_blank"),
     },
     gradientClasses: "from-blue-600 to-purple-600",
-  };
-  const resetDemo = () => {
-    setDemoData(null);
-  };
-
-  const demoProps = {
-    isVisible: !!demoData,
-    title: "Stack Analysis Complete",
-    successMessage: `✓ ${demoData?.detectedStack} Detected (${demoData?.confidence}% confidence)`,
-    data: demoData
-      ? {
-          dependencies: `${demoData.dependencies} deps`,
-          devDependencies: `${demoData.devDependencies} devDeps`,
-          securityIssues: `${demoData.securityIssues} issues`,
-          optimizationScore: `${demoData.optimizationScore}/100`,
-          buildTime: demoData.buildTime,
-          recommendations: `${demoData.recommendations} tips`,
-        }
-      : {},
-    columns: 3,
-    onClose: resetDemo,
-    onReset: demoStackAnalysis,
-    demoType: "Stack Analysis",
-  };
-
-  return (
+  };  return (
     <>
-      {" "}
       <SEO page="codeAnalysis" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
-
-        <ProductDemo {...demoProps} />
 
         <StickyFeaturesSection {...featuresProps} />
 
