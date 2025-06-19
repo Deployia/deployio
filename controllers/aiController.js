@@ -497,6 +497,125 @@ const generateBuildOptimization = async (req, res) => {
   }
 };
 
+/**
+ * @desc Demo repository analysis (public endpoint - no auth)
+ * @route POST /api/v1/demo/analyze
+ * @access Public
+ */
+const demoAnalyzeRepository = async (req, res) => {
+  try {
+    logger.info("Demo AI analysis request received", { body: req.body });
+
+    // Create demo user to bypass auth
+    const demoUser = { 
+      _id: "demo_user", 
+      email: "demo@deployio.tech", 
+      username: "demo_user" 
+    };
+
+    // Extract repository URL from request
+    const { repositoryUrl, branch = "main" } = req.body;
+
+    if (!repositoryUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "Repository URL is required"
+      });
+    }
+
+    const projectId = `demo_${Date.now()}`;
+
+    // 1. Stack analysis
+    const stackAnalysis = await aiService.analyzeProjectStack(
+      projectId,
+      repositoryUrl,
+      branch,
+      demoUser
+    );
+
+    // 2. Generate Dockerfile if we have technology stack info
+    let dockerfileResult = null;
+    if (stackAnalysis.technology && stackAnalysis.technology.framework) {
+      try {
+        dockerfileResult = await aiService.generateDockerfile(
+          projectId,
+          stackAnalysis.technology,
+          { port: 3000 }, // default build config
+          demoUser
+        );
+      } catch (error) {
+        logger.warn("Dockerfile generation failed for demo:", error.message);
+      }
+    }
+
+    // 3. Get optimization suggestions
+    let optimizationResult = null;
+    try {
+      optimizationResult = await aiService.analyzeOptimization(
+        projectId,
+        { technology: stackAnalysis.technology },
+        null,
+        demoUser
+      );
+    } catch (error) {
+      logger.warn("Optimization analysis failed for demo:", error.message);
+    }
+
+    // Combine all results
+    const combinedResult = {
+      // Stack detection data
+      technology: stackAnalysis.technology,
+      confidence_score: stackAnalysis.confidence_score,
+      detected_files: stackAnalysis.detected_files,
+      dependency_analysis: stackAnalysis.dependency_analysis,
+      
+      // Dockerfile data
+      dockerfile_content: dockerfileResult?.dockerfile_content || null,
+      docker_compose_content: dockerfileResult?.docker_compose_content || null,
+      build_instructions: dockerfileResult?.build_instructions || [],
+      
+      // Optimization data
+      optimization_suggestions: optimizationResult?.suggestions || [],
+      overall_score: optimizationResult?.overall_score || null,
+      
+      // Combined recommendations
+      recommendations: [
+        ...(stackAnalysis.recommendations || []),
+        ...(dockerfileResult?.optimization_notes?.map(note => ({
+          type: "dockerfile",
+          description: note
+        })) || [])
+      ]
+    };
+
+    logger.info("Demo AI analysis completed", { 
+      success: true,
+      hasStackAnalysis: !!stackAnalysis,
+      hasDockerfile: !!dockerfileResult,
+      hasOptimizations: !!optimizationResult
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Demo analysis completed successfully",
+      data: combinedResult,
+      meta: {
+        demoMode: true,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error("Demo analysis error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Demo analysis failed",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   analyzeProjectStack,
   generateDockerfile,
@@ -508,4 +627,5 @@ module.exports = {
   generatePipeline,
   generateEnvironmentConfig,
   generateBuildOptimization,
+  demoAnalyzeRepository,
 };
