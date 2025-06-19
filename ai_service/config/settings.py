@@ -35,6 +35,21 @@ class Settings(BaseSettings):
     secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
     access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
+    # AI/LLM Integration settings
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    groq_model: str = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+    groq_max_tokens: int = int(os.getenv("GROQ_MAX_TOKENS", 4096))
+    groq_temperature: float = float(os.getenv("GROQ_TEMPERATURE", 0.3))
+
+    # GitHub API settings
+    github_token: str = os.getenv("GITHUB_TOKEN", "")
+
+    # Template Engine settings
+    templates_path: str = os.getenv("TEMPLATES_PATH", "./templates")
+    enable_llm_fallback: bool = (
+        os.getenv("ENABLE_LLM_FALLBACK", "true").lower() == "true"
+    )
+
     class Config:
         env_file = ".env"
         extra = "ignore"  # Allow extra environment variables to be ignored
