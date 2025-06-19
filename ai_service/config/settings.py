@@ -28,9 +28,7 @@ class Settings(BaseSettings):
     # CORS settings
     client_url: str = os.getenv("CLIENT_URL", "http://localhost:5173")
     backend_url: str = os.getenv("BACKEND_URL", "http://localhost:3000")
-    production_url: str = os.getenv("PRODUCTION_URL", "")
-
-    # Security settings
+    production_url: str = os.getenv("PRODUCTION_URL", "")  # Security settings
     jwt_secret: str = os.getenv("JWT_SECRET", "your-secret-key-here")
     secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
     access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
