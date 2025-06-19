@@ -101,7 +101,7 @@ class NeuralNetwork {
 
       if (distance < 150) {
         const opacity = ((150 - distance) / 150) * 0.2;
-        this.ctx.strokeStyle = `rgba(102, 126, 234, ${opacity})`;
+        this.ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`; // Blue color to match design
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
         this.ctx.moveTo(node1.x, node1.y);
@@ -112,7 +112,7 @@ class NeuralNetwork {
 
     // Draw nodes
     this.nodes.forEach((node) => {
-      this.ctx.fillStyle = `rgba(255, 255, 255, ${node.opacity})`;
+      this.ctx.fillStyle = `rgba(59, 130, 246, ${node.opacity})`; // Blue nodes
       this.ctx.beginPath();
       this.ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
       this.ctx.fill();
@@ -127,13 +127,13 @@ class TypingAnimation {
   constructor(element) {
     this.element = element;
     this.texts = [
+      "This subdomain is ready for deployment...",
       "Deploy React apps in seconds...",
       "Host Vue.js applications instantly...",
       "Launch Node.js APIs effortlessly...",
       "Deploy Python apps with ease...",
       "Run Docker containers seamlessly...",
-      "Host static sites lightning fast...",
-      "Deploy any tech stack you need...",
+      "Your app belongs here...",
     ];
     this.currentIndex = 0;
     this.currentText = "";
@@ -171,17 +171,6 @@ class TypingAnimation {
   }
 }
 
-// Smooth Scroll
-function smoothScroll(target) {
-  const element = document.querySelector(target);
-  if (element) {
-    element.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
-}
-
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", function () {
   // Initialize neural network
@@ -196,29 +185,14 @@ document.addEventListener("DOMContentLoaded", function () {
     new TypingAnimation(typedElement);
   }
 
-  // Add click tracking for analytics
-  document.querySelectorAll(".btn").forEach((btn) => {
+  // Add button hover effects
+  document.querySelectorAll("a[href]").forEach((btn) => {
     btn.addEventListener("click", function (e) {
-      // Track button clicks
-      const buttonText = this.textContent.trim();
-      console.log(`Button clicked: ${buttonText}`);
-
       // Add visual feedback
       this.style.transform = "scale(0.95)";
       setTimeout(() => {
         this.style.transform = "";
       }, 150);
-    });
-  });
-
-  // Parallax effect for floating elements
-  window.addEventListener("scroll", function () {
-    const scrolled = window.pageYOffset;
-    const rate = scrolled * -0.5;
-
-    document.querySelectorAll(".float-element").forEach((element, index) => {
-      const speed = (index + 1) * 0.3;
-      element.style.transform = `translateY(${rate * speed}px)`;
     });
   });
 
