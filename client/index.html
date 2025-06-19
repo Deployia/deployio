@@ -90,13 +90,11 @@
     <!-- Additional Platform Tags -->
     <meta property="fb:app_id" content="" />
     <meta name="linkedin:owner" content="" />
-    <meta name="pinterest" content="nopin" />
-
-    <!-- Icons and Favicons -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="pinterest" content="nopin" />    <!-- Icons and Favicons -->
+    <link rel="icon" type="image/png" href="/favicon.png" id="favicon" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="shortcut icon" href="/favicon.png" />
+    <link rel="shortcut icon" href="/favicon.png" id="shortcut-icon" />
 
     <!-- Canonical URL -->
     <link rel="canonical" href="https://deployio.tech/" />
@@ -109,9 +107,9 @@
     <!-- DNS Prefetch for Performance -->
     <link rel="dns-prefetch" href="//api.deployio.tech" />
     <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="//fonts.gstatic.com" />
-    <!-- Preload Critical Resources -->
-    <link rel="preload" href="/favicon.png" as="image" type="image/png" />
+    <link rel="dns-prefetch" href="//fonts.gstatic.com" />    <!-- Preload Critical Resources -->
+    <link rel="preload" href="/favicon.png" as="image" type="image/png" id="favicon-preload" />
+    <link rel="preload" href="/favicon-black.png" as="image" type="image/png" />
     <!-- Remove logo preload as it's not immediately critical and can cause warnings -->
 
     <!-- Structured Data for Search Engines -->
@@ -162,9 +160,48 @@
         ],
         "screenshot": "https://deployio.tech/og-image.jpg",
         "softwareVersion": "3.0",
-        "datePublished": "2024-01-01",
-        "dateModified": "2024-12-20"
+        "datePublished": "2024-01-01",        "dateModified": "2024-12-20"
       }
+    </script>
+
+    <!-- Dynamic Favicon Script -->
+    <script>
+      (function() {
+        function updateFavicon() {
+          const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const faviconPath = isDarkMode ? '/favicon.png' : '/favicon-black.png';
+          
+          // Update main favicon
+          const favicon = document.getElementById('favicon');
+          if (favicon) {
+            favicon.href = faviconPath;
+          }
+          
+          // Update shortcut icon
+          const shortcutIcon = document.getElementById('shortcut-icon');
+          if (shortcutIcon) {
+            shortcutIcon.href = faviconPath;
+          }
+          
+          // Update preload favicon
+          const faviconPreload = document.getElementById('favicon-preload');
+          if (faviconPreload) {
+            faviconPreload.href = faviconPath;
+          }
+        }
+        
+        // Set initial favicon
+        updateFavicon();
+        
+        // Listen for theme changes
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addListener(updateFavicon);
+        
+        // For newer browsers that support addEventListener
+        if (mediaQuery.addEventListener) {
+          mediaQuery.addEventListener('change', updateFavicon);
+        }
+      })();
     </script>
   </head>
 
