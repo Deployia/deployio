@@ -116,15 +116,14 @@ function Health() {
     if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
     if (minutes > 0) return `${minutes}m ${secs}s`;
     return `${secs}s`;
-  };
-  // Get status indicator component
+  }; // Get status indicator component
   const StatusIndicator = ({ status, type = "default" }) => {
     let isHealthy = false;
 
     if (type === "service") {
       isHealthy = status === "ok" || status === "healthy";
     } else {
-      isHealthy = status === "connected";
+      isHealthy = status === "connected" || status === "ok";
     }
 
     return (
@@ -327,7 +326,10 @@ function Health() {
             message: agentHealthError
               ? `Error: ${agentHealthError}`
               : agentHealth?.service_name || "DeployIO Agent",
-            docker_status: agentHealth?.services?.docker === "ok" || "unknown",
+            docker_status:
+              agentHealth?.services?.docker === "ok"
+                ? "connected"
+                : agentHealth?.services?.docker || "unknown",
             version: agentHealth?.version || "unknown",
             purpose: agentHealth?.purpose || "Container deployment management",
           },

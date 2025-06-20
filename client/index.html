@@ -90,11 +90,12 @@
     <!-- Additional Platform Tags -->
     <meta property="fb:app_id" content="" />
     <meta name="linkedin:owner" content="" />
-    <meta name="pinterest" content="nopin" />    <!-- Icons and Favicons -->
-    <link rel="icon" type="image/png" href="/favicon.png" id="favicon" />
+    <meta name="pinterest" content="nopin" />
+    <!-- Icons and Favicons -->
+    <link rel="icon" type="image/png" href="/favicon-black.png" id="favicon" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="shortcut icon" href="/favicon.png" id="shortcut-icon" />
+    <link rel="shortcut icon" href="/favicon-black.png" id="shortcut-icon" />
 
     <!-- Canonical URL -->
     <link rel="canonical" href="https://deployio.tech/" />
@@ -107,10 +108,7 @@
     <!-- DNS Prefetch for Performance -->
     <link rel="dns-prefetch" href="//api.deployio.tech" />
     <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="//fonts.gstatic.com" />    <!-- Preload Critical Resources -->
-    <link rel="preload" href="/favicon.png" as="image" type="image/png" id="favicon-preload" />
-    <link rel="preload" href="/favicon-black.png" as="image" type="image/png" />
-    <!-- Remove logo preload as it's not immediately critical and can cause warnings -->
+    <link rel="dns-prefetch" href="//fonts.gstatic.com" />
 
     <!-- Structured Data for Search Engines -->
     <script type="application/ld+json">
@@ -160,47 +158,53 @@
         ],
         "screenshot": "https://deployio.tech/og-image.jpg",
         "softwareVersion": "3.0",
-        "datePublished": "2024-01-01",        "dateModified": "2024-12-20"
+        "datePublished": "2024-01-01",
+        "dateModified": "2024-12-20"
       }
     </script>
-
     <!-- Dynamic Favicon Script -->
     <script>
-      (function() {
+      (function () {
         function updateFavicon() {
-          const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          const faviconPath = isDarkMode ? '/favicon.png' : '/favicon-black.png';
-          
+          const isDarkMode = window.matchMedia(
+            "(prefers-color-scheme: dark)"
+          ).matches;
+          const faviconPath = isDarkMode
+            ? "/favicon.png"
+            : "/favicon-black.png";
+
           // Update main favicon
-          const favicon = document.getElementById('favicon');
+          const favicon = document.getElementById("favicon");
           if (favicon) {
             favicon.href = faviconPath;
           }
-          
+
           // Update shortcut icon
-          const shortcutIcon = document.getElementById('shortcut-icon');
+          const shortcutIcon = document.getElementById("shortcut-icon");
           if (shortcutIcon) {
             shortcutIcon.href = faviconPath;
           }
-          
-          // Update preload favicon
-          const faviconPreload = document.getElementById('favicon-preload');
-          if (faviconPreload) {
-            faviconPreload.href = faviconPath;
-          }
         }
-        
-        // Set initial favicon
+
+        // Set initial favicon immediately
         updateFavicon();
-        
+
         // Listen for theme changes
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addListener(updateFavicon);
-        
-        // For newer browsers that support addEventListener
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+        // Use both methods for maximum compatibility
         if (mediaQuery.addEventListener) {
-          mediaQuery.addEventListener('change', updateFavicon);
+          mediaQuery.addEventListener("change", updateFavicon);
+        } else if (mediaQuery.addListener) {
+          mediaQuery.addListener(updateFavicon);
         }
+
+        // Also listen for manual theme changes on the document
+        const observer = new MutationObserver(updateFavicon);
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["class", "data-theme"],
+        });
       })();
     </script>
   </head>
