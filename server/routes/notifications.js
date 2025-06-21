@@ -1,6 +1,6 @@
 const express = require("express");
 const { body, query } = require("express-validator");
-const auth = require("../middleware/auth");
+const { protect } = require("../middleware/authMiddleware");
 const notificationController = require("../controllers/notificationController");
 
 const router = express.Router();
@@ -12,7 +12,7 @@ const router = express.Router();
  */
 router.get(
   "/",
-  auth,
+  protect,
   [
     query("status")
       .optional()
@@ -48,7 +48,7 @@ router.get(
  * @desc    Get notification statistics for user
  * @access  Private
  */
-router.get("/stats", auth, notificationController.getNotificationStats);
+router.get("/stats", protect, notificationController.getNotificationStats);
 
 /**
  * @route   PUT /api/notifications/read
@@ -57,7 +57,7 @@ router.get("/stats", auth, notificationController.getNotificationStats);
  */
 router.put(
   "/read",
-  auth,
+  protect,
   [
     body("notificationIds")
       .isArray({ min: 1 })
@@ -74,7 +74,7 @@ router.put(
  * @desc    Mark all notifications as read
  * @access  Private
  */
-router.put("/read-all", auth, notificationController.markAllAsRead);
+router.put("/read-all", protect, notificationController.markAllAsRead);
 
 /**
  * @route   DELETE /api/notifications
@@ -83,7 +83,7 @@ router.put("/read-all", auth, notificationController.markAllAsRead);
  */
 router.delete(
   "/",
-  auth,
+  protect,
   [
     body("notificationIds")
       .isArray({ min: 1 })
@@ -102,7 +102,7 @@ router.delete(
  */
 router.get(
   "/preferences",
-  auth,
+  protect,
   notificationController.getNotificationPreferences
 );
 
@@ -113,7 +113,7 @@ router.get(
  */
 router.put(
   "/preferences",
-  auth,
+  protect,
   [
     // Delivery method preferences
     body("email").optional().isBoolean().withMessage("Email must be a boolean"),
@@ -178,7 +178,7 @@ router.put(
  */
 router.post(
   "/push-token",
-  auth,
+  protect,
   [
     body("token")
       .notEmpty()
@@ -202,7 +202,7 @@ router.post(
  */
 router.delete(
   "/push-token",
-  auth,
+  protect,
   [
     body("deviceId")
       .notEmpty()
@@ -219,7 +219,7 @@ router.delete(
  */
 router.post(
   "/test",
-  auth,
+  protect,
   [
     body("type").optional().isString().withMessage("Type must be a string"),
     body("title")
@@ -255,7 +255,7 @@ router.post(
  */
 router.post(
   "/send",
-  auth,
+  protect,
   [
     body("userId")
       .optional()
