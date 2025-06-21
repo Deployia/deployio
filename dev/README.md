@@ -1,13 +1,74 @@
-# 📚 DeployIO Documentation
+# � DeployIO Development Documentation
 
-Welcome to DeployIO's comprehensive documentation! This directory contains all guides, configurations, and implementation details.
+## 📖 Overview
+This directory contains comprehensive development documentation, organized by category for easy navigation.
 
-## 📋 Quick Navigation
+## 📂 Directory Structure
 
-### 🚀 Getting Started
+### 🎯 **Current Active Documents**
+- `API_ROUTES_STRUCTURE.md` - Complete API routes documentation
+- `AI-SERVICE.md` - AI service architecture and implementation
+- `AI-SERVICE-MIGRATION.md` - AI service migration notes
+- `CODE_ANALYSIS_ENGINE_SUMMARY.md` - Code analysis engine documentation
 
-- **[⚡ Quick Start Guide](QUICK-START-GUIDE.md)** - 3-step deployment process
-- **[🔧 Environment Setup](ENV-CONFIG.md)** - Configure your development environment
+### � **Architecture** (`/architecture/`)
+- `BACKEND_ARCHITECTURE_PLAN.md` - Overall backend architecture design
+- `SERVER-MODULAR-REFACTORING-PLAN.md` - Server refactoring strategy
+
+### �️ **Models** (`/models/`)
+- `DATABASE_MODELS_DOCUMENTATION.md` - Complete database schema documentation
+- `MODELS_FINAL_REVIEW.md` - Final model validation and review
+- `MODELS_FINAL_STATUS.md` - Model implementation status
+
+### 📚 **Guides** (`/guides/`)
+- `DEVELOPMENT-SETUP.md` - Development environment setup
+- `QUICK-START-GUIDE.md` - Getting started guide
+- `RATE-LIMITING-GUIDE.md` - Rate limiting implementation
+- `REFRESH-TOKEN-GUIDE.md` - JWT refresh token guide
+- `TRAEFIK-CONFIG.md` - Traefik configuration guide
+
+### ✅ **Completed** (`/completed/`)
+- Implementation documents for completed features
+- Final summaries of completed phases
+
+### 📦 **Archive** (`/archive/`)
+- Historical documents
+- Deprecated implementation plans
+- Old deployment strategies
+
+### � **Ideation** (`/ideation/`)
+- Platform vision and strategy documents
+- Technical gap analysis
+- Implementation roadmaps
+
+## 🔄 Document Status
+
+### ✅ **Current/Active**
+- API_ROUTES_STRUCTURE.md
+- Models documentation (in `/models/`)
+- Architecture plans (in `/architecture/`)
+
+### 📋 **Reference/Guides**
+- All files in `/guides/` directory
+- AI service documentation
+
+### 🏁 **Completed**
+- All files in `/completed/` directory
+
+### 📚 **Archive**
+- All files in `/archive/` directory
+
+## 🚀 Next Phase Documentation
+
+The next phase will focus on:
+1. **Controller & Service Audit** - Analysis of required changes
+2. **Implementation Roadmap** - Updated roadmap for controller/service updates
+3. **Testing Strategy** - Comprehensive testing approach
+4. **Deployment Plan** - Production deployment strategy
+
+---
+
+*Last updated: June 21, 2025*
 - **[📋 Deployment Status](DEPLOYMENT-STATUS.md)** - Current production readiness status
 - **[🐳 Docker Configuration](../docker-compose.yml)** - Container orchestration setup
 
