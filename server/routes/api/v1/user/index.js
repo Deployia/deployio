@@ -8,10 +8,12 @@ const router = express.Router();
 const authRoutes = require("./auth");
 const profileRoutes = require("./profile");
 const userRoutes = require("./users");
+const apiKeyRoutes = require("./apiKeys");
 
 // Mount routes
 router.use("/auth", authRoutes);
 router.use("/profile", profileRoutes);
+router.use("/api-keys", apiKeyRoutes);
 router.use("/", userRoutes);
 
 module.exports = router;

@@ -7,6 +7,7 @@ const user = require("./user");
 const project = require("./project");
 const admin = require("./admin");
 const external = require("./external");
+const api = require("./api");
 
 module.exports = {
   // New modular structure
@@ -16,4 +17,5 @@ module.exports = {
   project,
   admin,
   external,
+  api,
 };

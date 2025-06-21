@@ -22,9 +22,4 @@ router.post("/activity", protect, user.user.logUserActivity);
 // Dashboard stats
 router.get("/dashboard-stats", protect, user.user.getDashboardStats);
 
-// API keys management
-router.get("/api-keys", protect, user.user.getApiKeys);
-router.post("/api-keys", protect, user.user.createApiKey);
-router.delete("/api-keys/:keyId", protect, user.user.deleteApiKey);
-
 module.exports = router;

@@ -3,7 +3,6 @@ const logger = require("@config/logger");
 const { getRedisClient } = require("@config/redisClient");
 const {
   getSafeUserData,
-  getSafeApiKeyData,
   getSafeActivityData,
 } = require("@utils/userDataFilter");
 
@@ -255,105 +254,6 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-/**
- * Get user API keys
- */
-const getApiKeys = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const apiKeys = await user.user.getApiKeys(userId);
-    const safeApiKeys = apiKeys.map((key) => getSafeApiKeyData(key));
-
-    res.status(200).json({
-      success: true,
-      apiKeys: safeApiKeys,
-    });
-  } catch (error) {
-    // console.error("Get API keys error:", error);
-    logger.error("Get API keys error", {
-      error: { message: error.message, stack: error.stack, name: error.name },
-      userId: req.user?.id,
-    });
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to get API keys",
-    });
-  }
-};
-
-/**
- * Create new API key
- */
-const createApiKey = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { name, permissions = ["read"] } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "API key name is required",
-      });
-    }
-    const apiKey = await user.user.createApiKey(userId, {
-      name: name.trim(),
-      permissions,
-    });
-
-    res.status(201).json({
-      success: true,
-      apiKey: getSafeApiKeyData(apiKey),
-      message: "API key created successfully",
-    });
-  } catch (error) {
-    // console.error("Create API key error:", error);
-    logger.error("Create API key error", {
-      error: { message: error.message, stack: error.stack, name: error.name },
-      userId: req.user?.id,
-      requestBody: req.body,
-    });
-    res.status(400).json({
-      success: false,
-      message: error.message || "Failed to create API key",
-    });
-  }
-};
-
-/**
- * Delete API key
- */
-const deleteApiKey = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { keyId } = req.params;
-
-    if (!keyId) {
-      return res.status(400).json({
-        success: false,
-        message: "API key ID is required",
-      });
-    }
-
-    await user.user.deleteApiKey(userId, keyId);
-
-    res.status(200).json({
-      success: true,
-      message: "API key deleted successfully",
-    });
-  } catch (error) {
-    // console.error("Delete API key error:", error);
-    logger.error("Delete API key error", {
-      error: { message: error.message, stack: error.stack, name: error.name },
-      userId: req.user?.id,
-      params: req.params,
-    });
-    res.status(400).json({
-      success: false,
-      message: error.message || "Failed to delete API key",
-    });
-  }
-};
-
 module.exports = {
   updatePassword,
   deleteAccount,
@@ -362,7 +262,4 @@ module.exports = {
   getUserActivity,
   logUserActivity,
   getDashboardStats,
-  getApiKeys,
-  createApiKey,
-  deleteApiKey,
 };

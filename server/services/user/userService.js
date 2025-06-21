@@ -212,166 +212,85 @@ const updateNotificationPreferences = async (userId, preferences) => {
   return user.notificationPreferences;
 };
 
-// Get user activity log
+// Get user activity log (FIXED - using AuditLog model)
 const getUserActivity = async (userId, options = {}) => {
+  const AuditLog = require("@models/AuditLog");
   const { page = 1, limit = 20, type } = options;
   const skip = (page - 1) * limit;
 
-  const user = await User.findById(userId);
-  if (!user) throw new Error("User not found");
-
-  // Build filter
-  let filter = { userId };
+  // Build query for AuditLog
+  let query = { "actor.id": userId };
   if (type) {
-    filter.type = type;
+    // Filter by action type (e.g., "user.", "project.", "deployment.")
+    query.action = { $regex: `^${type}\\.`, $options: "i" };
   }
 
-  // Get activities from user's activities array (or from a separate Activity collection if preferred)
-  let activities = user.activities || [];
+  try {
+    const activities = await AuditLog.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-  // Filter by type if specified
-  if (type) {
-    activities = activities.filter((activity) => activity.type === type);
+    const total = await AuditLog.countDocuments(query);
+    const pages = Math.ceil(total / limit);
+
+    return {
+      data: activities,
+      page,
+      pages,
+      total,
+    };
+  } catch (error) {
+    console.error("Error fetching user activity:", error);
+    throw new Error("Failed to fetch user activity");
   }
-
-  // Sort by timestamp (newest first)
-  activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-  // Calculate pagination
-  const total = activities.length;
-  const pages = Math.ceil(total / limit);
-  const paginatedActivities = activities.slice(skip, skip + limit);
-
-  return {
-    data: paginatedActivities,
-    page,
-    pages,
-    total,
-  };
 };
 
-// Log user activity
+// Log user activity (FIXED - using AuditLog model)
 const logUserActivity = async (userId, activityData) => {
-  const { action, type, details, ip, userAgent } = activityData;
+  const AuditLog = require("@models/AuditLog");
+  const User = require("@models/User");
+  const { action, details, ip, userAgent } = activityData;
 
-  const user = await User.findById(userId);
-  if (!user) throw new Error("User not found");
+  try {
+    // Get user info for the audit log
+    const user = await User.findById(userId).select("email username");
+    if (!user) throw new Error("User not found");
 
-  const activity = {
-    action,
-    type: type || "general",
-    details,
-    ip,
-    userAgent,
-    timestamp: new Date(),
-  };
+    // Create audit log entry
+    const auditLog = new AuditLog({
+      action: action,
+      actor: {
+        type: "user",
+        id: userId,
+        email: user.email,
+        username: user.username,
+      },
+      context: {
+        ip: ip,
+        userAgent: userAgent,
+      },
+      details: details || {},
+    });
 
-  // Add to user's activities array (keep only last 100 activities)
-  if (!user.activities) {
-    user.activities = [];
+    await auditLog.save();
+    return auditLog;
+  } catch (error) {
+    console.error("Error logging user activity:", error);
+    throw new Error("Failed to log user activity");
   }
-
-  user.activities.unshift(activity);
-
-  // Keep only the last 100 activities to prevent unlimited growth
-  if (user.activities.length > 100) {
-    user.activities = user.activities.slice(0, 100);
-  }
-
-  await user.save();
-  return activity;
 };
 
-// Get user API keys
-const getApiKeys = async (userId) => {
-  const user = await User.findById(userId).select("apiKeys");
-  if (!user) throw new Error("User not found");
-
-  // Return API keys with masked keys for security
-  return user.apiKeys.map((key) => ({
-    id: key._id,
-    name: key.name,
-    key: `dp_${key.keyType}_${"*".repeat(20)}${key.key.slice(-3)}`,
-    permissions: key.permissions,
-    created: key.createdAt,
-    lastUsed: key.lastUsed,
-  }));
-};
-
-// Create new API key
-const createApiKey = async (userId, { name, permissions }) => {
-  const user = await User.findById(userId);
-  if (!user) throw new Error("User not found");
-
-  // Check if user already has too many API keys
-  if (user.apiKeys.length >= 10) {
-    throw new Error("Maximum number of API keys (10) reached");
-  }
-
-  // Check if name already exists
-  const existingKey = user.apiKeys.find((key) => key.name === name);
-  if (existingKey) {
-    throw new Error("API key with this name already exists");
-  }
-  // Generate secure API key
-  const keyType = permissions.includes("write") ? "live" : "test";
-  const keyData = crypto.randomBytes(32).toString("hex");
-  const fullKey = `dp_${keyType}_${keyData}`;
-
-  // Validate that the key was generated properly
-  if (!keyData || keyData.trim() === "") {
-    throw new Error("Failed to generate valid API key");
-  }
-
-  const newApiKey = {
-    name,
-    key: keyData, // Store only the data part
-    keyType,
-    permissions,
-    createdAt: new Date(),
-    lastUsed: null,
-  };
-
-  user.apiKeys.push(newApiKey);
-  await user.save();
-
-  // Return the new API key with full key visible (only time it's shown)
-  const savedKey = user.apiKeys[user.apiKeys.length - 1];
-  return {
-    id: savedKey._id,
-    name: savedKey.name,
-    key: fullKey, // Return full key for user to copy
-    permissions: savedKey.permissions,
-    created: savedKey.createdAt,
-    lastUsed: savedKey.lastUsed,
-  };
-};
-
-// Delete API key
-const deleteApiKey = async (userId, keyId) => {
-  const user = await User.findById(userId);
-  if (!user) throw new Error("User not found");
-
-  const keyIndex = user.apiKeys.findIndex(
-    (key) => key._id.toString() === keyId
-  );
-  if (keyIndex === -1) {
-    throw new Error("API key not found");
-  }
-
-  user.apiKeys.splice(keyIndex, 1);
-  await user.save();
-  return true;
-};
-
-// Get dashboard stats
+// Get dashboard stats (FIXED - using AuditLog model)
 const getDashboardStats = async (userId) => {
   const user = await User.findById(userId);
   if (!user) throw new Error("User not found");
 
   // Import models here to avoid circular dependency
-  const Project = require("../models/Project");
-  const Deployment = require("../models/Deployment");
+  const Project = require("@models/Project");
+  const Deployment = require("@models/Deployment");
+  const AuditLog = require("@models/AuditLog");
 
   // Calculate stats based on user data
   const now = new Date();
@@ -379,35 +298,33 @@ const getDashboardStats = async (userId) => {
   const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   // Get user's projects and deployments
-  const projects = await Project.find({ userId }).lean();
+  const projects = await Project.find({ owner: userId }).lean();
   const projectIds = projects.map((p) => p._id);
   const deployments = await Deployment.find({
-    $or: [{ userId }, { projectId: { $in: projectIds } }],
+    $or: [{ deployedBy: userId }, { project: { $in: projectIds } }],
   })
     .populate("project", "name")
     .lean();
 
-  // Recent activities
-  const recentActivities = user.activities.filter(
-    (activity) => new Date(activity.timestamp) >= last30Days
-  );
+  // Recent activities from AuditLog
+  const recentActivities = await AuditLog.find({
+    "actor.id": userId,
+    createdAt: { $gte: last30Days },
+  }).lean();
 
-  // API key stats
-  const apiKeyStats = {
-    total: user.apiKeys.length,
-    active: user.apiKeys.filter((key) => key.lastUsed).length,
-    recentlyUsed: user.apiKeys.filter(
-      (key) => key.lastUsed && new Date(key.lastUsed) >= last7Days
-    ).length,
-  };
+  const thisWeekActivities = await AuditLog.find({
+    "actor.id": userId,
+    createdAt: { $gte: last7Days },
+  }).lean();
 
-  // Activity breakdown
+  // Activity breakdown by action type
   const activityBreakdown = recentActivities.reduce(
     (acc, activity) => {
-      acc[activity.type] = (acc[activity.type] || 0) + 1;
+      const actionType = activity.action.split(".")[0]; // user, project, deployment, etc.
+      acc[actionType] = (acc[actionType] || 0) + 1;
       return acc;
     },
-    { auth: 0, security: 0, profile: 0, general: 0, system: 0 }
+    { user: 0, project: 0, deployment: 0, api: 0, system: 0 }
   );
 
   // Real deployment stats
@@ -433,28 +350,24 @@ const getDashboardStats = async (userId) => {
   const recentDeployments = deployments
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 10);
-
   return {
     user: {
       joinDate: user.createdAt,
       lastLogin: user.lastLogin,
-      profileComplete: user.profileComplete,
-      twoFactorEnabled: user.twoFactorEnabled,
-      emailVerified: user.emailVerified,
+      profileComplete: !!(user.firstName && user.lastName && user.bio),
+      twoFactorEnabled: user.twoFactorAuth?.enabled || false,
+      emailVerified: user.isEmailVerified,
     },
     activity: {
       totalThisMonth: recentActivities.length,
-      thisWeek: user.activities.filter(
-        (activity) => new Date(activity.timestamp) >= last7Days
-      ).length,
+      thisWeek: thisWeekActivities.length,
       breakdown: activityBreakdown,
     },
-    apiKeys: apiKeyStats,
     deployments: deploymentStats,
     projects: {
       total: projects.length,
-      active: projects.filter((p) => !p.archived).length,
-      archived: projects.filter((p) => p.archived).length,
+      active: projects.filter((p) => p.status === "active").length,
+      archived: projects.filter((p) => p.status === "archived").length,
     },
     // Include actual data for dashboard
     recentProjects,
@@ -472,9 +385,6 @@ module.exports = {
   updateNotificationPreferences,
   getUserActivity,
   logUserActivity,
-  getApiKeys,
-  createApiKey,
-  deleteApiKey,
   getDashboardStats,
   invalidateUserCache,
 };
