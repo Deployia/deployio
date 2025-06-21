@@ -11,6 +11,7 @@ const projectRoutes = require("./project");
 const userRoutes = require("./user");
 const adminRoutes = require("./admin");
 const externalRoutes = require("./external");
+const notificationRoutes = require("../../notifications");
 
 // Mount route modules
 router.use("/ai", aiRoutes);
@@ -19,6 +20,7 @@ router.use("/projects", projectRoutes);
 router.use("/users", userRoutes);
 router.use("/admin", adminRoutes);
 router.use("/external", externalRoutes);
+router.use("/notifications", notificationRoutes);
 
 // API v1 health check
 router.get("/health", (req, res) => {

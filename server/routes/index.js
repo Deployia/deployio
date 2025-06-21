@@ -31,6 +31,7 @@ router.get("/", (req, res) => {
       "API v1 Deployments": "/api/v1/deployments",
       "API v1 External": "/api/v1/external",
       "API v1 Admin": "/api/v1/admin",
+      "API v1 Notifications": "/api/v1/notifications",
       Webhooks: "/webhooks",
       Health: "/health",
     },
