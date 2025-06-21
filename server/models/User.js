@@ -121,15 +121,78 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: [250, "Bio cannot exceed 250 characters"],
-    },
-
-    // User Preferences
+    }, // User Preferences
     preferences: {
       theme: {
         type: String,
         enum: ["light", "dark", "system"],
         default: "system",
       },
+      timezone: {
+        type: String,
+        default: "UTC",
+      },
+    },
+
+    // Comprehensive Notification Preferences
+    notificationPreferences: {
+      // Delivery methods
+      email: { type: Boolean, default: true },
+      inApp: { type: Boolean, default: true },
+      push: { type: Boolean, default: false },
+
+      // Deployment notifications
+      deploymentSuccess: { type: Boolean, default: true },
+      deploymentFailure: { type: Boolean, default: true },
+      deploymentStarted: { type: Boolean, default: true },
+      deploymentStopped: { type: Boolean, default: true },
+
+      // Project notifications
+      projectAnalysisComplete: { type: Boolean, default: true },
+      projectAnalysisFailed: { type: Boolean, default: true },
+      projectCollaboratorAdded: { type: Boolean, default: true },
+
+      // Security notifications
+      securityAlerts: { type: Boolean, default: true },
+      accountChanges: { type: Boolean, default: true },
+      newDeviceLogin: { type: Boolean, default: true },
+      passwordChanged: { type: Boolean, default: true },
+      twoFactorEnabled: { type: Boolean, default: true },
+      twoFactorDisabled: { type: Boolean, default: true },
+      apiKeyCreated: { type: Boolean, default: true },
+
+      // System notifications
+      systemMaintenance: { type: Boolean, default: true },
+      systemUpdates: { type: Boolean, default: false },
+      quotaWarning: { type: Boolean, default: true },
+      quotaExceeded: { type: Boolean, default: true },
+
+      // General notifications
+      welcomeMessage: { type: Boolean, default: true },
+      announcements: { type: Boolean, default: false },
+      productUpdates: { type: Boolean, default: false },
+      tips: { type: Boolean, default: false },
+
+      // Advanced settings
+      quietHours: {
+        enabled: { type: Boolean, default: false },
+        start: { type: String, default: "22:00" },
+        end: { type: String, default: "08:00" },
+        timezone: { type: String, default: "UTC" },
+      },
+
+      digestSettings: {
+        enabled: { type: Boolean, default: false },
+        frequency: {
+          type: String,
+          enum: ["daily", "weekly"],
+          default: "daily",
+        },
+        time: { type: String, default: "09:00" },
+        timezone: { type: String, default: "UTC" },
+      },
+
+      // Legacy compatibility (maintain old structure for backward compatibility)
       notifications: {
         email: {
           deployments: { type: Boolean, default: true },
@@ -140,10 +203,6 @@ const userSchema = new mongoose.Schema(
           deployments: { type: Boolean, default: true },
           security: { type: Boolean, default: true },
         },
-      },
-      timezone: {
-        type: String,
-        default: "UTC",
       },
     },
 
