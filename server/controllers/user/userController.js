@@ -1,4 +1,4 @@
-const { user } = require("@services");
+const user = require("@services/user");
 const logger = require("@config/logger");
 const { getRedisClient } = require("@config/redisClient");
 const {

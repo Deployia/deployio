@@ -1,4 +1,4 @@
-const { external } = require("@services");
+const external = require("@services/external");
 const logger = require("@config/logger");
 
 // @desc    Get all blog posts with filtering and pagination

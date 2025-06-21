@@ -1,4 +1,4 @@
-const { user } = require("@services");
+const user = require("@services/user");
 const cloudinary = require("@config/cloudinary");
 const stream = require("stream");
 const logger = require("@config/logger");

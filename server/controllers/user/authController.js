@@ -1,4 +1,4 @@
-const { user } = require("@services");
+const user = require("@services/user");
 const jwt = require("jsonwebtoken");
 const User = require("@models/User");
 const logger = require("@config/logger");

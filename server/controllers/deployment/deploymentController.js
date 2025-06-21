@@ -1,4 +1,4 @@
-const { deployment } = require("@services");
+const deployment = require("@services/deployment");
 const logger = require("@config/logger");
 const { validationResult } = require("express-validator");
 

@@ -1,4 +1,4 @@
-const { project } = require("@services");
+const project = require("@services/project");
 const logger = require("@config/logger");
 
 /**
