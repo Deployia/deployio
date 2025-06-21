@@ -1,13 +1,13 @@
-const authService = require("./services/user/authService");
+const authService = require("../../services/user/authService");
 const jwt = require("jsonwebtoken");
-const { storeRefreshToken } = require("./services/user/authService");
-const User = require("../models/User");
-const logger = require("../config/logger"); // Import logger
+const { storeRefreshToken } = require("../../services/user/authService");
+const User = require("../../models/User");
+const logger = require("../../config/logger");
 const {
   getSafeUserData,
   getSafeSessionData,
   getSafeProviderData,
-} = require("../utils/userDataFilter");
+} = require("../../utils/userDataFilter");
 // Determine front-end URL for redirects
 const frontUrl =
   process.env.NODE_ENV === "development"

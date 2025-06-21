@@ -1,6 +1,7 @@
 const express = require("express");
 const { protect } = require("../middleware/authMiddleware");
-const userController = require("../controllers/userController");
+const userController = require("../controllers/user/userController");
+const profileController = require("../controllers/user/profileController");
 const multer = require("multer");
 const { getRateLimiters } = require("../middleware/rateLimitMiddleware");
 
@@ -16,8 +17,11 @@ router.put(
   protect,
   getRateLimiters().user.profileUpdate,
   upload.single("profileImage"),
-  userController.updateProfile
+  profileController.updateProfile
 );
+
+// Get user profile
+router.get("/profile", protect, profileController.getProfile);
 
 // Update password
 router.put(
