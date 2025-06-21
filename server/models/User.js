@@ -41,28 +41,20 @@ const userSchema = new mongoose.Schema(
 
     // Password Reset
     resetPasswordToken: String,
-    resetPasswordExpire: Date,
-
-    // GitHub OAuth Integration (Primary for deployments)
+    resetPasswordExpire: Date, // GitHub OAuth Integration (Primary for deployments)
     githubId: {
       type: String,
       unique: true,
       sparse: true,
-      index: true,
-    },
-
-    // Google OAuth Integration (Alternative auth method)
+    }, // Google OAuth Integration (Alternative auth method)
     googleId: {
       type: String,
       unique: true,
       sparse: true,
-      index: true,
-    },
-    // GitHub Integration Details (Primary for deployments)
+    }, // GitHub Integration Details (Primary for deployments)
     github: {
       username: {
         type: String,
-        index: true,
       },
       avatarUrl: String,
       profileUrl: String,
@@ -295,10 +287,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Indexes for performance (Updated for dual OAuth)
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
-userSchema.index({ githubId: 1 });
-userSchema.index({ googleId: 1 });
+// Note: email, username, githubId, googleId have unique: true so don't need explicit indexes
 userSchema.index({ "github.username": 1 });
 userSchema.index({ "refreshTokens.token": 1 });
 userSchema.index({ status: 1, role: 1 });

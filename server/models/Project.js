@@ -17,7 +17,6 @@ const projectSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
       match: [
         /^[a-z0-9-]+$/,
         "Slug can only contain lowercase letters, numbers, and hyphens",
@@ -28,14 +27,11 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, "Description cannot exceed 500 characters"],
       default: "",
-    },
-
-    // Ownership & Collaboration
+    }, // Ownership & Collaboration
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
     collaborators: [
       {
@@ -387,14 +383,11 @@ const projectSchema = new mongoose.Schema(
           },
         ],
       },
-    },
-
-    // Project Status & Analytics
+    }, // Project Status & Analytics
     status: {
       type: String,
       enum: ["active", "archived", "deleted"],
       default: "active",
-      index: true,
     },
     visibility: {
       type: String,
@@ -486,8 +479,8 @@ const projectSchema = new mongoose.Schema(
 );
 
 // Indexes for performance
+// Note: slug has unique: true so doesn't need explicit index
 projectSchema.index({ owner: 1 });
-projectSchema.index({ slug: 1 });
 projectSchema.index({ status: 1 });
 projectSchema.index({ "repository.url": 1 });
 projectSchema.index({ "stack.detected.primary": 1 });
