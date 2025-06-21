@@ -1,6 +1,5 @@
 const express = require("express");
 const init = require("./config/init");
-const authRoutes = require("./routes/authRoutes");
 const errorHandler = require("./middleware/errorMiddleware");
 const routes = require("./routes");
 require("./config/passport");

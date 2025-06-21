@@ -14,10 +14,5 @@ const optimizationRoutes = require("./optimization");
 router.use("/analysis", protect, analysisRoutes);
 router.use("/generation", protect, generationRoutes);
 router.use("/optimization", protect, optimizationRoutes);
-router.use("/optimization", requireAuth, optimizationController);
-
-// Legacy compatibility - redirect old routes
-router.use("/analyze", requireAuth, analysisController);
-router.use("/generate", requireAuth, generationController);
 
 module.exports = router;
