@@ -1,12 +1,27 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const projectSchema = new mongoose.Schema(
   {
+    // Core Information
     name: {
       type: String,
       required: [true, "Project name is required"],
       trim: true,
+      minlength: [1, "Project name cannot be empty"],
       maxlength: [100, "Project name cannot exceed 100 characters"],
+    },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+      match: [
+        /^[a-z0-9-]+$/,
+        "Slug can only contain lowercase letters, numbers, and hyphens",
+      ],
     },
     description: {
       type: String,
@@ -14,174 +29,380 @@ const projectSchema = new mongoose.Schema(
       maxlength: [500, "Description cannot exceed 500 characters"],
       default: "",
     },
+
+    // Ownership & Collaboration
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Project owner is required"],
-    },
-    repository: {
-      url: {
-        type: String,
-        required: [true, "Repository URL is required"],
-        match: [
-          /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/,
-          "Please provide a valid GitHub repository URL",
-        ],
-      },
-      branch: {
-        type: String,
-        default: "main",
-        trim: true,
-      },
-      lastCommit: {
-        hash: String,
-        message: String,
-        author: String,
-        timestamp: Date,
-      },
-    },
-    technology: {
-      framework: {
-        type: String,
-        enum: [
-          "React",
-          "Vue.js",
-          "Angular",
-          "Node.js",
-          "Express",
-          "Next.js",
-          "Nuxt.js",
-          "Django",
-          "Flask",
-          "FastAPI",
-          "Spring Boot",
-          "Laravel",
-          "Other",
-        ],
-      },
-      language: {
-        type: String,
-        enum: [
-          "JavaScript",
-          "TypeScript",
-          "Python",
-          "Java",
-          "PHP",
-          "Go",
-          "Rust",
-          "C#",
-          "Ruby",
-          "Other",
-        ],
-      },
-      database: {
-        type: String,
-        enum: ["MongoDB", "PostgreSQL", "MySQL", "Redis", "SQLite", "None"],
-        default: "None",
-      },
-      buildTool: String, // npm, yarn, pip, maven, gradle, etc.
-      detectedAt: Date,
-      confidence: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
-    },
-    deployment: {
-      status: {
-        type: String,
-        enum: ["none", "pending", "building", "deploying", "success", "failed"],
-        default: "none",
-      },
-      environment: {
-        type: String,
-        enum: ["development", "staging", "production"],
-        default: "development",
-      },
-      url: String,
-      domain: String,
-      buildCommand: String,
-      startCommand: String,
-      outputDirectory: String,
-      environmentVariables: [
-        {
-          key: {
-            type: String,
-            required: true,
-          },
-          value: {
-            type: String,
-            required: true,
-          },
-          isSecret: {
-            type: Boolean,
-            default: false,
-          },
-        },
-      ],
-      lastDeployment: {
-        id: String,
-        status: String,
-        startedAt: Date,
-        completedAt: Date,
-        duration: Number, // in seconds
-        logs: String,
-        deployedBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-      },
+      required: true,
+      index: true,
     },
     collaborators: [
       {
         user: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
+          required: true,
         },
         role: {
           type: String,
-          enum: ["owner", "admin", "developer", "viewer"],
-          default: "developer",
-        },
-        addedAt: {
-          type: Date,
-          default: Date.now,
+          enum: ["viewer", "editor", "admin"],
+          default: "viewer",
         },
         addedBy: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
         },
+        addedAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
-    settings: {
-      autoDeployment: {
+
+    // Repository Integration
+    repository: {
+      url: {
+        type: String,
+        trim: true,
+        match: [
+          /^https:\/\/github\.com\/[^\/]+\/[^\/]+$/,
+          "Please provide a valid GitHub repository URL",
+        ],
+      },
+      provider: {
+        type: String,
+        enum: ["github", "gitlab", "bitbucket"],
+        default: "github",
+      },
+      owner: String, // repo owner/org
+      name: String, // repo name
+      branch: {
+        type: String,
+        default: "main",
+      },
+      isPrivate: {
         type: Boolean,
         default: false,
       },
-      notifications: {
-        email: {
-          type: Boolean,
-          default: true,
-        },
-        slack: {
-          type: Boolean,
-          default: false,
-        },
-        discord: {
-          type: Boolean,
-          default: false,
-        },
-      },
-      buildSettings: {
-        nodeVersion: String,
-        pythonVersion: String,
-        installCommand: String,
-        buildCommand: String,
-        outputDirectory: String,
+      lastSync: Date,
+      webhookId: String,
+      accessLevel: {
+        type: String,
+        enum: ["read", "write", "admin"],
+        default: "read",
       },
     },
-    analytics: {
+
+    // Technology Stack (Stack Agnostic)
+    stack: {
+      detected: {
+        primary: {
+          type: String,
+          enum: [
+            "mern",
+            "mean",
+            "django",
+            "laravel",
+            "nextjs",
+            "nuxtjs",
+            "spring-boot",
+            "flask",
+            "rails",
+            "express",
+            "fastapi",
+            "vue",
+            "angular",
+            "react",
+            "svelte",
+            "gatsby",
+            "other",
+          ],
+        },
+        frontend: {
+          framework: String, // react, vue, angular, etc.
+          version: String,
+          buildTool: String, // vite, webpack, etc.
+          packageManager: {
+            type: String,
+            enum: ["npm", "yarn", "pnpm", "bun"],
+            default: "npm",
+          },
+        },
+        backend: {
+          framework: String, // express, nestjs, django, etc.
+          language: {
+            type: String,
+            enum: [
+              "javascript",
+              "typescript",
+              "python",
+              "java",
+              "php",
+              "go",
+              "ruby",
+              "other",
+            ],
+          },
+          version: String,
+          runtime: String, // node, python, etc.
+        },
+        database: {
+          type: {
+            type: String,
+            enum: ["mongodb", "mysql", "postgresql", "sqlite", "redis", "none"],
+          },
+          version: String,
+          orm: String, // mongoose, prisma, sqlalchemy, etc.
+        },
+        additional: [String], // redis, elasticsearch, etc.
+      },
+      configured: {
+        // User overrides for detected stack
+        useCustomConfig: {
+          type: Boolean,
+          default: false,
+        },
+        customDockerfile: String,
+        customCompose: String,
+        overrides: {
+          frontend: {
+            framework: String,
+            buildCommand: String,
+            outputDir: String,
+          },
+          backend: {
+            framework: String,
+            startCommand: String,
+            port: Number,
+          },
+          database: {
+            type: String,
+            connectionString: String,
+          },
+        },
+      },
+    },
+
+    // AI Analysis Results
+    analysis: {
+      structure: {
+        hasValidStructure: {
+          type: Boolean,
+          default: false,
+        },
+        confidence: {
+          type: Number,
+          min: 0,
+          max: 100,
+          default: 0,
+        },
+        detectedPatterns: [String],
+        suggestions: [String],
+        issues: [String],
+      },
+      dependencies: {
+        frontend: [
+          {
+            name: String,
+            version: String,
+            type: {
+              type: String,
+              enum: ["dependency", "devDependency", "peerDependency"],
+            },
+          },
+        ],
+        backend: [
+          {
+            name: String,
+            version: String,
+            type: {
+              type: String,
+              enum: ["dependency", "devDependency", "peerDependency"],
+            },
+          },
+        ],
+        devDependencies: [
+          {
+            name: String,
+            version: String,
+            type: String,
+          },
+        ],
+        conflicts: [String],
+      },
+      recommendations: {
+        performance: [String],
+        security: [String],
+        optimization: [String],
+        updates: [String],
+      },
+      lastAnalyzed: Date,
+    },
+
+    // Deployment Configuration
+    deployment: {
+      // Environment Variables
+      environment: {
+        development: [
+          {
+            key: {
+              type: String,
+              required: true,
+            },
+            value: String,
+            isSecret: {
+              type: Boolean,
+              default: false,
+            },
+          },
+        ],
+        staging: [
+          {
+            key: {
+              type: String,
+              required: true,
+            },
+            value: String,
+            isSecret: {
+              type: Boolean,
+              default: false,
+            },
+          },
+        ],
+        production: [
+          {
+            key: {
+              type: String,
+              required: true,
+            },
+            value: String,
+            isSecret: {
+              type: Boolean,
+              default: false,
+            },
+          },
+        ],
+      },
+
+      // Build Configuration
+      build: {
+        commands: {
+          install: {
+            type: String,
+            default: "npm install",
+          },
+          build: {
+            type: String,
+            default: "npm run build",
+          },
+          start: {
+            type: String,
+            default: "npm start",
+          },
+          test: String,
+        },
+        outputDir: {
+          type: String,
+          default: "dist",
+        },
+        nodeVersion: {
+          type: String,
+          default: "18",
+        },
+        buildTimeout: {
+          type: Number,
+          default: 600, // seconds
+        },
+      },
+
+      // Runtime Configuration
+      runtime: {
+        platform: {
+          type: String,
+          default: "linux/amd64",
+        },
+        memory: {
+          type: String,
+          default: "512MB",
+        },
+        cpu: {
+          type: String,
+          default: "0.25",
+        },
+        instances: {
+          type: Number,
+          default: 1,
+          min: 1,
+          max: 5,
+        },
+        healthCheck: {
+          enabled: {
+            type: Boolean,
+            default: true,
+          },
+          path: {
+            type: String,
+            default: "/health",
+          },
+          interval: {
+            type: Number,
+            default: 30, // seconds
+          },
+          timeout: {
+            type: Number,
+            default: 10,
+          },
+          retries: {
+            type: Number,
+            default: 3,
+          },
+        },
+      },
+
+      // Database Configuration (Dynamic provisioning)
+      database: {
+        provider: {
+          type: String,
+          enum: ["atlas", "local", "none"],
+          default: "atlas",
+        },
+        atlasConfig: {
+          clusterId: String,
+          databaseName: String, // project_id_db
+          username: String,
+          connectionString: {
+            type: String,
+            select: false, // encrypted
+          },
+        },
+        seeds: [
+          {
+            name: String,
+            script: String,
+            runOnDeploy: {
+              type: Boolean,
+              default: false,
+            },
+          },
+        ],
+      },
+    },
+
+    // Project Status & Analytics
+    status: {
+      type: String,
+      enum: ["active", "archived", "deleted"],
+      default: "active",
+      index: true,
+    },
+    visibility: {
+      type: String,
+      enum: ["private", "public"],
+      default: "private",
+    },
+
+    statistics: {
       totalDeployments: {
         type: Number,
         default: 0,
@@ -194,156 +415,201 @@ const projectSchema = new mongoose.Schema(
         type: Number,
         default: 0,
       },
+      lastDeployment: Date,
       averageBuildTime: {
+        type: Number,
+        default: 0, // seconds
+      },
+      totalBuilds: {
         type: Number,
         default: 0,
       },
-      lastActivity: Date,
+      uptime: {
+        type: Number,
+        default: 100, // percentage
+      },
     },
-    ai: {
-      stackDetectionCompleted: {
-        type: Boolean,
-        default: false,
-      },
-      dockerfileGenerated: {
-        type: Boolean,
-        default: false,
-      },
-      pipelineGenerated: {
-        type: Boolean,
-        default: false,
-      },
-      optimizationSuggestions: [
-        {
-          type: {
-            type: String,
-            enum: ["performance", "security", "cost", "reliability"],
-          },
-          title: String,
-          description: String,
-          priority: {
-            type: String,
-            enum: ["low", "medium", "high", "critical"],
-            default: "medium",
-          },
-          implemented: {
-            type: Boolean,
-            default: false,
-          },
-          suggestedAt: {
-            type: Date,
-            default: Date.now,
-          },
+
+    // Settings & Preferences
+    settings: {
+      autoDeployment: {
+        enabled: {
+          type: Boolean,
+          default: false,
         },
-      ],
+        branch: {
+          type: String,
+          default: "main",
+        },
+        environments: [
+          {
+            type: String,
+            enum: ["development", "staging", "production"],
+          },
+        ],
+      },
+      notifications: {
+        email: {
+          type: Boolean,
+          default: true,
+        },
+        webhook: String, // external webhook URL
+        slack: String, // slack webhook
+      },
+      advanced: {
+        customDomain: String,
+        sslEnabled: {
+          type: Boolean,
+          default: true,
+        },
+        customNginx: String,
+        customDocker: {
+          type: Boolean,
+          default: false,
+        },
+      },
     },
-    isArchived: {
-      type: Boolean,
-      default: false,
-    },
+
+    // Timestamps & Metadata
+    lastAccessed: Date,
     archivedAt: Date,
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+      transform: function (doc, ret) {
+        delete ret.deployment?.database?.atlasConfig?.connectionString;
+        return ret;
+      },
+    },
   }
 );
 
-// Indexes for better performance
-projectSchema.index({ owner: 1, createdAt: -1 });
+// Indexes for performance
+projectSchema.index({ owner: 1 });
+projectSchema.index({ slug: 1 });
+projectSchema.index({ status: 1 });
 projectSchema.index({ "repository.url": 1 });
-projectSchema.index({ "deployment.status": 1 });
-projectSchema.index({ isArchived: 1 });
+projectSchema.index({ "stack.detected.primary": 1 });
+projectSchema.index({ createdAt: -1 });
+projectSchema.index({ "collaborators.user": 1 });
 
-// Virtual for deployment count
-projectSchema.virtual("deploymentCount").get(function () {
-  return this.analytics.totalDeployments;
+// Virtual for full repository URL
+projectSchema.virtual("repositoryFullUrl").get(function () {
+  if (!this.repository.owner || !this.repository.name)
+    return this.repository.url;
+  return `https://github.com/${this.repository.owner}/${this.repository.name}`;
 });
 
-// Virtual for success rate
-projectSchema.virtual("successRate").get(function () {
-  if (this.analytics.totalDeployments === 0) return 0;
+// Generate unique slug
+projectSchema.statics.generateSlug = async function (name, ownerId) {
+  const baseSlug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .substring(0, 50);
+
+  let slug = baseSlug;
+  let counter = 1;
+
+  while (await this.findOne({ slug, owner: ownerId })) {
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+
+  return slug;
+};
+
+// Check if project is MERN stack
+projectSchema.methods.isMERNStack = function () {
   return (
-    (this.analytics.successfulDeployments / this.analytics.totalDeployments) *
-    100
-  ).toFixed(1);
-});
-
-// Pre-save middleware
-projectSchema.pre("save", function (next) {
-  // Update lastActivity when project is modified
-  this.analytics.lastActivity = new Date();
-  next();
-});
-
-// Static methods
-projectSchema.statics.findByOwner = function (userId, options = {}) {
-  const query = { owner: userId, isArchived: { $ne: true } };
-  return this.find(query)
-    .populate("owner", "username email profileImage")
-    .populate("collaborators.user", "username email profileImage")
-    .sort(options.sort || { updatedAt: -1 })
-    .limit(options.limit || 0);
+    this.stack?.detected?.primary === "mern" ||
+    (this.stack?.detected?.frontend?.framework === "react" &&
+      this.stack?.detected?.backend?.framework === "express" &&
+      this.stack?.detected?.database?.type === "mongodb")
+  );
 };
 
-projectSchema.statics.findByCollaborator = function (userId, options = {}) {
-  const query = {
-    "collaborators.user": userId,
-    isArchived: { $ne: true },
-  };
-  return this.find(query)
-    .populate("owner", "username email profileImage")
-    .populate("collaborators.user", "username email profileImage")
-    .sort(options.sort || { updatedAt: -1 })
-    .limit(options.limit || 0);
-};
+// Check if user can access project
+projectSchema.methods.canUserAccess = function (
+  userId,
+  requiredRole = "viewer"
+) {
+  if (this.owner.toString() === userId.toString()) return true;
 
-// Instance methods
-projectSchema.methods.addCollaborator = function (userId, role = "developer", addedBy) {
-  // Check if user is already a collaborator
-  const existingCollaborator = this.collaborators.find(
+  const collaborator = this.collaborators.find(
     (c) => c.user.toString() === userId.toString()
   );
 
-  if (existingCollaborator) {
-    throw new Error("User is already a collaborator");
-  }
+  if (!collaborator) return false;
 
-  this.collaborators.push({
-    user: userId,
-    role,
-    addedBy,
-  });
+  const roleHierarchy = { viewer: 0, editor: 1, admin: 2 };
+  return roleHierarchy[collaborator.role] >= roleHierarchy[requiredRole];
+};
+
+// Get stack information
+projectSchema.methods.getStackInfo = function () {
+  const detected = this.stack?.detected || {};
+  const configured = this.stack?.configured || {};
+
+  return {
+    primary: detected.primary || "other",
+    frontend: detected.frontend || {},
+    backend: detected.backend || {},
+    database: detected.database || {},
+    isCustom: configured.useCustomConfig || false,
+    supportsMERN: this.isMERNStack(),
+  };
+};
+
+// Update analysis results
+projectSchema.methods.updateAnalysis = function (analysisResults) {
+  this.analysis = {
+    ...this.analysis,
+    ...analysisResults,
+    lastAnalyzed: new Date(),
+  };
+  return this.save();
+};
+
+// Increment deployment count
+projectSchema.methods.incrementDeploymentCount = function (success = true) {
+  this.statistics.totalDeployments += 1;
+  if (success) {
+    this.statistics.successfulDeployments += 1;
+  } else {
+    this.statistics.failedDeployments += 1;
+  }
+  this.statistics.lastDeployment = new Date();
+  return this.save();
+};
+
+// Update build statistics
+projectSchema.methods.updateBuildStats = function (buildTime) {
+  this.statistics.totalBuilds += 1;
+  const currentAvg = this.statistics.averageBuildTime || 0;
+  const totalBuilds = this.statistics.totalBuilds;
+
+  this.statistics.averageBuildTime =
+    (currentAvg * (totalBuilds - 1) + buildTime) / totalBuilds;
 
   return this.save();
 };
 
-projectSchema.methods.removeCollaborator = function (userId) {
-  this.collaborators = this.collaborators.filter(
-    (c) => c.user.toString() !== userId.toString()
-  );
-  return this.save();
-};
-
-projectSchema.methods.updateDeploymentStatus = function (status, additionalData = {}) {
-  this.deployment.status = status;
-  
-  if (additionalData.url) {
-    this.deployment.url = additionalData.url;
+// Pre-save middleware to generate slug
+projectSchema.pre("save", async function (next) {
+  if (this.isNew && !this.slug) {
+    this.slug = await this.constructor.generateSlug(this.name, this.owner);
   }
-  
-  if (status === "success") {
-    this.analytics.successfulDeployments += 1;
-  } else if (status === "failed") {
-    this.analytics.failedDeployments += 1;
+  next();
+});
+
+// Pre-save middleware to update lastAccessed
+projectSchema.pre("save", function (next) {
+  if (!this.isNew) {
+    this.lastAccessed = new Date();
   }
-  
-  this.analytics.totalDeployments += 1;
-  
-  return this.save();
-};
+  next();
+});
 
-const Project = mongoose.model("Project", projectSchema);
-
-module.exports = Project;
+module.exports = mongoose.model("Project", projectSchema);

@@ -1,338 +1,320 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const logger = require("../config/logger"); // Import logger
+const logger = require("../config/logger");
 
 const userSchema = new mongoose.Schema(
   {
+    // Core Identity
     username: {
       type: String,
       required: [true, "Username is required"],
-      trim: true,
       unique: true,
+      trim: true,
       minlength: [3, "Username must be at least 3 characters long"],
+      maxlength: [30, "Username cannot exceed 30 characters"],
+      match: [
+        /^[a-zA-Z0-9_-]+$/,
+        "Username can only contain letters, numbers, hyphens, and underscores",
+      ],
     },
     email: {
       type: String,
       required: [true, "Email is required"],
       unique: true,
       lowercase: true,
+      trim: true,
       match: [/^\S+@\S+\.\S+$/, "Please provide a valid email address"],
-    },
+    }, // Authentication (Dual OAuth Strategy)
     password: {
       type: String,
-      required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters long"],
+      required: false, // OAuth is primary auth method
+      minlength: [8, "Password must be at least 8 characters long"],
       select: false,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: String,
+    emailVerificationExpire: Date,
+
+    // Password Reset
     resetPasswordToken: String,
     resetPasswordExpire: Date,
-    googleId: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
+
+    // GitHub OAuth Integration (Primary for deployments)
     githubId: {
       type: String,
       unique: true,
       sparse: true,
+      index: true,
     },
-    createdAt: {
-      type: Date,
-      default: Date.now,
+
+    // Google OAuth Integration (Alternative auth method)
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    // GitHub Integration Details (Primary for deployments)
+    github: {
+      username: {
+        type: String,
+        index: true,
+      },
+      avatarUrl: String,
+      profileUrl: String,
+      accessToken: {
+        type: String,
+        select: false,
+      },
+      refreshToken: {
+        type: String,
+        select: false,
+      },
+      tokenExpiry: Date,
+      scopes: [
+        {
+          type: String,
+          enum: ["user:email", "repo", "workflow", "admin:repo_hook"],
+        },
+      ],
+      // Repository access level
+      repoAccess: {
+        public: {
+          type: Boolean,
+          default: true,
+        },
+        private: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    },
+
+    // Google Integration Details (Alternative auth method)
+    google: {
+      email: String,
+      name: String,
+      avatarUrl: String,
+      accessToken: {
+        type: String,
+        select: false,
+      },
+      refreshToken: {
+        type: String,
+        select: false,
+      },
+      tokenExpiry: Date,
+    },
+
+    // Profile Information
+    firstName: {
+      type: String,
+      trim: true,
+      maxlength: [50, "First name cannot exceed 50 characters"],
+    },
+    lastName: {
+      type: String,
+      trim: true,
+      maxlength: [50, "Last name cannot exceed 50 characters"],
     },
     profileImage: {
       type: String,
       default: "",
     },
-    firstName: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-    lastName: {
-      type: String,
-      trim: true,
-      default: "",
-    },
     bio: {
       type: String,
       trim: true,
-      default: "",
-      maxlength: 300,
+      maxlength: [250, "Bio cannot exceed 250 characters"],
     },
-    otp: {
-      type: String,
-    },
-    otpExpire: {
-      type: Date,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    // 2FA fields
-    twoFactorSecret: {
-      type: String,
-      select: false, // Don't include in queries by default
-    },
-    twoFactorEnabled: {
-      type: Boolean,
-      default: false,
-    },
-    backupCodes: [
-      {
-        code: {
-          type: String,
-          required: true,
+
+    // User Preferences
+    preferences: {
+      theme: {
+        type: String,
+        enum: ["light", "dark", "system"],
+        default: "system",
+      },
+      notifications: {
+        email: {
+          deployments: { type: Boolean, default: true },
+          security: { type: Boolean, default: true },
+          updates: { type: Boolean, default: false },
         },
-        used: {
-          type: Boolean,
-          default: false,
-        },
-        usedAt: {
-          type: Date,
+        push: {
+          deployments: { type: Boolean, default: true },
+          security: { type: Boolean, default: true },
         },
       },
-    ],
-    // Track used TOTP tokens for additional security
-    lastTOTPToken: {
+      timezone: {
+        type: String,
+        default: "UTC",
+      },
+    },
+
+    // Account Status
+    role: {
       type: String,
-      select: false, // Don't include in queries by default
+      enum: ["user", "admin"],
+      default: "user",
     },
-    lastTOTPTimestamp: {
-      type: Date,
-      select: false, // Don't include in queries by default
+    status: {
+      type: String,
+      enum: ["active", "suspended", "pending"],
+      default: "pending",
     },
-    // Security and account protection fields
+
+    // 2FA Security
+    twoFactorAuth: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      secret: {
+        type: String,
+        select: false,
+      },
+      backupCodes: [
+        {
+          code: String,
+          used: { type: Boolean, default: false },
+          usedAt: Date,
+        },
+      ],
+    },
+
+    // Security & Session Management
     loginAttempts: {
       type: Number,
       default: 0,
     },
-    lockUntil: {
-      type: Date,
-    },
-    lastLogin: {
-      type: Date,
-    },
-    lastLoginIP: {
-      type: String,
-    },
-    // Account role and permissions
-    role: {
-      type: String,
-      enum: ["user", "admin", "moderator"],
-      default: "user",
-    }, // Notification preferences
-    notificationPreferences: {
-      // Basic delivery methods
-      email: {
-        type: Boolean,
-        default: true,
+    lockUntil: Date,
+    lastLogin: Date,
+    lastLoginIP: String,
+    // Resource Usage & Limits (Per Architecture)
+    resourceLimits: {
+      maxProjects: {
+        type: Number,
+        default: 5, // Free tier limit
       },
-      inApp: {
-        type: Boolean,
-        default: true,
+      maxDeployments: {
+        type: Number,
+        default: 10, // Concurrent deployments
       },
-      push: {
-        type: Boolean,
-        default: false,
+      memoryPerApp: {
+        type: String,
+        default: "512MB", // 256MB frontend + 256MB backend
       },
-
-      // Legacy preferences (maintain backward compatibility)
-      deployments: {
-        type: Boolean,
-        default: true,
+      cpuPerApp: {
+        type: String,
+        default: "0.25", // 0.25 cores max per application
       },
-      security: {
-        type: Boolean,
-        default: true,
+      storagePerApp: {
+        type: String,
+        default: "1GB", // Storage per application
       },
-      marketing: {
-        type: Boolean,
-        default: false,
-      },
-      updates: {
-        type: Boolean,
-        default: true,
-      },
-
-      // Deployment notifications
-      deploymentSuccess: {
-        type: Boolean,
-        default: true,
-      },
-      deploymentFailure: {
-        type: Boolean,
-        default: true,
-      },
-      deploymentStarted: {
-        type: Boolean,
-        default: true,
-      },
-
-      // Security & Account notifications
-      securityAlerts: {
-        type: Boolean,
-        default: true,
-      },
-      accountChanges: {
-        type: Boolean,
-        default: true,
-      },
-      newDeviceLogin: {
-        type: Boolean,
-        default: true,
-      },
-
-      // Communication notifications
-      productUpdates: {
-        type: Boolean,
-        default: true,
-      },
-      tips: {
-        type: Boolean,
-        default: false,
-      },
-
-      // Quiet hours settings
-      quietHours: {
-        enabled: {
-          type: Boolean,
-          default: false,
-        },
-        startTime: {
-          type: String,
-          default: "22:00",
-        },
-        endTime: {
-          type: String,
-          default: "08:00",
-        },
-      },
-
-      // Digest settings
-      digestSettings: {
-        enabled: {
-          type: Boolean,
-          default: false,
-        },
-        frequency: {
-          type: String,
-          enum: ["daily", "weekly", "monthly"],
-          default: "weekly",
-        },
-        day: {
-          type: String,
-          enum: [
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-          ],
-          default: "monday",
-        },
-        time: {
-          type: String,
-          default: "09:00",
-        },
+      mongoDbPerApp: {
+        type: String,
+        default: "100MB", // MongoDB per app database
       },
     },
-    // Track user sessions for multi-session management
-    sessions: [
+
+    // Current Usage
+    currentUsage: {
+      projects: {
+        type: Number,
+        default: 0,
+      },
+      activeDeployments: {
+        type: Number,
+        default: 0,
+      },
+      totalMemoryUsed: {
+        type: Number,
+        default: 0, // in MB
+      },
+      totalStorageUsed: {
+        type: Number,
+        default: 0, // in MB
+      },
+    },
+
+    // Audit Trail (Limited to recent entries)
+    loginHistory: [
       {
-        ip: { type: String },
-        userAgent: { type: String },
-        location: { type: String, default: "Unknown" },
-        createdAt: { type: Date, default: Date.now },
-        // If user opts to remember device, skip 2FA until this date
-        rememberedUntil: { type: Date },
-      },
-    ], // Store valid refresh tokens for rotation protection
-    refreshTokens: [
-      {
-        token: { type: String, required: true },
-        createdAt: { type: Date, default: Date.now },
-        expiresAt: { type: Date },
-      },
-    ],
-    // User activity log
-    activities: [
-      {
-        action: {
-          type: String,
-          required: true,
-        },
-        type: {
-          type: String,
-          enum: ["auth", "security", "profile", "general", "system"],
-          default: "general",
-        },
-        details: {
-          type: String,
-        },
-        ip: {
-          type: String,
-        },
-        userAgent: {
-          type: String,
-        },
+        ip: String,
+        userAgent: String,
         timestamp: {
           type: Date,
           default: Date.now,
         },
+        location: {
+          country: String,
+          city: String,
+        },
       },
     ],
-    // API Keys for programmatic access
-    apiKeys: [
+
+    // Refresh Tokens for JWT
+    refreshTokens: [
       {
-        name: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        key: {
-          type: String,
-          required: true,
-        },
-        keyType: {
-          type: String,
-          enum: ["live", "test"],
-          default: "test",
-        },
-        permissions: [
-          {
-            type: String,
-            enum: ["read", "write"],
-            default: "read",
-          },
-        ],
-        lastUsed: {
-          type: Date,
-        },
+        token: String,
         createdAt: {
           type: Date,
           default: Date.now,
+        },
+        expiresAt: Date,
+        isActive: {
+          type: Boolean,
+          default: true,
         },
       },
     ],
   },
   {
     timestamps: true,
+    toJSON: {
+      transform: function (doc, ret) {
+        delete ret.password;
+        delete ret.resetPasswordToken;
+        delete ret.resetPasswordExpire;
+        delete ret.emailVerificationToken;
+        delete ret.twoFactorAuth?.secret;
+        delete ret.github?.accessToken;
+        delete ret.github?.refreshToken;
+        delete ret.google?.accessToken;
+        delete ret.google?.refreshToken;
+        delete ret.refreshTokens;
+        return ret;
+      },
+    },
   }
 );
 
-// Hash the password before saving
-userSchema.pre("save", async function (next) {
-  try {
-    // Only run if password was modified
-    if (!this.isModified("password")) return next();
+// Indexes for performance (Updated for dual OAuth)
+userSchema.index({ email: 1 });
+userSchema.index({ username: 1 });
+userSchema.index({ githubId: 1 });
+userSchema.index({ googleId: 1 });
+userSchema.index({ "github.username": 1 });
+userSchema.index({ "refreshTokens.token": 1 });
+userSchema.index({ status: 1, role: 1 });
 
-    // Hash password with cost of 12
-    const salt = await bcrypt.genSalt(12);
+// Virtual for account lock status
+userSchema.virtual("isLocked").get(function () {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
+});
+
+// Pre-save middleware to hash password
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  if (!this.password) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
@@ -340,85 +322,130 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-// Clean up expired tokens before saving
-userSchema.pre("save", function (next) {
-  try {
-    const now = new Date();
-
-    // Clean up expired refresh tokens
-    if (this.refreshTokens && this.refreshTokens.length > 0) {
-      this.refreshTokens = this.refreshTokens.filter(
-        (rt) => rt.expiresAt && rt.expiresAt > now
-      );
-    }
-
-    // Clean up expired remembered sessions
-    if (this.sessions && this.sessions.length > 0) {
-      this.sessions = this.sessions.filter(
-        (s) => !s.rememberedUntil || s.rememberedUntil > now
-      );
-    }
-
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Method to check if password is correct
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  try {
-    if (!candidatePassword || !this.password) {
-      return false;
-    }
-
-    const result = await bcrypt.compare(candidatePassword, this.password);
-    return result;
-  } catch (error) {
-    logger.error("Password comparison error", {
-      error: { message: error.message, stack: error.stack, name: error.name },
-    });
-    return false;
-  }
+// Compare password method
+userSchema.methods.comparePassword = async function (enteredPassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Method to generate password reset token
-userSchema.methods.createPasswordResetToken = function () {
-  // Generate reset token
-  const resetToken = crypto.randomBytes(32).toString("hex");
-
-  // Hash token and set to resetPasswordToken field
+// Generate password reset token
+userSchema.methods.getResetPasswordToken = function () {
+  const resetToken = crypto.randomBytes(20).toString("hex");
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-
-  // Set token expiry time (30 minutes)
-  this.resetPasswordExpire = Date.now() + 30 * 60 * 1000;
-
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
   return resetToken;
 };
 
-// Performance optimizations: Add database indexes
-// email, username, googleId, and githubId indexes are already created by unique: true in schema definition
-userSchema.index({ resetPasswordToken: 1 }, { sparse: true }); // For password reset
-userSchema.index({ createdAt: 1 }); // For sorting/filtering by creation date
-userSchema.index({ isVerified: 1, createdAt: -1 }); // Compound index for verified users
+// Generate email verification token
+userSchema.methods.getEmailVerificationToken = function () {
+  const verificationToken = crypto.randomBytes(20).toString("hex");
+  this.emailVerificationToken = crypto
+    .createHash("sha256")
+    .update(verificationToken)
+    .digest("hex");
+  this.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  return verificationToken;
+};
 
-// API Keys sparse unique index - only enforce uniqueness for non-null values
-userSchema.index({ "apiKeys.key": 1 }, { unique: true, sparse: true });
-
-// Text index for search functionality (if needed)
-userSchema.index(
-  {
-    username: "text",
-    email: "text",
-  },
-  {
-    weights: { username: 10, email: 5 },
+// Handle failed login attempts
+userSchema.methods.incLoginAttempts = function () {
+  if (this.lockUntil && this.lockUntil < Date.now()) {
+    return this.updateOne({
+      $unset: {
+        loginAttempts: 1,
+        lockUntil: 1,
+      },
+    });
   }
-);
 
-const User = mongoose.model("User", userSchema);
+  const updates = { $inc: { loginAttempts: 1 } };
+  if (this.loginAttempts + 1 >= 5 && !this.isLocked) {
+    updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 }; // 2 hours
+  }
 
-module.exports = User;
+  return this.updateOne(updates);
+};
+
+// Reset login attempts on successful login
+userSchema.methods.resetLoginAttempts = function () {
+  return this.updateOne({
+    $unset: {
+      loginAttempts: 1,
+      lockUntil: 1,
+    },
+    $set: {
+      lastLogin: new Date(),
+    },
+  });
+};
+
+// Cleanup old login history (keep only last 10)
+userSchema.pre("save", function (next) {
+  if (this.loginHistory && this.loginHistory.length > 10) {
+    this.loginHistory = this.loginHistory.slice(-10);
+  }
+  next();
+});
+
+// Cleanup expired refresh tokens
+userSchema.methods.cleanupRefreshTokens = function () {
+  const now = new Date();
+  this.refreshTokens = this.refreshTokens.filter(
+    (token) => token.isActive && token.expiresAt > now
+  );
+};
+
+// Resource management methods
+userSchema.methods.canCreateProject = function () {
+  return this.currentUsage.projects < this.resourceLimits.maxProjects;
+};
+
+userSchema.methods.canDeploy = function () {
+  return (
+    this.currentUsage.activeDeployments < this.resourceLimits.maxDeployments
+  );
+};
+
+userSchema.methods.updateResourceUsage = function (
+  projectCount,
+  activeDeployments,
+  memoryUsed,
+  storageUsed
+) {
+  this.currentUsage.projects = projectCount;
+  this.currentUsage.activeDeployments = activeDeployments;
+  this.currentUsage.totalMemoryUsed = memoryUsed;
+  this.currentUsage.totalStorageUsed = storageUsed;
+};
+
+// GitHub token management
+userSchema.methods.isGitHubTokenValid = function () {
+  return (
+    this.github?.accessToken &&
+    (!this.github.tokenExpiry || this.github.tokenExpiry > new Date())
+  );
+};
+
+userSchema.methods.hasGitHubScope = function (scope) {
+  return this.github?.scopes && this.github.scopes.includes(scope);
+};
+
+// Google token management
+userSchema.methods.isGoogleTokenValid = function () {
+  return (
+    this.google?.accessToken &&
+    (!this.google.tokenExpiry || this.google.tokenExpiry > new Date())
+  );
+};
+
+// Determine preferred OAuth provider
+userSchema.methods.getPreferredOAuthProvider = function () {
+  if (this.github?.accessToken && this.isGitHubTokenValid()) return "github";
+  if (this.google?.accessToken && this.isGoogleTokenValid()) return "google";
+  return null;
+};
+
+module.exports = mongoose.model("User", userSchema);

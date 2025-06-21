@@ -1,43 +1,41 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const deploymentSchema = new mongoose.Schema(
   {
+    // Core Information
+    deploymentId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    
+    // References
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
-      required: [true, "Project reference is required"],
+      required: true,
+      index: true,
     },
     deployedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Deployed by user is required"],
+      required: true,
+      index: true,
     },
-    deployment: {
-      id: {
-        type: String,
-        required: true,
-        unique: true,
-      },
-      status: {
-        type: String,
-        enum: [
-          "pending",
-          "building",
-          "deploying",
-          "success",
-          "failed",
-          "cancelled",
-        ],
-        default: "pending",
-      },
+    
+    // Deployment Configuration
+    config: {
       environment: {
         type: String,
         enum: ["development", "staging", "production"],
-        required: true,
+        default: "development",
       },
       branch: {
         type: String,
         required: true,
+        default: "main",
       },
       commit: {
         hash: {
@@ -47,370 +45,403 @@ const deploymentSchema = new mongoose.Schema(
         message: String,
         author: String,
         timestamp: Date,
+        url: String,
       },
-      url: String,
-      domain: String,
+      subdomain: {
+        type: String,
+        required: true,
+        lowercase: true,
+        unique: true,
+        index: true,
+      },
+      customDomain: String,
     },
+    
+    // Deployment Status & Lifecycle
+    status: {
+      type: String,
+      enum: [
+        "pending", "queued", "building", "deploying", 
+        "running", "failed", "stopped", "cancelled", "error"
+      ],
+      default: "pending",
+      index: true,
+    },
+    
+    // Build Process
     build: {
+      buildId: String,
       startedAt: Date,
       completedAt: Date,
-      duration: Number, // in seconds
-      buildCommand: String,
-      buildOutput: String,
-      buildLogs: String,
-      artifactSize: Number, // in bytes
-      buildCache: {
-        used: {
+      duration: {
+        type: Number,
+        default: 0, // seconds
+      },
+      logs: [{
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+        level: {
+          type: String,
+          enum: ["info", "warn", "error", "debug"],
+          default: "info",
+        },
+        message: String,
+        source: {
+          type: String,
+          enum: ["build", "deploy", "runtime"],
+          default: "build",
+        },
+      }],
+      artifacts: {
+        imageUrl: String,
+        size: {
+          type: Number,
+          default: 0, // bytes
+        },
+        layers: [String],
+      },
+      githubAction: {
+        runId: String,
+        workflowId: String,
+        url: String,
+        status: String,
+        conclusion: String,
+      },
+    },
+    
+    // Runtime Information
+    runtime: {
+      containerId: String,
+      agentId: String, // which agent is hosting
+      platform: {
+        type: String,
+        default: "linux/amd64",
+      },
+      resources: {
+        memory: {
+          allocated: String,
+          used: String,
+          peak: String,
+        },
+        cpu: {
+          allocated: String,
+          used: Number, // percentage
+          peak: Number,
+        },
+        storage: {
+          allocated: String,
+          used: String,
+        },
+      },
+      health: {
+        status: {
+          type: String,
+          enum: ["healthy", "unhealthy", "unknown"],
+          default: "unknown",
+        },
+        lastCheck: Date,
+        checks: [{
+          timestamp: {
+            type: Date,
+            default: Date.now,
+          },
+          status: {
+            type: String,
+            enum: ["healthy", "unhealthy"],
+          },
+          responseTime: Number, // ms
+          message: String,
+        }],
+      },
+    },
+    
+    // Database Configuration (Atlas Integration)
+    database: {
+      atlasConfig: {
+        clusterId: String,
+        databaseName: String,
+        username: String, // per-deployment user
+        connectionString: {
+          type: String,
+          select: false, // encrypted
+        },
+        createdAt: Date,
+      },
+      seeds: {
+        executed: {
           type: Boolean,
           default: false,
         },
-        size: Number,
+        executedAt: Date,
+        logs: [String],
       },
     },
-    runtime: {
-      platform: {
-        type: String,
-        enum: ["docker", "serverless", "static", "nodejs", "python"],
-        default: "docker",
-      },
-      version: String, // Runtime version (Node 18, Python 3.9, etc.)
-      memory: Number, // in MB
-      cpu: Number, // in cores
-      instances: {
-        type: Number,
-        default: 1,
-      },
-      healthCheck: {
+    
+    // Networking & Access
+    networking: {
+      subdomain: String,
+      fullUrl: String,
+      ssl: {
         enabled: {
           type: Boolean,
           default: true,
         },
-        path: {
-          type: String,
-          default: "/health",
+        certificateId: String,
+        expiresAt: Date,
+      },
+      customDomain: {
+        domain: String,
+        verified: {
+          type: Boolean,
+          default: false,
         },
-        interval: {
-          type: Number,
-          default: 30,
-        },
+        verifiedAt: Date,
       },
     },
-    performance: {
-      buildTime: Number, // in seconds
-      deployTime: Number, // in seconds
-      coldStartTime: Number, // in seconds
-      memoryUsage: {
-        average: Number,
-        peak: Number,
-      },
-      cpuUsage: {
-        average: Number,
-        peak: Number,
-      },
-    },
-    monitoring: {
-      uptime: {
-        type: Number,
-        default: 100,
-      },
-      responseTime: {
-        average: Number,
-        p95: Number,
-        p99: Number,
-      },
-      errorRate: {
-        type: Number,
-        default: 0,
-      },
+    
+    // Performance Metrics
+    metrics: {
       requests: {
         total: {
           type: Number,
           default: 0,
         },
-        successful: {
+        last24h: {
           type: Number,
           default: 0,
         },
-        failed: {
+        avgResponseTime: {
+          type: Number,
+          default: 0, // ms
+        },
+      },
+      errors: {
+        total: {
           type: Number,
           default: 0,
         },
-      },
-    },
-    configuration: {
-      environmentVariables: [
-        {
-          key: String,
-          value: String, // This should be encrypted for secrets
-          isSecret: {
-            type: Boolean,
-            default: false,
-          },
-        },
-      ],
-      buildSettings: {
-        nodeVersion: String,
-        pythonVersion: String,
-        installCommand: String,
-        buildCommand: String,
-        outputDirectory: String,
-        dockerfilePath: String,
-      },
-      scaling: {
-        autoScale: {
-          type: Boolean,
-          default: false,
-        },
-        minInstances: {
+        last24h: {
           type: Number,
-          default: 1,
+          default: 0,
         },
-        maxInstances: {
+        rate: {
           type: Number,
-          default: 10,
+          default: 0, // percentage
         },
-        targetCPU: {
+      },
+      uptime: {
+        percentage: {
           type: Number,
-          default: 70,
+          default: 100,
         },
+        downtimeMinutes: {
+          type: Number,
+          default: 0,
+        },
+        lastDowntime: Date,
       },
     },
-    logs: {
-      build: String,
-      deployment: String,
-      runtime: String,
-      lastFetched: Date,
-    },
-    security: {
-      vulnerabilities: [
-        {
-          severity: {
-            type: String,
-            enum: ["low", "medium", "high", "critical"],
-          },
-          package: String,
-          version: String,
-          description: String,
-          fixed: {
-            type: Boolean,
-            default: false,
-          },
-          detectedAt: {
-            type: Date,
-            default: Date.now,
-          },
-        },
-      ],
-      securityScan: {
-        completed: {
-          type: Boolean,
-          default: false,
-        },
-        score: Number, // 0-100
-        lastScannedAt: Date,
-      },
-    },
-    rollback: {
-      canRollback: {
-        type: Boolean,
-        default: true,
-      },
-      previousDeployment: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Deployment",
-      },
-      rollbackReason: String,
-      rolledBackAt: Date,
-      rolledBackBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    },
-    events: [
-      {
-        type: {
-          type: String,
-          enum: [
-            "deployment_started",
-            "build_started",
-            "build_completed",
-            "build_failed",
-            "deployment_completed",
-            "deployment_failed",
-            "health_check_passed",
-            "health_check_failed",
-            "scaling_event",
-            "rollback_initiated",
-            "security_scan_completed",
-          ],
-        },
-        message: String,
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
-        metadata: mongoose.Schema.Types.Mixed,
-      },
-    ],
-    cost: {
-      buildCost: Number, // in USD
-      runtimeCost: Number, // in USD per hour
-      totalCost: Number, // in USD
-      billingPeriod: {
-        start: Date,
-        end: Date,
-      },
-    },
+    
+    // Lifecycle Timestamps
+    queuedAt: Date,
+    buildStartedAt: Date,
+    buildCompletedAt: Date,
+    deployStartedAt: Date,
+    deployCompletedAt: Date,
+    firstAccessAt: Date,
+    lastAccessAt: Date,
+    stoppedAt: Date,
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+      transform: function(doc, ret) {
+        delete ret.database?.atlasConfig?.connectionString;
+        return ret;
+      },
+    },
   }
 );
 
-// Indexes for better performance
-deploymentSchema.index({ project: 1, createdAt: -1 });
+// Indexes for performance
+deploymentSchema.index({ deploymentId: 1 });
+deploymentSchema.index({ project: 1 });
 deploymentSchema.index({ deployedBy: 1 });
-deploymentSchema.index({ "deployment.status": 1 });
-deploymentSchema.index({ "deployment.environment": 1 });
-// deployment.id already has unique: true in schema definition
+deploymentSchema.index({ status: 1 });
+deploymentSchema.index({ "config.subdomain": 1 });
+deploymentSchema.index({ createdAt: -1 });
+deploymentSchema.index({ "config.environment": 1 });
 
-// Virtual for total duration
-deploymentSchema.virtual("totalDuration").get(function () {
-  if (this.build.startedAt && this.build.completedAt) {
-    return Math.round((this.build.completedAt - this.build.startedAt) / 1000);
+// Generate unique deployment ID
+deploymentSchema.statics.generateDeploymentId = function() {
+  return `dep_${crypto.randomBytes(12).toString('hex')}`;
+};
+
+// Generate unique subdomain
+deploymentSchema.statics.generateSubdomain = async function(projectName, environment = "dev") {
+  const baseSubdomain = `${projectName}-${environment}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "")
+    .substring(0, 30);
+  
+  let subdomain = baseSubdomain;
+  let counter = 1;
+  
+  while (await this.findOne({ "config.subdomain": subdomain })) {
+    subdomain = `${baseSubdomain}-${counter}`;
+    counter++;
   }
-  return null;
-});
+  
+  return subdomain;
+};
 
-// Virtual for deployment URL with protocol
-deploymentSchema.virtual("fullUrl").get(function () {
-  if (this.deployment.url) {
-    return this.deployment.url.startsWith("http")
-      ? this.deployment.url
-      : `https://${this.deployment.url}`;
+// Update deployment status
+deploymentSchema.methods.updateStatus = function(newStatus, additionalData = {}) {
+  const previousStatus = this.status;
+  this.status = newStatus;
+  
+  // Update timestamps based on status
+  const now = new Date();
+  switch (newStatus) {
+    case "queued":
+      this.queuedAt = now;
+      break;
+    case "building":
+      this.buildStartedAt = now;
+      break;
+    case "deploying":
+      this.deployStartedAt = now;
+      if (this.buildStartedAt && !this.buildCompletedAt) {
+        this.buildCompletedAt = now;
+        this.build.completedAt = now;
+        this.build.duration = Math.floor((now - this.buildStartedAt) / 1000);
+      }
+      break;
+    case "running":
+      this.deployCompletedAt = now;
+      if (!this.firstAccessAt) {
+        this.firstAccessAt = now;
+      }
+      break;
+    case "stopped":
+    case "failed":
+    case "cancelled":
+    case "error":
+      this.stoppedAt = now;
+      break;
   }
-  return null;
-});
-
-// Pre-save middleware
-deploymentSchema.pre("save", function (next) {
-  // Generate deployment ID if not exists
-  if (!this.deployment.id) {
-    this.deployment.id = `dep_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+  
+  // Update networking URL
+  if (this.config.subdomain && !this.networking.fullUrl) {
+    this.networking.subdomain = this.config.subdomain;
+    this.networking.fullUrl = `https://${this.config.subdomain}.deployio.tech`;
   }
+  
+  return this.save();
+};
 
-  // Calculate total duration if build is completed
-  if (this.build.startedAt && this.build.completedAt && !this.build.duration) {
-    this.build.duration = Math.round(
-      (this.build.completedAt - this.build.startedAt) / 1000
-    );
+// Add build log entry
+deploymentSchema.methods.addBuildLog = function(level, message, source = "build") {
+  this.build.logs.push({
+    timestamp: new Date(),
+    level,
+    message,
+    source,
+  });
+  
+  // Keep only last 1000 log entries
+  if (this.build.logs.length > 1000) {
+    this.build.logs = this.build.logs.slice(-1000);
   }
+  
+  return this.save();
+};
 
+// Calculate uptime percentage
+deploymentSchema.methods.calculateUptime = function() {
+  if (!this.deployCompletedAt) return 0;
+  
+  const totalTime = Date.now() - this.deployCompletedAt.getTime();
+  const downtimeMs = (this.metrics.uptime.downtimeMinutes || 0) * 60 * 1000;
+  
+  const uptimePercentage = Math.max(0, Math.min(100, 
+    ((totalTime - downtimeMs) / totalTime) * 100
+  ));
+  
+  this.metrics.uptime.percentage = Math.round(uptimePercentage * 100) / 100;
+  return this.metrics.uptime.percentage;
+};
+
+// Get resource usage summary
+deploymentSchema.methods.getResourceUsage = function() {
+  return {
+    memory: {
+      allocated: this.runtime.resources.memory.allocated || "512MB",
+      used: this.runtime.resources.memory.used || "0MB",
+      peak: this.runtime.resources.memory.peak || "0MB",
+    },
+    cpu: {
+      allocated: this.runtime.resources.cpu.allocated || "0.25",
+      used: this.runtime.resources.cpu.used || 0,
+      peak: this.runtime.resources.cpu.peak || 0,
+    },
+    storage: {
+      allocated: this.runtime.resources.storage.allocated || "1GB",
+      used: this.runtime.resources.storage.used || "0MB",
+    },
+  };
+};
+
+// Check if deployment is healthy
+deploymentSchema.methods.isHealthy = function() {
+  if (this.status !== "running") return false;
+  
+  const lastCheck = this.runtime.health.lastCheck;
+  if (!lastCheck) return false;
+  
+  // Consider unhealthy if no health check in last 5 minutes
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  if (lastCheck < fiveMinutesAgo) return false;
+  
+  return this.runtime.health.status === "healthy";
+};
+
+// Update health status
+deploymentSchema.methods.updateHealthStatus = function(status, responseTime = 0, message = "") {
+  this.runtime.health.status = status;
+  this.runtime.health.lastCheck = new Date();
+  
+  this.runtime.health.checks.push({
+    timestamp: new Date(),
+    status,
+    responseTime,
+    message,
+  });
+  
+  // Keep only last 100 health checks
+  if (this.runtime.health.checks.length > 100) {
+    this.runtime.health.checks = this.runtime.health.checks.slice(-100);
+  }
+  
+  return this.save();
+};
+
+// Pre-save middleware to generate deployment ID
+deploymentSchema.pre("save", async function(next) {
+  if (this.isNew && !this.deploymentId) {
+    this.deploymentId = this.constructor.generateDeploymentId();
+  }
   next();
 });
 
-// Static methods
-deploymentSchema.statics.findByProject = function (projectId, options = {}) {
-  return this.find({ project: projectId })
-    .populate("project", "name description")
-    .populate("deployedBy", "username email profileImage")
-    .sort(options.sort || { createdAt: -1 })
-    .limit(options.limit || 0);
-};
-
-deploymentSchema.statics.findByUser = function (userId, options = {}) {
-  return this.find({ deployedBy: userId })
-    .populate("project", "name description owner")
-    .populate("deployedBy", "username email profileImage")
-    .sort(options.sort || { createdAt: -1 })
-    .limit(options.limit || 0);
-};
-
-deploymentSchema.statics.getActiveDeployments = function () {
-  return this.find({
-    "deployment.status": { $in: ["pending", "building", "deploying"] },
-  })
-    .populate("project", "name description")
-    .populate("deployedBy", "username email");
-};
-
-deploymentSchema.statics.getDeploymentStats = function (
-  projectId,
-  timeframe = 30
-) {
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - timeframe);
-
-  return this.aggregate([
-    {
-      $match: {
-        project: new mongoose.Types.ObjectId(projectId),
-        createdAt: { $gte: startDate },
-      },
-    },
-    {
-      $group: {
-        _id: "$deployment.status",
-        count: { $sum: 1 },
-        avgDuration: { $avg: "$build.duration" },
-      },
-    },
-  ]);
-};
-
-// Instance methods
-deploymentSchema.methods.addEvent = function (type, message, metadata = {}) {
-  this.events.push({
-    type,
-    message,
-    metadata,
-  });
-  return this.save();
-};
-
-deploymentSchema.methods.updateStatus = function (status, additionalData = {}) {
-  this.deployment.status = status;
-
-  // Add event for status change
-  this.addEvent(
-    `deployment_${status}`,
-    `Deployment status changed to ${status}`
-  );
-
-  // Update timestamps based on status
-  if (status === "building" && !this.build.startedAt) {
-    this.build.startedAt = new Date();
-  } else if (
-    (status === "success" || status === "failed") &&
-    !this.build.completedAt
-  ) {
-    this.build.completedAt = new Date();
+// Pre-save middleware to update lastAccessAt
+deploymentSchema.pre("save", function(next) {
+  if (!this.isNew && this.status === "running") {
+    this.lastAccessAt = new Date();
   }
+  next();
+});
 
-  // Update additional data
-  Object.assign(this.deployment, additionalData);
-
-  return this.save();
-};
-
-deploymentSchema.methods.performRollback = function (userId, reason) {
-  if (!this.rollback.canRollback) {
-    throw new Error("This deployment cannot be rolled back");
-  }
-
-  this.rollback.rollbackReason = reason;
-  this.rollback.rolledBackAt = new Date();
-  this.rollback.rolledBackBy = userId;
-
-  this.addEvent("rollback_initiated", reason, { userId });
-
-  return this.save();
-};
-
-const Deployment = mongoose.model("Deployment", deploymentSchema);
-
-module.exports = Deployment;
+module.exports = mongoose.model("Deployment", deploymentSchema);
