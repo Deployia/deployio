@@ -1,24 +1,28 @@
 """
-Clean Optimization Routes
-Configuration generation and optimization suggestions
+Optimization Routes - Configuration generation and optimization endpoints
+Provides intelligent deployment configuration generation based on analysis results
 """
 
 from fastapi import APIRouter, HTTPException, Header, Depends
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel
+import logging
 
 from models.response import ResponseModel
+from engines.generators.config_generator import ConfigurationGenerator
 from engines.generators.dockerfile_generator import DockerfileGenerator
 from engines.generators.pipeline_generator import PipelineGenerator
-from engines.generators.config_generator import ConfigGenerator
-from engines.core.models import TechnologyStack
+from engines.core.models import TechnologyStack, AnalysisResult
+from engines.utils.validators import InputValidator
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Initialize generators
+config_generator = ConfigurationGenerator()
 dockerfile_generator = DockerfileGenerator()
 pipeline_generator = PipelineGenerator()
-config_generator = ConfigGenerator()
+validator = InputValidator()
 
 
 # Request Models
@@ -111,39 +115,122 @@ async def generate_all_configs(
         import time
         start_time = time.time()
         
+        # Validate request
+        config_validation = validator.validate_configuration_request(request.dict())
+        if not config_validation.is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid request: {', '.join(config_validation.errors)}"
+            )
+        
         # Convert dict to TechnologyStack
-        tech_stack = _dict_to_tech_stack(request.technology_stack)
+        tech_stack = TechnologyStack(**request.technology_stack)
+        
+        # Create mock analysis result for generators
+        analysis_result = AnalysisResult(
+            repository_url=request.repository_url,
+            analysis_type="full_analysis",
+            technology_stack=tech_stack,
+            confidence_score=0.95,
+            analysis_duration=0.0,
+            timestamp=time.time()
+        )
         
         generated_configs = []
         recommendations = []
         
         # Generate requested configurations
         for config_type in request.config_types:
-            if config_type == "dockerfile":
-                config = await dockerfile_generator.generate_dockerfile(
-                    tech_stack=tech_stack,
-                    optimization_level=request.optimization_level,
-                    project_id=request.project_id
-                )
-                generated_configs.append(_convert_config_to_response(config))
-                
-            elif config_type == "github_actions":
-                config = await pipeline_generator.generate_github_actions(
-                    tech_stack=tech_stack,
-                    repository_url=request.repository_url,
-                    optimization_level=request.optimization_level
-                )
-                generated_configs.append(_convert_config_to_response(config))
-                
-            elif config_type == "docker_compose":
-                config = await config_generator.generate_docker_compose(
-                    tech_stack=tech_stack,
-                    optimization_level=request.optimization_level
-                )
-                generated_configs.append(_convert_config_to_response(config))
-                
-            elif config_type == "gitlab_ci":
-                config = await pipeline_generator.generate_gitlab_ci(
+            try:
+                if config_type == "dockerfile":
+                    config_content = await dockerfile_generator.generate_dockerfile(analysis_result)
+                    generated_configs.append(GeneratedConfigResponse(
+                        config_type="dockerfile",
+                        filename="Dockerfile",
+                        content=config_content,
+                        description="Production-ready Dockerfile with security best practices",
+                        optimization_level=request.optimization_level
+                    ))
+                    
+                elif config_type == "github_actions":
+                    pipeline_options = {"include_tests": True, "include_security": True, "include_deploy": True}
+                    config_content = await pipeline_generator.generate_pipeline(
+                        analysis_result, "github-actions", pipeline_options
+                    )
+                    generated_configs.append(GeneratedConfigResponse(
+                        config_type="github_actions",
+                        filename=".github/workflows/ci-cd.yml",
+                        content=config_content,
+                        description="Complete CI/CD pipeline with build, test, security scan, and deployment",
+                        optimization_level=request.optimization_level
+                    ))
+                    
+                elif config_type == "docker_compose":
+                    config_package = await config_generator.generate_configuration_package(
+                        analysis_result, ["docker-compose"]
+                    )
+                    docker_compose_config = next(
+                        (config for config in config_package.configurations if config.config_type == "docker-compose"),
+                        None
+                    )
+                    if docker_compose_config:
+                        generated_configs.append(GeneratedConfigResponse(
+                            config_type="docker_compose",
+                            filename="docker-compose.yml",
+                            content=docker_compose_config.content,
+                            description=docker_compose_config.description,
+                            optimization_level=request.optimization_level
+                        ))
+                    
+                elif config_type == "gitlab_ci":
+                    pipeline_options = {"include_tests": True, "include_security": True, "include_deploy": True}
+                    config_content = await pipeline_generator.generate_pipeline(
+                        analysis_result, "gitlab-ci", pipeline_options
+                    )
+                    generated_configs.append(GeneratedConfigResponse(
+                        config_type="gitlab_ci",
+                        filename=".gitlab-ci.yml",
+                        content=config_content,
+                        description="GitLab CI/CD pipeline configuration",
+                        optimization_level=request.optimization_level
+                    ))
+                    
+                elif config_type == "kubernetes":
+                    config_package = await config_generator.generate_configuration_package(
+                        analysis_result, ["kubernetes"]
+                    )
+                    k8s_configs = [config for config in config_package.configurations if config.config_type == "kubernetes"]
+                    for k8s_config in k8s_configs:
+                        generated_configs.append(GeneratedConfigResponse(
+                            config_type="kubernetes",
+                            filename=k8s_config.filename,
+                            content=k8s_config.content,
+                            description=k8s_config.description,
+                            optimization_level=request.optimization_level
+                        ))
+                        
+                else:
+                    logger.warning(f"Unsupported config type: {config_type}")
+                    
+            except Exception as e:
+                logger.error(f"Error generating {config_type}: {e}")
+                continue
+        
+        # Generate optimization recommendations
+        recommendations = _generate_optimization_recommendations(tech_stack, request.optimization_level)
+        
+        processing_time = time.time() - start_time
+        
+        return ResponseModel(
+            success=True,
+            data=ConfigGenerationResponse(
+                project_id=request.project_id,
+                generated_configs=generated_configs,
+                recommendations=recommendations,
+                processing_time_ms=int(processing_time * 1000)
+            ),
+            message=f"Successfully generated {len(generated_configs)} configurations"
+        )
                     tech_stack=tech_stack,
                     repository_url=request.repository_url,
                     optimization_level=request.optimization_level
@@ -352,3 +439,81 @@ def _convert_config_to_response(config) -> GeneratedConfigResponse:
         setup_instructions=config.setup_instructions,
         usage_notes=config.usage_notes
     )
+
+
+def _generate_optimization_recommendations(
+    tech_stack: TechnologyStack, 
+    optimization_level: str
+) -> List[OptimizationRecommendation]:
+    """Generate optimization recommendations based on technology stack"""
+    recommendations = []
+    
+    # General recommendations
+    recommendations.append(OptimizationRecommendation(
+        type="security",
+        title="Use non-root user in containers",
+        description="Run applications as non-root user for better security",
+        priority="high",
+        implementation="Add USER directive in Dockerfile"
+    ))
+    
+    # Language-specific recommendations
+    if tech_stack.primary_language.lower() == "node":
+        recommendations.extend([
+            OptimizationRecommendation(
+                type="performance",
+                title="Use multi-stage Docker builds",
+                description="Separate build and runtime stages to reduce image size",
+                priority="medium",
+                implementation="Implement multi-stage Dockerfile"
+            ),
+            OptimizationRecommendation(
+                type="performance", 
+                title="Enable npm cache in CI/CD",
+                description="Cache npm dependencies to speed up builds",
+                priority="medium",
+                implementation="Add cache configuration to CI/CD pipeline"
+            )
+        ])
+    
+    elif tech_stack.primary_language.lower() == "python":
+        recommendations.extend([
+            OptimizationRecommendation(
+                type="performance",
+                title="Use Python slim images",
+                description="Use python:slim base images to reduce size",
+                priority="medium", 
+                implementation="Change FROM directive to python:3.11-slim"
+            ),
+            OptimizationRecommendation(
+                type="security",
+                title="Pin Python package versions",
+                description="Pin exact versions in requirements.txt for reproducible builds",
+                priority="high",
+                implementation="Update requirements.txt with exact versions"
+            )
+        ])
+    
+    return recommendations
+
+
+def _convert_tech_stack_dict(tech_dict: Dict[str, Any]) -> TechnologyStack:
+    """Convert dictionary to TechnologyStack object"""
+    return TechnologyStack(
+        primary_language=tech_dict.get("primary_language", "unknown"),
+        frameworks=tech_dict.get("frameworks", []),
+        databases=tech_dict.get("databases", []),
+        package_managers=tech_dict.get("package_managers", []),
+        build_tools=tech_dict.get("build_tools", []),
+        deployment_targets=tech_dict.get("deployment_targets", [])
+    )
+
+
+async def validate_internal_request(x_internal_service: str = Header(None)):
+    """Validate internal service requests"""
+    if x_internal_service != "deployio-main-service":
+        raise HTTPException(
+            status_code=403,
+            detail="Access forbidden - internal service only"
+        )
+    return x_internal_service

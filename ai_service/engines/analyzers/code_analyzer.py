@@ -826,3 +826,23 @@ class CodeAnalyzer:
         
         ext = '.' + file_path.split('.')[-1].lower() if '.' in file_path else ''
         return ext in code_extensions
+    
+    async def analyze(self, repo_data: Dict) -> Dict:
+        """Analyze repository data for code quality"""
+        try:
+            analysis = await self.analyze_code(repo_data["key_files"], repo_data["file_tree"])
+            return {
+                "total_files": analysis.total_files_analyzed,
+                "total_lines": analysis.total_lines_of_code,
+                "language_distribution": analysis.language_distribution,
+                "confidence": 0.8 if analysis.total_files_analyzed > 0 else 0.2,
+                "metrics": {
+                    "complexity": analysis.code_metrics.cyclomatic_complexity if analysis.code_metrics else 0,
+                    "maintainability": analysis.code_metrics.maintainability_index if analysis.code_metrics else 0
+                },
+                "quality_issues": [{"type": issue.type, "severity": issue.severity} for issue in analysis.quality_issues[:10]],
+                "recommendations": ["Improve code quality based on detected issues"],
+                "suggestions": ["Consider adding automated testing"]
+            }
+        except Exception as e:
+            return {"error": str(e)}
