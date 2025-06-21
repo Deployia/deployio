@@ -9,8 +9,10 @@ from models.response import ResponseModel
 
 # Import our AI engines
 from ai.stack_detector import StackDetector, DetectedStack
+from ai.hybrid_stack_detector import HybridStackDetector, HybridAnalysisResult
 from ai.dependency_analyzer import DependencyAnalyzer
 from ai.dockerfile_generator import DockerfileGenerator
+from ai.llm_service import LLMService
 
 # Import new DevOps automation engines
 from ai.pipeline_generator import PipelineGenerator
@@ -53,6 +55,17 @@ class StackDetectionResponse(BaseModel):
     recommendations: List[Dict]
     confidence_score: float
     dependency_analysis: Optional[Dict] = None
+    
+    # Enhanced hybrid analysis fields
+    analysis_approach: str = "hybrid"  # "hybrid", "rule-based", "llm-only"
+    rule_based_confidence: float = 0.0
+    llm_confidence: float = 0.0
+    llm_reasoning: Optional[str] = None
+    llm_suggestions: List[str] = []
+    enhanced_technologies: Dict = {}
+    architecture_pattern: Optional[str] = None
+    deployment_strategy: Optional[str] = None
+    processing_time: float = 0.0
 
 
 class DockerfileRequest(BaseModel):
@@ -160,17 +173,17 @@ async def analyze_project_stack(
     request: RepositoryAnalysisRequest,
     internal_service: str = Depends(validate_internal_request),
 ):
-    """Analyze project repository to detect technology stack"""
+    """Analyze project repository to detect technology stack using hybrid AI approach"""
     try:
-        # Initialize AI engines
-        stack_detector = StackDetector()
+        # Initialize hybrid AI engine
+        hybrid_detector = HybridStackDetector()
         dependency_analyzer = DependencyAnalyzer()
 
-        # Detect technology stack
-        detected_stack, file_list, recommendations = (
-            await stack_detector.analyze_github_repository(
-                request.repository_url, request.branch
-            )
+        # Perform hybrid analysis (rule-based + LLM)
+        hybrid_result = await hybrid_detector.analyze_repository(
+            request.repository_url, 
+            request.branch,
+            enable_llm_enhancement=True
         )
 
         # Perform dependency analysis
@@ -180,13 +193,13 @@ async def analyze_project_stack(
 
         # Convert to response format
         technology_stack = TechnologyStack(
-            framework=detected_stack.framework,
-            language=detected_stack.language,
-            database=detected_stack.database,
-            build_tool=detected_stack.build_tool,
-            package_manager=detected_stack.package_manager,
-            runtime_version=detected_stack.runtime_version,
-            confidence=detected_stack.confidence,
+            framework=hybrid_result.detected_stack.framework,
+            language=hybrid_result.detected_stack.language,
+            database=hybrid_result.detected_stack.database,
+            build_tool=hybrid_result.detected_stack.build_tool,
+            package_manager=hybrid_result.detected_stack.package_manager,
+            runtime_version=hybrid_result.detected_stack.runtime_version,
+            confidence=hybrid_result.final_confidence,
         )
 
         # Prepare dependency analysis summary
@@ -204,21 +217,37 @@ async def analyze_project_stack(
             "ecosystems": list(dependency_analysis.dependency_tree.ecosystems),
         }
 
+        # Get AI-powered recommendations
+        recommendations = await hybrid_detector.get_optimization_suggestions(
+            hybrid_result
+        )
+
         response = StackDetectionResponse(
             technology=technology_stack,
-            detected_files=file_list[:20],  # Limit for response size
+            detected_files=list(hybrid_result.enhanced_technologies.keys())[:20],  # Limit for response size
             recommendations=recommendations,
-            confidence_score=detected_stack.confidence,
+            confidence_score=hybrid_result.final_confidence,
             dependency_analysis=dep_summary,
+            
+            # Enhanced hybrid analysis fields
+            analysis_approach=hybrid_result.analysis_approach,
+            rule_based_confidence=hybrid_result.rule_based_confidence,
+            llm_confidence=hybrid_result.llm_confidence,
+            llm_reasoning=hybrid_result.llm_reasoning,
+            llm_suggestions=hybrid_result.llm_suggestions,
+            enhanced_technologies=hybrid_result.enhanced_technologies,
+            architecture_pattern=hybrid_result.architecture_pattern,
+            deployment_strategy=hybrid_result.deployment_strategy,
+            processing_time=hybrid_result.processing_time,
         )
 
         return ResponseModel(
             success=True,
-            message="Technology stack analyzed successfully",
+            message=f"Technology stack analyzed successfully using {hybrid_result.analysis_approach} approach",
             data=response,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Stack analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Hybrid stack analysis failed: {str(e)}")
 
 
 @router.post("/generate-dockerfile", response_model=ResponseModel[DockerfileResponse])

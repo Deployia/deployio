@@ -1,22 +1,44 @@
 """
-Routes package initialization
+Clean Route Registration
+Simplified route structure with clear separation of concerns
 """
 
 from fastapi import APIRouter
-from routes.health import router as health_router
-from routes.ai import router as ai_router
+from .health import router as health_router
+from .analysis import router as analysis_router
+from .optimization import router as optimization_router
 
 
 def create_routes() -> APIRouter:
-    """Create and configure all routes"""
-    api_router = APIRouter()
-
-    # Health and utility routes (public)
-    api_router.include_router(health_router, prefix="/service/v1", tags=["Health"])
+    """
+    Create and configure all API routes
     
-    # AI-powered project analysis routes (internal service - no auth needed)
+    New clean structure:
+    - /service/v1/health - Health checks
+    - /service/v1/analysis - All analysis operations
+    - /service/v1/optimization - Configuration generation and optimization
+    """
+    api_router = APIRouter()
+    
+    # Health endpoints
     api_router.include_router(
-        ai_router, prefix="/service/v1/ai", tags=["AI Analysis"]
+        health_router, 
+        prefix="/service/v1", 
+        tags=["Health"]
     )
-
+    
+    # Analysis endpoints
+    api_router.include_router(
+        analysis_router, 
+        prefix="/service/v1/analysis",
+        tags=["Analysis"]
+    )
+    
+    # Optimization endpoints  
+    api_router.include_router(
+        optimization_router,
+        prefix="/service/v1/optimization", 
+        tags=["Optimization"]
+    )
+    
     return api_router

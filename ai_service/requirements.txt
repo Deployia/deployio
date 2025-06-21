@@ -6,3 +6,6 @@ python-dotenv>=1.0.0
 redis>=5.0.0
 httpx>=0.28.1
 aiohttp>=3.9.0
+# LLM Integration
+groq>=0.4.0
+openai>=1.0.0
