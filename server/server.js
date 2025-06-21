@@ -1,3 +1,6 @@
+// Initialize module aliases FIRST
+require("module-alias/register");
+
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 

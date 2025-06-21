@@ -40,6 +40,7 @@
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
+    "module-alias": "^2.2.3",
     "mongoose": "^8.15.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
@@ -58,5 +59,14 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+  },
+  "_moduleAliases": {
+    "@services": "./services",
+    "@controllers": "./controllers",
+    "@models": "./models",
+    "@middleware": "./middleware",
+    "@config": "./config",
+    "@utils": "./utils",
+    "@routes": "./routes"
   }
 }
