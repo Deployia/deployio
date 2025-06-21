@@ -101,5 +101,14 @@
   "workspaces": [
     "server",
     "client"
-  ]
+  ],
+  "_moduleAliases": {
+    "@services": "server/services",
+    "@controllers": "server/controllers",
+    "@models": "server/models",
+    "@middleware": "server/middleware",
+    "@config": "server/config",
+    "@utils": "server/utils",
+    "@routes": "server/routes"
+  }
 }
