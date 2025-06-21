@@ -18,9 +18,4 @@ router.use("/", projectRoutes);
 router.use("/repositories", repositoryRoutes);
 router.use("/settings", settingsRoutes);
 
-// Project management
-router.use("/", projectController);
-router.use("/repositories", repositoryController);
-router.use("/settings", settingsController);
-
 module.exports = router;

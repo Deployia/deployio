@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const User = require("@models/User");
-const { external } = require("@services");
+const external = require("../external");
 const logger = require("@config/logger");
 const { getRedisClient } = require("@config/redisClient");
 

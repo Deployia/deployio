@@ -15,7 +15,6 @@ router.post("/:containerId/start", deployment.container.startContainer);
 router.put("/:containerId", deployment.container.updateContainer);
 
 // Container monitoring
-router.get("/:containerId/stats", deployment.container.getContainerStats);
-router.get("/:containerId/health", deployment.container.getContainerHealth);
+router.get("/:containerId/metrics", deployment.container.getContainerMetrics);
 
 module.exports = router;

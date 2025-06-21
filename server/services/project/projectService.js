@@ -2,7 +2,7 @@ const Project = require("@models/Project");
 const Deployment = require("@models/Deployment");
 const { getRedisClient } = require("@config/redisClient");
 const crypto = require("crypto");
-const { ai } = require("@services");
+const ai = require("../ai");
 
 // Cache management utilities
 const invalidateProjectCache = async (projectId, userId) => {
