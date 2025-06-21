@@ -1,6 +1,8 @@
 const User = require("@models/User");
+const AuditLog = require("@models/AuditLog");
 const crypto = require("crypto");
 const { getRedisClient } = require("@config/redisClient");
+const logger = require("@config/logger");
 
 // Cache management utilities
 const invalidateUserCache = async (userId) => {
@@ -26,7 +28,7 @@ const invalidateUserCache = async (userId) => {
       }
     }
   } catch (error) {
-    console.error("Error invalidating user cache:", error);
+    logger.error("Error invalidating user cache:", error);
     // Don't throw error as this is not critical
   }
 };
@@ -112,7 +114,7 @@ const getUserById = async (userId) => {
     return user;
   } catch (error) {
     // If Redis fails, still return data from DB
-    console.error("Redis error in getUserById:", error);
+    logger.error("Redis error in getUserById:", error);
     const user = await User.findById(userId).select("-password");
     if (!user) throw new Error("User not found");
     return user;
@@ -214,7 +216,6 @@ const updateNotificationPreferences = async (userId, preferences) => {
 
 // Get user activity log (FIXED - using AuditLog model)
 const getUserActivity = async (userId, options = {}) => {
-  const AuditLog = require("@models/AuditLog");
   const { page = 1, limit = 20, type } = options;
   const skip = (page - 1) * limit;
 
@@ -242,15 +243,13 @@ const getUserActivity = async (userId, options = {}) => {
       total,
     };
   } catch (error) {
-    console.error("Error fetching user activity:", error);
+    logger.error("Error fetching user activity:", error);
     throw new Error("Failed to fetch user activity");
   }
 };
 
 // Log user activity (FIXED - using AuditLog model)
 const logUserActivity = async (userId, activityData) => {
-  const AuditLog = require("@models/AuditLog");
-  const User = require("@models/User");
   const { action, details, ip, userAgent } = activityData;
 
   try {
@@ -277,7 +276,7 @@ const logUserActivity = async (userId, activityData) => {
     await auditLog.save();
     return auditLog;
   } catch (error) {
-    console.error("Error logging user activity:", error);
+    logger.error("Error logging user activity:", error);
     throw new Error("Failed to log user activity");
   }
 };
@@ -290,7 +289,6 @@ const getDashboardStats = async (userId) => {
   // Import models here to avoid circular dependency
   const Project = require("@models/Project");
   const Deployment = require("@models/Deployment");
-  const AuditLog = require("@models/AuditLog");
 
   // Calculate stats based on user data
   const now = new Date();

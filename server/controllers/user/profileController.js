@@ -2,7 +2,6 @@ const user = require("@services/user");
 const cloudinary = require("@config/cloudinary");
 const stream = require("stream");
 const logger = require("@config/logger");
-const { getRedisClient } = require("@config/redisClient");
 const { getSafeUserData } = require("@utils/userDataFilter");
 
 /**
@@ -72,33 +71,17 @@ const updateProfile = async (req, res) => {
     const updateData = req.body;
     let profileImageUrl = undefined;
     const removeProfileImage = req.body.removeProfileImage === "true";
-    const redisClient = getRedisClient();
-    const cacheKey = `user:${userId}`;
 
     // Handle file upload if present
     if (req.file) {
       profileImageUrl = await handleImageUpload(req.file);
-    }
-
-    // Update user profile in database
+    } // Update user profile in database
     const updatedUser = await user.user.updateProfile(
       userId,
       updateData,
       profileImageUrl,
       removeProfileImage
     );
-
-    // Clear cache
-    if (redisClient && redisClient.isReady) {
-      try {
-        await redisClient.del(cacheKey);
-      } catch (cacheError) {
-        logger.warn("Failed to clear user cache", {
-          userId,
-          error: cacheError.message,
-        });
-      }
-    }
 
     res.status(200).json({
       success: true,

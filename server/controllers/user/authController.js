@@ -1,6 +1,5 @@
 const user = require("@services/user");
 const jwt = require("jsonwebtoken");
-const User = require("@models/User");
 const logger = require("@config/logger");
 const {
   getSafeUserData,
@@ -117,9 +116,8 @@ const verifyOtp = async (req, res) => {
     });
     const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-    });
-    // Store the new refresh token for rotation
-    await storeRefreshToken(result.user.id, refreshToken);
+    }); // Store the new refresh token for rotation
+    await user.auth.storeRefreshToken(result.user.id, refreshToken);
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -185,26 +183,28 @@ const login = async (req, res) => {
       );
       if (remembered) {
         // Skip 2FA and log in directly
-        const user = await User.findById(result.userId);
-        if (!user) {
+        const userRecord = await user.user.getUserById(result.userId);
+        if (!userRecord) {
           return res.status(404).json({
             success: false,
             message: "User not found",
           });
         }
-
-        const session = await user.auth.addSession(user._id, {
+        const session = await user.auth.addSession(userRecord._id, {
           ip: req.ip,
           userAgent: req.headers["user-agent"],
         });
-        const payload = { id: user._id, sessionId: session._id.toString() };
+        const payload = {
+          id: userRecord._id,
+          sessionId: session._id.toString(),
+        };
         const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
           expiresIn: process.env.JWT_EXPIRES_IN,
         });
         const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
           expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
         });
-        await storeRefreshToken(user._id, refreshToken);
+        await user.auth.storeRefreshToken(userRecord._id, refreshToken);
         const cookieOptions = {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
@@ -229,9 +229,9 @@ const login = async (req, res) => {
         return res.status(200).json({
           success: true,
           user: getSafeUserData({
-            id: user._id,
-            username: user.username,
-            email: user.email,
+            id: userRecord._id,
+            username: userRecord.username,
+            email: userRecord.email,
           }),
           sessionId: session._id.toString(),
         });
@@ -252,22 +252,20 @@ const login = async (req, res) => {
         message: "Login failed",
       });
     }
-
-    const { user } = result;
+    const { user: loggedInUser } = result;
     // Record user session and get session record
-    const session = await user.auth.addSession(user._id, {
+    const session = await user.auth.addSession(loggedInUser._id, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
-    const payload = { id: user._id, sessionId: session._id.toString() };
+    const payload = { id: loggedInUser._id, sessionId: session._id.toString() };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN,
     });
     const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-    });
-    // Store the new refresh token for rotation
-    await storeRefreshToken(user._id, refreshToken);
+    }); // Store the new refresh token for rotation
+    await user.auth.storeRefreshToken(loggedInUser._id, refreshToken);
     const cookieOptions = {
       expires: new Date(
         Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -283,9 +281,9 @@ const login = async (req, res) => {
     res.status(200).json({
       success: true,
       user: getSafeUserData({
-        id: user._id,
-        username: user.username,
-        email: user.email,
+        id: loggedInUser._id,
+        username: loggedInUser.username,
+        email: loggedInUser.email,
       }),
       sessionId: session._id.toString(),
     });
@@ -455,15 +453,15 @@ const getMe = async (req, res) => {
 // DRY: Unified OAuth callback handler
 const handleOAuthCallback = (providerName) => async (req, res) => {
   try {
-    const user = req.user;
+    const oauthUser = req.user;
     const front =
       process.env.NODE_ENV === "development"
         ? process.env.FRONTEND_URL_DEV
         : process.env.FRONTEND_URL_PROD;
     // If user has 2FA enabled, check for remembered device
-    if (user.twoFactorEnabled) {
+    if (oauthUser.twoFactorEnabled) {
       // Check previous sessions for rememberedUntil > now
-      const sessions = await user.auth.getSessions(user._id);
+      const sessions = await user.auth.getSessions(oauthUser._id);
       const remembered = sessions.find(
         (s) =>
           s.ip === req.ip &&
@@ -473,12 +471,12 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
       );
       if (remembered) {
         // Skip 2FA: create a new session and issue tokens
-        const session = await user.auth.addSession(user._id, {
+        const session = await user.auth.addSession(oauthUser._id, {
           ip: req.ip,
           userAgent: req.headers["user-agent"],
         });
         const payload = {
-          id: user._id,
+          id: oauthUser._id,
           sessionId: session._id.toString(),
         };
         const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -487,7 +485,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
         const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
           expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
         });
-        await storeRefreshToken(user._id, refreshToken);
+        await user.auth.storeRefreshToken(oauthUser._id, refreshToken);
         const cookieOptions = {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
@@ -502,20 +500,19 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
         return res.redirect(`${front}/dashboard/profile`);
-      }
-      // Otherwise require 2FA
+      } // Otherwise require 2FA
       return res.redirect(
-        `${front}/auth/login?oauth2fa=true&userId=${user._id}`
+        `${front}/auth/login?oauth2fa=true&userId=${oauthUser._id}`
       );
     }
 
     // No 2FA or not enabled: record session and issue tokens
-    const session = await user.auth.addSession(user._id, {
+    const session = await user.auth.addSession(oauthUser._id, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
     // Generate tokens including sessionId
-    const payload = { id: user._id, sessionId: session._id.toString() };
+    const payload = { id: oauthUser._id, sessionId: session._id.toString() };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN,
     });
@@ -561,171 +558,8 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Verify token signature and get payload
-    let decoded;
-    try {
-      decoded = jwt.verify(incomingToken, process.env.JWT_REFRESH_SECRET);
-    } catch (err) {
-      return res.status(403).json({
-        success: false,
-        message: "Invalid or expired refresh token. Please log in again.",
-      });
-    }
-
-    // Find user and check token rotation list
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found. Please register or log in again.",
-      });
-    }
-
-    // Check if refresh token exists in user's token list
-    const tokenIndex = user.refreshTokens.findIndex(
-      (rt) => rt.token === incomingToken
-    );
-
-    if (tokenIndex === -1) {
-      // Token not found - could be revoked or expired
-      return res.status(403).json({
-        success: false,
-        message:
-          "Refresh token has been revoked or is invalid. Please log in again.",
-      });
-    } // Check if token is expired
-    const tokenData = user.refreshTokens[tokenIndex];
-    if (tokenData.expiresAt && new Date() > tokenData.expiresAt) {
-      // Remove expired token using atomic update
-      try {
-        await User.findByIdAndUpdate(
-          decoded.id,
-          { $pull: { refreshTokens: { token: incomingToken } } },
-          { new: true }
-        );
-      } catch (error) {
-        logger.warn("Failed to remove expired token", { error: error.message });
-      }
-      return res.status(403).json({
-        success: false,
-        message: "Refresh token has expired. Please log in again.",
-      });
-    }
-
-    // Generate new tokens with same sessionId if it exists
-    const sessionId = decoded.sessionId || `session-${Date.now()}`;
-    const payload = { id: decoded.id, sessionId: sessionId };
-
-    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
-    });
-    const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-    });
-
-    // Decode the new refresh token to get expiration
-    const newTokenDecoded = jwt.decode(newRefreshToken);
-    const newTokenExpiresAt = new Date(newTokenDecoded.exp * 1000);
-
-    // Clean up expired tokens and perform token rotation atomically
-    const now = new Date();
-    const maxTokens = 5;
-
-    try {
-      // Use findOneAndUpdate with atomic operations to prevent version conflicts
-      const updatedUser = await User.findOneAndUpdate(
-        { _id: decoded.id },
-        [
-          {
-            $set: {
-              refreshTokens: {
-                $let: {
-                  vars: {
-                    // Remove the used token and expired tokens
-                    filteredTokens: {
-                      $filter: {
-                        input: "$refreshTokens",
-                        cond: {
-                          $and: [
-                            { $ne: ["$$this.token", incomingToken] }, // Remove used token
-                            { $gt: ["$$this.expiresAt", now] }, // Remove expired tokens
-                          ],
-                        },
-                      },
-                    },
-                  },
-                  in: {
-                    $concatArrays: [
-                      // Keep only the most recent tokens if over limit
-                      {
-                        $cond: {
-                          if: {
-                            $gte: [{ $size: "$$filteredTokens" }, maxTokens],
-                          },
-                          then: {
-                            $slice: [
-                              {
-                                $sortArray: {
-                                  input: "$$filteredTokens",
-                                  sortBy: { createdAt: -1 },
-                                },
-                              },
-                              maxTokens - 1,
-                            ],
-                          },
-                          else: "$$filteredTokens",
-                        },
-                      },
-                      // Add the new token
-                      [
-                        {
-                          token: newRefreshToken,
-                          expiresAt: newTokenExpiresAt,
-                          createdAt: "$$NOW",
-                        },
-                      ],
-                    ],
-                  },
-                },
-              },
-            },
-          },
-        ],
-        { new: true }
-      );
-
-      if (!updatedUser) {
-        throw new Error("User not found during token rotation");
-      }
-
-      // Store the new refresh token in Redis for fast validation (if Redis is available)
-      try {
-        const { getRedisClient } = require("../config/redisClient");
-        const redisClient = getRedisClient();
-        if (redisClient && redisClient.isReady) {
-          const ttlSeconds = Math.floor((newTokenExpiresAt - now) / 1000);
-          await redisClient.setex(
-            `refresh_token:${newRefreshToken}`,
-            ttlSeconds,
-            decoded.id
-          );
-        }
-      } catch (redisError) {
-        logger.warn("Failed to store refresh token in Redis", {
-          error: redisError.message,
-        });
-        // Don't fail the request if Redis fails
-      }
-    } catch (error) {
-      logger.error("Token rotation failed", {
-        error: error.message,
-        userId: decoded.id,
-      });
-      return res.status(500).json({
-        success: false,
-        message: "Failed to refresh token. Please try again.",
-      });
-    }
+    // Use the auth service to handle token refresh
+    const result = await user.auth.refreshAccessToken(incomingToken);
 
     // Set cookies
     const cookieOptions = {
@@ -734,11 +568,11 @@ const refreshToken = async (req, res) => {
       sameSite: "strict",
     };
 
-    res.cookie("token", newAccessToken, {
+    res.cookie("token", result.accessToken, {
       ...cookieOptions,
       maxAge: 24 * 60 * 60 * 1000,
     });
-    res.cookie("refreshToken", newRefreshToken, {
+    res.cookie("refreshToken", result.refreshToken, {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -748,11 +582,28 @@ const refreshToken = async (req, res) => {
       message: "Tokens refreshed successfully",
     });
   } catch (error) {
-    // console.error("Refresh token error:", error);
     logger.error("Refresh token error", {
       error: { message: error.message, name: error.name, stack: error.stack },
-      cookies: req.cookies, // Be cautious if cookies contain sensitive info, though refreshToken itself is a JWT
     });
+
+    // Handle specific error types
+    if (error.message.includes("User not found")) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found. Please register or log in again.",
+      });
+    }
+
+    if (
+      error.message.includes("Invalid") ||
+      error.message.includes("expired")
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid or expired refresh token. Please log in again.",
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Server error during token refresh. Please try again.",

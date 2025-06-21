@@ -1,6 +1,5 @@
 const user = require("@services/user");
 const logger = require("@config/logger");
-const { getRedisClient } = require("@config/redisClient");
 const {
   getSafeUserData,
   getSafeActivityData,
@@ -12,8 +11,6 @@ const {
 const updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const redisClient = getRedisClient(); // Get redisClient from singleton
-    const cacheKey = `user:${req.user.id}`;
 
     // Validate required fields
     if (!currentPassword || !newPassword) {
@@ -21,28 +18,12 @@ const updatePassword = async (req, res) => {
         success: false,
         message: "Please provide current and new password",
       });
-    }
-
-    // Update password
+    } // Update password
     const result = await user.user.updatePassword(
       req.user.id,
       currentPassword,
       newPassword
     );
-
-    // Invalidate cache after successful password update (only if Redis is available)
-    if (redisClient && redisClient.isReady) {
-      try {
-        await redisClient.del(cacheKey);
-      } catch (cacheError) {
-        // Log cache error but don't fail the operation
-        logger.warn("Cache invalidation failed after password update", {
-          error: cacheError.message,
-          userId: req.user?.id,
-          cacheKey,
-        });
-      }
-    }
 
     res.status(200).json({
       success: true,
