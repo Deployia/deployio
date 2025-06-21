@@ -1,6 +1,6 @@
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
-const logger = require("../../config/logger");
+const logger = require("@config/logger");
 
 // AI Service configuration
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";

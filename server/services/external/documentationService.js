@@ -1,5 +1,5 @@
-const Documentation = require("../../models/Documentation");
-const logger = require("../../config/logger");
+const Documentation = require("@models/Documentation");
+const logger = require("@config/logger");
 const fs = require("fs").promises;
 const path = require("path");
 const crypto = require("crypto");

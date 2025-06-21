@@ -2,10 +2,10 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
-const User = require("../../models/User");
-const { sendEmail } = require("../emailService");
-const logger = require("../../config/logger");
-const { getRedisClient } = require("../../config/redisClient");
+const User = require("@models/User");
+const { external } = require("@services");
+const logger = require("@config/logger");
+const { getRedisClient } = require("@config/redisClient");
 
 /**
  * Generate JWT token for authentication
@@ -45,11 +45,10 @@ const registerUser = async (userData) => {
   // Generate OTP for email verification
   const otp = generateOtp();
   const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-
   // First, try to send the email BEFORE creating the user
   // This prevents orphaned accounts if email service fails
   try {
-    await sendEmail({
+    await external.email.sendEmail({
       to: email,
       subject: "Verify your DeployIO account (OTP)",
       template: "otp",
@@ -136,9 +135,7 @@ const loginUser = async (email, password, loginInfo = {}) => {
     }
 
     // Clear Redis-based login attempts on successful authentication
-    await clearLoginAttempts(email, loginInfo.ip);
-
-    // Check if user is verified - return verification status instead of throwing error
+    await clearLoginAttempts(email, loginInfo.ip); // Check if user is verified - return verification status instead of throwing error
     if (!user.isVerified) {
       // Generate OTP if user is not verified
       const otp = generateOtp();
@@ -146,7 +143,7 @@ const loginUser = async (email, password, loginInfo = {}) => {
 
       try {
         // Try to send OTP email first
-        await sendEmail({
+        await external.email.sendEmail({
           to: user.email,
           subject: "Verify your DeployIO account (OTP)",
           template: "otp",
@@ -279,10 +276,9 @@ const forgotPassword = async (email, resetUrl) => {
 
   // Create reset URL
   const resetLink = `${resetUrl}/auth/reset-password/${resetToken}`;
-
   try {
     // Send email
-    await sendEmail({
+    await external.email.sendEmail({
       to: user.email,
       subject: "Password Reset Request",
       template: "passwordReset",
@@ -412,10 +408,9 @@ const resendOtp = async (email) => {
   // Generate new OTP
   const otp = generateOtp();
   const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-
   try {
     // Try to send OTP email first
-    await sendEmail({
+    await external.email.sendEmail({
       to: user.email,
       subject: "Your DeployIO OTP (Resend)",
       template: "otp",

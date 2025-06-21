@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
-const EmailTemplateRenderer = require("../../utils/EmailTemplateRenderer");
-const logger = require("../../config/logger");
+const EmailTemplateRenderer = require("@utils/EmailTemplateRenderer");
+const logger = require("@config/logger");
 
 // Initialize template renderer
 const templateRenderer = new EmailTemplateRenderer();

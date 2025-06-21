@@ -1,5 +1,5 @@
 const { deploymentClient } = require("./deploymentClient");
-const logger = require("../../config/logger");
+const logger = require("@config/logger");
 
 // Get container status
 const getContainerStatus = async (containerId) => {

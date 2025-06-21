@@ -1,8 +1,8 @@
-const Project = require("../../models/Project");
-const Deployment = require("../../models/Deployment");
-const { getRedisClient } = require("../../config/redisClient");
+const Project = require("@models/Project");
+const Deployment = require("@models/Deployment");
+const { getRedisClient } = require("@config/redisClient");
 const crypto = require("crypto");
-const aiService = require("../aiService");
+const { ai } = require("@services");
 
 // Cache management utilities
 const invalidateProjectCache = async (projectId, userId) => {
@@ -723,7 +723,7 @@ const analyzeProjectWithAI = async (projectId, userId) => {
     const user = await User.findById(userId).select("username email");
 
     // Analyze technology stack using AI
-    const stackAnalysis = await aiService.analyzeProjectStack(
+    const stackAnalysis = await ai.analysis.analyzeProjectStack(
       projectId,
       project.repository.url,
       project.repository.branch,
@@ -785,7 +785,7 @@ const generateProjectDockerfile = async (
     const user = await User.findById(userId).select("username email");
 
     // Generate Dockerfile using AI
-    const dockerfileConfig = await aiService.generateDockerfile(
+    const dockerfileConfig = await ai.generation.generateDockerfile(
       projectId,
       project.technology,
       {
@@ -839,7 +839,7 @@ const getProjectOptimizations = async (projectId, userId) => {
     };
 
     // Analyze optimization opportunities
-    const optimizationAnalysis = await aiService.analyzeOptimization(
+    const optimizationAnalysis = await ai.optimization.analyzeOptimization(
       projectId,
       currentConfig,
       performanceMetrics,

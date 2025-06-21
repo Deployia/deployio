@@ -1,6 +1,6 @@
-const User = require("../../models/User");
+const User = require("@models/User");
 const crypto = require("crypto");
-const { getRedisClient } = require("../../config/redisClient");
+const { getRedisClient } = require("@config/redisClient");
 
 // Cache management utilities
 const invalidateUserCache = async (userId) => {

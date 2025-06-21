@@ -1,5 +1,5 @@
 const axios = require("axios");
-const logger = require("../../config/logger");
+const logger = require("@config/logger");
 
 // Deployment Agent configuration
 const AGENT_SERVICE_URL =

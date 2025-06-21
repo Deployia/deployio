@@ -2,8 +2,8 @@ const {
   aiServiceClient,
   generateAiServiceToken,
 } = require("./aiServiceClient");
-const { getRedisClient } = require("../../config/redisClient");
-const logger = require("../../config/logger");
+const { getRedisClient } = require("@config/redisClient");
+const logger = require("@config/logger");
 
 // Optimize project performance
 const optimizePerformance = async (projectId, currentConfig, metrics, user) => {

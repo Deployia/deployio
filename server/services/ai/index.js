@@ -19,8 +19,8 @@ const {
   generateRecommendations,
   analyzeOptimization,
 } = require("./optimizationService");
-const { getRedisClient } = require("../../config/redisClient");
-const logger = require("../../config/logger");
+const { getRedisClient } = require("@config/redisClient");
+const logger = require("@config/logger");
 
 // Cache management utility
 const invalidateAiCache = async (projectId) => {

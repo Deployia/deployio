@@ -1,5 +1,5 @@
 const { deploymentClient } = require("./deploymentClient");
-const logger = require("../../config/logger");
+const logger = require("@config/logger");
 
 // Create subdomain for project
 const createSubdomain = async (projectId, subdomainConfig) => {
