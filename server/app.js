@@ -10,7 +10,7 @@ const app = express();
 init(app);
 
 // Routes
-app.use("/api/v1", routes);
+app.use("/", routes);
 
 // Error handling
 app.use(errorHandler);

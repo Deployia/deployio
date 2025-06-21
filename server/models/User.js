@@ -307,9 +307,7 @@ const userSchema = new mongoose.Schema(
           city: String,
         },
       },
-    ],
-
-    // Refresh Tokens for JWT
+    ], // Refresh Tokens for JWT
     refreshTokens: [
       {
         token: String,
@@ -321,6 +319,23 @@ const userSchema = new mongoose.Schema(
         isActive: {
           type: Boolean,
           default: true,
+        },
+      },
+    ],
+
+    // User Sessions for tracking active sessions
+    sessions: [
+      {
+        ip: String,
+        userAgent: String,
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        rememberedUntil: Date, // For "Remember this device" functionality
+        location: {
+          country: String,
+          city: String,
         },
       },
     ],
@@ -349,6 +364,7 @@ const userSchema = new mongoose.Schema(
 // Note: email, username, githubId, googleId have unique: true so don't need explicit indexes
 userSchema.index({ "github.username": 1 });
 userSchema.index({ "refreshTokens.token": 1 });
+userSchema.index({ "sessions.ip": 1, "sessions.userAgent": 1 });
 userSchema.index({ status: 1, role: 1 });
 
 // Virtual for account lock status

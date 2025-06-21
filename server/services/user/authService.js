@@ -676,6 +676,11 @@ async function addSession(userId, session) {
       throw new Error("User not found");
     }
 
+    // Initialize sessions array if it doesn't exist (for existing users)
+    if (!user.sessions) {
+      user.sessions = [];
+    }
+
     // Avoid duplicate sessions for the same device
     const existing = user.sessions.find(
       (s) => s.ip === session.ip && s.userAgent === session.userAgent
@@ -727,14 +732,21 @@ async function getSessions(userId) {
       throw new Error("User not found");
     }
 
+    // Initialize sessions array if it doesn't exist (for existing users)
+    if (!user.sessions) {
+      user.sessions = [];
+      await user.save();
+      return [];
+    }
+
     // Clean up expired remembered sessions
     const now = new Date();
+    const originalLength = user.sessions.length;
     user.sessions = user.sessions.filter(
       (s) => !s.rememberedUntil || s.rememberedUntil > now
     );
 
     // Save if we cleaned up any sessions
-    const originalLength = user.sessions.length;
     if (originalLength !== user.sessions.length) {
       await user.save();
     }
@@ -1396,6 +1408,68 @@ async function cleanupInactiveSessions() {
   }
 }
 
+/**
+ * Refresh access token using refresh token
+ */
+async function refreshAccessToken(refreshToken) {
+  try {
+    // Verify the refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const { id: userId, sessionId } = decoded;
+
+    if (!userId) {
+      throw new Error("Invalid refresh token format");
+    }
+
+    // Find the user and check if refresh token exists
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if the refresh token exists in user's refresh tokens
+    const tokenExists = user.refreshTokens.some(
+      (tokenObj) =>
+        tokenObj.token === refreshToken &&
+        new Date(tokenObj.expiresAt) > new Date()
+    );
+
+    if (!tokenExists) {
+      throw new Error("Invalid or expired refresh token");
+    }
+
+    // Generate new access token
+    const payload = { id: userId, sessionId };
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    // Generate new refresh token for rotation
+    const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+    });
+
+    // Remove old refresh token and store new one
+    await User.findByIdAndUpdate(userId, {
+      $pull: { refreshTokens: { token: refreshToken } },
+    });
+
+    await storeRefreshToken(userId, newRefreshToken);
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      user,
+    };
+  } catch (error) {
+    logger.error("Refresh token error:", {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  }
+}
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1403,6 +1477,7 @@ module.exports = {
   resetPassword,
   logoutUser,
   generateRefreshToken,
+  refreshAccessToken,
   verifyOtp,
   resendOtp,
   // OAuth providers and session management
@@ -1424,4 +1499,5 @@ module.exports = {
   get2FAStatus,
   generateNewBackupCodes,
   complete2FALogin,
+  refreshAccessToken,
 };

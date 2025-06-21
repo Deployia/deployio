@@ -7,7 +7,7 @@ export const fetchNotificationPreferences = createAsyncThunk(
   "userProfile/fetchNotificationPreferences",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/user/notification-preferences");
+      const response = await api.get("/external/notification/preferences");
       return response.data.preferences;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -23,10 +23,10 @@ export const updateNotificationPreferences = createAsyncThunk(
   async (preferences, thunkAPI) => {
     try {
       const response = await api.put(
-        "/user/notification-preferences",
+        "/external/notification/preferences",
         preferences
       );
-      invalidateCacheEntry("/user/notification-preferences", undefined);
+      invalidateCacheEntry("/external/notification/preferences", undefined);
       thunkAPI.dispatch(fetchNotificationPreferences());
       return response.data.preferences;
     } catch (error) {
@@ -44,7 +44,7 @@ export const fetchUserActivity = createAsyncThunk(
     try {
       const searchParams = new URLSearchParams(params || {});
       const queryParamsString = searchParams.toString();
-      const response = await api.get(`/user/activity?${queryParamsString}`);
+      const response = await api.get(`/users/activity?${queryParamsString}`);
       return response.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -59,7 +59,7 @@ export const logUserActivity = createAsyncThunk(
   "userProfile/logUserActivity",
   async (activityData, thunkAPI) => {
     try {
-      const response = await api.post("/user/activity", activityData);
+      const response = await api.post("/users/activity", activityData);
       return response.data.activity;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -74,7 +74,7 @@ export const fetchApiKeys = createAsyncThunk(
   "userProfile/fetchApiKeys",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/user/api-keys");
+      const response = await api.get("/users/api-keys");
       return response.data.apiKeys;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -89,8 +89,8 @@ export const createApiKey = createAsyncThunk(
   "userProfile/createApiKey",
   async (keyData, thunkAPI) => {
     try {
-      const response = await api.post("/user/api-keys", keyData);
-      invalidateCacheEntry("/user/api-keys", undefined);
+      const response = await api.post("/users/api-keys", keyData);
+      invalidateCacheEntry("/users/api-keys", undefined);
       thunkAPI.dispatch(fetchApiKeys());
       return response.data.apiKey;
     } catch (error) {
@@ -106,8 +106,8 @@ export const deleteApiKey = createAsyncThunk(
   "userProfile/deleteApiKey",
   async (keyId, thunkAPI) => {
     try {
-      await api.delete(`/user/api-keys/${keyId}`);
-      invalidateCacheEntry("/user/api-keys", undefined);
+      await api.delete(`/users/api-keys/${keyId}`);
+      invalidateCacheEntry("/users/api-keys", undefined);
       thunkAPI.dispatch(fetchApiKeys());
       return keyId;
     } catch (error) {
@@ -123,7 +123,7 @@ export const fetchDashboardStats = createAsyncThunk(
   "userProfile/fetchDashboardStats",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/user/dashboard-stats");
+      const response = await api.get("/users/dashboard-stats");
       return response.data.stats;
     } catch (error) {
       return thunkAPI.rejectWithValue(
