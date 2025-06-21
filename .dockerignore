@@ -1,42 +1,93 @@
-# Node dependencies
-node_modules/
+# Root .dockerignore for DeployIO Platform
+# This covers the entire monorepo
 
-# Other services (not needed for backend build)
-client/
-ai_service/
+# Dependencies
+**/node_modules/
+**/package-lock.json
+**/.pnp
+**/.pnp.js
 
-# Git-related
-.git/
-.gitignore
-.github/
-
-# Env files (prevent secrets leakage)
-.env
-.env.*
-!.env.example  # allow dummy env if needed
+# Environment files
+**/.env
+**/.env.*.local
+**/.env.production
 
 # Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
+**/logs/
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
 
-# Let's Encrypt (certs)
-letsencrypt/
+# Runtime data
+**/pids
+**/*.pid
+**/*.seed
+**/*.pid.lock
 
-# IDE/editor folders
-.vscode/
-.idea/
+# Coverage directory used by tools like istanbul
+**/coverage/
+**/.nyc_output
 
-# macOS system files
+# Build outputs
+**/build/
+**/dist/
+**/.next/
+**/out/
+
+# Development files
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+*~
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# Frontend build output
-build/
-dist/
+# Git
+.git/
+.gitignore
 
-# Docker-related
-Dockerfile
-docker-compose.yml
-docker-compose.*.yml
-.dockerignore
+# Docker
+**/Dockerfile
+**/docker-compose*.yml
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/.Python
+**/venv/
+**/ENV/
+**/env/
+**/.venv/
+
+# Jupyter Notebook
+**/.ipynb_checkpoints
+
+# Documentation
+**/docs/
+**/README.md
+
+# Development and testing
+**/dev/
+**/tests/
+**/.pytest_cache/
+
+# SSL certificates
+**/letsencrypt/
+**/*.pem
+**/*.key
+**/*.crt
+
+# Temporary files
+**/tmp/
+**/temp/

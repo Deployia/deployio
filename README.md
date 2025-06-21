@@ -46,11 +46,68 @@ npm run dev
 
 ## 🏗️ Platform Architecture
 
-Deployio uses a modern microservices architecture:
+Deployio uses a modern microservices architecture with clear separation of concerns:
+
+```
+deployio/
+├── server/                   # 🎯 Express Backend API
+│   ├── controllers/         # API controllers with modular structure
+│   ├── services/           # Business logic services
+│   ├── routes/             # API routes with versioning (/api/v1/)
+│   ├── models/             # Database models
+│   ├── middleware/         # Express middleware
+│   ├── config/             # Server configuration
+│   └── utils/              # Server utilities
+├── client/                 # ⚛️ React Frontend
+├── ai-service/            # 🤖 FastAPI AI Service
+├── agent/        # 🚀 Deployment Agent
+├── .github/               # 🔄 CI/CD Workflows
+└── dev/                   # 📚 Development Documentation
+```
+
+### Core Services:
+
+- **Express Backend** (`/server`): Modular API with authentication, project management, and deployment coordination
+- **React Frontend** (`/client`): Modern UI for managing projects and monitoring deployments
+- **AI Service** (`/ai-service`): FastAPI service for stack detection, config generation, and optimization
+- **Deployment Agent** (`/agent`): Handles actual deployments with container orchestration
+
+## 🎯 Quick Start
+
+```bash
+# 1. Clone the platform
+git clone https://github.com/vasudevshetty/deployio.git
+cd deployio
+
+# 2. Set up all services
+npm run setup:dev
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# 4. Start all services in development mode
+npm run dev
+
+# Or start individual services:
+npm run dev:server   # Express backend on :3000
+npm run dev:client   # React frontend on :5173
+npm run dev:ai       # AI service on :8000
+```
+
+### Docker Development
+
+```bash
+# Start all services with Docker
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+# Or production mode
+docker-compose up --build
+```
 
 - **Frontend**: React + Vite + Tailwind CSS (User Dashboard & Interface)
 - **Backend**: Node.js + Express + JWT Authentication (Core API & Business Logic)
-- **AI Service**: FastAPI + Python (Internal AI Processing & Analysis) 
+- **AI Service**: FastAPI + Python (Internal AI Processing & Analysis)
 - **Database**: MongoDB (User data & deployment configurations)
 - **Cache**: Redis (Session management & AI result caching)
 - **Infrastructure**: Docker + Traefik (Containerization & Reverse Proxy)
@@ -58,6 +115,7 @@ Deployio uses a modern microservices architecture:
 - **Monitoring**: Real-time logs, health checks, and system metrics
 
 ### Service Communication Flow
+
 ```
 Frontend (React) → Express Backend (Auth/API) → AI Service (Internal Processing)
                      ↓
@@ -145,7 +203,7 @@ npm run dev  # Starts all services
 ```
 deployio/
 ├── 📱 client/                 # React frontend (User Dashboard & Interface)
-├── 🤖 ai_service/            # AI processing & analysis service (FastAPI)
+├── 🤖 ai-service/            # AI processing & analysis service (FastAPI)
 ├── ⚙️ config/                 # Platform configuration & database setup
 ├── 🛡️ middleware/             # Express middleware (auth, rate limiting, error handling)
 ├── 🏗️ models/                 # MongoDB data models (User, Project, Deployment)
@@ -157,14 +215,16 @@ deployio/
 ├── 🐳 docker-compose.yml      # Multi-service orchestration
 └── ⚡ .github/workflows/      # CI/CD automation
 ```
-├── 🛡️ middleware/             # Express middleware
-├── 📊 models/                 # Database models
-├── 🛣️ routes/                 # API routes
-├── 🔧 scripts/               # Development & deployment scripts
-├── 📚 docs/                  # Platform documentation
-├── 🐳 docker-compose.yml     # Local development setup
-└── 🔄 .github/workflows/     # Platform CI/CD pipelines
-```
+
+├── 🛡️ middleware/ # Express middleware
+├── 📊 models/ # Database models
+├── 🛣️ routes/ # API routes
+├── 🔧 scripts/ # Development & deployment scripts
+├── 📚 docs/ # Platform documentation
+├── 🐳 docker-compose.yml # Local development setup
+└── 🔄 .github/workflows/ # Platform CI/CD pipelines
+
+````
 
 ## 🛠️ Available Scripts
 
@@ -175,7 +235,7 @@ npm run dev        # Start full platform locally
 npm run server     # Backend API only
 npm run client     # Frontend dashboard only
 npm run fastapi    # AI service only
-```
+````
 
 ### Platform Management
 
@@ -188,7 +248,7 @@ npm run deploy     # Deploy platform updates
 ### For AI Development
 
 ```bash
-cd ai_service
+cd ai-service
 pip install -r requirements.txt
 python main.py     # Start AI service for development
 ```

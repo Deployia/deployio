@@ -1,0 +1,56 @@
+# Development Docker Compose Override
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    volumes:
+      - ./client/src:/app/src
+      - ./client/public:/app/public
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3000
+      - VITE_AI_SERVICE_URL=http://localhost:8000
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3000    env_file:
+      - ./server/.env
+    ports:
+      - "3000:3000" # Expose for development
+    labels:
+      - "traefik.enable=false" # Disable Traefik in dev mode
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    volumes:
+      - ./ai-service:/app
+    environment:
+      - ENVIRONMENT=development
+    env_file:
+      - ./ai-service/.env
+    ports:
+      - "8000:8000" # Expose for development
+    labels:
+      - "traefik.enable=false" # Disable Traefik in dev mode
+
+  redis:
+    ports:
+      - "6379:6379" # Expose for development
+
+  # Disable Traefik in development
+  traefik:
+    profiles:
+      - production

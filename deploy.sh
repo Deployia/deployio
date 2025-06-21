@@ -8,11 +8,10 @@ show_help() {
     echo "Usage: ./deploy.sh [options] [service... | all]"
     echo ""
     echo "Builds and deploys specified services to AWS ECR and EC2."
-    echo ""
-    echo "Services:"
+    echo "" echo "Services:"
     echo "  frontend        Build and push the frontend service."
     echo "  backend         Build and push the backend service."
-    echo "  ai_service      Build and push the AI service."
+    echo "  ai-service      Build and push the AI service."
     echo "  agent           Build and push the DeployIO agent."
     echo "  all             Build and push all services."
     echo "  If no services are specified, 'all' is assumed."
@@ -31,15 +30,15 @@ services_to_build=()
 # If no args, or if 'all' is an arg, build everything.
 if [ "$#" -eq 0 ] || [[ " $@ " =~ " all " ]]; then
     echo "▶️ Building all services."
-    services_to_build=("frontend" "backend" "ai_service" "agent")
+    services_to_build=("frontend" "backend" "ai-service" "agent")
 else
     for arg in "$@"; do
         case $arg in
-        frontend | backend | ai_service | agent)
+        frontend | backend | ai-service | agent)
             services_to_build+=("$arg")
             ;;
         *)
-            echo "⚠️ Warning: Ignoring invalid argument '$arg'. Valid options are 'frontend', 'backend', 'ai_service', 'agent', 'all'"
+            echo "⚠️ Warning: Ignoring invalid argument '$arg'. Valid options are 'frontend', 'backend', 'ai-service', 'agent', 'all'"
             ;;
         esac
     done
@@ -55,9 +54,9 @@ echo "🔨 Services to build: ${services_to_build[*]}"
 # --- Configuration ---
 declare -A service_config
 service_config["frontend"]="repo=deployio-frontend context=./client profile=default ssh_host=deployio"
-service_config["backend"]="repo=deployio-backend context=. profile=default ssh_host=deployio"
-service_config["ai_service"]="repo=deployio-ai-service context=./ai_service profile=default ssh_host=deployio"
-service_config["agent"]="repo=deployio-agent context=./deployio-agent profile=deployio-agent ssh_host=deployio-agent"
+service_config["backend"]="repo=deployio-backend context=./server profile=default ssh_host=deployio"
+service_config["ai-service"]="repo=deployio-ai-service context=./ai-service profile=default ssh_host=deployio"
+service_config["agent"]="repo=deployio-agent context=./agent profile=deployio-agent ssh_host=deployio-agent"
 
 AWS_REGION="${AWS_REGION:-ap-south-1}"
 
@@ -102,7 +101,7 @@ echo "✅ All specified images pushed successfully!"
 # --- Deploy on EC2 via SSH ---
 
 # Deploy platform services
-if [[ " ${services_to_build[*]} " =~ " frontend " || " ${services_to_build[*]} " =~ " backend " || " ${services_to_build[*]} " =~ " ai_service " ]]; then
+if [[ " ${services_to_build[*]} " =~ " frontend " || " ${services_to_build[*]} " =~ " backend " || " ${services_to_build[*]} " =~ " ai-service " ]]; then
     echo "🚀 Deploying platform services to EC2..."
     ssh deployio "set -e; \
       cd ~/deployio; \
@@ -121,9 +120,8 @@ fi
 
 # Deploy agent service
 if [[ " ${services_to_build[*]} " =~ " agent " ]]; then
-    echo "🚀 Deploying agent service to EC2..."
-    ssh deployio-agent "set -e; \
-        cd ~/deployio/deployio-agent; \
+    echo "🚀 Deploying agent service to EC2..." ssh deployio-agent "set -e; \
+        cd ~/deployio/agent; \
         echo '🔄 Pulling latest changes from git...'; \
         git pull origin main; \
         echo '🔐 Authenticating with ECR on EC2...'; \
