@@ -2,25 +2,28 @@
 // Core deployment operations
 
 const express = require("express");
+const { deployment } = require("@controllers");
 const router = express.Router();
-const deploymentController = require("../../../../controllers/deployment/deploymentController");
 
 // Deployment CRUD operations
-router.post("/", deploymentController.deployProject);
-router.get("/", deploymentController.getUserDeployments);
-router.get("/:deploymentId", deploymentController.getDeploymentStatus);
-router.put("/:deploymentId", deploymentController.updateDeployment);
-router.delete("/:deploymentId", deploymentController.deleteDeployment);
+router.post("/", deployment.deployment.deployProject);
+router.get("/", deployment.deployment.getUserDeployments);
+router.get("/:deploymentId", deployment.deployment.getDeploymentStatus);
+router.put("/:deploymentId", deployment.deployment.updateDeployment);
+router.delete("/:deploymentId", deployment.deployment.deleteDeployment);
 
 // Deployment actions
-router.post("/:deploymentId/start", deploymentController.startDeployment);
-router.post("/:deploymentId/stop", deploymentController.stopDeployment);
-router.post("/:deploymentId/restart", deploymentController.restartDeployment);
-router.post("/:deploymentId/redeploy", deploymentController.redeployProject);
+router.post("/:deploymentId/start", deployment.deployment.startDeployment);
+router.post("/:deploymentId/stop", deployment.deployment.stopDeployment);
+router.post("/:deploymentId/restart", deployment.deployment.restartDeployment);
+router.post("/:deploymentId/redeploy", deployment.deployment.redeployProject);
 
 // Deployment status and monitoring
-router.get("/:deploymentId/status", deploymentController.getDeploymentStatus);
-router.get("/:deploymentId/health", deploymentController.getDeploymentHealth);
-router.get("/:deploymentId/metrics", deploymentController.getDeploymentMetrics);
+router.get("/:deploymentId/status", deployment.deployment.getDeploymentStatus);
+router.get("/:deploymentId/health", deployment.deployment.getDeploymentHealth);
+router.get(
+  "/:deploymentId/metrics",
+  deployment.deployment.getDeploymentMetrics
+);
 
 module.exports = router;

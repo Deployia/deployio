@@ -2,45 +2,42 @@
 // Project configuration and settings management
 
 const express = require("express");
+const { project } = require("@controllers");
 const router = express.Router();
-const settingsController = require("../../../../controllers/project/settingsController");
 
 // Project settings CRUD
-router.get("/:projectId", settingsController.getProjectSettings);
-router.put("/:projectId", settingsController.updateProjectSettings);
-router.delete("/:projectId", settingsController.resetProjectSettings);
+router.get("/:projectId", project.settings.getProjectSettings);
+router.put("/:projectId", project.settings.updateProjectSettings);
+router.delete("/:projectId", project.settings.resetProjectSettings);
 
 // Environment variables
-router.get("/:projectId/env", settingsController.getEnvironmentVariables);
-router.post("/:projectId/env", settingsController.addEnvironmentVariable);
+router.get("/:projectId/env", project.settings.getEnvironmentVariables);
+router.post("/:projectId/env", project.settings.addEnvironmentVariable);
 router.put(
   "/:projectId/env/:envId",
-  settingsController.updateEnvironmentVariable
+  project.settings.updateEnvironmentVariable
 );
 router.delete(
   "/:projectId/env/:envId",
-  settingsController.deleteEnvironmentVariable
+  project.settings.deleteEnvironmentVariable
 );
 
 // Build settings
-router.get("/:projectId/build", settingsController.getBuildSettings);
-router.put("/:projectId/build", settingsController.updateBuildSettings);
+router.get("/:projectId/build", project.settings.getBuildSettings);
+router.put("/:projectId/build", project.settings.updateBuildSettings);
 
 // Deployment settings
-router.get("/:projectId/deployment", settingsController.getDeploymentSettings);
-router.put(
-  "/:projectId/deployment",
-  settingsController.updateDeploymentSettings
-);
+router.get("/:projectId/deployment", project.settings.getDeploymentSettings);
+router.put("/:projectId/deployment", project.settings.updateDeploymentSettings);
 
 // Domain and subdomain settings
-router.get("/:projectId/domains", settingsController.getDomainSettings);
-router.post("/:projectId/domains", settingsController.addDomain);
-router.put("/:projectId/domains/:domainId", settingsController.updateDomain);
-router.delete("/:projectId/domains/:domainId", settingsController.removeDomain);
+router.get("/:projectId/domains", project.settings.getDomainSettings);
+router.post("/:projectId/domains", project.settings.addDomain);
+router.put("/:projectId/domains/:domainId", project.settings.updateDomain);
+router.delete("/:projectId/domains/:domainId", project.settings.removeDomain);
 
 // Security settings
-router.get("/:projectId/security", settingsController.getSecuritySettings);
-router.put("/:projectId/security", settingsController.updateSecuritySettings);
+router.get("/:projectId/security", project.settings.getSecuritySettings);
+router.put("/:projectId/security", project.settings.updateSecuritySettings);
 
 module.exports = router;

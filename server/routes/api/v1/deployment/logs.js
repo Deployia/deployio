@@ -2,33 +2,33 @@
 // Log management and streaming endpoints
 
 const express = require("express");
+const { deployment } = require("@controllers");
 const router = express.Router();
-const logsController = require("../../../../controllers/deployment/logsController");
 
 // Deployment logs
-router.get("/deployment/:deploymentId", logsController.getDeploymentLogs);
+router.get("/deployment/:deploymentId", deployment.logs.getDeploymentLogs);
 router.get(
   "/deployment/:deploymentId/stream",
-  logsController.streamDeploymentLogs
+  deployment.logs.streamDeploymentLogs
 );
 router.get(
   "/deployment/:deploymentId/download",
-  logsController.downloadDeploymentLogs
+  deployment.logs.downloadDeploymentLogs
 );
 
 // Container logs
-router.get("/container/:containerId", logsController.getContainerLogs);
+router.get("/container/:containerId", deployment.logs.getContainerLogs);
 router.get(
   "/container/:containerId/stream",
-  logsController.streamContainerLogs
+  deployment.logs.streamContainerLogs
 );
 router.get(
   "/container/:containerId/download",
-  logsController.downloadContainerLogs
+  deployment.logs.downloadContainerLogs
 );
 
 // System logs (admin only)
-router.get("/system", logsController.getSystemLogs);
-router.get("/errors", logsController.getErrorLogs);
+router.get("/system", deployment.logs.getSystemLogs);
+router.get("/errors", deployment.logs.getErrorLogs);
 
 module.exports = router;

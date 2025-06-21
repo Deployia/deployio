@@ -4,7 +4,7 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
-const { getRedisClient } = require("../../config/redisClient");
+const { getRedisClient } = require("@config/redisClient");
 
 // Basic health check
 router.get("/", async (req, res) => {

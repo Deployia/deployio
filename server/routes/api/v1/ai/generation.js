@@ -2,19 +2,19 @@
 // Configuration generation endpoints
 
 const express = require("express");
+const { ai } = require("@controllers");
 const router = express.Router();
-const generationController = require("../../../../controllers/ai/generationController");
 
 // Configuration generation
-router.post("/dockerfile", generationController.generateDockerfile);
-router.post("/compose", generationController.generateCompose);
-router.post("/pipeline", generationController.generatePipeline);
-router.post("/kubernetes", generationController.generateKubernetes);
+router.post("/dockerfile", ai.generation.generateDockerfile);
+router.post("/compose", ai.generation.generateCompose);
+router.post("/pipeline", ai.generation.generatePipeline);
+router.post("/kubernetes", ai.generation.generateKubernetes);
 
 // Get generated configurations
-router.get("/dockerfile/:projectId", generationController.getDockerfile);
-router.get("/compose/:projectId", generationController.getCompose);
-router.get("/pipeline/:projectId", generationController.getPipeline);
-router.get("/kubernetes/:projectId", generationController.getKubernetes);
+router.get("/dockerfile/:projectId", ai.generation.getDockerfile);
+router.get("/compose/:projectId", ai.generation.getCompose);
+router.get("/pipeline/:projectId", ai.generation.getPipeline);
+router.get("/kubernetes/:projectId", ai.generation.getKubernetes);
 
 module.exports = router;

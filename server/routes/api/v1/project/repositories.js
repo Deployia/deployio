@@ -2,37 +2,34 @@
 // GitHub integration and repository management
 
 const express = require("express");
+const { project } = require("@controllers");
 const router = express.Router();
-const repositoryController = require("../../../../controllers/project/repositoryController");
 
 // Repository operations
-router.get("/", repositoryController.getUserRepositories);
-router.post("/connect", repositoryController.connectRepository);
-router.post(
-  "/disconnect/:projectId",
-  repositoryController.disconnectRepository
-);
-router.get("/:projectId/repository", repositoryController.getProjectRepository);
+router.get("/", project.repository.getUserRepositories);
+router.post("/connect", project.repository.connectRepository);
+router.post("/disconnect/:projectId", project.repository.disconnectRepository);
+router.get("/:projectId/repository", project.repository.getProjectRepository);
 
 // Repository analysis
-router.post("/:projectId/analyze", repositoryController.analyzeRepository);
-router.get("/:projectId/analysis", repositoryController.getRepositoryAnalysis);
+router.post("/:projectId/analyze", project.repository.analyzeRepository);
+router.get("/:projectId/analysis", project.repository.getRepositoryAnalysis);
 
 // Repository synchronization
-router.post("/:projectId/sync", repositoryController.syncRepository);
-router.get("/:projectId/sync-status", repositoryController.getSyncStatus);
+router.post("/:projectId/sync", project.repository.syncRepository);
+router.get("/:projectId/sync-status", project.repository.getSyncStatus);
 
 // Repository webhooks
-router.post("/:projectId/webhooks", repositoryController.setupWebhooks);
-router.get("/:projectId/webhooks", repositoryController.getWebhooks);
+router.post("/:projectId/webhooks", project.repository.setupWebhooks);
+router.get("/:projectId/webhooks", project.repository.getWebhooks);
 router.delete(
   "/:projectId/webhooks/:webhookId",
-  repositoryController.removeWebhook
+  project.repository.removeWebhook
 );
 
 // Repository branches and commits
-router.get("/:projectId/branches", repositoryController.getBranches);
-router.get("/:projectId/commits", repositoryController.getCommits);
-router.get("/:projectId/commit/:sha", repositoryController.getCommit);
+router.get("/:projectId/branches", project.repository.getBranches);
+router.get("/:projectId/commits", project.repository.getCommits);
+router.get("/:projectId/commit/:sha", project.repository.getCommit);
 
 module.exports = router;

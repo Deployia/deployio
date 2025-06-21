@@ -3,15 +3,20 @@
 
 const express = require("express");
 const router = express.Router();
-const requireAuth = require("../../../middleware/authMiddleware");
+const { protect } = require("@middleware/authMiddleware");
 
-// Import modular project controllers
-const projectController = require("../../../controllers/project/projectController");
-const repositoryController = require("../../../controllers/project/repositoryController");
-const settingsController = require("../../../controllers/project/settingsController");
+// Import sub-routes
+const projectRoutes = require("./projects");
+const repositoryRoutes = require("./repositories");
+const settingsRoutes = require("./settings");
 
 // All project routes require authentication
-router.use(requireAuth);
+router.use(protect);
+
+// Mount sub-routes
+router.use("/", projectRoutes);
+router.use("/repositories", repositoryRoutes);
+router.use("/settings", settingsRoutes);
 
 // Project management
 router.use("/", projectController);

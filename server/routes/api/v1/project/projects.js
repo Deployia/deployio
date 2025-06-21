@@ -2,34 +2,34 @@
 // Core project CRUD operations
 
 const express = require("express");
+const { project } = require("@controllers");
 const router = express.Router();
-const projectController = require("../../../../controllers/project/projectController");
 
 // Project CRUD operations
-router.post("/", projectController.createProject);
-router.get("/", projectController.getUserProjects);
-router.get("/:projectId", projectController.getProjectById);
-router.put("/:projectId", projectController.updateProject);
-router.delete("/:projectId", projectController.deleteProject);
+router.post("/", project.project.createProject);
+router.get("/", project.project.getUserProjects);
+router.get("/:projectId", project.project.getProjectById);
+router.put("/:projectId", project.project.updateProject);
+router.delete("/:projectId", project.project.deleteProject);
 
 // Project actions
-router.post("/:projectId/clone", projectController.cloneProject);
-router.post("/:projectId/archive", projectController.archiveProject);
-router.post("/:projectId/restore", projectController.restoreProject);
+router.post("/:projectId/clone", project.project.cloneProject);
+router.post("/:projectId/archive", project.project.archiveProject);
+router.post("/:projectId/restore", project.project.restoreProject);
 
 // Project sharing and collaboration
 router.get(
   "/:projectId/collaborators",
-  projectController.getProjectCollaborators
+  project.project.getProjectCollaborators
 );
-router.post("/:projectId/collaborators", projectController.addCollaborator);
+router.post("/:projectId/collaborators", project.project.addCollaborator);
 router.delete(
   "/:projectId/collaborators/:userId",
-  projectController.removeCollaborator
+  project.project.removeCollaborator
 );
 
 // Project analytics
-router.get("/:projectId/analytics", projectController.getProjectAnalytics);
-router.get("/:projectId/activity", projectController.getProjectActivity);
+router.get("/:projectId/analytics", project.project.getProjectAnalytics);
+router.get("/:projectId/activity", project.project.getProjectActivity);
 
 module.exports = router;

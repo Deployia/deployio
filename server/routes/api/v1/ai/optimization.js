@@ -2,28 +2,22 @@
 // Performance and cost optimization endpoints
 
 const express = require("express");
+const { ai } = require("@controllers");
 const router = express.Router();
-const optimizationController = require("../../../../controllers/ai/optimizationController");
 
 // Optimization services
-router.post("/performance", optimizationController.optimizePerformance);
-router.post("/security", optimizationController.optimizeSecurity);
-router.post("/costs", optimizationController.optimizeCosts);
-router.post("/recommendations", optimizationController.generateRecommendations);
+router.post("/performance", ai.optimization.optimizePerformance);
+router.post("/security", ai.optimization.optimizeSecurity);
+router.post("/costs", ai.optimization.optimizeCosts);
+router.post("/recommendations", ai.optimization.generateRecommendations);
 
 // Get optimization results
 router.get(
   "/performance/:projectId",
-  optimizationController.getPerformanceOptimization
+  ai.optimization.getPerformanceOptimization
 );
-router.get(
-  "/security/:projectId",
-  optimizationController.getSecurityOptimization
-);
-router.get("/costs/:projectId", optimizationController.getCostOptimization);
-router.get(
-  "/recommendations/:projectId",
-  optimizationController.getRecommendations
-);
+router.get("/security/:projectId", ai.optimization.getSecurityOptimization);
+router.get("/costs/:projectId", ai.optimization.getCostOptimization);
+router.get("/recommendations/:projectId", ai.optimization.getRecommendations);
 
 module.exports = router;

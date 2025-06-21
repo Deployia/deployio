@@ -3,15 +3,15 @@
 
 const express = require("express");
 const router = express.Router();
-const requireAuth = require("../../../middleware/authMiddleware");
+const { protect, adminOnly } = require("@middleware/authMiddleware");
 
-// Import existing admin controller (keeping your working frontend integration)
-const adminController = require("../../../controllers/adminController");
+// Import sub-routes
+const adminRoutes = require("./admin");
 
 // All admin routes require authentication and admin privileges
-router.use(requireAuth);
+router.use(protect, adminOnly);
 
-// Use existing admin routes to maintain frontend compatibility
-router.use("/", adminController);
+// Mount sub-routes
+router.use("/", adminRoutes);
 
 module.exports = router;

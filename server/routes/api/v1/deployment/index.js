@@ -3,19 +3,19 @@
 
 const express = require("express");
 const router = express.Router();
-const requireAuth = require("../../../middleware/authMiddleware");
+const { protect } = require("@middleware/authMiddleware");
 
-// Import modular deployment controllers
-const deploymentController = require("../../../controllers/deployment/deploymentController");
-const containerController = require("../../../controllers/deployment/containerController");
-const logsController = require("../../../controllers/deployment/logsController");
+// Import sub-routes
+const deploymentRoutes = require("./deployments");
+const containerRoutes = require("./containers");
+const logsRoutes = require("./logs");
 
 // All deployment routes require authentication
-router.use(requireAuth);
+router.use(protect);
 
-// Deployment management
-router.use("/", deploymentController);
-router.use("/containers", containerController);
-router.use("/logs", logsController);
+// Mount sub-routes
+router.use("/", deploymentRoutes);
+router.use("/containers", containerRoutes);
+router.use("/logs", logsRoutes);
 
 module.exports = router;

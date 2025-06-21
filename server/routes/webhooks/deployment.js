@@ -3,7 +3,7 @@
 
 const express = require("express");
 const router = express.Router();
-const logger = require("../../config/logger");
+const logger = require("@config/logger");
 
 // Middleware to verify deployment agent signature
 const verifyAgentSignature = (req, res, next) => {

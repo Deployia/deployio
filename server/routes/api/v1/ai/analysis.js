@@ -2,22 +2,19 @@
 // Repository analysis endpoints
 
 const express = require("express");
+const { ai } = require("@controllers");
 const router = express.Router();
-const analysisController = require("../../../../controllers/ai/analysisController");
 
 // Repository analysis
-router.post("/repository", analysisController.analyzeRepository);
-router.post("/stack", analysisController.analyzeStack);
-router.post("/code-quality", analysisController.analyzeCodeQuality);
-router.post("/security", analysisController.analyzeSecurity);
+router.post("/repository", ai.analysis.analyzeRepository);
+router.post("/stack", ai.analysis.analyzeStack);
+router.post("/code-quality", ai.analysis.analyzeCodeQuality);
+router.post("/security", ai.analysis.analyzeSecurity);
 
 // Get analysis results
-router.get("/repository/:projectId", analysisController.getRepositoryAnalysis);
-router.get("/stack/:projectId", analysisController.getStackAnalysis);
-router.get(
-  "/code-quality/:projectId",
-  analysisController.getCodeQualityAnalysis
-);
-router.get("/security/:projectId", analysisController.getSecurityAnalysis);
+router.get("/repository/:projectId", ai.analysis.getRepositoryAnalysis);
+router.get("/stack/:projectId", ai.analysis.getStackAnalysis);
+router.get("/code-quality/:projectId", ai.analysis.getCodeQualityAnalysis);
+router.get("/security/:projectId", ai.analysis.getSecurityAnalysis);
 
 module.exports = router;

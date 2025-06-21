@@ -2,10 +2,11 @@
 // User profile specific endpoints using new modular controller structure
 
 const express = require("express");
-const router = express.Router();
-const profileController = require("../../../../controllers/user/profileController");
-const { protect } = require("../../../../middleware/authMiddleware");
+const { user } = require("@controllers");
+const { protect } = require("@middleware/authMiddleware");
 const multer = require("multer");
+
+const router = express.Router();
 
 // Set up multer for image uploads
 const storage = multer.memoryStorage();
@@ -15,12 +16,12 @@ const upload = multer({
 });
 
 // Protected profile routes
-router.get("/", protect, profileController.getProfile);
+router.get("/", protect, user.profile.getProfile);
 router.put(
   "/",
   protect,
   upload.single("profileImage"),
-  profileController.updateProfile
+  user.profile.updateProfile
 );
 
 module.exports = router;

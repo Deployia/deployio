@@ -2,20 +2,20 @@
 // Container-specific operations
 
 const express = require("express");
+const { deployment } = require("@controllers");
 const router = express.Router();
-const containerController = require("../../../../controllers/deployment/containerController");
 
 // Container operations
-router.get("/", containerController.getUserContainers);
-router.get("/:containerId", containerController.getContainerStatus);
-router.get("/:containerId/logs", containerController.getContainerLogs);
-router.post("/:containerId/restart", containerController.restartContainer);
-router.post("/:containerId/stop", containerController.stopContainer);
-router.post("/:containerId/start", containerController.startContainer);
-router.put("/:containerId", containerController.updateContainer);
+router.get("/", deployment.container.getUserContainers);
+router.get("/:containerId", deployment.container.getContainerStatus);
+router.get("/:containerId/logs", deployment.container.getContainerLogs);
+router.post("/:containerId/restart", deployment.container.restartContainer);
+router.post("/:containerId/stop", deployment.container.stopContainer);
+router.post("/:containerId/start", deployment.container.startContainer);
+router.put("/:containerId", deployment.container.updateContainer);
 
 // Container monitoring
-router.get("/:containerId/stats", containerController.getContainerStats);
-router.get("/:containerId/health", containerController.getContainerHealth);
+router.get("/:containerId/stats", deployment.container.getContainerStats);
+router.get("/:containerId/health", deployment.container.getContainerHealth);
 
 module.exports = router;

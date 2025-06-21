@@ -8,32 +8,12 @@ const apiV1Routes = require("./api/v1");
 const webhookRoutes = require("./webhooks");
 const healthRoutes = require("./health");
 
-// Import existing routes for backward compatibility
-const authRoutes = require("./authRoutes");
-const userRoutes = require("./userRoutes");
-const projectRoutes = require("./projectRoutes");
-const protectedRoutes = require("./protectedRoutes");
-const documentationRoutes = require("./documentationRoutes");
-const blogRoutes = require("./blogRoutes");
-const adminRoutes = require("./adminRoutes");
-const demoRoutes = require("./demoRoutes");
-
 const router = express.Router();
 
-// Mount new modular routes (Phase 3 implementation)
+// Mount new modular routes
 router.use("/api/v1", apiV1Routes);
 router.use("/webhooks", webhookRoutes);
 router.use("/health", healthRoutes);
-
-// Legacy routes for backward compatibility (maintain existing frontend integration)
-router.use("/auth", authRoutes);
-router.use("/user", userRoutes);
-router.use("/projects", projectRoutes);
-router.use("/protected", protectedRoutes);
-router.use("/documentation", documentationRoutes);
-router.use("/blogs", blogRoutes);
-router.use("/admin", adminRoutes);
-router.use("/demo", demoRoutes);
 
 // Root endpoint with architecture info
 router.get("/", (req, res) => {
@@ -45,9 +25,14 @@ router.get("/", (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
       "API v1": "/api/v1",
+      "API v1 Users": "/api/v1/users",
+      "API v1 Projects": "/api/v1/projects",
+      "API v1 AI": "/api/v1/ai",
+      "API v1 Deployments": "/api/v1/deployments",
+      "API v1 External": "/api/v1/external",
+      "API v1 Admin": "/api/v1/admin",
       Webhooks: "/webhooks",
       Health: "/health",
-      Legacy: "Various legacy endpoints",
     },
   });
 });
