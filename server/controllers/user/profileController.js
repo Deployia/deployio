@@ -1,9 +1,9 @@
-const userService = require("../../services/user/userService");
-const cloudinary = require("../../config/cloudinary");
+const { user } = require("@services");
+const cloudinary = require("@config/cloudinary");
 const stream = require("stream");
-const logger = require("../../config/logger");
-const { getRedisClient } = require("../../config/redisClient");
-const { getSafeUserData } = require("../../utils/userDataFilter");
+const logger = require("@config/logger");
+const { getRedisClient } = require("@config/redisClient");
+const { getSafeUserData } = require("@utils/userDataFilter");
 
 /**
  * Handle image upload to Cloudinary
@@ -81,7 +81,7 @@ const updateProfile = async (req, res) => {
     }
 
     // Update user profile in database
-    const updatedUser = await userService.updateProfile(
+    const updatedUser = await user.user.updateProfile(
       userId,
       updateData,
       profileImageUrl,
@@ -125,7 +125,7 @@ const updateProfile = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const user = await userService.getUserById(userId);
+    const user = await user.user.getUserById(userId);
 
     if (!user) {
       return res.status(404).json({

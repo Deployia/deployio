@@ -1,5 +1,5 @@
-const deploymentService = require("../../services/deployment");
-const logger = require("../../config/logger");
+const { deployment } = require("@services");
+const logger = require("@config/logger");
 
 /**
  * @desc Get container status
@@ -10,7 +10,7 @@ const getContainerStatus = async (req, res) => {
   try {
     const { containerId } = req.params;
 
-    const status = await deploymentService.getContainerStatus(containerId);
+    const status = await deployment.getContainerStatus(containerId);
 
     res.status(200).json({
       success: true,
@@ -37,7 +37,7 @@ const getContainerLogs = async (req, res) => {
     const { containerId } = req.params;
     const { lines = 100, follow = false, timestamps = false } = req.query;
 
-    const logs = await deploymentService.getContainerLogs(containerId, {
+    const logs = await deployment.getContainerLogs(containerId, {
       lines: parseInt(lines),
       follow: follow === "true",
       timestamps: timestamps === "true",
@@ -68,7 +68,7 @@ const restartContainer = async (req, res) => {
     const { containerId } = req.params;
     const userId = req.user._id;
 
-    const result = await deploymentService.restartContainer(containerId);
+    const result = await deployment.restartContainer(containerId);
 
     logger.info(`Container ${containerId} restarted by user ${userId}`);
 
@@ -97,7 +97,7 @@ const updateContainer = async (req, res) => {
     const { containerId } = req.params;
     const config = req.body;
 
-    const result = await deploymentService.updateContainer(containerId, config);
+    const result = await deployment.updateContainer(containerId, config);
 
     logger.info(`Container ${containerId} updated successfully`);
 
@@ -126,7 +126,7 @@ const stopContainer = async (req, res) => {
     const { containerId } = req.params;
     const userId = req.user._id;
 
-    const result = await deploymentService.stopContainer(containerId);
+    const result = await deployment.stopContainer(containerId);
 
     logger.info(`Container ${containerId} stopped by user ${userId}`);
 
@@ -155,7 +155,7 @@ const startContainer = async (req, res) => {
     const { containerId } = req.params;
     const userId = req.user._id;
 
-    const result = await deploymentService.startContainer(containerId);
+    const result = await deployment.startContainer(containerId);
 
     logger.info(`Container ${containerId} started by user ${userId}`);
 
@@ -184,7 +184,7 @@ const getContainerMetrics = async (req, res) => {
     const { containerId } = req.params;
     const { timeframe = "1h" } = req.query;
 
-    const metrics = await deploymentService.getContainerMetrics(containerId, {
+    const metrics = await deployment.getContainerMetrics(containerId, {
       timeframe,
     });
 
@@ -213,7 +213,7 @@ const getUserContainers = async (req, res) => {
     const userId = req.user._id;
     const { status, projectId } = req.query;
 
-    const containers = await deploymentService.getUserContainers(userId, {
+    const containers = await deployment.getUserContainers(userId, {
       status,
       projectId,
     });

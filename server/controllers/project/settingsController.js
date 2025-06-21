@@ -1,5 +1,5 @@
-const projectService = require("../../services/project");
-const logger = require("../../config/logger");
+const { project } = require("@services");
+const logger = require("@config/logger");
 
 /**
  * @desc Get project settings
@@ -11,7 +11,10 @@ const getProjectSettings = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const settings = await projectService.getProjectSettings(projectId, userId);
+    const settings = await project.project.getProjectSettings(
+      projectId,
+      userId
+    );
 
     res.status(200).json({
       success: true,
@@ -39,7 +42,7 @@ const updateProjectSettings = async (req, res) => {
     const userId = req.user._id;
     const settings = req.body;
 
-    const result = await projectService.updateProjectSettings(
+    const result = await project.project.updateProjectSettings(
       projectId,
       settings,
       userId
@@ -72,7 +75,7 @@ const getEnvironmentVariables = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const envVars = await projectService.getEnvironmentVariables(
+    const envVars = await project.project.getEnvironmentVariables(
       projectId,
       userId
     );
@@ -103,7 +106,7 @@ const updateEnvironmentVariables = async (req, res) => {
     const userId = req.user._id;
     const { environmentVariables } = req.body;
 
-    const result = await projectService.updateEnvironmentVariables(
+    const result = await project.project.updateEnvironmentVariables(
       projectId,
       environmentVariables,
       userId
@@ -136,7 +139,7 @@ const getBuildSettings = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const buildSettings = await projectService.getBuildSettings(
+    const buildSettings = await project.project.getBuildSettings(
       projectId,
       userId
     );
@@ -167,7 +170,7 @@ const updateBuildSettings = async (req, res) => {
     const userId = req.user._id;
     const buildSettings = req.body;
 
-    const result = await projectService.updateBuildSettings(
+    const result = await project.project.updateBuildSettings(
       projectId,
       buildSettings,
       userId

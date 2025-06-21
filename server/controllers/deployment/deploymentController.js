@@ -1,5 +1,5 @@
-const deploymentService = require("../../services/deployment");
-const logger = require("../../config/logger");
+const { deployment } = require("@services");
+const logger = require("@config/logger");
 const { validationResult } = require("express-validator");
 
 /**
@@ -22,7 +22,7 @@ const createDeployment = async (req, res) => {
     const { projectId, ...deploymentData } = req.body;
     const userId = req.user._id;
 
-    const deployment = await deploymentService.deployProject(projectId, {
+    const deployment = await deployment.deployProject(projectId, {
       userId,
       ...deploymentData,
     });
@@ -67,9 +67,7 @@ const getDeployment = async (req, res) => {
     const { deploymentId } = req.params;
     const userId = req.user._id;
 
-    const deployment = await deploymentService.getDeploymentStatus(
-      deploymentId
-    );
+    const deployment = await deployment.getDeploymentStatus(deploymentId);
 
     if (!deployment) {
       return res.status(404).json({
@@ -111,7 +109,7 @@ const updateDeploymentStatus = async (req, res) => {
     }
 
     // This would typically be called by the deployment agent
-    const updatedDeployment = await deploymentService.updateDeploymentStatus(
+    const updatedDeployment = await deployment.updateDeploymentStatus(
       deploymentId,
       status,
       statusMessage
@@ -144,7 +142,7 @@ const stopDeployment = async (req, res) => {
     const { deploymentId } = req.params;
     const userId = req.user._id;
 
-    const result = await deploymentService.stopDeployment(deploymentId);
+    const result = await deployment.stopDeployment(deploymentId);
 
     logger.info(`Deployment ${deploymentId} stopped by user ${userId}`);
 
@@ -173,7 +171,7 @@ const getDeploymentLogs = async (req, res) => {
     const { deploymentId } = req.params;
     const { lines = 100, follow = false } = req.query;
 
-    const logs = await deploymentService.getDeploymentLogs(deploymentId, {
+    const logs = await deployment.getDeploymentLogs(deploymentId, {
       lines: parseInt(lines),
       follow: follow === "true",
     });
@@ -237,7 +235,7 @@ const getUserDeployments = async (req, res) => {
     const userId = req.user._id;
     const { page = 1, limit = 10, status, projectId } = req.query;
 
-    const deployments = await deploymentService.getUserDeployments(userId, {
+    const deployments = await deployment.getUserDeployments(userId, {
       page: parseInt(page),
       limit: parseInt(limit),
       status,

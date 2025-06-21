@@ -1,11 +1,11 @@
-const userService = require("../../services/user/userService");
-const logger = require("../../config/logger");
-const { getRedisClient } = require("../../config/redisClient");
+const { user } = require("@services");
+const logger = require("@config/logger");
+const { getRedisClient } = require("@config/redisClient");
 const {
   getSafeUserData,
   getSafeApiKeyData,
   getSafeActivityData,
-} = require("../../utils/userDataFilter");
+} = require("@utils/userDataFilter");
 
 /**
  * Update user password
@@ -25,7 +25,7 @@ const updatePassword = async (req, res) => {
     }
 
     // Update password
-    const result = await userService.updatePassword(
+    const result = await user.user.updatePassword(
       req.user.id,
       currentPassword,
       newPassword
@@ -78,7 +78,7 @@ const deleteAccount = async (req, res) => {
       });
     }
 
-    await userService.deleteUser(userId, password);
+    await user.user.deleteUser(userId, password);
 
     res.status(200).json({
       success: true,
@@ -104,7 +104,7 @@ const deleteAccount = async (req, res) => {
 const getNotificationPreferences = async (req, res) => {
   try {
     const userId = req.user.id;
-    const preferences = await userService.getNotificationPreferences(userId);
+    const preferences = await user.user.getNotificationPreferences(userId);
 
     res.status(200).json({
       success: true,
@@ -131,7 +131,7 @@ const updateNotificationPreferences = async (req, res) => {
     const userId = req.user.id;
     const preferences = req.body;
 
-    const updatedPreferences = await userService.updateNotificationPreferences(
+    const updatedPreferences = await user.user.updateNotificationPreferences(
       userId,
       preferences
     );
@@ -162,7 +162,7 @@ const getUserActivity = async (req, res) => {
   try {
     const userId = req.user.id;
     const { page = 1, limit = 20, type } = req.query;
-    const activities = await userService.getUserActivity(userId, {
+    const activities = await user.user.getUserActivity(userId, {
       page: parseInt(page),
       limit: parseInt(limit),
       type,
@@ -204,7 +204,7 @@ const logUserActivity = async (req, res) => {
     const userId = req.user.id;
     const { action, type, details, ip } = req.body;
 
-    const activity = await userService.logUserActivity(userId, {
+    const activity = await user.user.logUserActivity(userId, {
       action,
       type,
       details,
@@ -236,7 +236,7 @@ const logUserActivity = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     const userId = req.user.id;
-    const stats = await userService.getDashboardStats(userId);
+    const stats = await user.user.getDashboardStats(userId);
 
     res.status(200).json({
       success: true,
@@ -261,7 +261,7 @@ const getDashboardStats = async (req, res) => {
 const getApiKeys = async (req, res) => {
   try {
     const userId = req.user.id;
-    const apiKeys = await userService.getApiKeys(userId);
+    const apiKeys = await user.user.getApiKeys(userId);
     const safeApiKeys = apiKeys.map((key) => getSafeApiKeyData(key));
 
     res.status(200).json({
@@ -295,7 +295,7 @@ const createApiKey = async (req, res) => {
         message: "API key name is required",
       });
     }
-    const apiKey = await userService.createApiKey(userId, {
+    const apiKey = await user.user.createApiKey(userId, {
       name: name.trim(),
       permissions,
     });
@@ -334,7 +334,7 @@ const deleteApiKey = async (req, res) => {
       });
     }
 
-    await userService.deleteApiKey(userId, keyId);
+    await user.user.deleteApiKey(userId, keyId);
 
     res.status(200).json({
       success: true,

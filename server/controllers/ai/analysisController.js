@@ -1,6 +1,5 @@
-const projectService = require("../../services/projectService");
-const aiService = require("../../services/aiService");
-const logger = require("../../config/logger");
+const { project, ai } = require("@services");
+const logger = require("@config/logger");
 
 /**
  * @desc Analyze project technology stack using AI
@@ -12,7 +11,10 @@ const analyzeProjectStack = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const result = await projectService.analyzeProjectWithAI(projectId, userId);
+    const result = await project.project.analyzeProjectWithAI(
+      projectId,
+      userId
+    );
 
     logger.info(`AI stack analysis completed for project ${projectId}`, {
       framework: result.analysis.technology.framework,
@@ -60,7 +62,7 @@ const runFullAnalysis = async (req, res) => {
     const userId = req.user._id;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -70,13 +72,13 @@ const runFullAnalysis = async (req, res) => {
 
     // Run comprehensive AI analysis
     const analysisResults = await Promise.allSettled([
-      aiService.analyzeProjectStack(
+      ai.analyzeProjectStack(
         projectId,
         project.repositoryUrl,
         project.branch || "main",
         req.user
       ),
-      aiService.analyzeOptimization(
+      ai.analyzeOptimization(
         projectId,
         project.deploymentConfig || {},
         project.performanceMetrics || {},
@@ -95,7 +97,7 @@ const runFullAnalysis = async (req, res) => {
         : { error: analysisResults[1].reason?.message };
 
     // Update project with analysis results
-    await projectService.updateProjectAnalysis(projectId, {
+    await project.project.updateProjectAnalysis(projectId, {
       stackAnalysis,
       optimizationAnalysis,
       lastAnalyzed: new Date(),
@@ -146,7 +148,7 @@ const demoAnalyzeRepository = async (req, res) => {
       username: "demo",
     };
 
-    const result = await aiService.analyzeProjectStack(
+    const result = await ai.analyzeProjectStack(
       "demo_project",
       repositoryUrl,
       branch,
@@ -181,7 +183,7 @@ const demoAnalyzeRepository = async (req, res) => {
  */
 const getSupportedTechnologies = async (req, res) => {
   try {
-    const technologies = await aiService.getSupportedTechnologies();
+    const technologies = await ai.getSupportedTechnologies();
 
     res.status(200).json({
       success: true,
@@ -205,7 +207,7 @@ const getSupportedTechnologies = async (req, res) => {
  */
 const checkServiceHealth = async (req, res) => {
   try {
-    const healthStatus = await aiService.checkAiServiceHealth();
+    const healthStatus = await ai.checkAiServiceHealth();
 
     res.status(200).json({
       success: true,

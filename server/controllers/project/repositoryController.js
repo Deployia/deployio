@@ -1,5 +1,5 @@
-const repositoryService = require("../../services/project/repositoryService");
-const logger = require("../../config/logger");
+const { project } = require("@services");
+const logger = require("@config/logger");
 
 /**
  * @desc Connect GitHub repository
@@ -18,7 +18,7 @@ const connectRepository = async (req, res) => {
       });
     }
 
-    const result = await repositoryService.connectRepository({
+    const result = await project.repository.connectRepository({
       userId,
       projectId,
       repositoryUrl,
@@ -54,7 +54,7 @@ const getRepositoryInfo = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const repoInfo = await repositoryService.getRepositoryInfo(
+    const repoInfo = await project.repository.getRepositoryInfo(
       projectId,
       userId
     );
@@ -84,7 +84,7 @@ const syncRepository = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const result = await repositoryService.syncRepository(projectId, userId);
+    const result = await project.repository.syncRepository(projectId, userId);
 
     logger.info(`Repository synced for project ${projectId}`);
 
@@ -113,7 +113,7 @@ const getRepositoryBranches = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const branches = await repositoryService.getRepositoryBranches(
+    const branches = await project.repository.getRepositoryBranches(
       projectId,
       userId
     );
@@ -144,7 +144,7 @@ const updateRepositorySettings = async (req, res) => {
     const userId = req.user._id;
     const settings = req.body;
 
-    const result = await repositoryService.updateRepositorySettings(
+    const result = await project.repository.updateRepositorySettings(
       projectId,
       settings,
       userId

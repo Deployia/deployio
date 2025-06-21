@@ -1,9 +1,9 @@
-const User = require("../../models/User");
-const Blog = require("../../models/Blog");
-const Project = require("../../models/Project");
-const Documentation = require("../../models/Documentation");
-const Deployment = require("../../models/Deployment");
-const logger = require("../../config/logger");
+const User = require("@models/User");
+const Blog = require("@models/Blog");
+const Project = require("@models/Project");
+const Documentation = require("@models/Documentation");
+const Deployment = require("@models/Deployment");
+const logger = require("@config/logger");
 
 /**
  * Get admin dashboard overview statistics

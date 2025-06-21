@@ -1,5 +1,5 @@
-const documentationService = require("../services/documentationService");
-const logger = require("../config/logger");
+const { external } = require("@services");
+const logger = require("@config/logger");
 
 // @desc    Get all documentation with navigation structure
 // @route   GET /api/v1/documentation
@@ -13,14 +13,14 @@ const getAllDocs = async (req, res) => {
 
     if (search) {
       // Use search functionality
-      docs = await documentationService.searchDocumentation(search, {
+      docs = await external.documentation.searchDocumentation(search, {
         category,
         limit: parseInt(limit),
         skip,
       });
     } else {
       // Get all docs with optional category filter
-      docs = await documentationService.getAllDocumentation({
+      docs = await external.documentation.getAllDocumentation({
         category,
         limit: parseInt(limit),
         skip,
@@ -29,7 +29,7 @@ const getAllDocs = async (req, res) => {
     }
 
     // Get stats for navigation
-    const stats = await documentationService.getDocumentationStats();
+    const stats = await external.documentation.getDocumentationStats();
 
     res.status(200).json({
       success: true,
@@ -60,7 +60,7 @@ const getDocBySlug = async (req, res) => {
   try {
     const { slug, category } = req.params;
 
-    const doc = await documentationService.getDocumentationBySlug(
+    const doc = await external.documentation.getDocumentationBySlug(
       slug,
       category
     );
@@ -95,7 +95,7 @@ const getDocsByCategory = async (req, res) => {
     const { limit = 50, page = 1 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const docs = await documentationService.getDocumentationByCategory(
+    const docs = await external.documentation.getDocumentationByCategory(
       category,
       {
         limit: parseInt(limit),
@@ -136,7 +136,7 @@ const searchDocs = async (req, res) => {
       });
     }
 
-    const docs = await documentationService.searchDocumentation(q, {
+    const docs = await external.documentation.searchDocumentation(q, {
       category,
       limit: parseInt(limit),
       skip,
@@ -163,7 +163,7 @@ const getFeaturedDocs = async (req, res) => {
   try {
     const { limit = 6 } = req.query;
 
-    const docs = await documentationService.getFeaturedDocumentation(
+    const docs = await external.documentation.getFeaturedDocumentation(
       parseInt(limit)
     );
 
@@ -188,7 +188,7 @@ const getPopularDocs = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    const docs = await documentationService.getPopularDocumentation(
+    const docs = await external.documentation.getPopularDocumentation(
       parseInt(limit)
     );
 
@@ -211,7 +211,7 @@ const getPopularDocs = async (req, res) => {
 // @access  Public
 const getDocStats = async (req, res) => {
   try {
-    const stats = await documentationService.getDocumentationStats();
+    const stats = await external.documentation.getDocumentationStats();
 
     res.status(200).json({
       success: true,
@@ -232,7 +232,7 @@ const getDocStats = async (req, res) => {
 // @access  Private (Admin only)
 const syncDocsFromFiles = async (req, res) => {
   try {
-    const result = await documentationService.syncDocumentationFromFiles();
+    const result = await external.documentation.syncDocumentationFromFiles();
 
     res.status(200).json({
       success: true,
@@ -254,7 +254,7 @@ const syncDocsFromFiles = async (req, res) => {
 // @access  Private (Admin only)
 const createDoc = async (req, res) => {
   try {
-    const doc = await documentationService.createDocumentation(req.body);
+    const doc = await external.documentation.createDocumentation(req.body);
 
     res.status(201).json({
       success: true,
@@ -276,7 +276,7 @@ const createDoc = async (req, res) => {
 const updateDoc = async (req, res) => {
   try {
     const { id } = req.params;
-    const doc = await documentationService.updateDocumentation(id, req.body);
+    const doc = await external.documentation.updateDocumentation(id, req.body);
 
     res.status(200).json({
       success: true,
@@ -298,7 +298,7 @@ const updateDoc = async (req, res) => {
 const deleteDoc = async (req, res) => {
   try {
     const { id } = req.params;
-    await documentationService.deleteDocumentation(id);
+    await external.documentation.deleteDocumentation(id);
 
     res.status(200).json({
       success: true,
@@ -322,7 +322,7 @@ const markHelpful = async (req, res) => {
     const { slug } = req.params;
     const { category } = req.body;
 
-    const doc = await documentationService.getDocumentationBySlug(
+    const doc = await external.documentation.getDocumentationBySlug(
       slug,
       category
     );
@@ -362,7 +362,7 @@ const markNotHelpful = async (req, res) => {
     const { slug } = req.params;
     const { category } = req.body;
 
-    const doc = await documentationService.getDocumentationBySlug(
+    const doc = await external.documentation.getDocumentationBySlug(
       slug,
       category
     );

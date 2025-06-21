@@ -1,5 +1,5 @@
-const blogService = require("../services/blogService");
-const logger = require("../config/logger");
+const { external } = require("@services");
+const logger = require("@config/logger");
 
 // @desc    Get all blog posts with filtering and pagination
 // @route   GET /api/v1/blog
@@ -38,7 +38,7 @@ const getAllBlogs = async (req, res) => {
     if (search) {
       // Use search functionality
       const tagsArray = tags ? tags.split(",").map((tag) => tag.trim()) : [];
-      blogs = await blogService.searchBlogs(search, {
+      blogs = await external.blog.searchBlogs(search, {
         category,
         tags: tagsArray,
         limit: parseInt(limit),
@@ -46,7 +46,7 @@ const getAllBlogs = async (req, res) => {
       });
     } else {
       // Get all blogs with optional filters
-      blogs = await blogService.getAllBlogs({
+      blogs = await external.blog.getAllBlogs({
         category,
         featured: featured === "true" ? true : undefined,
         limit: parseInt(limit),
@@ -56,7 +56,7 @@ const getAllBlogs = async (req, res) => {
     }
 
     // Get stats for navigation and sidebar
-    const stats = await blogService.getBlogStats();
+    const stats = await external.blog.getBlogStats();
 
     res.status(200).json({
       success: true,
@@ -87,7 +87,7 @@ const getBlogBySlug = async (req, res) => {
   try {
     const { slug, category } = req.params;
 
-    const blog = await blogService.getBlogBySlug(slug, category);
+    const blog = await external.blog.getBlogBySlug(slug, category);
 
     if (!blog) {
       return res.status(404).json({
@@ -97,7 +97,7 @@ const getBlogBySlug = async (req, res) => {
     }
 
     // Get related posts
-    const relatedPosts = await blogService.getRelatedPosts(blog._id, 4);
+    const relatedPosts = await external.blog.getRelatedPosts(blog._id, 4);
 
     res.status(200).json({
       success: true,
@@ -137,13 +137,13 @@ const getBlogsByCategory = async (req, res) => {
         sortOptions = { publishedAt: -1 };
     }
 
-    const blogs = await blogService.getBlogsByCategory(category, {
+    const blogs = await external.blog.getBlogsByCategory(category, {
       limit: parseInt(limit),
       skip,
       sort: sortOptions,
     });
 
-    const totalCount = await blogService.getAllBlogs({
+    const totalCount = await external.blog.getAllBlogs({
       category,
       limit: 1000, // Get count
     });
@@ -181,7 +181,7 @@ const getFeaturedBlogs = async (req, res) => {
   try {
     const { limit = 6 } = req.query;
 
-    const blogs = await blogService.getFeaturedBlogs(parseInt(limit));
+    const blogs = await external.blog.getFeaturedBlogs(parseInt(limit));
 
     res.status(200).json({
       success: true,
@@ -204,7 +204,7 @@ const getPopularBlogs = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    const blogs = await blogService.getPopularBlogs(parseInt(limit));
+    const blogs = await external.blog.getPopularBlogs(parseInt(limit));
 
     res.status(200).json({
       success: true,
@@ -227,7 +227,7 @@ const getRecentBlogs = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    const blogs = await blogService.getRecentBlogs(parseInt(limit));
+    const blogs = await external.blog.getRecentBlogs(parseInt(limit));
 
     res.status(200).json({
       success: true,
@@ -260,7 +260,7 @@ const searchBlogs = async (req, res) => {
 
     const tagsArray = tags ? tags.split(",").map((tag) => tag.trim()) : [];
 
-    const blogs = await blogService.searchBlogs(query, {
+    const blogs = await external.blog.searchBlogs(query, {
       category,
       tags: tagsArray,
       limit: parseInt(limit),
@@ -297,7 +297,7 @@ const likeBlog = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const blog = await blogService.toggleLike(id);
+    const blog = await external.blog.toggleLike(id);
 
     res.status(200).json({
       success: true,
@@ -323,7 +323,7 @@ const shareBlog = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const blog = await blogService.recordShare(id);
+    const blog = await external.blog.recordShare(id);
 
     res.status(200).json({
       success: true,
@@ -347,7 +347,7 @@ const shareBlog = async (req, res) => {
 // @access  Public
 const getBlogStats = async (req, res) => {
   try {
-    const stats = await blogService.getBlogStats();
+    const stats = await external.blog.getBlogStats();
 
     res.status(200).json({
       success: true,
@@ -372,7 +372,7 @@ const syncBlogs = async (req, res) => {
 
     logger.info(`Starting blog sync - dryRun: ${dryRun}, force: ${force}`);
 
-    const results = await blogService.syncFromMetadata(dryRun);
+    const results = await external.blog.syncFromMetadata(dryRun);
 
     res.status(200).json({
       success: true,
@@ -396,7 +396,7 @@ const syncBlogFromFile = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const blog = await blogService.syncBlogFromFile(id);
+    const blog = await external.blog.syncBlogFromFile(id);
 
     res.status(200).json({
       success: true,
@@ -418,7 +418,7 @@ const syncBlogFromFile = async (req, res) => {
 // @access  Public
 const getBlogCategories = async (req, res) => {
   try {
-    const categories = await blogService.getBlogCategories();
+    const categories = await external.blog.getBlogCategories();
 
     res.status(200).json({
       success: true,

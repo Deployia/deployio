@@ -1,6 +1,5 @@
-const projectService = require("../../services/projectService");
-const aiService = require("../../services/aiService");
-const logger = require("../../config/logger");
+const { project, ai } = require("@services");
+const logger = require("@config/logger");
 
 /**
  * @desc Get optimization recommendations for a project
@@ -13,7 +12,7 @@ const getOptimizations = async (req, res) => {
     const userId = req.user._id;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -21,7 +20,7 @@ const getOptimizations = async (req, res) => {
       });
     }
 
-    const result = await aiService.analyzeOptimization(
+    const result = await ai.analyzeOptimization(
       projectId,
       project.deploymentConfig || {},
       project.performanceMetrics || {},
@@ -60,7 +59,7 @@ const generateBuildOptimization = async (req, res) => {
     const optimizationConfig = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -76,7 +75,7 @@ const generateBuildOptimization = async (req, res) => {
       });
     }
 
-    const result = await aiService.generateBuildOptimization(
+    const result = await ai.generateBuildOptimization(
       projectId,
       project.technologyStack,
       optimizationConfig,
@@ -84,7 +83,7 @@ const generateBuildOptimization = async (req, res) => {
     );
 
     // Update project with build optimization
-    await projectService.updateProject(projectId, {
+    await project.project.updateProject(projectId, {
       buildOptimization: result,
       lastBuildOptimized: new Date(),
     });
@@ -125,7 +124,7 @@ const markOptimizationImplemented = async (req, res) => {
     }
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -142,7 +141,7 @@ const markOptimizationImplemented = async (req, res) => {
       notes: implementationNotes,
     });
 
-    await projectService.updateProject(projectId, {
+    await project.project.updateProject(projectId, {
       implementedOptimizations,
       lastOptimizationImplemented: new Date(),
     });
@@ -182,7 +181,7 @@ const optimizePerformance = async (req, res) => {
     const { currentMetrics } = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -190,7 +189,7 @@ const optimizePerformance = async (req, res) => {
       });
     }
 
-    const result = await aiService.analyzeOptimization(
+    const result = await ai.analyzeOptimization(
       projectId,
       project.deploymentConfig || {},
       currentMetrics || project.performanceMetrics || {},
@@ -238,7 +237,7 @@ const optimizeSecurity = async (req, res) => {
     const { securityConfig } = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -246,7 +245,7 @@ const optimizeSecurity = async (req, res) => {
       });
     }
 
-    const result = await aiService.analyzeOptimization(
+    const result = await ai.analyzeOptimization(
       projectId,
       securityConfig || project.securityConfig || {},
       {},
@@ -293,7 +292,7 @@ const optimizeCosts = async (req, res) => {
     const { costConfig } = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -301,7 +300,7 @@ const optimizeCosts = async (req, res) => {
       });
     }
 
-    const result = await aiService.analyzeOptimization(
+    const result = await ai.analyzeOptimization(
       projectId,
       costConfig || project.costConfig || {},
       {},

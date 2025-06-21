@@ -1,5 +1,5 @@
-const projectService = require("../../services/project");
-const logger = require("../../config/logger");
+const { project } = require("@services");
+const logger = require("@config/logger");
 const { validationResult } = require("express-validator");
 
 /**
@@ -21,7 +21,7 @@ const createProject = async (req, res) => {
     const userId = req.user._id;
     const projectData = req.body;
 
-    const project = await projectService.createProject(userId, projectData);
+    const project = await project.project.createProject(userId, projectData);
 
     logger.info(`Project created: ${project.name} by user ${userId}`);
 
@@ -50,7 +50,7 @@ const getUserProjects = async (req, res) => {
     const userId = req.user._id;
     const { page = 1, limit = 10, status, search } = req.query;
 
-    const projects = await projectService.getUserProjects(userId, {
+    const projects = await project.project.getUserProjects(userId, {
       page: parseInt(page),
       limit: parseInt(limit),
       status,
@@ -82,7 +82,7 @@ const getProjectById = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
 
     if (!project) {
       return res.status(404).json({
@@ -117,7 +117,7 @@ const updateProject = async (req, res) => {
     const userId = req.user._id;
     const updateData = req.body;
 
-    const project = await projectService.updateProject(
+    const project = await project.project.updateProject(
       projectId,
       updateData,
       userId
@@ -157,7 +157,7 @@ const deleteProject = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user._id;
 
-    const result = await projectService.deleteProject(projectId, userId);
+    const result = await project.project.deleteProject(projectId, userId);
 
     if (!result) {
       return res.status(404).json({

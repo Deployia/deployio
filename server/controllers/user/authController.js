@@ -1,13 +1,12 @@
-const authService = require("../../services/user/authService");
+const { user } = require("@services");
 const jwt = require("jsonwebtoken");
-const { storeRefreshToken } = require("../../services/user/authService");
-const User = require("../../models/User");
-const logger = require("../../config/logger");
+const User = require("@models/User");
+const logger = require("@config/logger");
 const {
   getSafeUserData,
   getSafeSessionData,
   getSafeProviderData,
-} = require("../../utils/userDataFilter");
+} = require("@utils/userDataFilter");
 // Determine front-end URL for redirects
 const frontUrl =
   process.env.NODE_ENV === "development"
@@ -42,7 +41,7 @@ const register = async (req, res) => {
       });
     }
 
-    const result = await authService.registerUser({
+    const result = await user.auth.registerUser({
       username: username.trim(),
       email: email.toLowerCase().trim(),
       password,
@@ -98,7 +97,7 @@ const verifyOtp = async (req, res) => {
         .json({ success: false, message: "Email and OTP required" });
     }
 
-    const result = await authService.verifyOtp(email, otp);
+    const result = await user.auth.verifyOtp(email, otp);
 
     if (!result.user) {
       return res.status(400).json({
@@ -108,7 +107,7 @@ const verifyOtp = async (req, res) => {
     }
 
     // Record user session and get session record
-    const session = await authService.addSession(result.user.id, {
+    const session = await user.auth.addSession(result.user.id, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
@@ -160,7 +159,7 @@ const login = async (req, res) => {
         .json({ success: false, message: "Please provide email and password" });
     }
 
-    const result = await authService.loginUser(email, password);
+    const result = await user.auth.loginUser(email, password);
 
     // Handle unverified user case
     if (result.needsVerification) {
@@ -176,7 +175,7 @@ const login = async (req, res) => {
     // If 2FA is required, check for remembered device
     if (result.requires2FA) {
       // Check for remembered device session
-      const sessions = await authService.getSessions(result.userId);
+      const sessions = await user.auth.getSessions(result.userId);
       const remembered = sessions.find(
         (s) =>
           s.ip === req.ip &&
@@ -194,7 +193,7 @@ const login = async (req, res) => {
           });
         }
 
-        const session = await authService.addSession(user._id, {
+        const session = await user.auth.addSession(user._id, {
           ip: req.ip,
           userAgent: req.headers["user-agent"],
         });
@@ -256,7 +255,7 @@ const login = async (req, res) => {
 
     const { user } = result;
     // Record user session and get session record
-    const session = await authService.addSession(user._id, {
+    const session = await user.auth.addSession(user._id, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
@@ -314,7 +313,7 @@ const forgotPassword = async (req, res) => {
       process.env.NODE_ENV === "development"
         ? process.env.FRONTEND_URL_DEV
         : process.env.FRONTEND_URL_PROD;
-    const result = await authService.forgotPassword(email, frontendUrl);
+    const result = await user.auth.forgotPassword(email, frontendUrl);
     res.status(200).json({ success: true, message: result });
   } catch (error) {
     // Don't reveal if email exists or not for security reasons
@@ -343,7 +342,7 @@ const resetPassword = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please provide new password" });
     }
-    const result = await authService.resetPassword(token, password);
+    const result = await user.auth.resetPassword(token, password);
     res.status(200).json({ success: true, message: result });
   } catch (error) {
     logger.error("Reset password error", {
@@ -369,14 +368,14 @@ const logout = async (req, res) => {
 
     // Remove current session record based on IP and user-agent
     try {
-      const sessions = await authService.getSessions(userId);
+      const sessions = await user.auth.getSessions(userId);
       const currentAgent = req.headers["user-agent"];
       const currentSession = sessions.find(
         (s) => s.userAgent === currentAgent && s.ip === req.ip
       );
 
       if (currentSession) {
-        await authService.deleteSession(userId, currentSession._id.toString());
+        await user.auth.deleteSession(userId, currentSession._id.toString());
       }
     } catch (sessionError) {
       // console.error("Error removing session:", sessionError);
@@ -392,7 +391,7 @@ const logout = async (req, res) => {
     }
 
     // Call logout service
-    const result = await authService.logoutUser(userId);
+    const result = await user.auth.logoutUser(userId);
 
     // Clear authentication cookies
     const cookieOptions = {
@@ -464,7 +463,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
     // If user has 2FA enabled, check for remembered device
     if (user.twoFactorEnabled) {
       // Check previous sessions for rememberedUntil > now
-      const sessions = await authService.getSessions(user._id);
+      const sessions = await user.auth.getSessions(user._id);
       const remembered = sessions.find(
         (s) =>
           s.ip === req.ip &&
@@ -474,7 +473,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
       );
       if (remembered) {
         // Skip 2FA: create a new session and issue tokens
-        const session = await authService.addSession(user._id, {
+        const session = await user.auth.addSession(user._id, {
           ip: req.ip,
           userAgent: req.headers["user-agent"],
         });
@@ -511,7 +510,7 @@ const handleOAuthCallback = (providerName) => async (req, res) => {
     }
 
     // No 2FA or not enabled: record session and issue tokens
-    const session = await authService.addSession(user._id, {
+    const session = await user.auth.addSession(user._id, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
@@ -771,7 +770,7 @@ const resendOtp = async (req, res) => {
         .json({ success: false, message: "Email required" });
     }
 
-    const result = await authService.resendOtp(email);
+    const result = await user.auth.resendOtp(email);
     res.status(200).json({ success: true, message: result });
   } catch (error) {
     let statusCode = 400;
@@ -797,7 +796,7 @@ const resendOtp = async (req, res) => {
 // Get linked OAuth providers
 const getLinkedProviders = async (req, res) => {
   try {
-    const providers = await authService.getLinkedProviders(req.user._id);
+    const providers = await user.auth.getLinkedProviders(req.user._id);
     res.status(200).json({
       success: true,
       providers: getSafeProviderData(providers),
@@ -820,7 +819,7 @@ const linkProviderCallback = (providerName) => async (req, res) => {
       req.account.photos &&
       req.account.photos[0] &&
       req.account.photos[0].value;
-    await authService.linkProvider(
+    await user.auth.linkProvider(
       userId,
       providerName,
       providerId,
@@ -842,7 +841,7 @@ const linkProviderCallback = (providerName) => async (req, res) => {
 const unlinkProvider = async (req, res) => {
   try {
     const provider = req.params.provider;
-    await authService.unlinkProvider(req.user._id, provider);
+    await user.auth.unlinkProvider(req.user._id, provider);
     res.status(200).json({ success: true, message: `${provider} unlinked` });
   } catch (error) {
     logger.error("Unlink provider error", {
@@ -857,7 +856,7 @@ const unlinkProvider = async (req, res) => {
 // Get user sessions
 const getSessions = async (req, res) => {
   try {
-    const sessions = await authService.getSessions(req.user._id);
+    const sessions = await user.auth.getSessions(req.user._id);
     const safeSessions = sessions.map((session) => getSafeSessionData(session));
     res.status(200).json({
       success: true,
@@ -877,13 +876,13 @@ const deleteSession = async (req, res) => {
   try {
     const sessionId = req.params.sessionId;
     // Prevent deleting the current session
-    const sessions = await authService.getSessions(req.user._id);
+    const sessions = await user.auth.getSessions(req.user._id);
     const target = sessions.find((s) => s._id.toString() === sessionId);
     if (!target) throw new Error("Session not found");
     if (target.userAgent === req.headers["user-agent"]) {
       throw new Error("Cannot delete current session");
     }
-    await authService.deleteSession(req.user._id, sessionId);
+    await user.auth.deleteSession(req.user._id, sessionId);
     res.status(200).json({ success: true, message: "Session removed" });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -897,7 +896,7 @@ const deleteSession = async (req, res) => {
 // Generate 2FA secret
 const generate2FASecret = async (req, res) => {
   try {
-    const result = await authService.generate2FASecret(req.user.id);
+    const result = await user.auth.generate2FASecret(req.user.id);
     res.status(200).json({
       success: true,
       data: result,
@@ -918,7 +917,7 @@ const enable2FA = async (req, res) => {
         message: "Please provide verification token and secret",
       });
     }
-    const result = await authService.enable2FA(req.user.id, token, secret);
+    const result = await user.auth.enable2FA(req.user.id, token, secret);
     res.status(200).json({
       success: true,
       data: result,
@@ -940,14 +939,14 @@ const verify2FALogin = async (req, res) => {
       });
     }
 
-    const verificationResult = await authService.verify2FALogin(userId, token);
+    const verificationResult = await user.auth.verify2FALogin(userId, token);
     if (!verificationResult.verified) {
       return res.status(400).json({
         success: false,
         message: verificationResult.error || "Invalid verification code",
       });
     } // Complete login by generating tokens
-    const loginResult = await authService.complete2FALogin(userId, {
+    const loginResult = await user.auth.complete2FALogin(userId, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
@@ -990,7 +989,7 @@ const disable2FA = async (req, res) => {
         message: "Please provide your password",
       });
     }
-    const result = await authService.disable2FA(req.user.id, password);
+    const result = await user.auth.disable2FA(req.user.id, password);
     res.status(200).json({
       success: true,
       message: result,
@@ -1003,7 +1002,7 @@ const disable2FA = async (req, res) => {
 // Get 2FA status
 const get2FAStatus = async (req, res) => {
   try {
-    const result = await authService.get2FAStatus(req.user.id);
+    const result = await user.auth.get2FAStatus(req.user.id);
     res.status(200).json({
       success: true,
       data: result,
@@ -1023,7 +1022,7 @@ const generateNewBackupCodes = async (req, res) => {
         message: "Please provide your password",
       });
     }
-    const result = await authService.generateNewBackupCodes(
+    const result = await user.auth.generateNewBackupCodes(
       req.user.id,
       password
     );

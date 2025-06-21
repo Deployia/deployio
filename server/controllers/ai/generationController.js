@@ -1,6 +1,5 @@
-const projectService = require("../../services/projectService");
-const aiService = require("../../services/aiService");
-const logger = require("../../config/logger");
+const { project, ai } = require("@services");
+const logger = require("@config/logger");
 
 /**
  * @desc Generate Dockerfile configuration using AI
@@ -14,7 +13,7 @@ const generateDockerfile = async (req, res) => {
     const { buildConfig } = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -30,7 +29,7 @@ const generateDockerfile = async (req, res) => {
       });
     }
 
-    const result = await aiService.generateDockerfile(
+    const result = await ai.generateDockerfile(
       projectId,
       project.technologyStack,
       buildConfig || project.buildConfig || {},
@@ -38,7 +37,7 @@ const generateDockerfile = async (req, res) => {
     );
 
     // Update project with generated Dockerfile
-    await projectService.updateProject(projectId, {
+    await project.project.updateProject(projectId, {
       dockerfileConfig: result,
       lastDockerfileGenerated: new Date(),
     });
@@ -72,7 +71,7 @@ const generatePipeline = async (req, res) => {
     const pipelineConfig = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -99,14 +98,10 @@ const generatePipeline = async (req, res) => {
       ...pipelineConfig,
     };
 
-    const result = await aiService.generatePipeline(
-      projectId,
-      config,
-      req.user
-    );
+    const result = await ai.generatePipeline(projectId, config, req.user);
 
     // Update project with generated pipeline
-    await projectService.updateProject(projectId, {
+    await project.project.updateProject(projectId, {
       pipelineConfig: result,
       lastPipelineGenerated: new Date(),
     });
@@ -140,7 +135,7 @@ const generateEnvironmentConfig = async (req, res) => {
     const environmentConfig = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -148,14 +143,14 @@ const generateEnvironmentConfig = async (req, res) => {
       });
     }
 
-    const result = await aiService.generateEnvironmentConfig(
+    const result = await ai.generateEnvironmentConfig(
       projectId,
       environmentConfig,
       req.user
     );
 
     // Update project with generated environment config
-    await projectService.updateProject(projectId, {
+    await project.project.updateProject(projectId, {
       environmentConfig: result,
       lastEnvironmentConfigGenerated: new Date(),
     });
@@ -191,7 +186,7 @@ const generateKubernetes = async (req, res) => {
     const k8sConfig = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -201,7 +196,7 @@ const generateKubernetes = async (req, res) => {
 
     // For now, we'll use the environment config generation as a placeholder
     // This will be extended when the AI service supports K8s manifest generation
-    const result = await aiService.generateEnvironmentConfig(
+    const result = await ai.generateEnvironmentConfig(
       projectId,
       {
         infrastructureType: "kubernetes",
@@ -241,7 +236,7 @@ const generateCompose = async (req, res) => {
     const composeConfig = req.body;
 
     // Get project details
-    const project = await projectService.getProjectById(projectId, userId);
+    const project = await project.project.getProjectById(projectId, userId);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -250,7 +245,7 @@ const generateCompose = async (req, res) => {
     }
 
     // Use the dockerfile generation which includes docker-compose
-    const result = await aiService.generateDockerfile(
+    const result = await ai.generateDockerfile(
       projectId,
       project.technologyStack,
       composeConfig,

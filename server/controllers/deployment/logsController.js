@@ -1,5 +1,5 @@
-const deploymentService = require("../../services/deployment");
-const logger = require("../../config/logger");
+const { deployment } = require("@services");
+const logger = require("@config/logger");
 
 /**
  * @desc Get logs for a deployment or container
@@ -28,9 +28,9 @@ const getLogs = async (req, res) => {
     let logs;
 
     if (resourceType === "deployment") {
-      logs = await deploymentService.getDeploymentLogs(resourceId, options);
+      logs = await deployment.getDeploymentLogs(resourceId, options);
     } else if (resourceType === "container") {
-      logs = await deploymentService.getContainerLogs(resourceId, options);
+      logs = await deployment.getContainerLogs(resourceId, options);
     } else {
       return res.status(400).json({
         success: false,
@@ -119,11 +119,11 @@ const downloadLogs = async (req, res) => {
     let logs;
 
     if (resourceType === "deployment") {
-      logs = await deploymentService.getDeploymentLogs(resourceId, {
+      logs = await deployment.getDeploymentLogs(resourceId, {
         lines: -1,
       });
     } else if (resourceType === "container") {
-      logs = await deploymentService.getContainerLogs(resourceId, {
+      logs = await deployment.getContainerLogs(resourceId, {
         lines: -1,
       });
     } else {
@@ -177,11 +177,11 @@ const searchLogs = async (req, res) => {
     let logs;
 
     if (resourceType === "deployment") {
-      logs = await deploymentService.getDeploymentLogs(resourceId, {
+      logs = await deployment.getDeploymentLogs(resourceId, {
         lines: -1,
       });
     } else if (resourceType === "container") {
-      logs = await deploymentService.getContainerLogs(resourceId, {
+      logs = await deployment.getContainerLogs(resourceId, {
         lines: -1,
       });
     } else {
