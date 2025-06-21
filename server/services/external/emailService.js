@@ -1,9 +1,11 @@
 const nodemailer = require("nodemailer");
 const EmailTemplateRenderer = require("../../utils/EmailTemplateRenderer");
+const NotificationTemplates = require("../notification/templates/notificationTemplates");
 const logger = require("../../config/logger");
 
-// Initialize template renderer
+// Initialize template renderers
 const templateRenderer = new EmailTemplateRenderer();
+const notificationTemplates = new NotificationTemplates();
 
 /**
  * Send email using nodemailer
@@ -49,15 +51,41 @@ const sendEmail = async (options) => {
       connectionTimeout: 60000,
       greetingTimeout: 30000,
       socketTimeout: 60000,
-    }); // If a template is specified, generate HTML from template and variables
+    });
+
+    // Handle template rendering - check if it's a notification template first
     let html = options.html;
+    let finalSubject = options.subject;
+
     if (options.template) {
       try {
-        html = templateRenderer.render(
-          options.template,
-          options.variables || {}
+        // First try our notification template system
+        const notificationTemplate = notificationTemplates.getTemplate(
+          options.template
         );
+
+        if (notificationTemplate) {
+          // Use our notification template system
+          const rendered = notificationTemplates.render(
+            options.template,
+            options.variables || {}
+          );
+          html = rendered.html;
+          finalSubject = rendered.subject; // Use template subject if not provided
+          logger.info(`Using notification template: ${options.template}`);
+        } else {
+          // Fallback to old template renderer for backward compatibility
+          html = templateRenderer.render(
+            options.template,
+            options.variables || {}
+          );
+          logger.info(`Using legacy template: ${options.template}`);
+        }
       } catch (templateError) {
+        logger.error(
+          `Error rendering email template '${options.template}':`,
+          templateError
+        );
         throw new Error(
           `Error rendering email template: ${templateError.message}`
         );
@@ -67,15 +95,13 @@ const sendEmail = async (options) => {
     // Ensure we have either HTML or text content
     if (!html && !options.text) {
       throw new Error("Email must have either HTML or text content");
-    }
-
-    // Define email options
+    } // Define email options
     const mailOptions = {
       from: process.env.EMAIL_FROM
         ? `DeployIO <${process.env.EMAIL_FROM}>`
         : process.env.EMAIL_USER,
       to: options.to,
-      subject: options.subject,
+      subject: finalSubject || options.subject,
       text: options.text,
       html,
       // Add additional security headers

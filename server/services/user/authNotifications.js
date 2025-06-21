@@ -343,6 +343,50 @@ class AuthNotifications {
       // Don't throw error
     }
   }
+
+  /**
+   * Send account security alert
+   * @param {string} userId - User ID
+   * @param {Object} userData - User data
+   * @param {Object} securityContext - Security event context
+   */
+  static async sendAccountSecurity(userId, userData, securityContext) {
+    try {
+      const { username, email } = userData;
+      const { securityAction, timestamp, ipAddress, location, device } =
+        securityContext;
+
+      return await notificationService.createNotification({
+        userId,
+        type: "auth.account_security",
+        title: `Security Alert: ${securityAction}`,
+        message: `A security-related change was made to your DeployIO account: ${securityAction}. If this wasn't you, please secure your account immediately.`,
+        priority: "high",
+        channels: ["email"],
+        context: {
+          username,
+          email,
+          securityAction,
+          timestamp,
+          ipAddress,
+          location,
+          device,
+        },
+        action: {
+          label: "Review Account Security",
+          url: `${process.env.FRONTEND_URL}/account/security`,
+          type: "button",
+        },
+      });
+    } catch (error) {
+      logger.error("Failed to send account security notification", {
+        userId,
+        email: userData.email,
+        error: error.message,
+      });
+      // Don't throw error for security notifications
+    }
+  }
 }
 
 module.exports = AuthNotifications;

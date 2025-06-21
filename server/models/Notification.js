@@ -7,6 +7,13 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
+        // Authentication notifications
+        "auth.otp_verification",
+        "auth.password_reset",
+        "auth.welcome",
+        "auth.account_security",
+        "auth.login_attempt",
+
         // Deployment notifications
         "deployment.started",
         "deployment.success",
@@ -23,13 +30,12 @@ const notificationSchema = new mongoose.Schema(
         "security.password_changed",
         "security.2fa_enabled",
         "security.2fa_disabled",
-        "security.api_key_created",
-
-        // System notifications
+        "security.api_key_created", // System notifications
         "system.maintenance",
         "system.update",
         "system.quota_warning",
         "system.quota_exceeded",
+        "system.test", // For testing purposes
 
         // General
         "general.welcome",

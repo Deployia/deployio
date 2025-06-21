@@ -1,9 +1,11 @@
-const { sendEmail } = require("../../external/emailService");
+const emailService = require("../../external/emailService");
 const logger = require("../../../config/logger");
+const NotificationTemplates = require("../templates/notificationTemplates");
 
 class EmailChannel {
   constructor() {
     this.channelName = "email";
+    this.templates = new NotificationTemplates();
   }
 
   /**
@@ -15,19 +17,21 @@ class EmailChannel {
     try {
       if (!notification.user || !notification.user.email) {
         throw new Error("User email not available");
-      }
+      } // Use our notification template system directly
+      const templateName = this.getTemplateName(notification.type);
+      const templateVariables = this.prepareTemplateVariables(notification);
+      const subject = this.getEmailSubject(
+        notification.type,
+        notification.title,
+        notification.context
+      );
 
-      // Get email template and content
-      const emailContent = await this.prepareEmailContent(notification);
-
-      // Send email using existing emailService
-      const result = await sendEmail({
+      // Send email using our notification template system
+      const result = await emailService.sendEmail({
         to: notification.user.email,
-        subject: emailContent.subject,
-        template: emailContent.template,
-        variables: emailContent.variables,
-        html: emailContent.html,
-        text: emailContent.text,
+        subject: subject,
+        template: templateName,
+        variables: templateVariables,
       });
 
       logger.info("Email notification sent successfully", {
@@ -35,6 +39,7 @@ class EmailChannel {
         userId: notification.user._id,
         email: notification.user.email,
         type: notification.type,
+        template: templateName,
         messageId: result.messageId,
       });
 
@@ -48,450 +53,143 @@ class EmailChannel {
         notificationId: notification._id,
         userId: notification.user?._id,
         email: notification.user?.email,
+        type: notification.type,
         error: error.message,
       });
-      throw error;
+      throw new Error(`Failed to send email: ${error.message}`);
     }
   }
 
   /**
-   * Prepare email content based on notification type
-   * @param {Object} notification - Notification document
-   * @returns {Promise<Object>} Email content
+   * Map notification type to template name
+   * @param {string} type - Notification type
+   * @returns {string} Template name
    */
-  async prepareEmailContent(notification) {
-    const { type, title, message, context, user, action } = notification;
+  getTemplateName(type) {
+    const templateMap = {
+      // Auth templates
+      "auth.otp_verification": "auth.otp_verification",
+      "auth.password_reset": "auth.password_reset",
+      "auth.welcome": "auth.welcome",
+      "auth.account_security": "auth.account_security",
+      "auth.login_attempt": "auth.login_attempt",
 
-    // Base email content
-    const baseContent = {
-      subject: this.getEmailSubject(type, title, context),
-      variables: {
-        userName: user.username || user.email.split("@")[0],
-        userEmail: user.email,
-        notificationTitle: title,
-        notificationMessage: message,
-        notificationType: type,
-        context: context || {},
-        action: action || null,
-        timestamp: notification.createdAt,
-        unsubscribeUrl: `${process.env.FRONTEND_URL}/settings/notifications`,
-        appUrl: process.env.FRONTEND_URL || "https://deployio.com",
-        supportEmail: process.env.SUPPORT_EMAIL || "support@deployio.com",
-      },
+      // Deployment templates
+      "deployment.started": "deployment-started",
+      "deployment.success": "deployment-success",
+      "deployment.failed": "deployment-failed",
+      "deployment.stopped": "deployment-stopped",
+
+      // Project templates
+      "project.analysis_complete": "project-analysis-complete",
+      "project.analysis_failed": "project-analysis-failed",
+      "project.collaborator_added": "project-collaborator-added",
+
+      // Security templates
+      "security.login_new_device": "security-new-device-login",
+      "security.password_changed": "security-password-changed",
+      "security.2fa_enabled": "security-2fa-enabled",
+      "security.2fa_disabled": "security-2fa-disabled",
+      "security.api_key_created": "security-api-key-created",
+
+      // System templates
+      "system.maintenance": "system-maintenance",
+      "system.update": "system-update",
+      "system.quota_warning": "system-quota-warning",
+      "system.quota_exceeded": "system-quota-exceeded",
+      "system.test": "generic-notification",
+
+      // General templates
+      "general.welcome": "general-welcome",
+      "general.announcement": "general-announcement",
     };
 
-    // Get type-specific content
-    switch (type) {
-      case "deployment.started":
-        return this.getDeploymentStartedContent(baseContent, context);
-
-      case "deployment.success":
-        return this.getDeploymentSuccessContent(baseContent, context);
-
-      case "deployment.failed":
-        return this.getDeploymentFailedContent(baseContent, context);
-
-      case "deployment.stopped":
-        return this.getDeploymentStoppedContent(baseContent, context);
-
-      case "project.analysis_complete":
-        return this.getProjectAnalysisCompleteContent(baseContent, context);
-
-      case "project.analysis_failed":
-        return this.getProjectAnalysisFailedContent(baseContent, context);
-
-      case "project.collaborator_added":
-        return this.getProjectCollaboratorContent(baseContent, context);
-
-      case "security.login_new_device":
-        return this.getSecurityLoginContent(baseContent, context);
-
-      case "security.password_changed":
-        return this.getPasswordChangedContent(baseContent, context);
-
-      case "security.2fa_enabled":
-      case "security.2fa_disabled":
-        return this.getTwoFactorContent(baseContent, context, type);
-
-      case "security.api_key_created":
-        return this.getApiKeyCreatedContent(baseContent, context);
-
-      case "system.maintenance":
-        return this.getMaintenanceContent(baseContent, context);
-
-      case "system.update":
-        return this.getSystemUpdateContent(baseContent, context);
-
-      case "system.quota_warning":
-      case "system.quota_exceeded":
-        return this.getQuotaContent(baseContent, context, type);
-
-      case "general.welcome":
-        return this.getWelcomeContent(baseContent, context);
-
-      case "general.announcement":
-        return this.getAnnouncementContent(baseContent, context);
-
-      default:
-        return this.getGenericContent(baseContent);
-    }
+    return templateMap[type] || "generic-notification";
   }
 
   /**
-   * Get email subject based on notification type
+   * Prepare template variables for email rendering
+   * @param {Object} notification - Notification document
+   * @returns {Object} Template variables
+   */
+  prepareTemplateVariables(notification) {
+    const { type, title, message, context, user, action } = notification;
+
+    // Base template variables that work with our notification template system
+    const baseVariables = {
+      // User information
+      username: user.username || user.email.split("@")[0],
+      userEmail: user.email,
+
+      // Notification content
+      title: title,
+      message: message,
+
+      // Context data - spread all context properties
+      ...context,
+
+      // Action data
+      action: action || null,
+
+      // System URLs
+      appUrl: process.env.FRONTEND_URL || "https://deployio.com",
+      dashboardUrl: `${
+        process.env.FRONTEND_URL || "https://deployio.com"
+      }/dashboard`,
+      docsUrl: `${process.env.FRONTEND_URL || "https://deployio.com"}/docs`,
+      supportEmail: process.env.SUPPORT_EMAIL || "support@deployio.com",
+      unsubscribeUrl: `${
+        process.env.FRONTEND_URL || "https://deployio.com"
+      }/settings/notifications`,
+      securityUrl: `${
+        process.env.FRONTEND_URL || "https://deployio.com"
+      }/settings/security`,
+
+      // Timestamps
+      timestamp:
+        notification.createdAt?.toISOString() || new Date().toISOString(),
+    };
+
+    return baseVariables;
+  }
+
+  /**
+   * Get email subject based on notification type and context
    * @param {string} type - Notification type
    * @param {string} title - Notification title
    * @param {Object} context - Notification context
    * @returns {string} Email subject
    */
-  getEmailSubject(type, title, context) {
+  getEmailSubject(type, title, context = {}) {
+    // The subject will be handled by our notification template system
+    // This is a fallback in case the template doesn't provide a subject
     const subjectMap = {
+      "auth.otp_verification": context.isResend
+        ? "Your DeployIO OTP (Resend)"
+        : "Verify your DeployIO account",
+      "auth.password_reset": "Reset your DeployIO password",
+      "auth.welcome": "Welcome to DeployIO!",
+      "auth.account_security": `Security Alert: ${
+        context.securityAction || "Account Activity"
+      }`,
+      "auth.login_attempt": "New login to your DeployIO account",
       "deployment.started": `Deployment Started - ${
-        context.project?.name || "Project"
+        context.projectName || "Project"
       }`,
-      "deployment.success": `✅ Deployment Successful - ${
-        context.project?.name || "Project"
+      "deployment.success": `Deployment Successful - ${
+        context.projectName || "Project"
       }`,
-      "deployment.failed": `❌ Deployment Failed - ${
-        context.project?.name || "Project"
+      "deployment.failed": `Deployment Failed - ${
+        context.projectName || "Project"
       }`,
-      "deployment.stopped": `⏹️ Deployment Stopped - ${
-        context.project?.name || "Project"
+      "deployment.stopped": `Deployment Stopped - ${
+        context.projectName || "Project"
       }`,
-      "project.analysis_complete": `✅ Project Analysis Complete - ${
-        context.project?.name || "Project"
-      }`,
-      "project.analysis_failed": `❌ Project Analysis Failed - ${
-        context.project?.name || "Project"
-      }`,
-      "project.collaborator_added": `👥 New Collaborator Added - ${
-        context.project?.name || "Project"
-      }`,
-      "security.login_new_device": "🔐 New Device Login Detected",
-      "security.password_changed": "🔑 Password Changed Successfully",
-      "security.2fa_enabled": "🔐 Two-Factor Authentication Enabled",
-      "security.2fa_disabled": "⚠️ Two-Factor Authentication Disabled",
-      "security.api_key_created": "🔑 New API Key Created",
-      "system.maintenance": "🔧 Scheduled Maintenance Notice",
-      "system.update": "🚀 System Update Available",
-      "system.quota_warning": "⚠️ Usage Quota Warning",
-      "system.quota_exceeded": "🚨 Usage Quota Exceeded",
-      "general.welcome": "🎉 Welcome to DeployIO!",
-      "general.announcement": "📢 DeployIO Announcement",
+      "system.test": "DeployIO System Test",
+      "general.welcome": "Welcome to DeployIO!",
     };
 
-    return subjectMap[type] || title;
-  }
-
-  // Type-specific content methods
-  getDeploymentStartedContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "deployment-started",
-      variables: {
-        ...baseContent.variables,
-        projectName: context.project?.name || "Unknown Project",
-        environment: context.deployment?.environmentName || "Unknown",
-        deploymentUrl: context.deployment?.url || null,
-      },
-    };
-  }
-
-  getDeploymentSuccessContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "deployment-success",
-      variables: {
-        ...baseContent.variables,
-        projectName: context.project?.name || "Unknown Project",
-        environment: context.deployment?.environmentName || "Unknown",
-        deploymentUrl: context.deployment?.url || null,
-        duration: context.deployment?.duration || null,
-      },
-    };
-  }
-
-  getDeploymentFailedContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "deployment-failed",
-      variables: {
-        ...baseContent.variables,
-        projectName: context.project?.name || "Unknown Project",
-        environment: context.deployment?.environmentName || "Unknown",
-        errorMessage: context.error || "Unknown error occurred",
-        logsUrl: context.deployment?.logsUrl || null,
-      },
-    };
-  }
-
-  getDeploymentStoppedContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "deployment-stopped",
-      variables: {
-        ...baseContent.variables,
-        projectName: context.project?.name || "Unknown Project",
-        environment: context.deployment?.environmentName || "Unknown",
-        reason: context.reason || "Manual stop",
-      },
-    };
-  }
-
-  getProjectAnalysisCompleteContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "project-analysis-complete",
-      variables: {
-        ...baseContent.variables,
-        projectName: context.project?.name || "Unknown Project",
-        analysisResults: context.analysis || {},
-        projectUrl: context.project?.url || null,
-      },
-    };
-  }
-
-  getProjectAnalysisFailedContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "project-analysis-failed",
-      variables: {
-        ...baseContent.variables,
-        projectName: context.project?.name || "Unknown Project",
-        errorMessage: context.error || "Analysis failed",
-        projectUrl: context.project?.url || null,
-      },
-    };
-  }
-
-  getProjectCollaboratorContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "project-collaborator-added",
-      variables: {
-        ...baseContent.variables,
-        projectName: context.project?.name || "Unknown Project",
-        collaboratorName: context.collaborator?.name || "Unknown User",
-        collaboratorEmail: context.collaborator?.email || null,
-        role: context.role || "collaborator",
-        projectUrl: context.project?.url || null,
-      },
-    };
-  }
-
-  getSecurityLoginContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "security-new-device-login",
-      variables: {
-        ...baseContent.variables,
-        loginTime: context.loginTime || new Date(),
-        deviceInfo: context.device || "Unknown device",
-        location: context.location || "Unknown location",
-        ipAddress: context.ipAddress || "Unknown IP",
-        securityUrl: `${process.env.FRONTEND_URL}/settings/security`,
-      },
-    };
-  }
-
-  getPasswordChangedContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "security-password-changed",
-      variables: {
-        ...baseContent.variables,
-        changeTime: context.changeTime || new Date(),
-        securityUrl: `${process.env.FRONTEND_URL}/settings/security`,
-      },
-    };
-  }
-
-  getTwoFactorContent(baseContent, context, type) {
-    const isEnabled = type === "security.2fa_enabled";
-    return {
-      ...baseContent,
-      template: isEnabled ? "security-2fa-enabled" : "security-2fa-disabled",
-      variables: {
-        ...baseContent.variables,
-        changeTime: context.changeTime || new Date(),
-        securityUrl: `${process.env.FRONTEND_URL}/settings/security`,
-        isEnabled,
-      },
-    };
-  }
-
-  getApiKeyCreatedContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "security-api-key-created",
-      variables: {
-        ...baseContent.variables,
-        keyName: context.keyName || "API Key",
-        createdTime: context.createdTime || new Date(),
-        lastFourChars: context.lastFourChars || "****",
-        apiKeysUrl: `${process.env.FRONTEND_URL}/settings/api-keys`,
-      },
-    };
-  }
-
-  getMaintenanceContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "system-maintenance",
-      variables: {
-        ...baseContent.variables,
-        maintenanceStart: context.startTime || new Date(),
-        maintenanceEnd: context.endTime || null,
-        duration: context.duration || "Unknown duration",
-        affectedServices: context.services || [],
-        statusUrl: `${process.env.FRONTEND_URL}/status`,
-      },
-    };
-  }
-
-  getSystemUpdateContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "system-update",
-      variables: {
-        ...baseContent.variables,
-        updateVersion: context.version || "Latest",
-        features: context.features || [],
-        releaseNotesUrl: context.releaseNotesUrl || null,
-        updateTime: context.updateTime || null,
-      },
-    };
-  }
-
-  getQuotaContent(baseContent, context, type) {
-    const isExceeded = type === "system.quota_exceeded";
-    return {
-      ...baseContent,
-      template: isExceeded ? "system-quota-exceeded" : "system-quota-warning",
-      variables: {
-        ...baseContent.variables,
-        quotaType: context.quotaType || "Usage",
-        currentUsage: context.currentUsage || 0,
-        quotaLimit: context.quotaLimit || 100,
-        usagePercentage: context.usagePercentage || 0,
-        billingUrl: `${process.env.FRONTEND_URL}/billing`,
-        isExceeded,
-      },
-    };
-  }
-
-  getWelcomeContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "general-welcome",
-      variables: {
-        ...baseContent.variables,
-        dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
-        gettingStartedUrl: `${process.env.FRONTEND_URL}/getting-started`,
-        docsUrl: `${process.env.FRONTEND_URL}/docs`,
-      },
-    };
-  }
-
-  getAnnouncementContent(baseContent, context) {
-    return {
-      ...baseContent,
-      template: "general-announcement",
-      variables: {
-        ...baseContent.variables,
-        announcementContent: context.content || "",
-        ctaUrl: context.ctaUrl || null,
-        ctaText: context.ctaText || null,
-        announcementDate: context.date || new Date(),
-      },
-    };
-  }
-
-  getGenericContent(baseContent) {
-    return {
-      ...baseContent,
-      template: "generic-notification",
-      html: this.generateGenericHTML(baseContent.variables),
-      text: this.generateGenericText(baseContent.variables),
-    };
-  }
-
-  /**
-   * Generate generic HTML email content
-   * @param {Object} variables - Template variables
-   * @returns {string} HTML content
-   */
-  generateGenericHTML(variables) {
-    return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${variables.notificationTitle}</title>
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #2563eb; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: #f9fafb; }
-            .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-            .button { display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>DeployIO</h1>
-            </div>
-            <div class="content">
-                <h2>${variables.notificationTitle}</h2>
-                <p>Hi ${variables.userName},</p>
-                <p>${variables.notificationMessage}</p>
-                ${
-                  variables.action
-                    ? `<p><a href="${variables.action.url}" class="button">${variables.action.label}</a></p>`
-                    : ""
-                }
-                <p>Best regards,<br>The DeployIO Team</p>
-            </div>
-            <div class="footer">
-                <p>You received this email because you have notifications enabled.</p>
-                <p><a href="${
-                  variables.unsubscribeUrl
-                }">Manage notification preferences</a></p>
-                <p>© 2024 DeployIO. All rights reserved.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    `;
-  }
-
-  /**
-   * Generate generic text email content
-   * @param {Object} variables - Template variables
-   * @returns {string} Text content
-   */
-  generateGenericText(variables) {
-    return `
-DeployIO Notification
-
-${variables.notificationTitle}
-
-Hi ${variables.userName},
-
-${variables.notificationMessage}
-
-${variables.action ? `${variables.action.label}: ${variables.action.url}` : ""}
-
-Best regards,
-The DeployIO Team
-
----
-You received this email because you have notifications enabled.
-Manage notification preferences: ${variables.unsubscribeUrl}
-© 2024 DeployIO. All rights reserved.
-    `.trim();
+    return subjectMap[type] || title || "DeployIO Notification";
   }
 }
 
