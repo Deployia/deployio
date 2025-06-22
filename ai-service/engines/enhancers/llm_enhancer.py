@@ -57,6 +57,11 @@ class LLMEnhancer:
 
         logger.info("LLMEnhancer initialized with modular services")
 
+    @property
+    def is_available(self) -> bool:
+        """Check if any LLM providers are available for enhancement."""
+        return bool(self.client_manager.get_available_providers())
+
     async def enhance_analysis(
         self,
         analysis_result: AnalysisResult,

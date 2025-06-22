@@ -174,6 +174,14 @@ class ProgressService:
             for op_id, tracker in self.active_operations.items()
         }
 
+    def get_health_status(self) -> dict:
+        """Return health status for progress service."""
+        return {
+            "service": "progress_service",
+            "status": "healthy",
+            "active_operations": len(self.active_operations),
+        }
+
 
 # Predefined step templates for common operations
 class OperationSteps:

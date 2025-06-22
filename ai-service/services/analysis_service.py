@@ -406,8 +406,12 @@ class AnalysisService:
         if mode in ["full", "quality"] and result.quality_metrics:
             response_data["quality_metrics"] = result.quality_metrics
 
-        if mode in ["full", "dependencies"] and result.dependency_analysis:
-            response_data["dependency_analysis"] = result.dependency_analysis
+        if mode in ["full", "dependencies"]:
+            # Always include dependency_analysis as a dict for response model compatibility
+            if result.dependency_analysis is not None:
+                response_data["dependency_analysis"] = result.dependency_analysis
+            else:
+                response_data["dependency_analysis"] = {}
 
         if mode == "full":
             response_data.update(

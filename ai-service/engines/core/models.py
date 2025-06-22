@@ -79,15 +79,18 @@ class TechnologyStack:
 
 
 @dataclass
-class EnhancedAnalysisResult:
-    """Enhanced analysis result with detailed insights and reasoning"""
+class AnalysisResult:
+    """Main result container for all analysis operations (legacy compatibility)"""
+
+    # Basic information
+    repository_url: str = ""
+    branch: str = "main"
+    analysis_type: AnalysisType = AnalysisType.STACK_DETECTION
 
     # Core results
-    repository_url: str
-    branch: str
-    technology_stack: TechnologyStack
-    confidence_score: float
-    confidence_level: ConfidenceLevel
+    technology_stack: TechnologyStack = field(default_factory=TechnologyStack)
+    confidence_score: float = 0.0
+    confidence_level: ConfidenceLevel = ConfidenceLevel.LOW
 
     # Enhanced insights and reasoning
     insights: List["AnalysisInsight"] = field(default_factory=list)
@@ -106,6 +109,11 @@ class EnhancedAnalysisResult:
     detected_files: List[str] = field(default_factory=list)
     detailed_analysis: Dict[str, Any] = field(default_factory=dict)
     recommendations: List[Dict[str, Any]] = field(default_factory=list)
+    suggestions: List[str] = field(default_factory=list)
+
+    # Optional analysis outputs for compatibility
+    dependency_analysis: Optional["DependencyAnalysis"] = None
+    code_quality: Optional["CodeQualityMetrics"] = None
 
     # Quality and security metrics
     quality_metrics: Optional[Dict[str, Any]] = None
@@ -116,6 +124,10 @@ class EnhancedAnalysisResult:
     analysis_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
+
+    # LLM enhancement data
+    llm_confidence: float = 0.0
+    llm_reasoning: Optional[str] = None
 
     def __post_init__(self):
         # Auto-calculate confidence level
@@ -141,54 +153,6 @@ class EnhancedAnalysisResult:
     def get_insights_by_category(self, category: str) -> List["AnalysisInsight"]:
         """Get insights filtered by category"""
         return [insight for insight in self.insights if insight.category == category]
-
-
-@dataclass
-class AnalysisResult:
-    """Main result container for all analysis operations (legacy compatibility)"""
-
-    # Basic information
-    repository_url: str
-    branch: str
-    analysis_type: AnalysisType
-
-    # Core results
-    technology_stack: TechnologyStack
-    confidence_score: float
-    confidence_level: ConfidenceLevel
-
-    # Analysis details
-    detected_files: List[str]
-    analysis_approach: str  # "rule_based", "llm_enhanced", "hybrid"
-    processing_time: float
-
-    # Detailed results
-    detailed_analysis: Dict[str, Any]
-    recommendations: List[Dict[str, Any]]
-    suggestions: List[str]
-
-    # Quality metrics
-    quality_metrics: Optional[Dict[str, Any]] = None
-    security_metrics: Optional[Dict[str, Any]] = None
-    performance_metrics: Optional[Dict[str, Any]] = None
-
-    # LLM enhancement data
-    llm_used: bool = False
-    llm_confidence: float = 0.0
-    llm_reasoning: Optional[str] = None
-
-    def __post_init__(self):
-        # Auto-calculate confidence level
-        if self.confidence_score >= 0.95:
-            self.confidence_level = ConfidenceLevel.VERY_HIGH
-        elif self.confidence_score >= 0.80:
-            self.confidence_level = ConfidenceLevel.HIGH
-        elif self.confidence_score >= 0.60:
-            self.confidence_level = ConfidenceLevel.MEDIUM
-        elif self.confidence_score >= 0.40:
-            self.confidence_level = ConfidenceLevel.LOW
-        else:
-            self.confidence_level = ConfidenceLevel.VERY_LOW
 
 
 @dataclass
