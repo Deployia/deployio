@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from engines.core.models import (
     AnalysisResult,
     TechnologyStack,
-    ConfidenceLevel,
 )  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -239,12 +238,17 @@ class LLMEnhancer:
             )
 
         # Check for React/Vue/Angular
+        def safe_lower(val):
+            return val.lower() if isinstance(val, str) else ""
+
         has_react = any(
-            "react" in content.lower() for content in repository_files.values()
+            "react" in safe_lower(content) for content in repository_files.values()
         )
-        has_vue = any("vue" in content.lower() for content in repository_files.values())
+        has_vue = any(
+            "vue" in safe_lower(content) for content in repository_files.values()
+        )
         has_angular = any(
-            "angular" in content.lower() for content in repository_files.values()
+            "angular" in safe_lower(content) for content in repository_files.values()
         )
 
         if has_react:
@@ -313,7 +317,12 @@ class LLMEnhancer:
             )
 
         # Check for popular frameworks
-        file_contents = " ".join(repository_files.values()).lower()
+        file_contents = " ".join(
+            [
+                str(val) if isinstance(val, str) else ""
+                for val in repository_files.values()
+            ]
+        ).lower()
 
         if "django" in file_contents:
             insights.append("Django web framework detected")
@@ -379,7 +388,12 @@ class LLMEnhancer:
             )
 
         # Check for Spring framework
-        file_contents = " ".join(repository_files.values()).lower()
+        file_contents = " ".join(
+            [
+                str(val) if isinstance(val, str) else ""
+                for val in repository_files.values()
+            ]
+        ).lower()
         if "spring" in file_contents:
             insights.append("Spring framework detected")
             recommendations.append(
@@ -592,3 +606,9 @@ class LLMEnhancer:
             return {"llm_enhancer": "healthy", "mode": "rule_based_fallback"}
         except Exception as e:
             return {"llm_enhancer": "error", "error": str(e)}
+
+    @property
+    def is_available(self) -> bool:
+        """Indicates if the LLM enhancer is available (health check passes)."""
+        # Synchronous property for health; always returns True for now
+        return True

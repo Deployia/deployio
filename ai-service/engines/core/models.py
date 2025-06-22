@@ -36,6 +36,14 @@ class TechnologyStack:
     language: Optional[str] = None
     framework: Optional[str] = None
     database: Optional[str] = None
+    type: Optional[str] = None  # Added to support input dicts with 'type' key
+    version: Optional[str] = None  # Added to support input dicts with 'version' key
+    confidence: Optional[float] = (
+        None  # Added to support input dicts with 'confidence' key
+    )
+    detection_method: Optional[str] = (
+        None  # Added to support input dicts with 'detection_method' key
+    )
 
     # Build and deployment tools
     build_tool: Optional[str] = None
@@ -50,6 +58,9 @@ class TechnologyStack:
 
     # Deployment information
     deployment_strategy: Optional[str] = None
+
+    # Name field added to support stack_analyzer usage
+    name: Optional[str] = None
 
     def __post_init__(self):
         if self.additional_technologies is None:
@@ -133,11 +144,14 @@ class DependencyAnalysis:
 
     # Dependency counts
     total_dependencies: int
-    production_dependencies: int
-    development_dependencies: int
-
-    # Dependencies by ecosystem
-    ecosystems: Dict[str, int]  # {"npm": 45, "pip": 12}
+    direct_dependencies: int  # Added to match analyzer usage
+    dev_dependencies: int
+    package_managers: List[str]
+    dependencies: List["Dependency"]
+    security_vulnerabilities: int
+    outdated_dependencies: int
+    dependency_categories: Dict[str, List[str]]
+    metrics: Dict[str, Any]
 
     # Security analysis
     total_vulnerabilities: int
@@ -147,7 +161,6 @@ class DependencyAnalysis:
     low_vulnerabilities: int
 
     # Update analysis
-    outdated_dependencies: int
     major_updates_available: int
 
     # License analysis
@@ -156,9 +169,6 @@ class DependencyAnalysis:
 
     # Optimization metrics
     optimization_score: float  # 0-100
-
-    # Detailed dependency list
-    dependencies: List[DependencyInfo]
 
 
 @dataclass
@@ -273,6 +283,7 @@ class Dependency:
     package_manager: str = "unknown"
     file_source: str = ""
     optional: bool = False
+    transitive: bool = False  # Added to match analyzer usage
 
 
 @dataclass

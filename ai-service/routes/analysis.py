@@ -61,6 +61,42 @@ class AnalysisResponse(BaseModel):
     llm_reasoning: Optional[str] = None
 
 
+# Dedicated response models for each analysis type
+class StackDetectionResponse(BaseModel):
+    repository_url: str
+    branch: str
+    analysis_approach: str
+    processing_time: float
+    confidence_score: float
+    confidence_level: str
+    technology_stack: Dict
+    detected_files: List[str]
+
+
+class DependencyAnalysisResponse(BaseModel):
+    repository_url: str
+    branch: str
+    analysis_approach: str
+    processing_time: float
+    confidence_score: float
+    confidence_level: str
+    dependency_analysis: Dict
+    recommendations: List[Dict]
+    suggestions: List[str]
+
+
+class CodeQualityResponse(BaseModel):
+    repository_url: str
+    branch: str
+    analysis_approach: str
+    processing_time: float
+    confidence_score: float
+    confidence_level: str
+    quality_metrics: Dict
+    recommendations: List[Dict]
+    suggestions: List[str]
+
+
 # Simple header validation for internal service communication
 def validate_internal_request(x_internal_service: Optional[str] = Header(None)):
     """Validate that request comes from authorized internal service"""
@@ -105,7 +141,7 @@ async def analyze_repository(
         )
 
         # Convert to response format
-        response = _convert_to_response(result)
+        response = _convert_to_response(result, mode="full")
 
         return ResponseModel(
             success=True,
@@ -119,7 +155,7 @@ async def analyze_repository(
         )
 
 
-@router.post("/analyze-code-quality", response_model=ResponseModel[AnalysisResponse])
+@router.post("/analyze-code-quality", response_model=ResponseModel[CodeQualityResponse])
 async def analyze_code_quality(
     request: CodeQualityRequest,
     internal_service: str = Depends(validate_internal_request),
@@ -132,7 +168,7 @@ async def analyze_code_quality(
             repository_url=request.repository_url, branch=request.branch
         )
 
-        response = _convert_to_response(result)
+        response = _convert_to_response(result, mode="quality")
 
         return ResponseModel(
             success=True,
@@ -146,7 +182,7 @@ async def analyze_code_quality(
         )
 
 
-@router.post("/detect-stack", response_model=ResponseModel[AnalysisResponse])
+@router.post("/detect-stack", response_model=ResponseModel[StackDetectionResponse])
 async def detect_technology_stack(
     request: StackDetectionRequest,
     internal_service: str = Depends(validate_internal_request),
@@ -159,7 +195,7 @@ async def detect_technology_stack(
             repository_url=request.repository_url, branch=request.branch
         )
 
-        response = _convert_to_response(result)
+        response = _convert_to_response(result, mode="stack")
 
         return ResponseModel(
             success=True,
@@ -169,6 +205,35 @@ async def detect_technology_stack(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Stack detection failed: {str(e)}")
+
+
+@router.post(
+    "/analyze-dependencies", response_model=ResponseModel[DependencyAnalysisResponse]
+)
+async def analyze_dependencies(
+    request: RepositoryAnalysisRequest,
+    internal_service: str = Depends(validate_internal_request),
+):
+    """
+    Dependency analysis for a repository (only dependency analysis)
+    """
+    try:
+        result = await detection_engine.analyze_repository(
+            repository_url=request.repository_url,
+            branch=request.branch,
+            analysis_types=[AnalysisType.DEPENDENCY_ANALYSIS],
+            force_llm=request.force_llm_enhancement,
+        )
+        response = _convert_to_response(result, mode="dependency")
+        return ResponseModel(
+            success=True,
+            message="Dependency analysis completed successfully",
+            data=response,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Dependency analysis failed: {str(e)}"
+        )
 
 
 @router.get(
@@ -225,8 +290,12 @@ async def health_check():
 
 
 # Helper function to convert AnalysisResult to AnalysisResponse
-def _convert_to_response(result: AnalysisResult) -> AnalysisResponse:
-    """Convert internal AnalysisResult to API response format"""
+def _convert_to_response(result: AnalysisResult, mode: str = "full"):
+    """Convert internal AnalysisResult to API response format, with error handling and mode"""
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(
+            status_code=500, detail=f"Stack detection failed: {result['error']}"
+        )
 
     # Convert technology stack to dict
     tech_stack = {
@@ -241,21 +310,57 @@ def _convert_to_response(result: AnalysisResult) -> AnalysisResponse:
         "deployment_strategy": result.technology_stack.deployment_strategy,
     }
 
-    return AnalysisResponse(
-        repository_url=result.repository_url,
-        branch=result.branch,
-        analysis_approach=result.analysis_approach,
-        processing_time=result.processing_time,
-        confidence_score=result.confidence_score,
-        confidence_level=result.confidence_level.value,
-        technology_stack=tech_stack,
-        detected_files=result.detected_files,
-        recommendations=result.recommendations,
-        suggestions=result.suggestions,
-        quality_metrics=result.quality_metrics,
-        security_metrics=result.security_metrics,
-        dependency_analysis=result.detailed_analysis.get("dependency_analysis"),
-        llm_used=result.llm_used,
-        llm_confidence=result.llm_confidence,
-        llm_reasoning=result.llm_reasoning,
-    )
+    if mode == "stack":
+        return StackDetectionResponse(
+            repository_url=result.repository_url,
+            branch=result.branch,
+            analysis_approach=result.analysis_approach,
+            processing_time=result.processing_time,
+            confidence_score=result.confidence_score,
+            confidence_level=result.confidence_level.value,
+            technology_stack=tech_stack,
+            detected_files=result.detected_files,
+        )
+    elif mode == "dependency":
+        return DependencyAnalysisResponse(
+            repository_url=result.repository_url,
+            branch=result.branch,
+            analysis_approach=result.analysis_approach,
+            processing_time=result.processing_time,
+            confidence_score=result.confidence_score,
+            confidence_level=result.confidence_level.value,
+            dependency_analysis=result.detailed_analysis.get("dependency_analysis"),
+            recommendations=result.recommendations,
+            suggestions=result.suggestions,
+        )
+    elif mode == "quality":
+        return CodeQualityResponse(
+            repository_url=result.repository_url,
+            branch=result.branch,
+            analysis_approach=result.analysis_approach,
+            processing_time=result.processing_time,
+            confidence_score=result.confidence_score,
+            confidence_level=result.confidence_level.value,
+            quality_metrics=result.quality_metrics,
+            recommendations=result.recommendations,
+            suggestions=result.suggestions,
+        )
+    else:  # full
+        return AnalysisResponse(
+            repository_url=result.repository_url,
+            branch=result.branch,
+            analysis_approach=result.analysis_approach,
+            processing_time=result.processing_time,
+            confidence_score=result.confidence_score,
+            confidence_level=result.confidence_level.value,
+            technology_stack=tech_stack,
+            detected_files=result.detected_files,
+            recommendations=result.recommendations,
+            suggestions=result.suggestions,
+            quality_metrics=result.quality_metrics,
+            security_metrics=result.security_metrics,
+            dependency_analysis=result.detailed_analysis.get("dependency_analysis"),
+            llm_used=result.llm_used,
+            llm_confidence=result.llm_confidence,
+            llm_reasoning=result.llm_reasoning,
+        )

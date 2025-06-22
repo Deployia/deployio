@@ -967,7 +967,9 @@ class CodeAnalyzer:
                     {"type": issue.type, "severity": issue.severity}
                     for issue in analysis.quality_issues[:10]
                 ],
-                "recommendations": ["Improve code quality based on detected issues"],
+                "recommendations": [
+                    {"suggestion": "Improve code quality based on detected issues"}
+                ],
                 "suggestions": ["Consider adding automated testing"],
             }
         except Exception as e:

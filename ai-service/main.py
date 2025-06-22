@@ -4,7 +4,7 @@ FastAPI AI Service - Simplified Internal Microservice
 
 import time
 from config import create_app
-from config.redis_client import connect_redis, get_redis_client
+from config.redis_client import get_redis_client
 from middleware import setup_exception_handlers
 from routes import create_routes
 
@@ -25,7 +25,7 @@ app.include_router(create_routes())
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    await connect_redis()  # Only Redis for caching AI results
+    await get_redis_client()  # Only Redis for caching AI results
 
 
 if __name__ == "__main__":

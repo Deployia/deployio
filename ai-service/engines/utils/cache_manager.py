@@ -6,7 +6,6 @@ Efficient caching for analysis results
 import json
 import logging
 from typing import Any, Optional
-import asyncio
 from config.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
@@ -28,10 +27,10 @@ class CacheManager:
         self.redis_client = None
 
     async def _get_client(self):
-        """Get Redis client with error handling"""
+        """Get async Redis client with error handling"""
         if not self.redis_client:
             try:
-                self.redis_client = get_redis_client()
+                self.redis_client = await get_redis_client()
             except Exception as e:
                 logger.warning(f"Redis client unavailable: {e}")
                 return None
@@ -86,7 +85,7 @@ class CacheManager:
             serializable_value = self._make_serializable(value)
             json_data = json.dumps(serializable_value, default=str)
 
-            await client.setex(self._make_key(key), ttl, json_data)
+            await client.set(self._make_key(key), json_data, ex=ttl)
             logger.debug(f"Cached data for key {key} (TTL: {ttl}s)")
             return True
 

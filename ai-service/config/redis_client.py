@@ -4,7 +4,7 @@ Redis configuration and connection management for FastAPI service
 
 import os
 import logging
-import redis
+import redis.asyncio as redis
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ def get_redis_url() -> str:
     )
 
 
-def init_redis_client() -> Optional[redis.Redis]:
-    """Initialize Redis client (singleton)"""
+async def init_redis_client() -> Optional[redis.Redis]:
+    """Initialize async Redis client (singleton)"""
     global redis_client, redis_connection_status
 
     if redis_client:
@@ -45,14 +45,10 @@ def init_redis_client() -> Optional[redis.Redis]:
     try:
         redis_client = redis.from_url(
             redis_url,
-            socket_keepalive=True,
-            socket_keepalive_options={},
-            socket_connect_timeout=10,
-            socket_timeout=5,
-            retry_on_timeout=True,
-            health_check_interval=30,
-        )  # Test connection
-        redis_client.ping()
+            encoding="utf-8",
+            decode_responses=True,
+        )
+        await redis_client.ping()
         redis_connection_status = "connected"
         logger.info(f"Redis Connected: {redis_url}")
         return redis_client
@@ -65,9 +61,11 @@ def init_redis_client() -> Optional[redis.Redis]:
         return None
 
 
-def get_redis_client() -> Optional[redis.Redis]:
-    """Get the Redis client instance"""
-    return redis_client
+async def get_redis_client() -> Optional[redis.Redis]:
+    """Get the async Redis client instance"""
+    if redis_client:
+        return redis_client
+    return await init_redis_client()
 
 
 def get_redis_connection_status() -> str:
@@ -88,14 +86,3 @@ def close_redis_client():
         finally:
             redis_client = None
             redis_connection_status = "disconnected"
-
-
-async def connect_redis() -> Optional[redis.Redis]:
-    """Connect to Redis - async wrapper for consistency with other services"""
-    try:
-        client = init_redis_client()
-        return client
-    except Exception as error:
-        logger.warning(f"Redis connection failed: {error}")
-        logger.warning("Continuing without Redis - caching will be disabled")
-        return None

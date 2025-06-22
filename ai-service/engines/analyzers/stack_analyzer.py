@@ -1023,10 +1023,9 @@ class StackAnalyzer:
         ext = "." + file_path.split(".")[-1].lower() if "." in file_path else ""
         return ext in code_extensions
 
-    def _generate_recommendations(self, results: List[TechnologyStack]) -> List[str]:
+    def _generate_recommendations(self, results: List[TechnologyStack]) -> List[dict]:
         """Generate recommendations based on detected technologies"""
         recommendations = []
-
         # Framework-specific recommendations
         frameworks = [r for r in results if r.type == "framework"]
         if frameworks:
@@ -1034,35 +1033,42 @@ class StackAnalyzer:
             if main_framework.name == "react":
                 recommendations.extend(
                     [
-                        "Consider using TypeScript for better type safety",
-                        "Use React Testing Library for component testing",
-                        "Consider Next.js for production deployment",
+                        {
+                            "suggestion": "Consider using TypeScript for better type safety"
+                        },
+                        {
+                            "suggestion": "Use React Testing Library for component testing"
+                        },
+                        {"suggestion": "Consider Next.js for production deployment"},
                     ]
                 )
             elif main_framework.name == "vue":
                 recommendations.extend(
                     [
-                        "Use Vue 3 Composition API for better code organization",
-                        "Consider Nuxt.js for SSR capabilities",
+                        {
+                            "suggestion": "Use Vue 3 Composition API for better code organization"
+                        },
+                        {"suggestion": "Consider Nuxt.js for SSR capabilities"},
                     ]
                 )
             elif main_framework.name == "django":
                 recommendations.extend(
                     [
-                        "Use Django REST Framework for API development",
-                        "Consider Redis for caching",
-                        "Use Celery for background tasks",
+                        {"suggestion": "Use Django REST Framework for API development"},
+                        {"suggestion": "Consider Redis for caching"},
+                        {"suggestion": "Use Celery for background tasks"},
                     ]
                 )
             elif main_framework.name == "flask":
                 recommendations.extend(
                     [
-                        "Consider Flask-RESTful for API development",
-                        "Use SQLAlchemy for database operations",
-                        "Consider migrating to FastAPI for async support",
+                        {"suggestion": "Consider Flask-RESTful for API development"},
+                        {"suggestion": "Use SQLAlchemy for database operations"},
+                        {
+                            "suggestion": "Consider migrating to FastAPI for async support"
+                        },
                     ]
                 )
-
         # Language-specific recommendations
         languages = [r for r in results if r.type == "language"]
         if languages:
@@ -1070,20 +1076,25 @@ class StackAnalyzer:
             if main_language.name == "python":
                 recommendations.extend(
                     [
-                        "Use virtual environments for dependency isolation",
-                        "Consider using type hints for better code quality",
-                        "Use pytest for testing",
+                        {
+                            "suggestion": "Use virtual environments for dependency isolation"
+                        },
+                        {
+                            "suggestion": "Consider using type hints for better code quality"
+                        },
+                        {"suggestion": "Use pytest for testing"},
                     ]
                 )
             elif main_language.name == "javascript":
                 recommendations.extend(
                     [
-                        "Consider using TypeScript for better type safety",
-                        "Use ESLint and Prettier for code quality",
-                        "Consider using a modern bundler like Vite",
+                        {
+                            "suggestion": "Consider using TypeScript for better type safety"
+                        },
+                        {"suggestion": "Use ESLint and Prettier for code quality"},
+                        {"suggestion": "Consider using a modern bundler like Vite"},
                     ]
                 )
-
         return recommendations[:10]  # Limit to 10 recommendations
 
     def _generate_suggestions(self, results: List[TechnologyStack]) -> List[str]:

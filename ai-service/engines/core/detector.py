@@ -94,8 +94,16 @@ class UnifiedDetectionEngine:
             cached_result = await self.cache_manager.get(cache_key)
 
             if cached_result and not force_llm:
-                logger.info("Returning cached analysis result")
-                return cached_result
+                # Only return if it's a valid AnalysisResult
+                from engines.core.models import AnalysisResult
+
+                if isinstance(cached_result, AnalysisResult):
+                    logger.info("Returning cached analysis result")
+                    return cached_result
+                else:
+                    logger.warning(
+                        "Cached result is invalid, ignoring and recomputing."
+                    )
 
             # Step 2: Fetch repository data
             repo_data = await self.github_client.fetch_repository_data(
@@ -117,11 +125,22 @@ class UnifiedDetectionEngine:
                 combined_result.confidence_score < self.llm_enhancement_threshold
                 or force_llm
             ):
-                if self.llm_enhancer.is_available():
+                if self.llm_enhancer.is_available:
                     logger.info("Enhancing analysis with LLM")
-                    combined_result = await self.llm_enhancer.enhance_analysis(
+                    enhancement = await self.llm_enhancer.enhance_analysis(
                         combined_result, repo_data
                     )
+                    # Merge enhancement into combined_result (AnalysisResult)
+                    combined_result.technology_stack = enhancement.enhanced_stack
+                    combined_result.confidence_score = min(
+                        combined_result.confidence_score + enhancement.confidence_boost,
+                        1.0,
+                    )
+                    combined_result.llm_used = True
+                    combined_result.llm_confidence = enhancement.confidence_boost
+                    combined_result.llm_reasoning = enhancement.reasoning
+                    combined_result.recommendations.extend(enhancement.recommendations)
+                    combined_result.suggestions.extend(enhancement.additional_insights)
                 else:
                     logger.warning("LLM enhancement requested but not available")
 
@@ -374,7 +393,7 @@ class UnifiedDetectionEngine:
             "dependency_analyzer": "healthy",
             "code_analyzer": "healthy",
             "llm_enhancer": (
-                "healthy" if self.llm_enhancer.is_available() else "unavailable"
+                "healthy" if self.llm_enhancer.is_available else "unavailable"
             ),
             "github_client": "healthy",
             "cache_manager": "healthy",
