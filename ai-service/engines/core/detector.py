@@ -22,6 +22,7 @@ from ..analyzers.code_analyzer import CodeAnalyzer
 from ..enhancers.llm_enhancer import LLMEnhancer
 from ..utils.github_client import GitHubClient
 from ..utils.cache_manager import CacheManager
+from ..analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,10 @@ class UnifiedDetectionEngine:
     """
 
     def __init__(self):
-        # Initialize all analyzers
-        self.stack_analyzer = StackAnalyzer()
-        self.dependency_analyzer = DependencyAnalyzer()
-        self.code_analyzer = CodeAnalyzer()  # Initialize enhancers
+        # Initialize all analyzers as BaseAnalyzer
+        self.stack_analyzer: BaseAnalyzer = StackAnalyzer()
+        self.dependency_analyzer: BaseAnalyzer = DependencyAnalyzer()
+        self.code_analyzer: BaseAnalyzer = CodeAnalyzer()
         self.llm_enhancer = LLMEnhancer()
 
         # Initialize utilities

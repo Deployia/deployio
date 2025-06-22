@@ -9,6 +9,7 @@ import logging
 from typing import Dict, List, Any
 from dataclasses import dataclass
 from engines.core.models import CodeAnalysis, CodeMetrics, QualityIssue
+from .base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class FileAnalysis:
     classes_count: int
 
 
-class CodeAnalyzer:
+class CodeAnalyzer(BaseAnalyzer):
     """
     Multi-language code analyzer
 

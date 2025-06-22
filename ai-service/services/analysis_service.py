@@ -409,7 +409,13 @@ class AnalysisService:
         if mode in ["full", "dependencies"]:
             # Always include dependency_analysis as a dict for response model compatibility
             if result.dependency_analysis is not None:
-                response_data["dependency_analysis"] = result.dependency_analysis
+                # Convert dataclass to dict if needed
+                if hasattr(result.dependency_analysis, "__dict__"):
+                    response_data["dependency_analysis"] = (
+                        result.dependency_analysis.__dict__
+                    )
+                else:
+                    response_data["dependency_analysis"] = result.dependency_analysis
             else:
                 response_data["dependency_analysis"] = {}
 

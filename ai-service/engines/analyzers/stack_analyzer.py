@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from engines.core.models import StackDetectionResult, TechnologyStack, ConfidenceLevel
 from engines.utils.github_client import GitHubClient
+from .base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class AnalysisContext:
     structure_analysis: Dict[str, Any]
 
 
-class StackAnalyzer:
+class StackAnalyzer(BaseAnalyzer):
     """
     High-accuracy technology stack analyzer
 
@@ -192,7 +193,12 @@ class StackAnalyzer:
             ],
         }
 
-    async def analyze(self, repo_data: Dict) -> Dict:
+    async def analyze(self, repository_data: dict, **kwargs):
+        """Standard interface for orchestrator. Calls main stack detection logic."""
+        # You may want to adapt this to your main detection method
+        return await self.detect_stack(repository_data, **kwargs)
+
+    async def detect_stack(self, repo_data: Dict) -> Dict:
         """
         Analyze repository data for stack detection
 

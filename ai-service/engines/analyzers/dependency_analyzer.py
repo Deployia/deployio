@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from engines.core.models import DependencyAnalysis, Dependency
+from .base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class PackageInfo:
     scope: Optional[str] = None
 
 
-class DependencyAnalyzer:
+class DependencyAnalyzer(BaseAnalyzer):
     """
     Multi-format dependency analyzer
 
@@ -682,61 +683,10 @@ class DependencyAnalyzer:
             ),
         }
 
-    async def analyze(self, repo_data: Dict) -> Dict:
-        """
-        Analyze repository data for dependencies
-
-        Args:
-            repo_data: Repository data from GitHub client
-
-        Returns:
-            Dict with dependency analysis results
-        """
-        try:
-            key_files = repo_data.get("key_files", {})
-
-            # Perform dependency analysis
-            analysis_result = await self.analyze_dependencies(key_files)
-
-            return {
-                "total_dependencies": analysis_result.total_dependencies,
-                "direct_dependencies": analysis_result.direct_dependencies,
-                "dev_dependencies": analysis_result.dev_dependencies,
-                "package_managers": analysis_result.package_managers,
-                "dependencies": [
-                    {
-                        "name": dep.name,
-                        "version": dep.version,
-                        "type": dep.type,
-                        "dev_dependency": dep.dev_dependency,
-                        "package_manager": dep.package_manager,
-                    }
-                    for dep in analysis_result.dependencies[
-                        :50
-                    ]  # Limit for response size
-                ],
-                "security_vulnerabilities": analysis_result.security_vulnerabilities,
-                "outdated_dependencies": analysis_result.outdated_dependencies,
-                "dependency_categories": analysis_result.dependency_categories,
-                "metrics": analysis_result.metrics,
-                "confidence": self._calculate_confidence(analysis_result),
-                "detected_files": [
-                    dep.file_source for dep in analysis_result.dependencies
-                ],
-                "recommendations": self._generate_recommendations(analysis_result),
-                "suggestions": self._generate_suggestions(analysis_result),
-                "security_metrics": {
-                    "vulnerable_packages": analysis_result.security_vulnerabilities,
-                    "total_packages": analysis_result.total_dependencies,
-                    "security_score": max(
-                        0, 100 - analysis_result.security_vulnerabilities * 10
-                    ),
-                },
-            }
-
-        except Exception as e:
-            logger.error(f"Dependency analysis failed: {e}")
-            return {"error": str(e)}
+    async def analyze(self, repository_data: dict, **kwargs):
+        """Standard interface for orchestrator. Calls main dependency analysis logic."""
+        # You may want to adapt this to your main dependency analysis method
+        return await self.analyze_dependencies(repository_data, **kwargs)
 
     async def get_supported_ecosystems(self) -> List[str]:
         """Get list of supported package manager ecosystems"""
