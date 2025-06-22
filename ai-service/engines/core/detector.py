@@ -319,10 +319,30 @@ class UnifiedDetectionEngine:
             },
         }
 
-        # Determine analysis approach
+        # Determine analysis approach based on actual LLM usage
         analysis_approach = "rule_based"
-        if any("llm_enhanced" in str(result) for result in analysis_results.values()):
+        llm_used = False
+
+        # Check if any engine actually used LLM enhancement
+        if (
+            stack_result
+            and hasattr(stack_result, "llm_enhanced")
+            and stack_result.llm_enhanced
+        ):
             analysis_approach = "llm_enhanced"
+            llm_used = True
+        elif any(
+            getattr(result, "llm_enhanced", False)
+            for result in analysis_results.values()
+            if result
+        ):
+            analysis_approach = "llm_enhanced"
+            llm_used = True
+
+        # Log the approach used
+        logger.info(
+            f"Analysis approach determined: {analysis_approach} (LLM used: {llm_used})"
+        )
 
         return AnalysisResult(
             repository_url=repository_url,
@@ -338,8 +358,15 @@ class UnifiedDetectionEngine:
             recommendations=recommendations,
             suggestions=suggestions,
             quality_metrics=code_quality_result.get("metrics"),
-            security_metrics=dependency_result.get("security_metrics"),
-            performance_metrics=code_quality_result.get("performance_metrics"),
+            security_metrics=(
+                dependency_result.get("security_metrics") if dependency_result else None
+            ),
+            performance_metrics=(
+                code_quality_result.get("performance_metrics")
+                if code_quality_result
+                else None
+            ),
+            llm_used=llm_used,
         )
 
     async def _create_error_result(

@@ -212,14 +212,57 @@ class GitHubClient:
             return None
 
     def _parse_repository_url(self, repository_url: str) -> Tuple[str, str]:
-        """Parse GitHub repository URL to extract owner and repo"""
-        parsed = urlparse(repository_url)
-        path_parts = parsed.path.strip("/").split("/")
+        """
+        Parse GitHub repository URL to extract owner and repo
 
-        if len(path_parts) >= 2:
-            return path_parts[0], path_parts[1]
-        else:
-            raise ValueError(f"Invalid repository URL: {repository_url}")
+        Handles URLs in formats:
+        - https://github.com/owner/repo
+        - https://github.com/owner/repo.git
+        - git@github.com:owner/repo.git
+        - owner/repo
+        """
+        try:
+            # Handle simple owner/repo format
+            if (
+                "/" in repository_url
+                and not repository_url.startswith("http")
+                and not repository_url.startswith("git@")
+            ):
+                path_parts = repository_url.strip("/").split("/")
+                if len(path_parts) == 2:
+                    return path_parts[0], self._clean_repo_name(path_parts[1])
+
+            # Handle https:// URLs
+            if repository_url.startswith("http"):
+                parsed = urlparse(repository_url)
+                path_parts = parsed.path.strip("/").split("/")
+
+                if len(path_parts) >= 2:
+                    owner = path_parts[0]
+                    repo = self._clean_repo_name(path_parts[1])
+                    return owner, repo
+
+            # Handle git@ URLs
+            if repository_url.startswith("git@"):
+                # Format: git@github.com:owner/repo.git
+                parts = repository_url.split(":")
+                if len(parts) == 2:
+                    path_parts = parts[1].strip("/").split("/")
+                    if len(path_parts) >= 2:
+                        owner = path_parts[0]
+                        repo = self._clean_repo_name(path_parts[1])
+                        return owner, repo
+
+            raise ValueError(f"Could not parse GitHub URL: {repository_url}")
+        except Exception as e:
+            logger.error(f"Error parsing repository URL '{repository_url}': {e}")
+            raise ValueError(f"Invalid repository URL format: {repository_url}")
+
+    def _clean_repo_name(self, repo_name: str) -> str:
+        """Remove .git suffix from repository name if present"""
+        if repo_name.endswith(".git"):
+            return repo_name[:-4]
+        return repo_name
 
     def _is_text_file(self, file_path: str) -> bool:
         """Check if file is likely a text file suitable for analysis"""

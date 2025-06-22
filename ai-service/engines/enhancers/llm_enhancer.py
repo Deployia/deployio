@@ -44,6 +44,7 @@ class LLMEnhancementResult:
     reasoning: str
     additional_insights: List[str]
     recommendations: List[Dict[str, Any]]
+    llm_enhanced: bool = False  # Track if enhancement was done by LLM
 
 
 class LLMEnhancer:
@@ -228,26 +229,75 @@ class LLMEnhancer:
     ) -> LLMEnhancementResult:
         """
         Perform LLM-based enhancement of analysis results
+
+        Uses a three-step process:
+        1. Rule-based initial analysis (from input)
+        2. First LLM call for key technology detection and context building
+        3. Second LLM call for optimization and final results
         """
         try:
-            # Prepare context for LLM
+            # STEP 1: Start with rule-based analysis (already done in analysis_result)
+            logger.info("Step 1: Using rule-based analysis as foundation")
+
+            # STEP 2: First LLM call for key technology detection
+            logger.info("Step 2: Performing first LLM call for technology detection")
+
+            # Prepare context for first LLM call
             context = self._prepare_llm_context(analysis_result, repository_files)
 
-            # Get appropriate prompt
-            prompt = self._build_enhancement_prompt(context, enhancement_type)
+            # Build technology detection prompt
+            tech_prompt = self._build_technology_detection_prompt(context)
 
-            # Call LLM API
-            llm_response = await self._call_llm_api(prompt, model_preference="groq")
+            # Call LLM API for technology detection
+            tech_response = await self._call_llm_api(
+                tech_prompt, model_preference="groq"
+            )
 
-            if llm_response:
-                # Parse LLM response and create enhancement result
-                enhancement = self._parse_llm_response(llm_response, analysis_result)
-                logger.info(
-                    f"LLM enhancement successful with confidence boost: {enhancement.confidence_boost}"
+            if not tech_response:
+                logger.warning(
+                    "First LLM call failed, falling back to rule-based analysis only"
                 )
-                return enhancement
-            else:
-                raise Exception("LLM returned no response")
+                return await self._rule_based_enhancement(
+                    analysis_result, repository_files
+                )
+
+            # Parse first LLM response (technology detection)
+            tech_enhancement = self._parse_technology_detection(
+                tech_response, analysis_result
+            )
+
+            # STEP 3: Second LLM call for optimization and final insights
+            logger.info(
+                "Step 3: Performing second LLM call for optimization and insights"
+            )
+
+            # Prepare enhanced context with first LLM results
+            enhanced_context = self._prepare_enhanced_context(context, tech_enhancement)
+
+            # Build optimization and insights prompt
+            insights_prompt = self._build_optimization_prompt(enhanced_context)
+
+            # Call LLM API for optimization and insights
+            insights_response = await self._call_llm_api(
+                insights_prompt, model_preference="groq"
+            )
+
+            if not insights_response:
+                logger.warning("Second LLM call failed, using results from first call")
+                return tech_enhancement
+
+            # Parse second LLM response and create final enhancement
+            final_enhancement = self._parse_optimization_response(
+                insights_response, tech_enhancement
+            )
+
+            # Mark as LLM enhanced
+            final_enhancement.llm_enhanced = True
+
+            logger.info(
+                f"Three-step LLM enhancement successful with confidence boost: {final_enhancement.confidence_boost}"
+            )
+            return final_enhancement
 
         except Exception as e:
             logger.error(f"LLM enhancement failed: {e}")
@@ -997,3 +1047,263 @@ class LLMEnhancer:
         except Exception as e:
             logger.error(f"OpenAI API call failed: {e}")
             raise
+
+    def _build_technology_detection_prompt(self, context: Dict[str, Any]) -> str:
+        """Build prompt specifically for technology stack detection"""
+        current_analysis = context["current_analysis"]
+        key_files = context["key_files"]
+
+        prompt = f"""You are an expert software stack detector. Analyze this repository and identify the technology stack.
+
+Current Analysis (may be incomplete or incorrect):
+- Language: {current_analysis.get('language', 'Unknown')}
+- Framework: {current_analysis.get('framework', 'Unknown')}
+- Technologies: {', '.join(current_analysis.get('detected_technologies', []))}
+
+Key Files Found:
+{self._format_files_for_prompt(key_files)}
+
+Your task is ONLY to identify the technology stack. Focus on:
+1. Primary programming language(s)
+2. Framework(s) being used
+3. Database technologies
+4. Frontend technologies (if applicable)
+5. Build tools and package managers
+
+CRITICAL: You must respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks.
+
+Response format:
+{{"languages": ["language1", "language2"], "primary_language": "main_language", "frameworks": ["framework1", "framework2"], "primary_framework": "main_framework", "databases": ["database1", "database2"], "build_tools": ["tool1", "tool2"], "package_managers": ["manager1", "manager2"], "additional_technologies": ["tech1", "tech2"], "confidence": 0.95, "reasoning": "explanation of detection process"}}
+
+Only include technologies you are confident about (>70% confidence).
+Respond with the JSON object only:"""
+
+        return prompt
+
+    def _clean_json_response(self, response: str) -> str:
+        """
+        Clean LLM response to extract valid JSON
+        Handles cases where LLM returns markdown code blocks or extra text
+        """
+        # Remove markdown code blocks
+        if "```json" in response:
+            start = response.find("```json") + 7
+            end = response.find("```", start)
+            if end != -1:
+                response = response[start:end].strip()
+        elif "```" in response:
+            start = response.find("```") + 3
+            end = response.find("```", start)
+            if end != -1:
+                response = response[start:end].strip()
+
+        # Find JSON object boundaries
+        start_brace = response.find("{")
+        end_brace = response.rfind("}")
+
+        if start_brace != -1 and end_brace != -1 and end_brace > start_brace:
+            response = response[start_brace : end_brace + 1]
+
+        return response.strip()
+
+    def _parse_technology_detection(
+        self, llm_response: str, analysis_result: AnalysisResult
+    ) -> LLMEnhancementResult:
+        """Parse the first LLM response focused on technology detection"""
+        try:
+            # Log the raw response for debugging
+            logger.info(f"First LLM raw response: {llm_response[:500]}...")
+
+            # Clean the response to extract JSON
+            cleaned_response = self._clean_json_response(llm_response)
+            logger.info(f"Cleaned response: {cleaned_response[:300]}...")
+
+            # Try to parse JSON response
+            response_data = json.loads(cleaned_response)
+
+            # Get primary language and framework
+            primary_language = response_data.get("primary_language") or (
+                response_data.get("languages", [None])[0]
+            )
+
+            primary_framework = response_data.get("primary_framework") or (
+                response_data.get("frameworks", [None])[0]
+            )
+
+            # Create enhanced technology stack
+            enhanced_stack = TechnologyStack(
+                language=primary_language or analysis_result.technology_stack.language,
+                framework=primary_framework
+                or analysis_result.technology_stack.framework,
+                additional_technologies=response_data.get(
+                    "additional_technologies", []
+                ),
+                database=response_data.get("databases", [None])[0],
+                build_tool=response_data.get("build_tools", [None])[0],
+                package_manager=response_data.get("package_managers", [None])[0],
+            )
+
+            # Calculate confidence boost based on LLM confidence
+            llm_confidence = response_data.get("confidence", 0.7)
+            confidence_boost = min(llm_confidence * 0.25, 0.2)  # Cap at 0.2
+
+            logger.info(
+                f"First LLM call parsed successfully with confidence: {llm_confidence}"
+            )
+
+            return LLMEnhancementResult(
+                enhanced_stack=enhanced_stack,
+                confidence_boost=confidence_boost,
+                reasoning=response_data.get(
+                    "reasoning", "LLM-based technology detection"
+                ),
+                additional_insights=[],  # Will be populated by second LLM call
+                recommendations=[],  # Will be populated by second LLM call
+            )
+
+        except json.JSONDecodeError as e:
+            # If JSON parsing fails, extract what we can from text
+            logger.warning(f"Failed to parse first LLM JSON response: {e}")
+            logger.warning(f"Response content: {llm_response[:300]}...")
+            return self._extract_from_text_response(llm_response, analysis_result)
+
+    def _prepare_enhanced_context(
+        self, original_context: Dict[str, Any], tech_enhancement: LLMEnhancementResult
+    ) -> Dict[str, Any]:
+        """Prepare enhanced context for second LLM call"""
+        enhanced_context = original_context.copy()
+
+        # Add results from first LLM call
+        enhanced_context["enhanced_analysis"] = {
+            "language": tech_enhancement.enhanced_stack.language,
+            "framework": tech_enhancement.enhanced_stack.framework,
+            "database": tech_enhancement.enhanced_stack.database,
+            "build_tool": tech_enhancement.enhanced_stack.build_tool,
+            "package_manager": tech_enhancement.enhanced_stack.package_manager,
+            "additional_technologies": tech_enhancement.enhanced_stack.additional_technologies,
+            "confidence_boost": tech_enhancement.confidence_boost,
+            "reasoning": tech_enhancement.reasoning,
+        }
+
+        return enhanced_context
+
+    def _build_optimization_prompt(self, enhanced_context: Dict[str, Any]) -> str:
+        """Build prompt for optimization and insights"""
+        current_analysis = enhanced_context["current_analysis"]
+        enhanced_analysis = enhanced_context["enhanced_analysis"]
+        key_files = enhanced_context["key_files"]
+
+        prompt = f"""You are an expert software architect and DevOps engineer. The technology stack for this repository has been identified:
+
+First-Pass Analysis:
+- Language: {current_analysis.get('language', 'Unknown')}
+- Framework: {current_analysis.get('framework', 'Unknown')}
+
+Enhanced Analysis:
+- Primary Language: {enhanced_analysis.get('language', 'Unknown')}
+- Primary Framework: {enhanced_analysis.get('framework', 'Unknown')}
+- Database: {enhanced_analysis.get('database', 'Unknown')}
+- Build Tool: {enhanced_analysis.get('build_tool', 'Unknown')}
+- Package Manager: {enhanced_analysis.get('package_manager', 'Unknown')}
+- Additional Technologies: {', '.join(enhanced_analysis.get('additional_technologies', []))}
+- Reasoning: {enhanced_analysis.get('reasoning', 'N/A')}
+
+Key Files:
+{self._format_files_for_prompt(key_files)}
+
+Now provide deeper insights and optimization recommendations:
+
+1. Architecture patterns you can identify
+2. Deployment best practices for this stack
+3. Performance optimization suggestions
+4. Security considerations
+5. Development workflow recommendations
+6. Any additional technologies that should be considered
+
+CRITICAL: You must respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks.
+
+Response format:
+{{"architecture_patterns": ["pattern1", "pattern2"], "deployment_strategy": "recommended_approach", "optimization_suggestions": [{{"area": "performance", "suggestion": "specific advice"}}, {{"area": "security", "suggestion": "specific advice"}}], "development_workflow": ["workflow suggestion 1", "workflow suggestion 2"], "additional_insights": ["insight 1", "insight 2"], "recommended_technologies": [{{"name": "tech1", "purpose": "reason to add"}}, {{"name": "tech2", "purpose": "reason to add"}}], "confidence": 0.95}}
+
+Respond with the JSON object only:"""
+
+        return prompt
+
+    def _parse_optimization_response(
+        self, llm_response: str, tech_enhancement: LLMEnhancementResult
+    ) -> LLMEnhancementResult:
+        """Parse the second LLM response focused on optimization and insights"""
+        try:
+            # Log the raw response for debugging
+            logger.info(f"Second LLM raw response: {llm_response[:500]}...")
+
+            # Clean the response to extract JSON
+            cleaned_response = self._clean_json_response(llm_response)
+            logger.info(f"Cleaned response: {cleaned_response[:300]}...")
+
+            # Try to parse JSON response
+            response_data = json.loads(cleaned_response)
+
+            # Create enhanced technology stack from first LLM call results
+            enhanced_stack = tech_enhancement.enhanced_stack
+
+            # Add architecture pattern if identified
+            if response_data.get("architecture_patterns"):
+                enhanced_stack.architecture_pattern = response_data[
+                    "architecture_patterns"
+                ][0]
+
+            # Add deployment strategy if identified
+            if response_data.get("deployment_strategy"):
+                enhanced_stack.deployment_strategy = response_data[
+                    "deployment_strategy"
+                ]
+
+            # Extract optimization suggestions as recommendations
+            recommendations = []
+            for suggestion in response_data.get("optimization_suggestions", []):
+                recommendations.append(
+                    {
+                        "type": suggestion.get("area", "general"),
+                        "suggestion": suggestion.get("suggestion", ""),
+                        "priority": (
+                            "high"
+                            if suggestion.get("area") in ["security", "performance"]
+                            else "medium"
+                        ),
+                    }
+                )
+
+            # Extract recommended technologies
+            for tech in response_data.get("recommended_technologies", []):
+                if tech.get("name") not in enhanced_stack.additional_technologies:
+                    enhanced_stack.additional_technologies.append(tech.get("name"))
+
+            # Extract additional insights
+            additional_insights = response_data.get("additional_insights", [])
+
+            # Add workflow suggestions to insights
+            additional_insights.extend(response_data.get("development_workflow", []))
+
+            # Calculate confidence from both LLM calls
+            first_confidence = tech_enhancement.confidence_boost
+            second_confidence = response_data.get("confidence", 0.7) * 0.15
+            total_confidence = first_confidence + second_confidence
+
+            logger.info(
+                f"Second LLM call parsed successfully with combined confidence: {total_confidence}"
+            )
+
+            return LLMEnhancementResult(
+                enhanced_stack=enhanced_stack,
+                confidence_boost=min(total_confidence, 0.3),  # Cap at 0.3
+                reasoning=tech_enhancement.reasoning,  # Keep original reasoning
+                additional_insights=additional_insights,
+                recommendations=recommendations,
+            )
+
+        except json.JSONDecodeError as e:
+            # If JSON parsing fails, keep the first LLM call results
+            logger.warning(f"Failed to parse second LLM JSON response: {e}")
+            logger.warning(f"Response content: {llm_response[:300]}...")
+            return tech_enhancement

@@ -115,6 +115,24 @@ class DependencyAnalyzer:
             outdated_dependencies=0,  # Would require API calls to check
             dependency_categories=categorization,
             metrics=metrics,
+            # Add missing required parameters
+            total_vulnerabilities=vulnerability_count,
+            critical_vulnerabilities=len(
+                [v for v in unique_dependencies if v.vulnerability_level == "critical"]
+            ),
+            high_vulnerabilities=len(
+                [v for v in unique_dependencies if v.vulnerability_level == "high"]
+            ),
+            medium_vulnerabilities=len(
+                [v for v in unique_dependencies if v.vulnerability_level == "medium"]
+            ),
+            low_vulnerabilities=len(
+                [v for v in unique_dependencies if v.vulnerability_level == "low"]
+            ),
+            major_updates_available=0,  # Would require API calls to package registries
+            license_issues=0,  # Placeholder, would require license analysis
+            incompatible_licenses=[],  # Placeholder, would need license compatibility matrix
+            optimization_score=self._calculate_optimization_score(unique_dependencies),
         )
 
     async def _analyze_package_json(self, content: str, file_path: str) -> Dict:
@@ -1010,3 +1028,38 @@ class DependencyAnalyzer:
                 vulnerable_count += 1
 
         return vulnerable_count
+
+    def _calculate_optimization_score(self, dependencies: List[Dependency]) -> float:
+        """
+        Calculate an optimization score for dependencies (0.0-1.0)
+        Higher score means more optimized dependencies
+
+        Logic:
+        - Direct dependencies should be minimal (fewer is better)
+        - Dev dependencies should be properly separated
+        - Dependencies with vulnerabilities reduce score
+        - Dependencies with proper version pinning increase score
+        """
+        if not dependencies:
+            return 1.0  # No dependencies means perfect optimization
+
+        # Base score
+        score = 0.75
+
+        # Adjust based on number of direct dependencies (penalize > 25 deps)
+        direct_deps = len([d for d in dependencies if not d.transitive])
+        if direct_deps > 25:
+            score -= min(0.2, (direct_deps - 25) * 0.01)
+
+        # Penalize for vulnerabilities
+        vuln_count = len([d for d in dependencies if d.vulnerability_level])
+        if vuln_count > 0:
+            score -= min(0.3, vuln_count * 0.05)
+
+        # Reward for proper dev dependency separation
+        dev_deps = len([d for d in dependencies if d.dev_dependency])
+        if dev_deps > 0 and direct_deps > 0:
+            score += min(0.1, dev_deps / direct_deps * 0.1)
+
+        # Clamp to valid range
+        return max(0.0, min(1.0, score))
