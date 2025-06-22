@@ -1,11 +1,12 @@
 """
 Core data models for the AI analysis engine
-Clean, standardized data structures
+Clean, standardized data structures with enhanced insights and reasoning
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 from enum import Enum
+from datetime import datetime
 
 
 class AnalysisType(Enum):
@@ -26,6 +27,16 @@ class ConfidenceLevel(Enum):
     MEDIUM = "medium"  # 60-80%
     HIGH = "high"  # 80-95%
     VERY_HIGH = "very_high"  # 95-100%
+
+
+class ProgressStatus(Enum):
+    """Status of analysis progress"""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -68,8 +79,73 @@ class TechnologyStack:
 
 
 @dataclass
+class EnhancedAnalysisResult:
+    """Enhanced analysis result with detailed insights and reasoning"""
+
+    # Core results
+    repository_url: str
+    branch: str
+    technology_stack: TechnologyStack
+    confidence_score: float
+    confidence_level: ConfidenceLevel
+
+    # Enhanced insights and reasoning
+    insights: List["AnalysisInsight"] = field(default_factory=list)
+    reasoning: str = ""
+    thought_process: str = ""
+    null_field_explanations: Dict[str, str] = field(default_factory=dict)
+
+    # Analysis metadata
+    analysis_steps: List[str] = field(default_factory=list)
+    processing_time: float = 0.0
+    llm_used: bool = False
+    llm_provider: Optional[str] = None
+    analysis_approach: str = "rule_based"
+
+    # Detailed results
+    detected_files: List[str] = field(default_factory=list)
+    detailed_analysis: Dict[str, Any] = field(default_factory=dict)
+    recommendations: List[Dict[str, Any]] = field(default_factory=list)
+
+    # Quality and security metrics
+    quality_metrics: Optional[Dict[str, Any]] = None
+    security_metrics: Optional[Dict[str, Any]] = None
+    performance_metrics: Optional[Dict[str, Any]] = None
+
+    # Progress tracking
+    analysis_id: Optional[str] = None
+    created_at: datetime = field(default_factory=datetime.now)
+    completed_at: Optional[datetime] = None
+
+    def __post_init__(self):
+        # Auto-calculate confidence level
+        if self.confidence_score >= 0.95:
+            self.confidence_level = ConfidenceLevel.VERY_HIGH
+        elif self.confidence_score >= 0.80:
+            self.confidence_level = ConfidenceLevel.HIGH
+        elif self.confidence_score >= 0.60:
+            self.confidence_level = ConfidenceLevel.MEDIUM
+        elif self.confidence_score >= 0.40:
+            self.confidence_level = ConfidenceLevel.LOW
+        else:
+            self.confidence_level = ConfidenceLevel.VERY_LOW
+
+    def add_insight(self, insight: "AnalysisInsight"):
+        """Add an insight to the analysis result"""
+        self.insights.append(insight)
+
+    def explain_null_field(self, field_name: str, explanation: str):
+        """Add explanation for why a field is null/empty"""
+        self.null_field_explanations[field_name] = explanation
+
+    def get_insights_by_category(self, category: str) -> List["AnalysisInsight"]:
+        """Get insights filtered by category"""
+        return [insight for insight in self.insights if insight.category == category]
+
+
+@dataclass
 class AnalysisResult:
-    """Main result container for all analysis operations"""
+    """Main result container for all analysis operations (legacy compatibility)"""
 
     # Basic information
     repository_url: str
@@ -315,6 +391,61 @@ class CodeAnalysis:
     code_metrics: CodeMetrics
     quality_issues: List[QualityIssue]
     file_analyses: List[Any]
+
+
+@dataclass
+class AnalysisInsight:
+    """Individual insight with detailed reasoning"""
+
+    category: str  # "detection", "optimization", "security", "performance"
+    title: str
+    description: str
+    reasoning: str
+    confidence: float
+    evidence: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+    severity: Optional[str] = None  # "low", "medium", "high", "critical"
+    tags: List[str] = field(default_factory=list)
+
+
+@dataclass
+class AnalysisProgress:
+    """Real-time analysis progress tracking"""
+
+    step_name: str
+    step_number: int
+    total_steps: int
+    percentage: float
+    status: ProgressStatus
+    message: str
+    details: Optional[Dict[str, Any]] = None
+    timestamp: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class AnalysisRequest:
+    """Standardized request for all analysis types"""
+
+    repository_url: str
+    branch: str = "main"
+    analysis_types: List[str] = field(
+        default_factory=lambda: ["stack", "dependencies", "code"]
+    )
+
+    # Enhanced options
+    include_reasoning: bool = True
+    include_recommendations: bool = True
+    include_insights: bool = True
+    explain_null_fields: bool = True
+
+    # Progress and streaming
+    progress_callback_url: Optional[str] = None
+    stream_progress: bool = False
+
+    # Analysis customization
+    options: Dict[str, Any] = field(default_factory=dict)
+    max_file_size: int = 1024 * 1024  # 1MB default
+    timeout_seconds: int = 300  # 5 minutes default
 
 
 # Helper functions for working with confidence scores

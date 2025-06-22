@@ -1,23 +1,23 @@
 """
-Centralized prompt templates for LLM enhancement
+Enhanced prompt templates for LLM enhancement with detailed reasoning
 """
 
 from typing import Dict, Any
 
 
 class PromptTemplates:
-    """Centralized management of LLM prompts"""
+    """Centralized management of enhanced LLM prompts with reasoning"""
 
     @staticmethod
-    def get_technology_detection_prompt(context: Dict[str, Any]) -> str:
+    def get_enhanced_technology_detection_prompt(context: Dict[str, Any]) -> str:
         """
-        Build prompt for technology detection phase
+        Enhanced prompt for technology detection with detailed reasoning
 
         Args:
             context: Analysis context with current results and file contents
 
         Returns:
-            Formatted prompt for technology detection
+            Formatted prompt for enhanced technology detection
         """
         current_analysis = context.get("current_analysis", {})
         key_files = context.get("key_files", {})
@@ -25,38 +25,80 @@ class PromptTemplates:
         # Build file content section
         file_content = ""
         for filename, content in key_files.items():
-            file_content += f"\n--- {filename} ---\n{content[:1000]}\n"
+            file_content += f"\n--- {filename} ---\n{content[:1500]}\n"
 
         prompt = f"""
-You are an expert software architect analyzing a repository for technology stack detection.
+You are an expert software architect with deep knowledge of technology stacks, frameworks, and development patterns. 
+
+CONTEXT:
+Repository URL: {context.get('repository_url', 'unknown')}
 
 Current Rule-Based Analysis:
 - Language: {current_analysis.get('language', 'unknown')}
 - Framework: {current_analysis.get('framework', 'unknown')}
-- Confidence: {current_analysis.get('confidence', 0)}
+- Confidence: {current_analysis.get('confidence', 0):.2f}
 - Detected Technologies: {current_analysis.get('detected_technologies', [])}
 
-Repository Files:
+Repository Files Analysis:
 {file_content}
 
-Your task is to analyze the repository and improve the technology detection. Focus on:
-1. Verify and enhance the detected language and framework
-2. Identify any missed technologies or frameworks
-3. Determine the most likely architecture pattern
-4. Assess confidence level based on evidence
+TASK:
+Analyze the repository comprehensively and provide enhanced technology detection with detailed reasoning.
 
+ANALYSIS REQUIREMENTS:
+1. **Primary Technology Stack**: Identify the main language, framework, and architecture
+2. **Secondary Technologies**: Detect supporting tools, libraries, and services
+3. **Architecture Pattern**: Determine the architectural approach (MVC, microservices, serverless, etc.)
+4. **Deployment Strategy**: Identify containerization, cloud services, and deployment tools
+5. **Confidence Assessment**: Rate confidence based on evidence strength
+6. **Missing Information**: Explain why certain fields might be null or uncertain
+
+RESPONSE FORMAT:
 Respond with ONLY valid JSON in this exact format:
 {{
-    "language": "detected_language",
-    "framework": "primary_framework", 
-    "database": "database_type_or_null",
-    "additional_technologies": ["tech1", "tech2"],
-    "architecture_pattern": "pattern_or_null",
-    "confidence": 0.85,
-    "reasoning": "Brief explanation of detection logic"
+    "technology_detection": {{
+        "language": "primary_language",
+        "framework": "main_framework",
+        "database": "database_type_or_null",
+        "architecture_pattern": "detected_pattern",
+        "deployment_strategy": "deployment_approach",
+        "additional_technologies": ["tech1", "tech2", "tech3"],
+        "confidence": 0.85,
+        "detection_method": "llm_enhanced"
+    }},
+    "reasoning": {{
+        "language_reasoning": "Why this language was identified",
+        "framework_reasoning": "Evidence for framework detection",
+        "architecture_reasoning": "Architectural pattern justification",
+        "confidence_reasoning": "Why this confidence level",
+        "null_field_explanations": {{
+            "database": "Why database field is null if applicable",
+            "deployment_strategy": "Why deployment strategy is unclear if applicable"
+        }}
+    }},
+    "evidence": {{
+        "strong_indicators": ["file1.ext: specific evidence", "pattern: evidence"],
+        "weak_indicators": ["possible evidence"],
+        "contradictory_evidence": ["conflicting signs if any"]
+    }},
+    "insights": [
+        {{
+            "category": "detection",
+            "title": "Primary Framework Detection",
+            "description": "Detected React.js based on package.json dependencies",
+            "reasoning": "package.json contains react dependencies and jsx files present",
+            "confidence": 0.9,
+            "evidence": ["package.json: react dependency", "src/*.jsx files"]
+        }}
+    ]
 }}
 
-Focus on accuracy and evidence-based detection. Confidence should reflect the strength of evidence found.
+GUIDELINES:
+- Base confidence on actual evidence from files
+- Explain any null or uncertain fields
+- Provide specific file evidence for each detection
+- Consider version patterns and compatibility
+- Account for monorepo or multi-service architectures
 """
         return prompt.strip()
 
