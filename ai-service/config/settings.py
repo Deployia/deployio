@@ -120,13 +120,15 @@ class Settings(BaseSettings):
     rate_limit_requests: int = int(os.getenv("RATE_LIMIT_REQUESTS", 100))
     rate_limit_window: int = int(os.getenv("RATE_LIMIT_WINDOW", 60))
     max_request_size: str = os.getenv("MAX_REQUEST_SIZE", "10MB")
-    request_timeout: int = int(os.getenv("REQUEST_TIMEOUT", 60))
-
-    # CORS Configuration
-    cors_origins: List[str] = os.getenv(
+    request_timeout: int = int(os.getenv("REQUEST_TIMEOUT", 60))  # CORS Configuration
+    cors_origins_str: str = os.getenv(
         "CORS_ORIGINS",
         "http://localhost:3000,http://localhost:5173,https://deployio.tech",
-    ).split(",")
+    )
+
+    @property
+    def cors_origins(self) -> List[str]:
+        return [origin.strip() for origin in self.cors_origins_str.split(",")]
 
     # =============================================================================
     # MONITORING & LOGGING

@@ -32,14 +32,20 @@ class StackAnalyzer:
     1. File structure analysis (directory patterns, extensions)
     2. Package file analysis (dependencies, config files)
     3. Content analysis (imports, patterns)
-    4. LLM enhancement (for low confidence cases)
-
-    Target Accuracy: 96%+
+    4. LLM enhancement (for low confidence cases)    Target Accuracy: 96%+
     """
 
     def __init__(self):
         self.github_client = GitHubClient()
         self._init_detection_patterns()
+        # Add simple caching for repeated pattern matches
+        self._pattern_cache = {}
+        self._structure_cache = {}
+
+    def _cache_key(self, file_list: List[str], cache_type: str) -> str:
+        """Generate cache key for file patterns"""
+        sorted_files = sorted(file_list)
+        return f"{cache_type}:{hash(str(sorted_files))}"
 
     def _init_detection_patterns(self):
         """Initialize detection patterns for different technologies"""
@@ -935,11 +941,106 @@ class StackAnalyzer:
         self, context: AnalysisContext, current_results: List[TechnologyStack]
     ) -> List[TechnologyStack]:
         """Enhance detection results using LLM for low confidence cases"""
+        try:
+            logger.info("Attempting LLM enhancement for stack detection")
 
-        # For now, return current results
-        # TODO: Implement LLM enhancement using Groq/Llama
-        logger.info("LLM enhancement placeholder - returning current results")
-        return current_results
+            # Import LLM enhancer
+            from ..enhancers.llm_enhancer import LLMEnhancer
+
+            # Create mock analysis result for LLM enhancer
+            from ..core.models import AnalysisResult, AnalysisType
+
+            mock_result = AnalysisResult(
+                repository_url=context.repository_data.get("url", "unknown"),
+                branch="main",
+                analysis_type=AnalysisType.STACK_DETECTION,
+                technology_stack=(
+                    current_results[0] if current_results else TechnologyStack()
+                ),
+                confidence_score=(
+                    current_results[0].confidence if current_results else 0.0
+                ),
+                confidence_level=self._calculate_confidence_level(
+                    current_results[0].confidence if current_results else 0.0
+                ),
+                recommendations=[],
+                suggestions=[],
+                processing_time=0.0,
+                llm_used=False,
+            )
+
+            # Use LLM enhancer
+            llm_enhancer = LLMEnhancer()
+            if llm_enhancer.is_available:
+                enhancement = await llm_enhancer.enhance_analysis(
+                    mock_result, context.key_files
+                )
+
+                # Convert enhanced stack back to our format
+                enhanced_stack = enhancement.enhanced_stack
+                if enhanced_stack and enhanced_stack.language:
+                    enhanced_result = TechnologyStack(
+                        name=enhanced_stack.framework or enhanced_stack.language,
+                        type="framework" if enhanced_stack.framework else "language",
+                        language=enhanced_stack.language,
+                        version="unknown",
+                        confidence=(
+                            min(
+                                current_results[0].confidence
+                                + enhancement.confidence_boost,
+                                1.0,
+                            )
+                            if current_results
+                            else enhancement.confidence_boost
+                        ),
+                        detection_method="llm_enhancement",
+                    )
+
+                    logger.info(
+                        f"LLM enhancement successful - confidence boost: {enhancement.confidence_boost}"
+                    )
+
+                    # Merge with existing results
+                    enhanced_results = (
+                        [enhanced_result] + current_results[1:]
+                        if current_results
+                        else [enhanced_result]
+                    )
+                    return enhanced_results
+                else:
+                    logger.warning("LLM enhancement returned no useful data")
+                    logger.error(
+                        f"FALLBACK TRIGGERED: LLM enhancement returned empty stack for {context.repository_data.get('url', 'unknown')}"
+                    )
+                    return current_results
+            else:
+                logger.warning("LLM enhancer not available")
+                logger.error(
+                    f"FALLBACK TRIGGERED: LLM enhancer unavailable for stack analysis of {context.repository_data.get('url', 'unknown')}"
+                )
+                return current_results
+
+        except Exception as e:
+            logger.error(f"LLM enhancement failed: {e}")
+            logger.error(
+                f"FALLBACK TRIGGERED: Stack analyzer LLM enhancement failed for {context.repository_data.get('url', 'unknown')} - {str(e)}"
+            )
+            return current_results
+
+    def _calculate_confidence_level(self, confidence: float):
+        """Calculate confidence level enum from float value"""
+        from ..core.models import ConfidenceLevel
+
+        if confidence >= 0.95:
+            return ConfidenceLevel.VERY_HIGH
+        elif confidence >= 0.80:
+            return ConfidenceLevel.HIGH
+        elif confidence >= 0.60:
+            return ConfidenceLevel.MEDIUM
+        elif confidence >= 0.40:
+            return ConfidenceLevel.LOW
+        else:
+            return ConfidenceLevel.VERY_LOW
 
     def _determine_primary_stack(
         self, results: List[TechnologyStack]

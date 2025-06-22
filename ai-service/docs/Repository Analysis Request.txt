@@ -1,0 +1,46 @@
+Repository Analysis Request
+         ↓
+🔍 UnifiedDetectionEngine.analyze_repository()
+         ↓
+┌─────────────────────────────────────────────┐
+│     PHASE 1: DATA COLLECTION               │
+│  📥 GitHubClient.fetch_repository_data()   │
+│     • File tree, structure, key files      │
+└─────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────┐
+│     PHASE 2: PARALLEL ANALYSIS             │
+│  🔧 StackAnalyzer.analyze()                │
+│     • File structure patterns              │
+│     • Package file analysis                │
+│     • Content pattern matching             │
+│  📊 DependencyAnalyzer.analyze()           │
+│     • Parse package.json, requirements.txt │
+│     • Extract versions & dependencies      │
+│  💻 CodeAnalyzer.analyze()                 │
+│     • Code complexity analysis             │
+│     • Pattern detection                    │
+└─────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────┐
+│     PHASE 3: CONFIDENCE EVALUATION         │
+│  🎯 Calculate combined confidence score    │
+│     IF confidence < 0.75:                  │
+│        ↓ TRIGGER LLM ENHANCEMENT           │
+└─────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────┐
+│     PHASE 4: LLM ENHANCEMENT (Optional)    │
+│  🤖 LLMEnhancer.enhance_analysis()         │
+│     • Try Groq API (Llama 3.3 70B)        │
+│     • Fallback to OpenAI if Groq fails    │
+│     • Final fallback to rule-based logic  │
+│  📝 ALL FALLBACKS LOGGED                   │
+└─────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────┐
+│     PHASE 5: RESULT COMPILATION            │
+│  📋 Combine all analysis results           │
+│  💾 Cache result (1 hour TTL)             │
+│  📊 Return AnalysisResult                  │
+└─────────────────────────────────────────────┘

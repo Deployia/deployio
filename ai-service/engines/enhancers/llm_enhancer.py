@@ -4,17 +4,35 @@ Provides smart insights and recommendations when rule-based analysis has low con
 """
 
 import logging
-import json  # noqa: F401
-import asyncio  # noqa: F401
+import json
+import asyncio
+import os
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 
 from engines.core.models import (
     AnalysisResult,
     TechnologyStack,
-)  # noqa: F401
+)
 
 logger = logging.getLogger(__name__)
+
+# Import LLM clients
+try:
+    from groq import Groq
+
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
+    logger.warning("Groq client not available")
+
+try:
+    from openai import OpenAI
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    logger.warning("OpenAI client not available")
 
 
 @dataclass
@@ -30,9 +48,7 @@ class LLMEnhancementResult:
 
 class LLMEnhancer:
     """
-    AI-powered analysis enhancer
-
-    Features:
+    AI-powered analysis enhancer    Features:
     - Smart technology detection
     - Architecture pattern recognition
     - Best practice recommendations
@@ -40,6 +56,11 @@ class LLMEnhancer:
     """
 
     def __init__(self):
+        # Initialize LLM clients
+        self.groq_client = None
+        self.openai_client = None
+        self._init_llm_clients()
+
         self.enhancement_prompts = {
             "stack_detection": self._get_stack_detection_prompt(),
             "architecture_analysis": self._get_architecture_prompt(),
@@ -86,6 +107,62 @@ class LLMEnhancer:
 
         logger.info("LLMEnhancer initialized successfully")
 
+    def _init_llm_clients(self):
+        """Initialize LLM clients based on available API keys"""
+        try:
+            # Unset SSL_CERT_FILE if present to avoid invalid argument error
+            os.environ.pop("SSL_CERT_FILE", None)
+
+            # Initialize Groq client
+            groq_api_key = os.getenv("GROQ_API_KEY")
+            if groq_api_key and GROQ_AVAILABLE:
+                # Validate API key format
+                if not groq_api_key.startswith("gsk_"):
+                    logger.warning(
+                        "Groq API key format appears invalid (should start with 'gsk_')"
+                    )
+                # Only import if needed
+                # from groq import Groq  # Already imported at top if available
+                self.groq_client = Groq(api_key=groq_api_key)
+                logger.info("Groq client initialized successfully")
+                # Simple Groq API call to verify
+                try:
+                    response = self.groq_client.chat.completions.create(
+                        model=os.getenv("LLM_MODEL_GROQ", "llama-3.3-70b-versatile"),
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": "Say: Deployio is the best platform",
+                            }
+                        ],
+                        max_tokens=10,
+                        temperature=0,
+                    )
+                    result = response.choices[0].message.content.strip()
+                    logger.info(f"Simple Groq API call result: {result}")
+                except Exception as api_e:
+                    logger.warning(f"Simple Groq API call failed: {api_e}")
+            else:
+                logger.info("Groq API key not found or client unavailable")
+
+            # Initialize OpenAI client
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            if openai_api_key and OPENAI_AVAILABLE:
+                # Only import if needed
+                # from openai import OpenAI  # Already imported at top if available
+                self.openai_client = OpenAI(api_key=openai_api_key)
+                logger.info("OpenAI client initialized successfully")
+            else:
+                logger.info("OpenAI API key not found or client unavailable")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM clients: {e}")
+            logger.error(
+                f"FALLBACK TRIGGERED: LLM client initialization failed - {str(e)}"
+            )
+            self.groq_client = None
+            self.openai_client = None
+
     async def enhance_analysis(
         self,
         analysis_result: AnalysisResult,
@@ -108,19 +185,213 @@ class LLMEnhancer:
                 f"Starting LLM enhancement for {analysis_result.repository_url}"
             )
 
-            # For now, use rule-based enhancement as fallback
-            # In production, this would integrate with actual LLM APIs
+            # Try LLM enhancement first if available
+            if self.groq_client or self.openai_client:
+                try:
+                    enhanced_result = await self._llm_enhancement(
+                        analysis_result, repository_files, enhancement_type
+                    )
+                    logger.info("LLM enhancement completed successfully")
+                    return enhanced_result
+                except Exception as e:
+                    logger.warning(
+                        f"LLM enhancement failed, falling back to rule-based: {e}"
+                    )
+                    # Log the fallback for user awareness
+                    logger.error(
+                        f"FALLBACK TRIGGERED: LLM enhancement failed for {analysis_result.repository_url}. Reason: {e}"
+                    )
+            else:
+                logger.warning("No LLM clients available, using rule-based enhancement")
+                logger.error(
+                    f"FALLBACK TRIGGERED: No LLM clients available for {analysis_result.repository_url}"
+                )
+
+            # Fallback to rule-based enhancement
             enhanced_result = await self._rule_based_enhancement(
                 analysis_result, repository_files
             )
 
-            logger.info("LLM enhancement completed successfully")
+            logger.info("Rule-based enhancement completed successfully")
             return enhanced_result
 
         except Exception as e:
-            logger.error(f"LLM enhancement failed: {e}")
+            logger.error(f"All enhancement methods failed: {e}")
             # Return minimal enhancement to avoid breaking the flow
             return self._minimal_enhancement(analysis_result)
+
+    async def _llm_enhancement(
+        self,
+        analysis_result: AnalysisResult,
+        repository_files: Dict[str, str],
+        enhancement_type: str = "comprehensive",
+    ) -> LLMEnhancementResult:
+        """
+        Perform LLM-based enhancement of analysis results
+        """
+        try:
+            # Prepare context for LLM
+            context = self._prepare_llm_context(analysis_result, repository_files)
+
+            # Get appropriate prompt
+            prompt = self._build_enhancement_prompt(context, enhancement_type)
+
+            # Call LLM API
+            llm_response = await self._call_llm_api(prompt, model_preference="groq")
+
+            if llm_response:
+                # Parse LLM response and create enhancement result
+                enhancement = self._parse_llm_response(llm_response, analysis_result)
+                logger.info(
+                    f"LLM enhancement successful with confidence boost: {enhancement.confidence_boost}"
+                )
+                return enhancement
+            else:
+                raise Exception("LLM returned no response")
+
+        except Exception as e:
+            logger.error(f"LLM enhancement failed: {e}")
+            raise
+
+    def _prepare_llm_context(
+        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """Prepare context for LLM analysis"""
+        # Get key files for analysis
+        key_files = {}
+        important_files = [
+            "package.json",
+            "requirements.txt",
+            "Dockerfile",
+            "docker-compose.yml",
+            "README.md",
+            "main.py",
+            "app.py",
+            "index.js",
+            "server.js",
+        ]
+
+        for filename, content in repository_files.items():
+            file_lower = filename.lower()
+            if any(imp_file in file_lower for imp_file in important_files):
+                key_files[filename] = content[:2000]  # Limit content size
+
+        return {
+            "current_analysis": {
+                "language": analysis_result.technology_stack.language,
+                "framework": analysis_result.technology_stack.framework,
+                "confidence": analysis_result.confidence_score,
+                "detected_technologies": analysis_result.technology_stack.additional_technologies,
+            },
+            "key_files": key_files,
+            "repository_url": analysis_result.repository_url,
+        }
+
+    def _build_enhancement_prompt(
+        self, context: Dict[str, Any], enhancement_type: str
+    ) -> str:
+        """Build prompt for LLM enhancement"""
+        current_analysis = context["current_analysis"]
+        key_files = context["key_files"]
+
+        prompt = f"""
+        You are an expert software architect and DevOps engineer. Analyze this repository and enhance the technology stack detection.
+
+        Current Analysis:
+        - Language: {current_analysis.get('language', 'Unknown')}
+        - Framework: {current_analysis.get('framework', 'Unknown')}
+        - Confidence: {current_analysis.get('confidence', 0):.2f}
+        - Technologies: {', '.join(current_analysis.get('detected_technologies', []))}
+
+        Key Files Found:
+        {self._format_files_for_prompt(key_files)}
+
+        Please provide:
+        1. Corrected/Enhanced technology stack identification
+        2. Missing technologies or frameworks that should be detected
+        3. Architecture patterns you can identify
+        4. Deployment and DevOps recommendations
+        5. Performance optimization suggestions
+        6. Security considerations
+
+        Respond in JSON format:
+        {{
+            "enhanced_language": "detected_language",
+            "enhanced_framework": "detected_framework", 
+            "additional_technologies": ["tech1", "tech2"],
+            "architecture_patterns": ["pattern1", "pattern2"],
+            "confidence_boost": 0.0,
+            "reasoning": "explanation of enhancements",
+            "recommendations": [
+                {{"type": "performance", "suggestion": "suggestion"}},
+                {{"type": "security", "suggestion": "suggestion"}}
+            ],
+            "insights": ["insight1", "insight2"]
+        }}
+        """
+
+        return prompt
+
+    def _format_files_for_prompt(self, key_files: Dict[str, str]) -> str:
+        """Format key files for LLM prompt"""
+        formatted = []
+        for filename, content in key_files.items():
+            formatted.append(f"--- {filename} ---\n{content}\n")
+        return "\n".join(formatted)
+
+    def _parse_llm_response(
+        self, llm_response: str, analysis_result: AnalysisResult
+    ) -> LLMEnhancementResult:
+        """Parse LLM response and create enhancement result"""
+        try:
+            # Try to parse JSON response
+            response_data = json.loads(llm_response)
+
+            # Create enhanced technology stack
+            enhanced_stack = TechnologyStack(
+                language=response_data.get(
+                    "enhanced_language", analysis_result.technology_stack.language
+                ),
+                framework=response_data.get(
+                    "enhanced_framework", analysis_result.technology_stack.framework
+                ),
+                additional_technologies=response_data.get(
+                    "additional_technologies", []
+                ),
+            )
+
+            return LLMEnhancementResult(
+                enhanced_stack=enhanced_stack,
+                confidence_boost=min(response_data.get("confidence_boost", 0.15), 0.25),
+                reasoning=response_data.get("reasoning", "LLM-based enhancement"),
+                additional_insights=response_data.get("insights", []),
+                recommendations=response_data.get("recommendations", []),
+            )
+
+        except json.JSONDecodeError:
+            # If JSON parsing fails, extract what we can from text
+            logger.warning("Failed to parse LLM JSON response, using text extraction")
+            return self._extract_from_text_response(llm_response, analysis_result)
+
+    def _extract_from_text_response(
+        self, llm_response: str, analysis_result: AnalysisResult
+    ) -> LLMEnhancementResult:
+        """Extract enhancement data from text response"""
+        # Simple text parsing as fallback
+        enhanced_stack = analysis_result.technology_stack
+
+        return LLMEnhancementResult(
+            enhanced_stack=enhanced_stack,
+            confidence_boost=0.1,
+            reasoning="Text-based LLM enhancement (JSON parsing failed)",
+            additional_insights=[f"LLM provided: {llm_response[:200]}..."],
+            recommendations=[
+                {
+                    "type": "general",
+                    "suggestion": "LLM analysis completed but response format needs improvement",
+                }
+            ],
+        )
 
     async def _rule_based_enhancement(
         self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
@@ -605,10 +876,124 @@ class LLMEnhancer:
             # In production, this would check LLM API availability
             return {"llm_enhancer": "healthy", "mode": "rule_based_fallback"}
         except Exception as e:
-            return {"llm_enhancer": "error", "error": str(e)}
+            return {"llm_enhancer": "error", "error": str(e)} @ property
 
-    @property
     def is_available(self) -> bool:
-        """Indicates if the LLM enhancer is available (health check passes)."""
-        # Synchronous property for health; always returns True for now
-        return True
+        """Indicates if the LLM enhancer is available (has working LLM clients)."""
+        return (self.groq_client is not None) or (self.openai_client is not None)
+
+    async def _call_llm_api(
+        self, prompt: str, model_preference: str = "groq"
+    ) -> Optional[str]:
+        """
+        Call LLM API with fallback mechanism
+
+        Args:
+            prompt: The prompt to send to the LLM
+            model_preference: Preferred model provider ('groq' or 'openai')
+
+        Returns:
+            LLM response or None if all APIs fail
+        """
+        responses = []
+
+        try:
+            # Try preferred provider first
+            if model_preference == "groq" and self.groq_client:
+                try:
+                    response = await self._call_groq_api(prompt)
+                    if response:
+                        return response
+                except Exception as e:
+                    logger.warning(f"Groq API call failed: {e}")
+                    responses.append(f"Groq API failed: {e}")
+
+            elif model_preference == "openai" and self.openai_client:
+                try:
+                    response = await self._call_openai_api(prompt)
+                    if response:
+                        return response
+                except Exception as e:
+                    logger.warning(f"OpenAI API call failed: {e}")
+                    responses.append(f"OpenAI API failed: {e}")
+
+            # Fallback to other provider
+            if model_preference != "groq" and self.groq_client:
+                try:
+                    response = await self._call_groq_api(prompt)
+                    if response:
+                        logger.info("Used Groq as fallback")
+                        return response
+                except Exception as e:
+                    logger.warning(f"Groq fallback failed: {e}")
+                    responses.append(f"Groq fallback failed: {e}")
+
+            if model_preference != "openai" and self.openai_client:
+                try:
+                    response = await self._call_openai_api(prompt)
+                    if response:
+                        logger.info("Used OpenAI as fallback")
+                        return response
+                except Exception as e:
+                    logger.warning(f"OpenAI fallback failed: {e}")
+                    responses.append(f"OpenAI fallback failed: {e}")
+
+        except Exception as e:
+            logger.error(f"LLM API call failed: {e}")
+            responses.append(f"General LLM API error: {e}")
+
+        # Log all failure reasons for debugging
+        if responses:
+            logger.error(f"All LLM API calls failed. Reasons: {'; '.join(responses)}")
+
+        return None
+
+    async def _call_groq_api(self, prompt: str) -> Optional[str]:
+        """Call Groq API"""
+        if not self.groq_client:
+            return None
+
+        try:
+            model = os.getenv("LLM_MODEL_GROQ", "llama-3.3-70b-versatile")
+
+            # Use asyncio to run the synchronous API call
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.groq_client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=1000,
+                    temperature=0.1,
+                ),
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Groq API call failed: {e}")
+            raise
+
+    async def _call_openai_api(self, prompt: str) -> Optional[str]:
+        """Call OpenAI API"""
+        if not self.openai_client:
+            return None
+
+        try:
+            model = os.getenv("LLM_MODEL_OPENAI", "gpt-4-turbo-preview")
+
+            # Use asyncio to run the synchronous API call
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.openai_client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=1000,
+                    temperature=0.1,
+                ),
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"OpenAI API call failed: {e}")
+            raise

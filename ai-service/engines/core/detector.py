@@ -142,7 +142,12 @@ class UnifiedDetectionEngine:
                     combined_result.recommendations.extend(enhancement.recommendations)
                     combined_result.suggestions.extend(enhancement.additional_insights)
                 else:
-                    logger.warning("LLM enhancement requested but not available")
+                    logger.warning(
+                        f"FALLBACK TRIGGERED: LLM enhancement requested but not available for {repository_url}"
+                    )
+                    logger.error(
+                        f"ENGINE FALLBACK: LLM enhancer unavailable - confidence: {combined_result.confidence_score:.2f}, threshold: {self.llm_enhancement_threshold}"
+                    )
 
             # Step 6: Final processing
             combined_result.processing_time = time.time() - start_time
