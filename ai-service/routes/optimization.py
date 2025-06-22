@@ -31,7 +31,9 @@ class GenerateConfigRequest(BaseModel):
     repository_url: str
     technology_stack: Dict[str, Any]
     config_types: List[str]  # ["dockerfile", "github_actions", "docker_compose"]
-    optimization_level: str = "balanced"  # "basic", "balanced", "performance", "security"
+    optimization_level: str = (
+        "balanced"  # "basic", "balanced", "performance", "security"
+    )
 
 
 class OptimizationRequest(BaseModel):
@@ -83,6 +85,14 @@ class OptimizationSuggestionResponse(BaseModel):
     technical_details: Optional[Dict[str, Any]] = None
 
 
+class OptimizationRecommendation(BaseModel):
+    type: str
+    title: str
+    description: str
+    priority: str
+    implementation: str
+
+
 class OptimizationResponse(BaseModel):
     project_id: str
     overall_score: float
@@ -101,31 +111,34 @@ def validate_internal_request(x_internal_service: Optional[str] = Header(None)):
     return x_internal_service
 
 
-@router.post("/generate-configs", response_model=ResponseModel[ConfigGenerationResponse])
+@router.post(
+    "/generate-configs", response_model=ResponseModel[ConfigGenerationResponse]
+)
 async def generate_all_configs(
     request: GenerateConfigRequest,
     internal_service: str = Depends(validate_internal_request),
 ):
     """
     Generate all deployment configurations (Dockerfile, CI/CD, Docker Compose, etc.)
-    
+
     This is the main configuration generation endpoint
     """
     try:
         import time
+
         start_time = time.time()
-        
+
         # Validate request
         config_validation = validator.validate_configuration_request(request.dict())
         if not config_validation.is_valid:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid request: {', '.join(config_validation.errors)}"
+                detail=f"Invalid request: {', '.join(config_validation.errors)}",
             )
-        
+
         # Convert dict to TechnologyStack
         tech_stack = TechnologyStack(**request.technology_stack)
-        
+
         # Create mock analysis result for generators
         analysis_result = AnalysisResult(
             repository_url=request.repository_url,
@@ -133,150 +146,146 @@ async def generate_all_configs(
             technology_stack=tech_stack,
             confidence_score=0.95,
             analysis_duration=0.0,
-            timestamp=time.time()
+            timestamp=time.time(),
         )
-        
+
         generated_configs = []
         recommendations = []
-        
+
         # Generate requested configurations
         for config_type in request.config_types:
             try:
                 if config_type == "dockerfile":
-                    config_content = await dockerfile_generator.generate_dockerfile(analysis_result)
-                    generated_configs.append(GeneratedConfigResponse(
-                        config_type="dockerfile",
-                        filename="Dockerfile",
-                        content=config_content,
-                        description="Production-ready Dockerfile with security best practices",
-                        optimization_level=request.optimization_level
-                    ))
-                    
+                    config_content = await dockerfile_generator.generate_dockerfile(
+                        analysis_result
+                    )
+                    generated_configs.append(
+                        GeneratedConfigResponse(
+                            config_type="dockerfile",
+                            filename="Dockerfile",
+                            content=config_content,
+                            description="Production-ready Dockerfile with security best practices",
+                            optimization_level=request.optimization_level,
+                        )
+                    )
+
                 elif config_type == "github_actions":
-                    pipeline_options = {"include_tests": True, "include_security": True, "include_deploy": True}
+                    pipeline_options = {
+                        "include_tests": True,
+                        "include_security": True,
+                        "include_deploy": True,
+                    }
                     config_content = await pipeline_generator.generate_pipeline(
                         analysis_result, "github-actions", pipeline_options
                     )
-                    generated_configs.append(GeneratedConfigResponse(
-                        config_type="github_actions",
-                        filename=".github/workflows/ci-cd.yml",
-                        content=config_content,
-                        description="Complete CI/CD pipeline with build, test, security scan, and deployment",
-                        optimization_level=request.optimization_level
-                    ))
-                    
+                    generated_configs.append(
+                        GeneratedConfigResponse(
+                            config_type="github_actions",
+                            filename=".github/workflows/ci-cd.yml",
+                            content=config_content,
+                            description="Complete CI/CD pipeline with build, test, security scan, and deployment",
+                            optimization_level=request.optimization_level,
+                        )
+                    )
+
                 elif config_type == "docker_compose":
-                    config_package = await config_generator.generate_configuration_package(
-                        analysis_result, ["docker-compose"]
+                    config_package = (
+                        await config_generator.generate_configuration_package(
+                            analysis_result, ["docker-compose"]
+                        )
                     )
                     docker_compose_config = next(
-                        (config for config in config_package.configurations if config.config_type == "docker-compose"),
-                        None
+                        (
+                            config
+                            for config in config_package.configurations
+                            if config.config_type == "docker-compose"
+                        ),
+                        None,
                     )
                     if docker_compose_config:
-                        generated_configs.append(GeneratedConfigResponse(
-                            config_type="docker_compose",
-                            filename="docker-compose.yml",
-                            content=docker_compose_config.content,
-                            description=docker_compose_config.description,
-                            optimization_level=request.optimization_level
-                        ))
-                    
+                        generated_configs.append(
+                            GeneratedConfigResponse(
+                                config_type="docker_compose",
+                                filename="docker-compose.yml",
+                                content=docker_compose_config.content,
+                                description=docker_compose_config.description,
+                                optimization_level=request.optimization_level,
+                            )
+                        )
+
                 elif config_type == "gitlab_ci":
-                    pipeline_options = {"include_tests": True, "include_security": True, "include_deploy": True}
+                    pipeline_options = {
+                        "include_tests": True,
+                        "include_security": True,
+                        "include_deploy": True,
+                    }
                     config_content = await pipeline_generator.generate_pipeline(
                         analysis_result, "gitlab-ci", pipeline_options
                     )
-                    generated_configs.append(GeneratedConfigResponse(
-                        config_type="gitlab_ci",
-                        filename=".gitlab-ci.yml",
-                        content=config_content,
-                        description="GitLab CI/CD pipeline configuration",
-                        optimization_level=request.optimization_level
-                    ))
-                    
-                elif config_type == "kubernetes":
-                    config_package = await config_generator.generate_configuration_package(
-                        analysis_result, ["kubernetes"]
+                    generated_configs.append(
+                        GeneratedConfigResponse(
+                            config_type="gitlab_ci",
+                            filename=".gitlab-ci.yml",
+                            content=config_content,
+                            description="GitLab CI/CD pipeline configuration",
+                            optimization_level=request.optimization_level,
+                        )
                     )
-                    k8s_configs = [config for config in config_package.configurations if config.config_type == "kubernetes"]
+
+                elif config_type == "kubernetes":
+                    config_package = (
+                        await config_generator.generate_configuration_package(
+                            analysis_result, ["kubernetes"]
+                        )
+                    )
+                    k8s_configs = [
+                        config
+                        for config in config_package.configurations
+                        if config.config_type == "kubernetes"
+                    ]
                     for k8s_config in k8s_configs:
-                        generated_configs.append(GeneratedConfigResponse(
-                            config_type="kubernetes",
-                            filename=k8s_config.filename,
-                            content=k8s_config.content,
-                            description=k8s_config.description,
-                            optimization_level=request.optimization_level
-                        ))
-                        
+                        generated_configs.append(
+                            GeneratedConfigResponse(
+                                config_type="kubernetes",
+                                filename=k8s_config.filename,
+                                content=k8s_config.content,
+                                description=k8s_config.description,
+                                optimization_level=request.optimization_level,
+                            )
+                        )
+
                 else:
                     logger.warning(f"Unsupported config type: {config_type}")
-                    
+
             except Exception as e:
                 logger.error(f"Error generating {config_type}: {e}")
                 continue
-        
+
         # Generate optimization recommendations
-        recommendations = _generate_optimization_recommendations(tech_stack, request.optimization_level)
-        
+        recommendations = _generate_optimization_recommendations(
+            tech_stack, request.optimization_level
+        )
         processing_time = time.time() - start_time
-        
         return ResponseModel(
             success=True,
             data=ConfigGenerationResponse(
                 project_id=request.project_id,
                 generated_configs=generated_configs,
                 recommendations=recommendations,
-                processing_time_ms=int(processing_time * 1000)
+                processing_time_ms=int(processing_time * 1000),
             ),
-            message=f"Successfully generated {len(generated_configs)} configurations"
+            message=f"Successfully generated {len(generated_configs)} configurations",
         )
-                    tech_stack=tech_stack,
-                    repository_url=request.repository_url,
-                    optimization_level=request.optimization_level
-                )
-                generated_configs.append(_convert_config_to_response(config))
-        
-        # Calculate overall optimization score
-        optimization_scores = [85, 90, 88]  # Placeholder - will be calculated by generators
-        overall_score = sum(optimization_scores) / len(optimization_scores) if optimization_scores else 80
-        
-        # Generate general recommendations
-        recommendations = [
-            {
-                "type": "performance",
-                "message": "Generated configurations are optimized for production deployment",
-                "priority": "info"
-            },
-            {
-                "type": "security", 
-                "message": "Security best practices have been applied to all configurations",
-                "priority": "info"
-            }
-        ]
-        
-        response = ConfigGenerationResponse(
-            project_id=request.project_id,
-            generated_configs=generated_configs,
-            overall_optimization_score=overall_score,
-            generation_time=time.time() - start_time,
-            recommendations=recommendations
-        )
-        
-        return ResponseModel(
-            success=True,
-            message=f"Generated {len(generated_configs)} configurations successfully",
-            data=response
-        )
-        
+
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Configuration generation failed: {str(e)}"
+            status_code=500, detail=f"Configuration generation failed: {str(e)}"
         )
 
 
-@router.post("/generate-dockerfile", response_model=ResponseModel[GeneratedConfigResponse])
+@router.post(
+    "/generate-dockerfile", response_model=ResponseModel[GeneratedConfigResponse]
+)
 async def generate_dockerfile_only(
     request: DockerfileRequest,
     internal_service: str = Depends(validate_internal_request),
@@ -286,28 +295,25 @@ async def generate_dockerfile_only(
     """
     try:
         tech_stack = _dict_to_tech_stack(request.technology_stack)
-        
+
         config = await dockerfile_generator.generate_dockerfile(
             tech_stack=tech_stack,
             optimization_level=request.optimization_level,
             project_id=request.project_id,
             build_command=request.build_command,
             start_command=request.start_command,
-            port=request.port
+            port=request.port,
         )
-        
+
         response = _convert_config_to_response(config)
-        
+
         return ResponseModel(
-            success=True,
-            message="Dockerfile generated successfully",
-            data=response
+            success=True, message="Dockerfile generated successfully", data=response
         )
-        
+
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Dockerfile generation failed: {str(e)}"
+            status_code=500, detail=f"Dockerfile generation failed: {str(e)}"
         )
 
 
@@ -321,68 +327,72 @@ async def get_optimization_suggestions(
     """
     try:
         tech_stack = _dict_to_tech_stack(request.technology_stack)
-        
+
         # Generate optimization suggestions
         suggestions = await config_generator.generate_optimization_suggestions(
             tech_stack=tech_stack,
             current_configs=request.current_configs or {},
-            performance_metrics=request.performance_metrics
+            performance_metrics=request.performance_metrics,
         )
-        
+
         # Convert to response format
         suggestion_responses = []
         for suggestion in suggestions:
-            suggestion_responses.append(OptimizationSuggestionResponse(
-                suggestion_type=suggestion.suggestion_type,
-                title=suggestion.title,
-                description=suggestion.description,
-                priority=suggestion.priority,
-                impact_level=suggestion.impact_level,
-                effort_required=suggestion.effort_required,
-                implementation_steps=suggestion.implementation_steps,
-                expected_benefit=suggestion.expected_benefit,
-                technical_details=suggestion.technical_details
-            ))
-        
+            suggestion_responses.append(
+                OptimizationSuggestionResponse(
+                    suggestion_type=suggestion.suggestion_type,
+                    title=suggestion.title,
+                    description=suggestion.description,
+                    priority=suggestion.priority,
+                    impact_level=suggestion.impact_level,
+                    effort_required=suggestion.effort_required,
+                    implementation_steps=suggestion.implementation_steps,
+                    expected_benefit=suggestion.expected_benefit,
+                    technical_details=suggestion.technical_details,
+                )
+            )
+
         # Calculate overall optimization score
         overall_score = 85.0  # Placeholder - will be calculated based on current setup
-        
+
         # Extract priority actions
         priority_actions = [
-            s.title for s in suggestions 
-            if s.priority in ["high", "critical"]
-        ][:5]  # Top 5 priority actions
-        
+            s.title for s in suggestions if s.priority in ["high", "critical"]
+        ][
+            :5
+        ]  # Top 5 priority actions
+
         # Estimated improvements
         estimated_improvements = {
             "build_time": "30-50% faster builds",
-            "image_size": "40-60% smaller images", 
+            "image_size": "40-60% smaller images",
             "security_score": "15-25 point improvement",
-            "deployment_reliability": "95%+ success rate"
+            "deployment_reliability": "95%+ success rate",
         }
-        
+
         response = OptimizationResponse(
             project_id=request.project_id,
             overall_score=overall_score,
             suggestions=suggestion_responses,
             priority_actions=priority_actions,
-            estimated_improvements=estimated_improvements
+            estimated_improvements=estimated_improvements,
         )
-        
+
         return ResponseModel(
             success=True,
             message=f"Generated {len(suggestions)} optimization suggestions",
-            data=response
+            data=response,
         )
-        
+
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Optimization analysis failed: {str(e)}"
+            status_code=500, detail=f"Optimization analysis failed: {str(e)}"
         )
 
 
-@router.get("/supported-config-types", response_model=ResponseModel[Dict[str, List[str]]])
+@router.get(
+    "/supported-config-types", response_model=ResponseModel[Dict[str, List[str]]]
+)
 async def get_supported_config_types(
     internal_service: str = Depends(validate_internal_request),
 ):
@@ -395,19 +405,18 @@ async def get_supported_config_types(
             "ci_cd": ["github_actions", "gitlab_ci", "jenkins", "azure_pipelines"],
             "deployment": ["kubernetes", "docker_swarm", "aws_ecs"],
             "monitoring": ["prometheus", "grafana", "health_checks"],
-            "security": ["security_scan", "dependency_check", "secrets_management"]
+            "security": ["security_scan", "dependency_check", "secrets_management"],
         }
-        
+
         return ResponseModel(
             success=True,
             message="Supported configuration types retrieved successfully",
-            data=supported_types
+            data=supported_types,
         )
-        
+
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve supported types: {str(e)}"
+            status_code=500, detail=f"Failed to retrieve supported types: {str(e)}"
         )
 
 
@@ -423,7 +432,7 @@ def _dict_to_tech_stack(tech_dict: Dict[str, Any]) -> TechnologyStack:
         runtime_version=tech_dict.get("runtime_version"),
         additional_technologies=tech_dict.get("additional_technologies", []),
         architecture_pattern=tech_dict.get("architecture_pattern"),
-        deployment_strategy=tech_dict.get("deployment_strategy")
+        deployment_strategy=tech_dict.get("deployment_strategy"),
     )
 
 
@@ -437,63 +446,74 @@ def _convert_config_to_response(config) -> GeneratedConfigResponse:
         optimization_level=config.optimization_level,
         security_features=config.security_features,
         setup_instructions=config.setup_instructions,
-        usage_notes=config.usage_notes
+        usage_notes=config.usage_notes,
     )
 
 
 def _generate_optimization_recommendations(
-    tech_stack: TechnologyStack, 
-    optimization_level: str
+    tech_stack: TechnologyStack, optimization_level: str
 ) -> List[OptimizationRecommendation]:
     """Generate optimization recommendations based on technology stack"""
     recommendations = []
-    
+
     # General recommendations
-    recommendations.append(OptimizationRecommendation(
-        type="security",
-        title="Use non-root user in containers",
-        description="Run applications as non-root user for better security",
-        priority="high",
-        implementation="Add USER directive in Dockerfile"
-    ))
-    
+    recommendations.append(
+        OptimizationRecommendation(
+            type="security",
+            title="Use non-root user in containers",
+            description="Run applications as non-root user for better security",
+            priority="high",
+            implementation="Add USER directive in Dockerfile",
+        )
+    )
+
     # Language-specific recommendations
-    if tech_stack.primary_language.lower() == "node":
-        recommendations.extend([
-            OptimizationRecommendation(
-                type="performance",
-                title="Use multi-stage Docker builds",
-                description="Separate build and runtime stages to reduce image size",
-                priority="medium",
-                implementation="Implement multi-stage Dockerfile"
-            ),
-            OptimizationRecommendation(
-                type="performance", 
-                title="Enable npm cache in CI/CD",
-                description="Cache npm dependencies to speed up builds",
-                priority="medium",
-                implementation="Add cache configuration to CI/CD pipeline"
-            )
-        ])
-    
-    elif tech_stack.primary_language.lower() == "python":
-        recommendations.extend([
-            OptimizationRecommendation(
-                type="performance",
-                title="Use Python slim images",
-                description="Use python:slim base images to reduce size",
-                priority="medium", 
-                implementation="Change FROM directive to python:3.11-slim"
-            ),
-            OptimizationRecommendation(
-                type="security",
-                title="Pin Python package versions",
-                description="Pin exact versions in requirements.txt for reproducible builds",
-                priority="high",
-                implementation="Update requirements.txt with exact versions"
-            )
-        ])
-    
+    # Try both 'primary_language' and 'language' for compatibility
+    lang = (
+        getattr(tech_stack, "primary_language", None)
+        or getattr(tech_stack, "language", None)
+        or ""
+    )
+    if lang.lower() == "node":
+        recommendations.extend(
+            [
+                OptimizationRecommendation(
+                    type="performance",
+                    title="Use multi-stage Docker builds",
+                    description="Separate build and runtime stages to reduce image size",
+                    priority="medium",
+                    implementation="Implement multi-stage Dockerfile",
+                ),
+                OptimizationRecommendation(
+                    type="performance",
+                    title="Enable npm cache in CI/CD",
+                    description="Cache npm dependencies to speed up builds",
+                    priority="medium",
+                    implementation="Add cache configuration to CI/CD pipeline",
+                ),
+            ]
+        )
+
+    elif lang.lower() == "python":
+        recommendations.extend(
+            [
+                OptimizationRecommendation(
+                    type="performance",
+                    title="Use Python slim images",
+                    description="Use python:slim base images to reduce size",
+                    priority="medium",
+                    implementation="Change FROM directive to python:3.11-slim",
+                ),
+                OptimizationRecommendation(
+                    type="security",
+                    title="Pin Python package versions",
+                    description="Pin exact versions in requirements.txt for reproducible builds",
+                    priority="high",
+                    implementation="Update requirements.txt with exact versions",
+                ),
+            ]
+        )
+
     return recommendations
 
 
@@ -505,7 +525,7 @@ def _convert_tech_stack_dict(tech_dict: Dict[str, Any]) -> TechnologyStack:
         databases=tech_dict.get("databases", []),
         package_managers=tech_dict.get("package_managers", []),
         build_tools=tech_dict.get("build_tools", []),
-        deployment_targets=tech_dict.get("deployment_targets", [])
+        deployment_targets=tech_dict.get("deployment_targets", []),
     )
 
 
@@ -513,7 +533,6 @@ async def validate_internal_request(x_internal_service: str = Header(None)):
     """Validate internal service requests"""
     if x_internal_service != "deployio-main-service":
         raise HTTPException(
-            status_code=403,
-            detail="Access forbidden - internal service only"
+            status_code=403, detail="Access forbidden - internal service only"
         )
     return x_internal_service
