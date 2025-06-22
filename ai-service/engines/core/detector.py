@@ -42,9 +42,7 @@ class UnifiedDetectionEngine:
         # Initialize all analyzers
         self.stack_analyzer = StackAnalyzer()
         self.dependency_analyzer = DependencyAnalyzer()
-        self.code_analyzer = CodeAnalyzer()
-
-        # Initialize enhancers
+        self.code_analyzer = CodeAnalyzer()  # Initialize enhancers
         self.llm_enhancer = LLMEnhancer()
 
         # Initialize utilities
@@ -118,18 +116,17 @@ class UnifiedDetectionEngine:
             # Step 4: Combine results
             combined_result = await self._combine_analysis_results(
                 repository_url, branch, analysis_results, repo_data
-            )
-
-            # Step 5: LLM enhancement (if needed)
+            )  # Step 5: LLM enhancement (if needed)
             if (
                 combined_result.confidence_score < self.llm_enhancement_threshold
                 or force_llm
             ):
-                if self.llm_enhancer.is_available:
-                    logger.info("Enhancing analysis with LLM")
-                    enhancement = await self.llm_enhancer.enhance_analysis(
-                        combined_result, repo_data
-                    )
+                logger.info("Enhancing analysis with modular LLM system")
+                enhancement = await self.llm_enhancer.enhance_analysis(
+                    combined_result, repo_data
+                )
+
+                if enhancement and enhancement.llm_enhanced:
                     # Merge enhancement into combined_result (AnalysisResult)
                     combined_result.technology_stack = enhancement.enhanced_stack
                     combined_result.confidence_score = min(
@@ -137,16 +134,17 @@ class UnifiedDetectionEngine:
                         1.0,
                     )
                     combined_result.llm_used = True
-                    combined_result.llm_confidence = enhancement.confidence_boost
-                    combined_result.llm_reasoning = enhancement.reasoning
+                    combined_result.analysis_approach = "llm_enhanced"
                     combined_result.recommendations.extend(enhancement.recommendations)
                     combined_result.suggestions.extend(enhancement.additional_insights)
-                else:
-                    logger.warning(
-                        f"FALLBACK TRIGGERED: LLM enhancement requested but not available for {repository_url}"
+
+                    logger.info(
+                        f"LLM enhancement applied - confidence boost: {enhancement.confidence_boost}"
                     )
+                else:
+                    logger.warning("LLM enhancement failed or unavailable")
                     logger.error(
-                        f"ENGINE FALLBACK: LLM enhancer unavailable - confidence: {combined_result.confidence_score:.2f}, threshold: {self.llm_enhancement_threshold}"
+                        f"FALLBACK TRIGGERED: LLM enhancement failed for {repository_url}"
                     )
 
             # Step 6: Final processing
@@ -187,6 +185,20 @@ class UnifiedDetectionEngine:
         """
         return await self.analyze_repository(
             repository_url, branch, analysis_types=[AnalysisType.STACK_DETECTION]
+        )
+
+    async def detect_technology_stack(
+        self,
+        repository_url: str,
+        branch: str = "main",
+        analysis_type: AnalysisType = AnalysisType.STACK_DETECTION,
+    ) -> AnalysisResult:
+        """
+        Main entry point for technology stack detection
+        Alias for analyze_repository with stack detection focus
+        """
+        return await self.analyze_repository(
+            repository_url=repository_url, branch=branch, analysis_types=[analysis_type]
         )
 
     async def _perform_parallel_analysis(
@@ -443,3 +455,7 @@ class UnifiedDetectionEngine:
             health_status["cache_manager"] = f"error: {str(e)}"
 
         return health_status
+
+
+# Alias for backward compatibility
+TechnologyDetector = UnifiedDetectionEngine

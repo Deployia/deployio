@@ -1010,22 +1010,24 @@ class DependencyAnalyzer:
         """Check for known vulnerable packages (simplified)"""
         # This is a simplified check - in production would use vulnerability databases
         known_vulnerable = {
-            "lodash",
-            "moment",
-            "jquery",
-            "handlebars",
-            "marked",
-            "debug",
-            "ms",
-            "mime",
-            "send",
-            "serve-static",
+            "lodash": "high",
+            "moment": "medium",
+            "jquery": "medium",
+            "handlebars": "high",
+            "marked": "low",
+            "debug": "low",
+            "ms": "low",
+            "mime": "medium",
+            "send": "high",
+            "serve-static": "high",
         }
 
         vulnerable_count = 0
         for dep in dependencies:
-            if any(vuln in dep.name.lower() for vuln in known_vulnerable):
-                vulnerable_count += 1
+            for vuln, level in known_vulnerable.items():
+                if vuln in dep.name.lower():
+                    dep.vulnerability_level = level
+                    vulnerable_count += 1
 
         return vulnerable_count
 

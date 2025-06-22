@@ -284,6 +284,7 @@ class Dependency:
     file_source: str = ""
     optional: bool = False
     transitive: bool = False  # Added to match analyzer usage
+    vulnerability_level: Optional[str] = None  # Added to track vulnerability severity
 
 
 @dataclass

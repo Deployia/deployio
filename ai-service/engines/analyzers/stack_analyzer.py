@@ -942,10 +942,10 @@ class StackAnalyzer:
     ) -> List[TechnologyStack]:
         """Enhance detection results using LLM for low confidence cases"""
         try:
-            logger.info("Attempting LLM enhancement for stack detection")
-
-            # Import LLM enhancer
-            from ..enhancers.llm_enhancer import LLMEnhancer
+            logger.info(
+                "Attempting LLM enhancement for stack detection"
+            )  # Import LLM enhancer
+            from ..enhancers.llm_enhancer import ModularLLMEnhancer
 
             # Create mock analysis result for LLM enhancer
             from ..core.models import AnalysisResult, AnalysisType
@@ -967,56 +967,47 @@ class StackAnalyzer:
                 suggestions=[],
                 processing_time=0.0,
                 llm_used=False,
+            )  # Use LLM enhancer
+            llm_enhancer = ModularLLMEnhancer()
+            enhancement = await llm_enhancer.enhance_analysis(
+                mock_result, context.key_files
             )
 
-            # Use LLM enhancer
-            llm_enhancer = LLMEnhancer()
-            if llm_enhancer.is_available:
-                enhancement = await llm_enhancer.enhance_analysis(
-                    mock_result, context.key_files
+            # Convert enhanced stack back to our format
+            enhanced_stack = enhancement.enhanced_stack
+            if enhanced_stack and enhanced_stack.language:
+                enhanced_result = TechnologyStack(
+                    name=enhanced_stack.framework or enhanced_stack.language,
+                    type="framework" if enhanced_stack.framework else "language",
+                    language=enhanced_stack.language,
+                    version="unknown",
+                    confidence=(
+                        min(
+                            current_results[0].confidence
+                            + enhancement.confidence_boost,
+                            1.0,
+                        )
+                        if current_results
+                        else enhancement.confidence_boost
+                    ),
+                    detection_method="llm_enhancement",
                 )
 
-                # Convert enhanced stack back to our format
-                enhanced_stack = enhancement.enhanced_stack
-                if enhanced_stack and enhanced_stack.language:
-                    enhanced_result = TechnologyStack(
-                        name=enhanced_stack.framework or enhanced_stack.language,
-                        type="framework" if enhanced_stack.framework else "language",
-                        language=enhanced_stack.language,
-                        version="unknown",
-                        confidence=(
-                            min(
-                                current_results[0].confidence
-                                + enhancement.confidence_boost,
-                                1.0,
-                            )
-                            if current_results
-                            else enhancement.confidence_boost
-                        ),
-                        detection_method="llm_enhancement",
-                    )
+                logger.info(
+                    f"LLM enhancement successful - confidence boost: {enhancement.confidence_boost}"
+                )
 
-                    logger.info(
-                        f"LLM enhancement successful - confidence boost: {enhancement.confidence_boost}"
-                    )
-
-                    # Merge with existing results
-                    enhanced_results = (
-                        [enhanced_result] + current_results[1:]
-                        if current_results
-                        else [enhanced_result]
-                    )
-                    return enhanced_results
-                else:
-                    logger.warning("LLM enhancement returned no useful data")
-                    logger.error(
-                        f"FALLBACK TRIGGERED: LLM enhancement returned empty stack for {context.repository_data.get('url', 'unknown')}"
-                    )
-                    return current_results
+                # Merge with existing results
+                enhanced_results = (
+                    [enhanced_result] + current_results[1:]
+                    if current_results
+                    else [enhanced_result]
+                )
+                return enhanced_results
             else:
-                logger.warning("LLM enhancer not available")
+                logger.warning("LLM enhancement returned no useful data")
                 logger.error(
-                    f"FALLBACK TRIGGERED: LLM enhancer unavailable for stack analysis of {context.repository_data.get('url', 'unknown')}"
+                    f"FALLBACK TRIGGERED: LLM enhancement returned empty stack for {context.repository_data.get('url', 'unknown')}"
                 )
                 return current_results
 
