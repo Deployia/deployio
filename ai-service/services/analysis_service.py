@@ -10,6 +10,17 @@ from typing import Dict, List, Optional, Any
 from engines.core.detector import UnifiedDetectionEngine
 from engines.core.models import AnalysisType, AnalysisResult
 from services.progress_service import progress_service, OperationSteps
+from exceptions import (
+    AnalysisException,
+    RepositoryNotFoundException,
+    RepositoryAccessException,
+    InvalidRepositoryException,
+    BranchNotFoundException,
+    AnalysisTimeoutException,
+    LLMServiceException,
+    RateLimitExceededException,
+    InsufficientDataException,
+)
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -125,6 +136,24 @@ class AnalysisService:
             )
             return analysis_data
 
+        except (
+            RepositoryNotFoundException,
+            RepositoryAccessException,
+            InvalidRepositoryException,
+            BranchNotFoundException,
+            AnalysisTimeoutException,
+            LLMServiceException,
+            RateLimitExceededException,
+            InsufficientDataException,
+        ):
+            # Re-raise analysis exceptions with proper status codes
+            if track_progress and analysis_id:
+                tracker = progress_service.get_tracker(analysis_id)
+                if tracker:
+                    await tracker.fail(
+                        "Analysis failed due to repository/service issues"
+                    )
+            raise
         except Exception as e:
             logger.error(
                 f"Repository analysis failed for {repository_url}: {str(e)}",
@@ -134,8 +163,8 @@ class AnalysisService:
                 tracker = progress_service.get_tracker(analysis_id)
                 if tracker:
                     await tracker.fail(f"Analysis failed: {str(e)}", e)
-            # Do not return a result, just propagate the error
-            raise
+            # Convert generic errors to analysis exceptions
+            raise AnalysisException(f"Repository analysis failed: {str(e)}", 500)
 
     async def analyze_technology_stack(
         self,
@@ -175,13 +204,25 @@ class AnalysisService:
                 mode="stack",
             )
 
+        except (
+            RepositoryNotFoundException,
+            RepositoryAccessException,
+            InvalidRepositoryException,
+            BranchNotFoundException,
+            AnalysisTimeoutException,
+            LLMServiceException,
+            RateLimitExceededException,
+            InsufficientDataException,
+        ):
+            # Re-raise analysis exceptions with proper status codes
+            raise
         except Exception as e:
             logger.error(
                 f"Technology stack analysis failed for {repository_url}: {str(e)}",
                 exc_info=True,
             )
-            # Do not return a result, just propagate the error
-            raise
+            # Convert generic errors to analysis exceptions
+            raise AnalysisException(f"Technology stack analysis failed: {str(e)}", 500)
 
     async def analyze_code_quality(
         self,
@@ -221,13 +262,25 @@ class AnalysisService:
                 mode="quality",
             )
 
+        except (
+            RepositoryNotFoundException,
+            RepositoryAccessException,
+            InvalidRepositoryException,
+            BranchNotFoundException,
+            AnalysisTimeoutException,
+            LLMServiceException,
+            RateLimitExceededException,
+            InsufficientDataException,
+        ):
+            # Re-raise analysis exceptions with proper status codes
+            raise
         except Exception as e:
             logger.error(
                 f"Code quality analysis failed for {repository_url}: {str(e)}",
                 exc_info=True,
             )
-            # Do not return a result, just propagate the error
-            raise
+            # Convert generic errors to analysis exceptions
+            raise AnalysisException(f"Code quality analysis failed: {str(e)}", 500)
 
     async def analyze_dependencies(
         self,
@@ -267,13 +320,25 @@ class AnalysisService:
                 mode="dependencies",
             )
 
+        except (
+            RepositoryNotFoundException,
+            RepositoryAccessException,
+            InvalidRepositoryException,
+            BranchNotFoundException,
+            AnalysisTimeoutException,
+            LLMServiceException,
+            RateLimitExceededException,
+            InsufficientDataException,
+        ):
+            # Re-raise analysis exceptions with proper status codes
+            raise
         except Exception as e:
             logger.error(
                 f"Dependency analysis failed for {repository_url}: {str(e)}",
                 exc_info=True,
             )
-            # Do not return a result, just propagate the error
-            raise
+            # Convert generic errors to analysis exceptions
+            raise AnalysisException(f"Dependency analysis failed: {str(e)}", 500)
 
     async def get_supported_technologies(self) -> Dict[str, Any]:
         """

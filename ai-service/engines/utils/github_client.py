@@ -9,6 +9,14 @@ from urllib.parse import urlparse
 import aiohttp
 import base64
 from config.settings import settings
+from exceptions import (
+    RepositoryNotFoundException,
+    RepositoryAccessException,
+    InvalidRepositoryException,
+    BranchNotFoundException,
+    RateLimitExceededException,
+    AnalysisTimeoutException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +74,14 @@ class GitHubClient:
 
         Returns:
             Dict containing repository structure and key files
+
+        Raises:
+            InvalidRepositoryException: If repository URL is invalid
+            RepositoryNotFoundException: If repository is not found
+            RepositoryAccessException: If repository access is denied
+            BranchNotFoundException: If specified branch does not exist
+            RateLimitExceededException: If API rate limit is exceeded
+            AnalysisTimeoutException: If operation times out
         """
         try:
             owner, repo = self._parse_repository_url(repository_url)
@@ -96,76 +112,140 @@ class GitHubClient:
                     "directories": structure_analysis["directories"],
                 }
 
+        except (
+            RepositoryNotFoundException,
+            RepositoryAccessException,
+            InvalidRepositoryException,
+            BranchNotFoundException,
+            RateLimitExceededException,
+            AnalysisTimeoutException,
+        ):
+            # Re-raise our custom exceptions
+            raise
         except Exception as e:
             logger.error(f"Failed to fetch repository data: {e}")
-            raise ValueError(f"Repository fetch failed: {e}")
+            # Convert generic errors to repository not found for now
+            raise RepositoryNotFoundException(repository_url, str(e))
 
     async def _get_repository_info(self, owner: str, repo: str) -> Dict:
         """Get basic repository information, with robust not-found detection"""
         url = f"{self.base_url}/repos/{owner}/{repo}"
 
-        async with self.session.get(url) as response:
-            content_type = response.headers.get("Content-Type", "")
-            if response.status == 200 and "application/json" in content_type:
-                data = await response.json()
-                # If the repo doesn't exist, GitHub sometimes returns a JSON with a 'message' key
-                if data.get("message", "").lower() == "not found":
-                    logger.warning(f"Repository not found: {owner}/{repo}")
-                    raise ValueError(f"Repository not found: {owner}/{repo}")
-                return {
-                    "name": data.get("name"),
-                    "full_name": data.get("full_name"),
-                    "description": data.get("description"),
-                    "language": data.get("language"),
-                    "size": data.get("size"),
-                    "default_branch": data.get("default_branch"),
-                    "topics": data.get("topics", []),
-                    "license": (
-                        data.get("license", {}).get("name")
-                        if data.get("license")
-                        else None
-                    ),
-                }
-            else:
-                logger.warning(
-                    f"Could not fetch repo info: {response.status} {content_type}"
+        try:
+            async with self.session.get(url) as response:
+                # Handle rate limiting
+                if response.status == 403:
+                    rate_limit_remaining = int(
+                        response.headers.get("X-RateLimit-Remaining", 0)
+                    )
+                    if rate_limit_remaining == 0:
+                        reset_time = int(response.headers.get("X-RateLimit-Reset", 0))
+                        raise RateLimitExceededException("GitHub API", reset_time)
+                    else:
+                        raise RepositoryAccessException(
+                            f"{owner}/{repo}", "Access forbidden"
+                        )
+
+                # Handle not found
+                if response.status == 404:
+                    raise RepositoryNotFoundException(f"{owner}/{repo}")
+
+                # Handle success
+                if response.status == 200:
+                    content_type = response.headers.get("Content-Type", "")
+                    if "application/json" in content_type:
+                        data = await response.json()
+                        # Double-check for GitHub's "not found" in response
+                        if data.get("message", "").lower() == "not found":
+                            raise RepositoryNotFoundException(f"{owner}/{repo}")
+
+                        return {
+                            "name": data.get("name"),
+                            "full_name": data.get("full_name"),
+                            "description": data.get("description"),
+                            "language": data.get("language"),
+                            "size": data.get("size"),
+                            "default_branch": data.get("default_branch"),
+                            "topics": data.get("topics", []),
+                            "license": (
+                                data.get("license", {}).get("name")
+                                if data.get("license")
+                                else None
+                            ),
+                        }
+
+                # Handle other error statuses
+                raise RepositoryNotFoundException(
+                    f"{owner}/{repo}", f"HTTP {response.status}"
                 )
-                raise ValueError(
-                    f"Repository not found or invalid response: {owner}/{repo}"
-                )
+
+        except aiohttp.ClientTimeout:
+            raise AnalysisTimeoutException(f"{owner}/{repo}", 30)
+        except (
+            RepositoryNotFoundException,
+            RepositoryAccessException,
+            RateLimitExceededException,
+            AnalysisTimeoutException,
+        ):
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching repository info for {owner}/{repo}: {e}")
+            raise RepositoryNotFoundException(f"{owner}/{repo}", str(e))
 
     async def _get_file_tree(self, owner: str, repo: str, branch: str) -> List[Dict]:
         """Get repository file tree"""
         url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}"
         params = {"recursive": "1"}
 
-        async with self.session.get(url, params=params) as response:
-            if response.status == 200:
-                data = await response.json()
+        try:
+            async with self.session.get(url, params=params) as response:
+                # Handle branch not found
+                if response.status == 404:
+                    raise BranchNotFoundException(f"{owner}/{repo}", branch)
 
-                # Filter out large files and binaries
-                filtered_files = []
-                for item in data.get("tree", []):
-                    if (
-                        item.get("type") == "blob"
-                        and item.get("size", 0) < 100000  # Max 100KB
-                        and self._is_text_file(item.get("path", ""))
-                    ):
-                        filtered_files.append(
-                            {
-                                "path": item["path"],
-                                "size": item.get("size", 0),
-                                "url": item.get("url", ""),
-                            }
-                        )
+                # Handle rate limiting
+                if response.status == 403:
+                    rate_limit_remaining = int(
+                        response.headers.get("X-RateLimit-Remaining", 0)
+                    )
+                    if rate_limit_remaining == 0:
+                        reset_time = int(response.headers.get("X-RateLimit-Reset", 0))
+                        raise RateLimitExceededException("GitHub API", reset_time)
 
-                # Sort by importance for analysis
-                return sorted(
-                    filtered_files, key=self._file_importance_score, reverse=True
-                )
-            else:
-                logger.warning(f"Could not fetch file tree: {response.status}")
-                return []
+                if response.status == 200:
+                    data = await response.json()
+
+                    # Filter out large files and binaries
+                    filtered_files = []
+                    for item in data.get("tree", []):
+                        if (
+                            item.get("type") == "blob"
+                            and item.get("size", 0) < 100000  # Max 100KB
+                            and self._is_text_file(item.get("path", ""))
+                        ):
+                            filtered_files.append(
+                                {
+                                    "path": item["path"],
+                                    "size": item.get("size", 0),
+                                    "url": item.get("url", ""),
+                                }
+                            )
+
+                    # Sort by importance for analysis
+                    return sorted(
+                        filtered_files, key=self._file_importance_score, reverse=True
+                    )
+                else:
+                    logger.warning(f"Could not fetch file tree: {response.status}")
+                    return []
+
+        except (BranchNotFoundException, RateLimitExceededException):
+            raise
+        except aiohttp.ClientTimeout:
+            raise AnalysisTimeoutException(f"{owner}/{repo}", 30)
+        except Exception as e:
+            logger.error(f"Error fetching file tree for {owner}/{repo}:{branch}: {e}")
+            return []
 
     async def _get_key_files_content(
         self, owner: str, repo: str, branch: str, file_tree: List[Dict]
@@ -206,17 +286,21 @@ class GitHubClient:
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}"
         params = {"ref": branch}
 
-        async with self.session.get(url, params=params) as response:
-            if response.status == 200:
-                data = await response.json()
-                if data.get("content"):
-                    try:
-                        content = base64.b64decode(data["content"]).decode("utf-8")
-                        # Limit content size
-                        return content[:10000] if len(content) > 10000 else content
-                    except UnicodeDecodeError:
-                        logger.debug(f"Could not decode {file_path} as UTF-8")
-                        return None
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get("content"):
+                        try:
+                            content = base64.b64decode(data["content"]).decode("utf-8")
+                            # Limit content size
+                            return content[:10000] if len(content) > 10000 else content
+                        except UnicodeDecodeError:
+                            logger.debug(f"Could not decode {file_path} as UTF-8")
+                            return None
+                return None
+        except Exception as e:
+            logger.debug(f"Error fetching content for {file_path}: {e}")
             return None
 
     def _parse_repository_url(self, repository_url: str) -> Tuple[str, str]:
@@ -261,10 +345,12 @@ class GitHubClient:
                         repo = self._clean_repo_name(path_parts[1])
                         return owner, repo
 
-            raise ValueError(f"Could not parse GitHub URL: {repository_url}")
+            raise InvalidRepositoryException(repository_url)
+        except InvalidRepositoryException:
+            raise
         except Exception as e:
             logger.error(f"Error parsing repository URL '{repository_url}': {e}")
-            raise ValueError(f"Invalid repository URL format: {repository_url}")
+            raise InvalidRepositoryException(repository_url)
 
     def _clean_repo_name(self, repo_name: str) -> str:
         """Remove .git suffix from repository name if present"""
@@ -437,16 +523,31 @@ class GitHubClient:
             "file_types": file_types,
             "directories": list(directories),
             "total_files": len(file_tree),
-            "directory_count": len(directories),
         }
 
-    async def test_connection(self) -> bool:
-        """Test GitHub API connection"""
+    async def health_check(self) -> Dict[str, Any]:
+        """Check GitHub API health status"""
         try:
-            async with self:
-                url = f"{self.base_url}/rate_limit"
-                async with self.session.get(url) as response:
-                    return response.status == 200
+            # Test with a simple API call
+            url = f"{self.base_url}/rate_limit"
+            async with aiohttp.ClientSession(
+                headers=self._get_headers(), timeout=aiohttp.ClientTimeout(total=10)
+            ) as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return {
+                            "status": "healthy",
+                            "rate_limit": data.get("rate", {}),
+                            "timestamp": data.get("timestamp"),
+                        }
+                    else:
+                        return {
+                            "status": "unhealthy",
+                            "error": f"GitHub API returned {response.status}",
+                        }
         except Exception as e:
-            logger.error(f"GitHub connection test failed: {e}")
-            return False
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+            }

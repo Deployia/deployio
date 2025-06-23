@@ -11,6 +11,17 @@ from pydantic import BaseModel
 from models.response import ResponseModel
 from services.analysis_service import analysis_service
 from services.progress_service import progress_service
+from exceptions import (
+    AnalysisException,
+    RepositoryNotFoundException,
+    RepositoryAccessException,
+    InvalidRepositoryException,
+    BranchNotFoundException,
+    AnalysisTimeoutException,
+    LLMServiceException,
+    RateLimitExceededException,
+    InsufficientDataException,
+)
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -189,8 +200,7 @@ async def analyze_repository(
     - Technology stack detection with detailed reasoning
     - Dependency analysis with security insights
     - Code quality assessment with recommendations
-    - Detailed insights with evidence and confidence scoring
-    """
+    - Detailed insights with evidence and confidence scoring"""
     logger.info(
         f"Repository analysis request for {request.repository_url} from {internal_service}"
     )
@@ -218,22 +228,48 @@ async def analyze_repository(
             data=AnalysisResponse(**result),
         )
 
+    except RepositoryNotFoundException as e:
+        logger.error(f"Repository not found: {request.repository_url}")
+        raise HTTPException(status_code=404, detail=e.message)
+
+    except RepositoryAccessException as e:
+        logger.error(f"Repository access denied: {request.repository_url}")
+        raise HTTPException(status_code=403, detail=e.message)
+
+    except InvalidRepositoryException as e:
+        logger.error(f"Invalid repository URL: {request.repository_url}")
+        raise HTTPException(status_code=400, detail=e.message)
+
+    except BranchNotFoundException as e:
+        logger.error(f"Branch not found: {request.branch} in {request.repository_url}")
+        raise HTTPException(status_code=404, detail=e.message)
+
+    except RateLimitExceededException as e:
+        logger.error(f"Rate limit exceeded: {e.service}")
+        raise HTTPException(status_code=429, detail=e.message)
+
+    except AnalysisTimeoutException as e:
+        logger.error(f"Analysis timeout: {request.repository_url}")
+        raise HTTPException(status_code=408, detail=e.message)
+
+    except LLMServiceException as e:
+        logger.error(f"LLM service error: {e.operation}")
+        raise HTTPException(status_code=503, detail=e.message)
+
+    except InsufficientDataException as e:
+        logger.error(f"Insufficient data: {request.repository_url}")
+        raise HTTPException(status_code=422, detail=e.message)
+
+    except AnalysisException as e:
+        logger.error(f"Analysis error: {request.repository_url}")
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
     except Exception as e:
         logger.error(
             f"Repository analysis failed for {request.repository_url}: {str(e)}",
             exc_info=True,
         )
-        # Custom error handling for known errors
-        error_message = str(e)
-        if "Repository not found" in error_message or "invalid response" in error_message:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Repository not found or inaccessible: {request.repository_url}"
-            )
-        # Add more custom error checks as needed
-        raise HTTPException(
-            status_code=500, detail=f"Repository analysis failed: {error_message}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/detect-stack", response_model=ResponseModel[StackDetectionResponse])
@@ -264,6 +300,24 @@ async def detect_technology_stack(
             data=StackDetectionResponse(**result),
         )
 
+    except RepositoryNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except RepositoryAccessException as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except InvalidRepositoryException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except BranchNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except RateLimitExceededException as e:
+        raise HTTPException(status_code=429, detail=e.message)
+    except AnalysisTimeoutException as e:
+        raise HTTPException(status_code=408, detail=e.message)
+    except LLMServiceException as e:
+        raise HTTPException(status_code=503, detail=e.message)
+    except InsufficientDataException as e:
+        raise HTTPException(status_code=422, detail=e.message)
+    except AnalysisException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         logger.error(
             f"Technology stack detection failed for {request.repository_url}: {str(e)}",
@@ -282,6 +336,7 @@ async def analyze_code_quality(
     """
     Focused code quality assessment with metrics and recommendations
     """
+
     try:
         # Delegate to service
         result = await analysis_service.analyze_code_quality(
@@ -297,6 +352,24 @@ async def analyze_code_quality(
             data=CodeQualityResponse(**result),
         )
 
+    except RepositoryNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except RepositoryAccessException as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except InvalidRepositoryException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except BranchNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except RateLimitExceededException as e:
+        raise HTTPException(status_code=429, detail=e.message)
+    except AnalysisTimeoutException as e:
+        raise HTTPException(status_code=408, detail=e.message)
+    except LLMServiceException as e:
+        raise HTTPException(status_code=503, detail=e.message)
+    except InsufficientDataException as e:
+        raise HTTPException(status_code=422, detail=e.message)
+    except AnalysisException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Code quality analysis failed: {str(e)}"
@@ -313,6 +386,7 @@ async def analyze_dependencies(
     """
     Focused dependency analysis with security insights and recommendations
     """
+
     try:
         # Delegate to service
         result = await analysis_service.analyze_dependencies(
@@ -328,6 +402,24 @@ async def analyze_dependencies(
             data=DependencyAnalysisResponse(**result),
         )
 
+    except RepositoryNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except RepositoryAccessException as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except InvalidRepositoryException as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except BranchNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except RateLimitExceededException as e:
+        raise HTTPException(status_code=429, detail=e.message)
+    except AnalysisTimeoutException as e:
+        raise HTTPException(status_code=408, detail=e.message)
+    except LLMServiceException as e:
+        raise HTTPException(status_code=503, detail=e.message)
+    except InsufficientDataException as e:
+        raise HTTPException(status_code=422, detail=e.message)
+    except AnalysisException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Dependency analysis failed: {str(e)}"

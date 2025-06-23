@@ -22,6 +22,17 @@ from ..enhancers.llm_enhancer import LLMEnhancer
 from ..utils.github_client import GitHubClient
 from ..utils.cache_manager import CacheManager
 from ..analyzers.base_analyzer import BaseAnalyzer
+from exceptions import (
+    AnalysisException,
+    RepositoryNotFoundException,
+    RepositoryAccessException,
+    InvalidRepositoryException,
+    BranchNotFoundException,
+    AnalysisTimeoutException,
+    LLMServiceException,
+    RateLimitExceededException,
+    InsufficientDataException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,15 +112,17 @@ class UnifiedDetectionEngine:
             # Step 2: Fetch repository data
             repo_data = await self.github_client.fetch_repository_data(
                 repository_url, branch
-            )
-
-            # Step 3: Perform parallel analysis
+            )  # Step 3: Perform parallel analysis
             analysis_results = await self._perform_parallel_analysis(
                 repo_data, analysis_types
-            )  # Step 4: Combine rule-based analyzer results (NO LLM logic here)
+            )
+
+            # Step 4: Combine rule-based analyzer results (NO LLM logic here)
             combined_result = await self._combine_analysis_results(
                 repository_url, branch, analysis_results, repo_data
-            )  # Step 5: ALWAYS run LLM enhancer for insights/recommendations/suggestions
+            )
+
+            # Step 5: ALWAYS run LLM enhancer for insights/recommendations/suggestions
             # The LLM enhancer is the ONLY component that generates insights, recommendations, and suggestions
             logger.info(
                 "Running LLM enhancer for insights, recommendations, and suggestions"
@@ -153,9 +166,9 @@ class UnifiedDetectionEngine:
                 combined_result.analysis_approach = "rule_based_only"
 
             # Step 6: Final processing
-            combined_result.processing_time = time.time() - start_time
-
-            # Step 7: Cache result
+            combined_result.processing_time = (
+                time.time() - start_time
+            )  # Step 7: Cache result
             await self.cache_manager.set(cache_key, combined_result, ttl=3600)  # 1 hour
 
             logger.info(
@@ -166,9 +179,24 @@ class UnifiedDetectionEngine:
 
             return combined_result
 
+        except (
+            RepositoryNotFoundException,
+            RepositoryAccessException,
+            InvalidRepositoryException,
+            BranchNotFoundException,
+            RateLimitExceededException,
+            AnalysisTimeoutException,
+            LLMServiceException,
+            InsufficientDataException,
+        ):
+            # Re-raise analysis exceptions with proper status codes
+            raise
         except Exception as e:
             logger.error(f"Analysis failed for {repository_url}: {e}")
-            return await self._create_error_result(repository_url, branch, str(e))
+            # Convert generic errors to analysis exceptions
+            raise AnalysisException(
+                f"Analysis failed for {repository_url}: {str(e)}", 500
+            )
 
     async def analyze_code_quality_only(
         self, repository_url: str, branch: str = "main"
