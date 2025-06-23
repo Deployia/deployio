@@ -15,7 +15,7 @@ const crypto = require("crypto");
  */
 class DocumentationService {
   constructor() {
-    this.docsPath = path.join(__dirname, "..", "docs");
+    this.docsPath = path.join(__dirname, "..", "..", "..", "docs");
     this.metadataPath = path.join(this.docsPath, "metadata.json");
     this.metadata = null;
     this.supportedCategories = [

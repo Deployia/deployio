@@ -15,7 +15,7 @@ const crypto = require("crypto");
  */
 class BlogService {
   constructor() {
-    this.blogsPath = path.join(__dirname, "..", "blogs");
+    this.blogsPath = path.join(__dirname, "..", "..", "..", "blogs");
     this.metadataPath = path.join(this.blogsPath, "metadata.json");
     this.metadata = null;
     this.supportedCategories = [
