@@ -1,15 +1,16 @@
 """
-LLM Enhancer - Intelligent enhancement of analysis results using AI
-Provides smart insights and recommendations when rule-based analysis has low confidence
+Simplified LLM Enhancer - Focused on orchestrating enhancement process
+Uses modular LLM services for clean separation of concerns
 """
 
 import logging
-import json
-import asyncio
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, field
 
-from engines.core.models import AnalysisResult, TechnologyStack, ConfidenceLevel
+from engines.core.models import AnalysisResult, TechnologyStack
+from engines.core.llm import LLMClientManager, LLMAPIClient, LLMRequest, LLMProvider
+from engines.core.llm.response_parser import LLMResponseParser
+from .prompt_templates import PromptTemplates
 
 logger = logging.getLogger(__name__)
 
@@ -17,494 +18,608 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LLMEnhancementResult:
     """Result of LLM enhancement"""
+
     enhanced_stack: TechnologyStack
     confidence_boost: float
     reasoning: str
     additional_insights: List[str]
     recommendations: List[Dict[str, Any]]
+    suggestions: List[Dict[str, Any]] = field(default_factory=list)
+    insights: List[Dict[str, Any]] = field(default_factory=list)
+    null_field_explanations: Dict[str, str] = field(default_factory=dict)
+    llm_enhanced: bool = False
 
 
 class LLMEnhancer:
     """
-    AI-powered analysis enhancer
-    
-    Features:
-    - Smart technology detection
-    - Architecture pattern recognition
-    - Best practice recommendations
-    - Confidence boosting for uncertain results
+    Simplified LLM Enhancer focused on orchestration
+
+    Responsibilities:
+    - Orchestrate the three-step enhancement process
+    - Coordinate between different LLM services
+    - Merge enhancement results with original analysis
+    - Calculate confidence boosts
+
+    NOT responsible for:
+    - LLM client management (delegated to LLMClientManager)
+    - API calls (delegated to LLMAPIClient)
+    - Response parsing (delegated to LLMResponseParser)
+    - Prompt generation (delegated to PromptTemplates)
     """
-    
+
     def __init__(self):
-        self.enhancement_prompts = {
-            "stack_detection": self._get_stack_detection_prompt(),
-            "architecture_analysis": self._get_architecture_prompt(),
-            "optimization_recommendations": self._get_optimization_prompt()
-        }
-        
-        # Fallback responses for when LLM is unavailable
-        self.fallback_responses = {
-            "node_js": {
-                "framework": "Express.js",
-                "recommendations": [
-                    {"type": "performance", "suggestion": "Use PM2 for process management"},
-                    {"type": "security", "suggestion": "Implement helmet.js for security headers"},
-                    {"type": "monitoring", "suggestion": "Add structured logging with Winston"}
-                ]
-            },
-            "python": {
-                "framework": "FastAPI",
-                "recommendations": [
-                    {"type": "performance", "suggestion": "Use Gunicorn with multiple workers"},
-                    {"type": "security", "suggestion": "Implement proper authentication and authorization"},
-                    {"type": "monitoring", "suggestion": "Add health checks and metrics endpoints"}
-                ]
-            }
-        }
-        
-        logger.info("LLMEnhancer initialized successfully")
-    
+        # Initialize modular LLM services
+        self.client_manager = LLMClientManager()
+        self.api_client = LLMAPIClient(self.client_manager)
+        self.prompt_templates = PromptTemplates()
+        self.response_parser = LLMResponseParser()
+
+        # Configuration
+        self.max_tokens = 4000
+        self.temperature = 0.1
+
+        logger.info("LLMEnhancer initialized with modular services")
+
+    @property
+    def is_available(self) -> bool:
+        """Check if any LLM providers are available for enhancement."""
+        return bool(self.client_manager.get_available_providers())
+
     async def enhance_analysis(
         self,
         analysis_result: AnalysisResult,
-        repository_files: Dict[str, str],
-        enhancement_type: str = "comprehensive"
+        repository_data: Dict[str, Any],
+        enhancement_type: str = "comprehensive",
     ) -> LLMEnhancementResult:
         """
-        Enhance analysis results using AI insights
-        
+        Main entry point for LLM enhancement
+
         Args:
             analysis_result: Current analysis results
-            repository_files: Repository file contents
-            enhancement_type: Type of enhancement to perform
-        
-        Returns:
-            LLMEnhancementResult: Enhanced analysis with AI insights
+            repository_data: Full repository data structure from GitHub client
+            enhancement_type: Type of enhancement (three_step, comprehensive, etc.)        Returns:
+            LLMEnhancementResult with enhanced analysis
         """
         try:
-            logger.info(f"Starting LLM enhancement for {analysis_result.repository_url}")
-            
-            # For now, use rule-based enhancement as fallback
-            # In production, this would integrate with actual LLM APIs
-            enhanced_result = await self._rule_based_enhancement(
-                analysis_result, 
-                repository_files
+            logger.info(
+                f"Starting modular LLM enhancement for {analysis_result.repository_url}"
             )
-            
-            logger.info("LLM enhancement completed successfully")
-            return enhanced_result
-            
+
+            # Extract repository files from repository_data structure
+            repository_files = (
+                repository_data.get("key_files", {}) if repository_data else {}
+            )
+
+            # Check if LLM services are available
+            if not self.client_manager.get_available_providers():
+                logger.warning(
+                    "No LLM providers available, falling back to rule-based enhancement"
+                )
+                logger.error(
+                    f"FALLBACK TRIGGERED: No LLM providers available for {analysis_result.repository_url}"
+                )
+                return await self._rule_based_enhancement(
+                    analysis_result, repository_files
+                )
+
+            # Choose enhancement strategy
+            if enhancement_type == "three_step":
+                enhanced_result = await self._three_step_enhancement(
+                    analysis_result, repository_files
+                )
+            elif enhancement_type == "comprehensive":
+                enhanced_result = await self._comprehensive_enhancement(
+                    analysis_result, repository_files
+                )
+            else:
+                logger.warning(
+                    f"Unknown enhancement type: {enhancement_type}, using three_step"
+                )
+                enhanced_result = await self._three_step_enhancement(
+                    analysis_result, repository_files
+                )
+
+            # Mark as LLM enhanced if successful
+            if enhanced_result:
+                enhanced_result.llm_enhanced = True
+                logger.info(
+                    f"LLM enhancement completed successfully with confidence boost: {enhanced_result.confidence_boost}"
+                )
+                return enhanced_result
+            else:
+                logger.warning("LLM enhancement failed, falling back to rule-based")
+                return await self._rule_based_enhancement(
+                    analysis_result, repository_files
+                )
+
         except Exception as e:
             logger.error(f"LLM enhancement failed: {e}")
-            # Return minimal enhancement to avoid breaking the flow
-            return self._minimal_enhancement(analysis_result)
-    
-    async def _rule_based_enhancement(
+            logger.error(
+                f"FALLBACK TRIGGERED: LLM enhancement exception for {analysis_result.repository_url} - {str(e)}"
+            )
+            return await self._rule_based_enhancement(analysis_result, repository_files)
+
+    async def _three_step_enhancement(
+        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
+    ) -> Optional[LLMEnhancementResult]:
+        """
+        Three-step enhancement process:
+        1. Rule-based foundation (already done)
+        2. LLM technology detection
+        3. LLM optimization and insights
+        """
+        try:
+            logger.info("Starting three-step LLM enhancement process")
+
+            # STEP 1: Use existing rule-based analysis as foundation
+            logger.info("Step 1: Using rule-based analysis as foundation")
+
+            # STEP 2: LLM technology detection
+            logger.info("Step 2: LLM technology detection")
+            tech_data = await self._detect_technologies(
+                analysis_result, repository_files
+            )
+            if not tech_data:
+                logger.warning("Technology detection failed")
+                return None
+
+            # STEP 3: LLM optimization and insights
+            logger.info("Step 3: LLM optimization and insights")
+            optimization_data = await self._generate_optimization_insights(
+                analysis_result, tech_data
+            )
+            if not optimization_data:
+                logger.warning("Optimization insights generation failed")
+                # Still return tech detection results
+                return self._create_enhancement_result(analysis_result, tech_data, {})
+
+            # Combine results
+            final_result = self._create_enhancement_result(
+                analysis_result, tech_data, optimization_data
+            )
+            logger.info("Three-step enhancement completed successfully")
+            return final_result
+
+        except Exception as e:
+            logger.error(f"Three-step enhancement failed: {e}")
+            return None
+
+    async def _comprehensive_enhancement(
+        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
+    ) -> Optional[LLMEnhancementResult]:
+        """
+        Comprehensive enhancement in a single LLM call
+        """
+        try:
+            logger.info("Starting comprehensive LLM enhancement")
+
+            # Prepare context
+            context = self._prepare_analysis_context(analysis_result, repository_files)
+
+            # Generate comprehensive prompt
+            prompt = self.prompt_templates.get_comprehensive_analysis_prompt(context)
+
+            # Make LLM request
+            request = LLMRequest(
+                prompt=prompt,
+                model=self.client_manager.config.groq_model,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                provider_preference=LLMProvider.GROQ,
+            )
+
+            response = await self.api_client.call_llm(request)
+            if not response or not response.success:
+                logger.error("Comprehensive analysis LLM call failed")
+                return None
+
+            # Parse comprehensive response
+            parsed_data = self.response_parser.parse_comprehensive_response(
+                response.content
+            )
+
+            # Create result
+            result = self._create_comprehensive_result(analysis_result, parsed_data)
+            logger.info("Comprehensive enhancement completed successfully")
+            return result
+
+        except Exception as e:
+            logger.error(f"Comprehensive enhancement failed: {e}")
+            return None
+
+    async def _detect_technologies(
+        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
+    ) -> Optional[Dict[str, Any]]:
+        """Technology detection using LLM"""
+        try:
+            # Prepare context
+            context = self._prepare_analysis_context(analysis_result, repository_files)
+
+            # Generate technology detection prompt
+            prompt = self.prompt_templates.get_technology_detection_prompt(context)
+
+            # Make LLM request
+            request = LLMRequest(
+                prompt=prompt,
+                model=self.client_manager.config.groq_model,
+                max_tokens=2000,
+                temperature=self.temperature,
+                provider_preference=LLMProvider.GROQ,
+            )
+
+            response = await self.api_client.call_llm(request)
+            if not response or not response.success:
+                logger.error("Technology detection LLM call failed")
+                return None
+
+            # Parse technology detection response
+            fallback_data = {
+                "language": analysis_result.technology_stack.language,
+                "framework": analysis_result.technology_stack.framework,
+                "confidence": analysis_result.confidence_score,
+            }
+
+            tech_data = self.response_parser.parse_technology_detection(
+                response.content, fallback_data
+            )
+
+            # logger.debug(
+            #     f"Technology detection successful: {tech_data.get('language')} / {tech_data.get('framework')}"
+            # )
+            return tech_data
+
+        except Exception as e:
+            logger.error(f"Technology detection failed: {e}")
+            return None
+
+    async def _generate_optimization_insights(
+        self, analysis_result: AnalysisResult, tech_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Generate optimization insights using LLM"""
+        try:
+            # Prepare enhanced context
+            context = {
+                "technology_data": tech_data,
+                "original_analysis": {
+                    "confidence": analysis_result.confidence_score,
+                    "detected_files": analysis_result.detected_files,
+                },
+            }
+
+            # Generate optimization prompt
+            prompt = self.prompt_templates.get_optimization_prompt(context)
+
+            # Make LLM request
+            request = LLMRequest(
+                prompt=prompt,
+                model=self.client_manager.config.groq_model,
+                max_tokens=2000,
+                temperature=self.temperature,
+                provider_preference=LLMProvider.GROQ,
+            )
+
+            response = await self.api_client.call_llm(request)
+            if not response or not response.success:
+                logger.error("Optimization insights LLM call failed")
+                return None  # Parse optimization response
+            optimization_data = self.response_parser.parse_optimization_response(
+                response.content
+            )
+
+            # logger.debug(
+            #     f"Optimization insights generated: {len(optimization_data.get('recommendations', []))} recommendations"
+            # )
+            return optimization_data
+        except Exception as e:
+            logger.error(f"Optimization insights generation failed: {e}")
+            return None
+
+    def _prepare_analysis_context(
+        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """Prepare comprehensive context for LLM analysis with all analyzer results"""
+        # Get important files (extended list)
+        key_files = {}
+        important_files = [
+            "package.json",
+            "requirements.txt",
+            "pyproject.toml",
+            "pipfile",
+            "pom.xml",
+            "build.gradle",
+            "composer.json",
+            "cargo.toml",
+            "go.mod",
+            "gemfile",
+            "dockerfile",
+            "docker-compose.yml",
+            ".dockerignore",
+            "readme.md",
+            "main.py",
+            "app.py",
+            "index.js",
+            "server.js",
+            "app.js",
+            ".gitignore",
+            "config.py",
+            "settings.py",
+            "webpack.config.js",
+            "vite.config.js",
+            "tsconfig.json",
+            "babel.config.js",
+            "eslint.config.js",
+        ]
+
+        for filename, content in repository_files.items():
+            file_lower = filename.lower()
+            if any(imp_file in file_lower for imp_file in important_files):
+                # Limit content size for context window (increased for better analysis)
+                key_files[filename] = content[:3000]
+
+        # Extract full analyzer context
+        stack_context = {}
+        if analysis_result.technology_stack:
+            stack_context = {
+                "language": getattr(analysis_result.technology_stack, "language", None),
+                "framework": getattr(
+                    analysis_result.technology_stack, "framework", None
+                ),
+                "database": getattr(analysis_result.technology_stack, "database", None),
+                "build_tool": getattr(
+                    analysis_result.technology_stack, "build_tool", None
+                ),
+                "package_manager": getattr(
+                    analysis_result.technology_stack, "package_manager", None
+                ),
+                "runtime_version": getattr(
+                    analysis_result.technology_stack, "runtime_version", None
+                ),
+                "additional_technologies": getattr(
+                    analysis_result.technology_stack, "additional_technologies", []
+                ),
+                "architecture_pattern": getattr(
+                    analysis_result.technology_stack, "architecture_pattern", None
+                ),
+                "deployment_strategy": getattr(
+                    analysis_result.technology_stack, "deployment_strategy", None
+                ),
+            }
+
+        # Extract dependency context
+        dependency_context = {}
+        if analysis_result.dependency_analysis:
+            if hasattr(analysis_result.dependency_analysis, "__dict__"):
+                dependency_context = {
+                    "total_dependencies": getattr(
+                        analysis_result.dependency_analysis, "total_dependencies", 0
+                    ),
+                    "security_vulnerabilities": getattr(
+                        analysis_result.dependency_analysis,
+                        "security_vulnerabilities",
+                        0,
+                    ),
+                    "outdated_dependencies": getattr(
+                        analysis_result.dependency_analysis, "outdated_dependencies", 0
+                    ),
+                    "package_managers": getattr(
+                        analysis_result.dependency_analysis, "package_managers", []
+                    ),
+                    "optimization_score": getattr(
+                        analysis_result.dependency_analysis, "optimization_score", 0
+                    ),
+                }
+            elif isinstance(analysis_result.dependency_analysis, dict):
+                dependency_context = analysis_result.dependency_analysis
+
+        # Extract code quality context
+        quality_context = {}
+        if analysis_result.quality_metrics:
+            quality_context = analysis_result.quality_metrics
+
+        # Prepare comprehensive context
+        return {
+            "repository_info": {
+                "url": analysis_result.repository_url,
+                "branch": getattr(analysis_result, "branch", "main"),
+                "analysis_approach": analysis_result.analysis_approach,
+            },
+            "rule_based_analysis": {
+                "confidence_score": analysis_result.confidence_score,
+                "stack_detection": stack_context,
+                "dependency_analysis": dependency_context,
+                "code_quality": quality_context,
+            },
+            "file_previews": key_files,
+            "detected_files": analysis_result.detected_files[:20],  # Limit for context
+            "existing_insights": getattr(analysis_result, "insights", []),
+        }
+
+    def _create_enhancement_result(
         self,
         analysis_result: AnalysisResult,
-        repository_files: Dict[str, str]
+        tech_data: Dict[str, Any],
+        optimization_data: Dict[str, Any],
     ) -> LLMEnhancementResult:
-        """
-        Rule-based enhancement as fallback when LLM is unavailable
-        """
-        enhanced_stack = analysis_result.technology_stack
-        confidence_boost = 0.0
-        reasoning = "Rule-based enhancement applied"
-        additional_insights = []
-        recommendations = []
-        
-        # Detect primary language
-        primary_language = enhanced_stack.language or self._detect_primary_language(repository_files)
-        
-        if primary_language:
-            enhanced_stack.language = primary_language
-            confidence_boost += 0.15
-            
-            # Add language-specific insights
-            if primary_language.lower() == "javascript":
-                insights, recs = self._enhance_javascript_analysis(repository_files)
-                additional_insights.extend(insights)
-                recommendations.extend(recs)
-                
-            elif primary_language.lower() == "python":
-                insights, recs = self._enhance_python_analysis(repository_files)
-                additional_insights.extend(insights)
-                recommendations.extend(recs)
-                
-            elif primary_language.lower() == "java":
-                insights, recs = self._enhance_java_analysis(repository_files)
-                additional_insights.extend(insights)
-                recommendations.extend(recs)
-        
-        # Detect missing framework information
-        if not enhanced_stack.framework:
-            framework = self._detect_framework(repository_files, primary_language)
-            if framework:
-                enhanced_stack.framework = framework
-                confidence_boost += 0.10
-                additional_insights.append(f"Detected {framework} framework")
-        
-        # Detect architecture patterns
-        if not enhanced_stack.architecture_pattern:
-            pattern = self._detect_architecture_pattern(repository_files)
-            if pattern:
-                enhanced_stack.architecture_pattern = pattern
-                confidence_boost += 0.08
-                additional_insights.append(f"Architecture pattern: {pattern}")
-        
-        # Add deployment recommendations
-        deployment_recs = self._generate_deployment_recommendations(enhanced_stack)
-        recommendations.extend(deployment_recs)
-        
+        """Create final enhancement result from tech detection and optimization data"""  # Create enhanced technology stack
+        enhanced_stack = TechnologyStack(
+            language=tech_data.get(
+                "language", analysis_result.technology_stack.language
+            ),
+            framework=tech_data.get(
+                "framework", analysis_result.technology_stack.framework
+            ),
+            database=tech_data.get(
+                "database", analysis_result.technology_stack.database
+            ),
+            additional_technologies=tech_data.get(
+                "additional_technologies",
+                analysis_result.technology_stack.additional_technologies,
+            ),
+            architecture_pattern=tech_data.get(
+                "architecture_pattern",
+                analysis_result.technology_stack.architecture_pattern,
+            ),
+            deployment_strategy=optimization_data.get("deployment_strategy"),
+            confidence=tech_data.get("confidence", 0.0),  # Set LLM confidence
+        )
+
+        # Calculate confidence boost
+        base_confidence_boost = (
+            tech_data.get("confidence", 0) - analysis_result.confidence_score
+        )
+        optimization_boost = optimization_data.get("confidence_boost", 0)
+        total_confidence_boost = max(
+            0, min(0.4, base_confidence_boost + optimization_boost)
+        )  # Combine reasoning
+        tech_reasoning = tech_data.get("reasoning", "")
+        opt_reasoning = optimization_data.get("reasoning", "")
+        combined_reasoning = f"{tech_reasoning}. {opt_reasoning}".strip(". ")
+
+        return LLMEnhancementResult(
+            enhanced_stack=enhanced_stack,
+            confidence_boost=total_confidence_boost,
+            reasoning=combined_reasoning or "LLM enhancement applied",
+            additional_insights=optimization_data.get("additional_insights", []),
+            recommendations=optimization_data.get("recommendations", []),
+            suggestions=optimization_data.get("suggestions", []),
+            insights=tech_data.get("insights", []),
+            null_field_explanations=optimization_data.get(
+                "null_field_explanations", {}
+            ),
+            llm_enhanced=True,
+        )
+
+    def _create_comprehensive_result(
+        self, analysis_result: AnalysisResult, parsed_data: Dict[str, Any]
+    ) -> LLMEnhancementResult:
+        """Create enhancement result from comprehensive analysis"""
+        # # Log the parsed LLM response for debugging
+        # logger.debug(f"Parsed LLM response: {parsed_data}")
+
+        tech_stack_data = parsed_data.get("technology_stack", {})
+        # Always prefer LLM's detected values if present
+        enhanced_stack = TechnologyStack(
+            language=tech_stack_data.get(
+                "language", analysis_result.technology_stack.language
+            ),
+            framework=tech_stack_data.get(
+                "framework", analysis_result.technology_stack.framework
+            ),
+            database=tech_stack_data.get(
+                "database", analysis_result.technology_stack.database
+            ),
+            additional_technologies=tech_stack_data.get("additional_technologies", []),
+            architecture_pattern=tech_stack_data.get("architecture_pattern"),
+            deployment_strategy=tech_stack_data.get("deployment_strategy", None),
+            confidence=parsed_data.get("confidence", 0.0),
+        )
+
+        confidence_boost = max(0, min(0.4, parsed_data.get("confidence_boost", 0.1)))
+
+        # Null field explanations: if a field is null but mentioned in reasoning, add an explanation
+        null_field_explanations = parsed_data.get("null_field_explanations", {})
+        for field_name in ["database", "architecture_pattern", "deployment_strategy"]:
+            if getattr(enhanced_stack, field_name, None) is None:
+                # Try to extract explanation from reasoning if available
+                reasoning = parsed_data.get("reasoning", "")
+                if (
+                    field_name in reasoning.lower()
+                    and field_name not in null_field_explanations
+                ):
+                    null_field_explanations[field_name] = (
+                        "Mentioned in reasoning but not detected in files."
+                    )
+
+        # Log the final merged result for debugging
+        # logger.debug(
+        #     f"Final merged enhancement result: stack={enhanced_stack}, insights={parsed_data.get('insights', [])}, suggestions={parsed_data.get('suggestions', [])}"
+        # )
+
         return LLMEnhancementResult(
             enhanced_stack=enhanced_stack,
             confidence_boost=confidence_boost,
-            reasoning=reasoning,
-            additional_insights=additional_insights,
-            recommendations=recommendations
+            reasoning=parsed_data.get("reasoning", "Comprehensive LLM analysis"),
+            additional_insights=parsed_data.get("additional_insights", []),
+            recommendations=parsed_data.get("recommendations", []),
+            suggestions=parsed_data.get("suggestions", []),
+            insights=parsed_data.get("insights", []),
+            null_field_explanations=null_field_explanations,
+            llm_enhanced=True,
         )
-    
-    def _detect_primary_language(self, repository_files: Dict[str, str]) -> Optional[str]:
-        """Detect primary programming language from file extensions"""
-        language_counts = {}
-        
-        for file_path in repository_files.keys():
-            ext = file_path.split('.')[-1].lower()
-            
-            language_map = {
-                'js': 'JavaScript',
-                'ts': 'TypeScript', 
-                'py': 'Python',
-                'java': 'Java',
-                'php': 'PHP',
-                'go': 'Go',
-                'rb': 'Ruby',
-                'cs': 'C#',
-                'cpp': 'C++',
-                'c': 'C'
-            }
-            
-            if ext in language_map:
-                lang = language_map[ext]
-                language_counts[lang] = language_counts.get(lang, 0) + 1
-        
-        if language_counts:
-            return max(language_counts, key=language_counts.get)
-        return None
-    
-    def _enhance_javascript_analysis(self, repository_files: Dict[str, str]) -> Tuple[List[str], List[Dict]]:
-        """Enhance JavaScript/Node.js analysis"""
-        insights = []
+
+    async def _rule_based_enhancement(
+        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
+    ) -> LLMEnhancementResult:
+        """Fallback rule-based enhancement when LLM is unavailable"""
+        logger.info("Performing rule-based enhancement fallback")
+
+        # Simple rule-based recommendations based on detected technology
         recommendations = []
-        
-        # Check for package.json
-        if 'package.json' in repository_files or any('package.json' in path for path in repository_files.keys()):
-            insights.append("Node.js project with package.json detected")
-            recommendations.append({
-                "type": "dependency_management",
-                "suggestion": "Consider using npm audit to check for vulnerabilities",
-                "priority": "high"
-            })
-        
-        # Check for React/Vue/Angular
-        has_react = any('react' in content.lower() for content in repository_files.values())
-        has_vue = any('vue' in content.lower() for content in repository_files.values())
-        has_angular = any('angular' in content.lower() for content in repository_files.values())
-        
-        if has_react:
-            insights.append("React.js components detected")
-            recommendations.append({
-                "type": "build_optimization",
-                "suggestion": "Use React.StrictMode and consider code splitting",
-                "priority": "medium"
-            })
-        
-        if has_vue:
-            insights.append("Vue.js components detected")
-            recommendations.append({
-                "type": "build_optimization", 
-                "suggestion": "Use Vue CLI for optimal build configuration",
-                "priority": "medium"
-            })
-        
-        if has_angular:
-            insights.append("Angular framework detected")
-            recommendations.append({
-                "type": "build_optimization",
-                "suggestion": "Use Angular CLI for production builds",
-                "priority": "medium"
-            })
-        
-        return insights, recommendations
-    
-    def _enhance_python_analysis(self, repository_files: Dict[str, str]) -> Tuple[List[str], List[Dict]]:
-        """Enhance Python analysis"""
-        insights = []
-        recommendations = []
-        
-        # Check for requirements.txt or setup.py
-        has_requirements = any('requirements.txt' in path for path in repository_files.keys())
-        has_setup = any('setup.py' in path for path in repository_files.keys())
-        
-        if has_requirements:
-            insights.append("Python project with requirements.txt detected")
-            recommendations.append({
-                "type": "dependency_management",
-                "suggestion": "Pin dependency versions for reproducible builds",
-                "priority": "high"
-            })
-        
-        if has_setup:
-            insights.append("Python package with setup.py detected")
-            recommendations.append({
-                "type": "packaging",
-                "suggestion": "Consider migrating to pyproject.toml for modern packaging",
-                "priority": "low"
-            })
-        
-        # Check for popular frameworks
-        file_contents = ' '.join(repository_files.values()).lower()
-        
-        if 'django' in file_contents:
-            insights.append("Django web framework detected")
-            recommendations.append({
-                "type": "deployment",
-                "suggestion": "Use Gunicorn with Django for production deployment",
-                "priority": "high"
-            })
-        
-        if 'flask' in file_contents:
-            insights.append("Flask web framework detected")
-            recommendations.append({
-                "type": "deployment",
-                "suggestion": "Use Gunicorn or uWSGI for production Flask deployment",
-                "priority": "high"
-            })
-        
-        if 'fastapi' in file_contents:
-            insights.append("FastAPI framework detected")
-            recommendations.append({
-                "type": "deployment",
-                "suggestion": "Use Uvicorn with multiple workers for FastAPI",
-                "priority": "high"
-            })
-        
-        return insights, recommendations
-    
-    def _enhance_java_analysis(self, repository_files: Dict[str, str]) -> Tuple[List[str], List[Dict]]:
-        """Enhance Java analysis"""
-        insights = []
-        recommendations = []
-        
-        # Check for build files
-        has_maven = any('pom.xml' in path for path in repository_files.keys())
-        has_gradle = any('build.gradle' in path for path in repository_files.keys())
-        
-        if has_maven:
-            insights.append("Maven build system detected")
-            recommendations.append({
-                "type": "build_optimization",
-                "suggestion": "Use Maven wrapper for consistent builds across environments",
-                "priority": "medium"
-            })
-        
-        if has_gradle:
-            insights.append("Gradle build system detected")
-            recommendations.append({
-                "type": "build_optimization",
-                "suggestion": "Use Gradle wrapper and consider build caching",
-                "priority": "medium"
-            })
-        
-        # Check for Spring framework
-        file_contents = ' '.join(repository_files.values()).lower()
-        if 'spring' in file_contents:
-            insights.append("Spring framework detected")
-            recommendations.append({
-                "type": "deployment",
-                "suggestion": "Use Spring Boot for simplified deployment",
-                "priority": "high"
-            })
-        
-        return insights, recommendations
-    
-    def _detect_framework(self, repository_files: Dict[str, str], language: Optional[str]) -> Optional[str]:
-        """Detect web framework based on file contents"""
-        if not language:
-            return None
-            
-        file_contents = ' '.join(repository_files.values()).lower()
-        
-        # JavaScript/TypeScript frameworks
-        if language.lower() in ['javascript', 'typescript']:
-            if 'react' in file_contents:
-                return 'React'
-            elif 'vue' in file_contents:
-                return 'Vue.js'
-            elif 'angular' in file_contents:
-                return 'Angular'
-            elif 'express' in file_contents:
-                return 'Express.js'
-            elif 'next' in file_contents:
-                return 'Next.js'
-        
-        # Python frameworks
-        elif language.lower() == 'python':
-            if 'django' in file_contents:
-                return 'Django'
-            elif 'flask' in file_contents:
-                return 'Flask'
-            elif 'fastapi' in file_contents:
-                return 'FastAPI'
-        
-        # Java frameworks
-        elif language.lower() == 'java':
-            if 'spring' in file_contents:
-                return 'Spring Boot'
-        
-        return None
-    
-    def _detect_architecture_pattern(self, repository_files: Dict[str, str]) -> Optional[str]:
-        """Detect architecture pattern from project structure"""
-        file_paths = list(repository_files.keys())
-        
-        # Check for common patterns
-        has_controllers = any('controller' in path.lower() for path in file_paths)
-        has_models = any('model' in path.lower() for path in file_paths)
-        has_views = any('view' in path.lower() for path in file_paths)
-        has_services = any('service' in path.lower() for path in file_paths)
-        has_api = any('api' in path.lower() for path in file_paths)
-        
-        if has_controllers and has_models and has_views:
-            return "Model-View-Controller (MVC)"
-        elif has_api and has_services:
-            return "Service-Oriented Architecture (SOA)"
-        elif has_controllers and has_services:
-            return "Layered Architecture"
-        elif any('microservice' in path.lower() for path in file_paths):
-            return "Microservices"
-        
-        return None
-    
-    def _generate_deployment_recommendations(self, stack: TechnologyStack) -> List[Dict[str, Any]]:
-        """Generate deployment recommendations based on technology stack"""
-        recommendations = []
-        
-        # Language-specific recommendations
-        if stack.language:
-            lang = stack.language.lower()
-            
-            if lang == 'javascript':
-                recommendations.append({
-                    "type": "deployment",
-                    "suggestion": "Use Node.js runtime with PM2 for process management",
-                    "priority": "high"
-                })
-            elif lang == 'python':
-                recommendations.append({
-                    "type": "deployment",
-                    "suggestion": "Use Python 3.9+ with virtual environment",
-                    "priority": "high"
-                })
-            elif lang == 'java':
-                recommendations.append({
-                    "type": "deployment",
-                    "suggestion": "Use OpenJDK 11+ with proper JVM tuning",
-                    "priority": "high"
-                })
-        
-        # Framework-specific recommendations
-        if stack.framework:
-            recommendations.append({
-                "type": "containerization",
-                "suggestion": f"Consider Docker containerization for {stack.framework}",
-                "priority": "medium"
-            })
-        
-        # Database recommendations
-        if stack.database:
-            recommendations.append({
-                "type": "database",
-                "suggestion": f"Ensure {stack.database} is properly configured for production",
-                "priority": "high"
-            })
-        
-        # General recommendations
-        recommendations.extend([
-            {
-                "type": "monitoring",
-                "suggestion": "Implement health checks and monitoring",
-                "priority": "high"
-            },
-            {
-                "type": "security",
-                "suggestion": "Enable HTTPS and security headers",
-                "priority": "high"
-            },
-            {
-                "type": "performance",
-                "suggestion": "Implement caching strategy",
-                "priority": "medium"
-            }
-        ])
-        
-        return recommendations
-    
-    def _minimal_enhancement(self, analysis_result: AnalysisResult) -> LLMEnhancementResult:
-        """Minimal enhancement when LLM enhancement fails"""
+        language = analysis_result.technology_stack.language
+
+        if language == "javascript" or language == "node.js":
+            recommendations.extend(
+                [
+                    {
+                        "type": "performance",
+                        "priority": "medium",
+                        "suggestion": "Use PM2 for process management in production",
+                        "reason": "Better process management and monitoring",
+                    },
+                    {
+                        "type": "security",
+                        "priority": "high",
+                        "suggestion": "Implement helmet.js for security headers",
+                        "reason": "Protect against common web vulnerabilities",
+                    },
+                ]
+            )
+        elif language == "python":
+            recommendations.extend(
+                [
+                    {
+                        "type": "performance",
+                        "priority": "medium",
+                        "suggestion": "Use Gunicorn with multiple workers for WSGI apps",
+                        "reason": "Better performance and concurrency",
+                    },
+                    {
+                        "type": "monitoring",
+                        "priority": "medium",
+                        "suggestion": "Add health check endpoints",
+                        "reason": "Enable proper monitoring and load balancer integration",
+                    },
+                ]
+            )
+
         return LLMEnhancementResult(
             enhanced_stack=analysis_result.technology_stack,
-            confidence_boost=0.0,
-            reasoning="LLM enhancement unavailable, using original analysis",
-            additional_insights=["Analysis completed using rule-based detection"],
-            recommendations=[
-                {
-                    "type": "general",
-                    "suggestion": "Review deployment configuration for production readiness",
-                    "priority": "medium"
-                }
-            ]
+            confidence_boost=0.05,  # Small boost for rule-based enhancement
+            reasoning="Rule-based enhancement applied (LLM unavailable)",
+            additional_insights=["Rule-based analysis completed"],
+            recommendations=recommendations,
+            llm_enhanced=False,
         )
-    
-    def _get_stack_detection_prompt(self) -> str:
-        """Get prompt for stack detection enhancement"""
-        return """
-        Analyze the provided repository files and enhance the technology stack detection:
-        
-        1. Identify the primary programming language and framework
-        2. Detect database systems and deployment tools
-        3. Identify architecture patterns
-        4. Provide confidence scores for each detection
-        5. Suggest improvements for uncertain detections
-        """
-    
-    def _get_architecture_prompt(self) -> str:
-        """Get prompt for architecture analysis"""
-        return """
-        Analyze the repository structure and code to identify:
-        
-        1. Architecture patterns (MVC, SOA, Microservices, etc.)
-        2. Design patterns used
-        3. Code organization and modularity
-        4. Potential architectural improvements
-        """
-    
-    def _get_optimization_prompt(self) -> str:
-        """Get prompt for optimization recommendations"""
-        return """
-        Based on the technology stack and code analysis, provide:
-        
-        1. Performance optimization recommendations
-        2. Security best practices
-        3. Deployment strategy improvements
-        4. Monitoring and logging suggestions
-        5. Scalability considerations
-        """
-    
-    async def health_check(self) -> Dict[str, str]:
-        """Check if LLM enhancer is healthy"""
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform health check on modular LLM services"""
         try:
-            # In production, this would check LLM API availability
-            return {"llm_enhancer": "healthy", "mode": "rule_based_fallback"}
+            # Check LLM services
+            llm_health = await self.api_client.health_check()
+
+            return {
+                "modular_enhancer": {
+                    "status": "healthy",
+                    "services_initialized": True,
+                    "llm_services": llm_health,
+                }
+            }
         except Exception as e:
-            return {"llm_enhancer": "error", "error": str(e)}
+            logger.error(f"Health check failed: {e}")
+            return {
+                "modular_enhancer": {
+                    "status": "unhealthy",
+                    "error": str(e),
+                    "services_initialized": False,
+                }
+            }

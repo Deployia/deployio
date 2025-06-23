@@ -6,7 +6,7 @@ export const fetchAllBlogs = createAsyncThunk(
   "blog/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/blogs");
+      const response = await api.get("/external/blogs");
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(
@@ -20,7 +20,7 @@ export const fetchBlogsByCategory = createAsyncThunk(
   "blog/fetchByCategory",
   async (category, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/blogs/category/${category}`);
+      const response = await api.get(`/external/blogs/category/${category}`);
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(
@@ -34,7 +34,7 @@ export const fetchBlogBySlug = createAsyncThunk(
   "blog/fetchBySlug",
   async ({ category, slug }, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/blogs/${category}/${slug}`);
+      const response = await api.get(`/external/blogs/${category}/${slug}`);
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(
@@ -49,7 +49,7 @@ export const searchBlogs = createAsyncThunk(
   async (searchTerm, { rejectWithValue }) => {
     try {
       const response = await api.get(
-        `/blogs/search?q=${encodeURIComponent(searchTerm)}`
+        `/external/blogs/search?q=${encodeURIComponent(searchTerm)}`
       );
       return response.data.data; // Extract data from the success response
     } catch (error) {
@@ -64,7 +64,7 @@ export const fetchFeaturedBlogs = createAsyncThunk(
   "blog/fetchFeatured",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/blogs/featured");
+      const response = await api.get("/external/blogs/featured");
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(
@@ -78,7 +78,7 @@ export const fetchPopularBlogs = createAsyncThunk(
   "blog/fetchPopular",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/blogs/popular");
+      const response = await api.get("/external/blogs/popular");
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(
@@ -92,7 +92,7 @@ export const fetchRecentBlogs = createAsyncThunk(
   "blog/fetchRecent",
   async (limit = 5, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/blogs/recent?limit=${limit}`);
+      const response = await api.get(`/external/blogs/recent?limit=${limit}`);
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(
@@ -106,7 +106,7 @@ export const fetchBlogCategories = createAsyncThunk(
   "blog/fetchCategories",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/blogs/categories");
+      const response = await api.get("/external/blogs/categories");
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(
@@ -120,7 +120,7 @@ export const fetchBlogStats = createAsyncThunk(
   "blog/fetchStats",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/blogs/stats");
+      const response = await api.get("/external/blogs/stats");
       return response.data.data; // Extract data from the success response
     } catch (error) {
       return rejectWithValue(

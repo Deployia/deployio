@@ -112,7 +112,7 @@ module.exports = (app) => {
         },
         servers: [{ url: "/" }],
       },
-      apis: ["./docs/backend/*.js"],
+      apis: ["./docs/*.js"],
     };
     const swaggerSpec = swaggerJsdoc(swaggerOptions);
     app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

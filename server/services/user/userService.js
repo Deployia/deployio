@@ -144,7 +144,49 @@ const deleteUser = async (userId, password) => {
 const getNotificationPreferences = async (userId) => {
   const user = await User.findById(userId).select("notificationPreferences");
   if (!user) throw new Error("User not found");
-  return user.notificationPreferences;
+
+  // Return preferences with defaults if not set
+  return (
+    user.notificationPreferences || {
+      email: true,
+      inApp: true,
+      push: false,
+      deploymentSuccess: true,
+      deploymentFailure: true,
+      deploymentStarted: true,
+      deploymentStopped: true,
+      projectAnalysisComplete: true,
+      projectAnalysisFailed: true,
+      projectCollaboratorAdded: true,
+      securityAlerts: true,
+      accountChanges: true,
+      newDeviceLogin: true,
+      passwordChanged: true,
+      twoFactorEnabled: true,
+      twoFactorDisabled: true,
+      apiKeyCreated: true,
+      systemMaintenance: true,
+      systemUpdates: false,
+      quotaWarning: true,
+      quotaExceeded: true,
+      welcomeMessage: true,
+      announcements: false,
+      productUpdates: false,
+      tips: false,
+      quietHours: {
+        enabled: false,
+        start: "22:00",
+        end: "08:00",
+        timezone: "UTC",
+      },
+      digestSettings: {
+        enabled: false,
+        frequency: "daily",
+        time: "09:00",
+        timezone: "UTC",
+      },
+    }
+  );
 };
 
 // Update user notification preferences

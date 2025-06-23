@@ -90,7 +90,7 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true;
       try {
-        await api.post("/auth/refresh-token", {});
+        await api.post("/users/auth/refresh-token", {});
         // After successful refresh, retry the original request.
         // If the original request was a GET, we might want to bypass cache for this retry
         // to ensure we get fresh data after re-authentication, though this depends on the specific needs.

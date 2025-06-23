@@ -21,7 +21,7 @@ export const generate2FASecret = createAsyncThunk(
   "twoFactor/generate2FASecret",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/auth/2fa/generate");
+      const response = await api.get("/users/auth/2fa/generate-secret");
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
@@ -35,7 +35,7 @@ export const enable2FA = createAsyncThunk(
   "twoFactor/enable2FA",
   async ({ token, secret }, { rejectWithValue }) => {
     try {
-      const response = await api.post("/auth/2fa/enable", {
+      const response = await api.post("/users/auth/2fa/enable", {
         token,
         secret,
       });
@@ -52,7 +52,7 @@ export const verify2FALogin = createAsyncThunk(
   "twoFactor/verify2FALogin",
   async ({ token, userId, rememberDevice }, { rejectWithValue }) => {
     try {
-      const response = await api.post("/auth/2fa/verify", {
+      const response = await api.post("/users/auth/2fa/verify", {
         token,
         userId,
         rememberDevice,
@@ -70,7 +70,7 @@ export const disable2FA = createAsyncThunk(
   "twoFactor/disable2FA",
   async (password, { rejectWithValue }) => {
     try {
-      const response = await api.post("/auth/2fa/disable", { password });
+      const response = await api.post("/users/auth/2fa/disable", { password });
       return response.data.message;
     } catch (error) {
       return rejectWithValue(
@@ -84,7 +84,7 @@ export const get2FAStatus = createAsyncThunk(
   "twoFactor/get2FAStatus",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/auth/2fa/status");
+      const response = await api.get("/users/auth/2fa/status");
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
@@ -98,7 +98,7 @@ export const generateNewBackupCodes = createAsyncThunk(
   "twoFactor/generateNewBackupCodes",
   async (password, { rejectWithValue }) => {
     try {
-      const response = await api.post("/auth/2fa/backup-codes", {
+      const response = await api.post("/users/auth/2fa/backup-codes", {
         password,
       });
       return response.data.data;
@@ -150,7 +150,8 @@ const twoFactorSlice = createSlice({
       .addCase(enable2FA.pending, (state) => {
         state.isEnabling = true;
         state.error = null;
-      })      .addCase(enable2FA.fulfilled, (state, action) => {
+      })
+      .addCase(enable2FA.fulfilled, (state, action) => {
         state.isEnabling = false;
         state.twoFactorEnabled = true;
         state.backupCodes = action.payload.backupCodes;
@@ -158,9 +159,9 @@ const twoFactorSlice = createSlice({
         state.qrCode = null;
         state.secret = null;
         // Invalidate 2FA status cache to ensure fresh data
-        invalidateCacheEntry("/auth/2fa/status", undefined);
+        invalidateCacheEntry("/users/auth/2fa/status", undefined);
         // Also invalidate user data cache since user object contains 2FA status
-        invalidateCacheEntry("/auth/me", undefined);
+        invalidateCacheEntry("/users/auth/me", undefined);
       })
       .addCase(enable2FA.rejected, (state, action) => {
         state.isEnabling = false;
@@ -184,15 +185,16 @@ const twoFactorSlice = createSlice({
       .addCase(disable2FA.pending, (state) => {
         state.isDisabling = true;
         state.error = null;
-      })      .addCase(disable2FA.fulfilled, (state) => {
+      })
+      .addCase(disable2FA.fulfilled, (state) => {
         state.isDisabling = false;
         state.twoFactorEnabled = false;
         state.backupCodes = [];
         state.backupCodesCount = 0;
         // Invalidate 2FA status cache to ensure fresh data
-        invalidateCacheEntry("/auth/2fa/status", undefined);
+        invalidateCacheEntry("/users/auth/2fa/status", undefined);
         // Also invalidate user data cache since user object contains 2FA status
-        invalidateCacheEntry("/auth/me", undefined);
+        invalidateCacheEntry("/users/auth/me", undefined);
       })
       .addCase(disable2FA.rejected, (state, action) => {
         state.isDisabling = false;
@@ -218,12 +220,13 @@ const twoFactorSlice = createSlice({
       .addCase(generateNewBackupCodes.pending, (state) => {
         state.isLoading = true;
         state.error = null;
-      })      .addCase(generateNewBackupCodes.fulfilled, (state, action) => {
+      })
+      .addCase(generateNewBackupCodes.fulfilled, (state, action) => {
         state.isLoading = false;
         state.backupCodes = action.payload.backupCodes;
         state.backupCodesCount = action.payload.backupCodes.length;
         // Invalidate 2FA status cache to ensure fresh backup codes count
-        invalidateCacheEntry("/auth/2fa/status", undefined);
+        invalidateCacheEntry("/users/auth/2fa/status", undefined);
       })
       .addCase(generateNewBackupCodes.rejected, (state, action) => {
         state.isLoading = false;

@@ -114,7 +114,7 @@ export const fetchDocuments = createAsyncThunk(
         ...(tag && { tag }),
       });
 
-      const response = await api.get(`/documentation?${params}`);
+      const response = await api.get(`/external/docs?${params}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -128,7 +128,7 @@ export const fetchDocument = createAsyncThunk(
   "documentation/fetchDocument",
   async (id, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/documentation/${id}`);
+      const response = await api.get(`/external/docs/${id}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -142,7 +142,7 @@ export const fetchDocumentBySlug = createAsyncThunk(
   "documentation/fetchDocumentBySlug",
   async ({ category, slug }, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/documentation/${category}/${slug}`);
+      const response = await api.get(`/external/docs/${category}/${slug}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -162,7 +162,7 @@ export const fetchDocumentsByCategory = createAsyncThunk(
       });
 
       const response = await api.get(
-        `/documentation/category/${category}?${params}`
+        `/external/docs/category/${category}?${params}`
       );
       return response.data;
     } catch (error) {
@@ -181,7 +181,7 @@ export const fetchFeaturedDocuments = createAsyncThunk(
         limit: limit.toString(),
       });
 
-      const response = await api.get(`/documentation/featured?${params}`);
+      const response = await api.get(`/external/docs/featured?${params}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -199,7 +199,7 @@ export const fetchPopularDocuments = createAsyncThunk(
         limit: limit.toString(),
       });
 
-      const response = await api.get(`/documentation/popular?${params}`);
+      const response = await api.get(`/external/docs/popular?${params}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -213,7 +213,7 @@ export const fetchDocumentationStats = createAsyncThunk(
   "documentation/fetchDocumentationStats",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/documentation/stats");
+      const response = await api.get("/external/docs/stats");
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -234,7 +234,7 @@ export const searchDocuments = createAsyncThunk(
         ...(category && { category }),
       });
 
-      const response = await api.get(`/documentation/search?${params}`);
+      const response = await api.get(`/external/docs/search?${params}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Search failed");
@@ -246,7 +246,7 @@ export const syncDocuments = createAsyncThunk(
   "documentation/syncDocuments",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.post("/documentation/sync");
+      const response = await api.post("/external/docs/sync");
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -260,7 +260,7 @@ export const createDocument = createAsyncThunk(
   "documentation/createDocument",
   async (documentData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/documentation", documentData);
+      const response = await api.post("/external/docs", documentData);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -274,7 +274,7 @@ export const updateDocument = createAsyncThunk(
   "documentation/updateDocument",
   async ({ id, ...documentData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/documentation/${id}`, documentData);
+      const response = await api.put(`/external/docs/${id}`, documentData);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -288,7 +288,7 @@ export const deleteDocument = createAsyncThunk(
   "documentation/deleteDocument",
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/documentation/${id}`);
+      await api.delete(`/external/docs/${id}`);
       return id;
     } catch (error) {
       return rejectWithValue(
@@ -303,7 +303,7 @@ export const markDocumentHelpful = createAsyncThunk(
   "documentation/markHelpful",
   async ({ slug, category }, { rejectWithValue }) => {
     try {
-      const response = await api.post(`/documentation/${slug}/helpful`, {
+      const response = await api.post(`/external/docs/${slug}/helpful`, {
         category,
       });
       return {
@@ -325,7 +325,7 @@ export const markDocumentNotHelpful = createAsyncThunk(
   "documentation/markNotHelpful",
   async ({ slug, category }, { rejectWithValue }) => {
     try {
-      const response = await api.post(`/documentation/${slug}/not-helpful`, {
+      const response = await api.post(`/external/docs/${slug}/not-helpful`, {
         category,
       });
       return {

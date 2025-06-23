@@ -1,0 +1,76 @@
+# Engine-related configuration for DeployIO AI Service
+analysis:
+  max_concurrent_requests: 10
+  analysis_timeout: 300
+  max_repository_size_mb: 500
+  max_file_count: 10000
+  supported_languages:
+    - javascript
+    - typescript
+    - python
+    - java
+    - go
+    - php
+    - ruby
+    - csharp
+    - rust
+    - kotlin
+    - swift
+    - dart
+  supported_frameworks:
+    - react
+    - vue
+    - angular
+    - express
+    - nextjs
+    - fastapi
+    - django
+    - spring
+    - gin
+    - laravel
+    - rails
+    - dotnet
+    - flutter
+  security_scan_enabled: true
+  code_quality_analysis: true
+  dependency_vulnerability_check: true
+  complexity_threshold: 10
+
+config_generation:
+  docker_optimization: true
+  multi_stage_builds: true
+  security_scanning: true
+
+cicd:
+  platforms:
+    - github-actions
+    - gitlab-ci
+    - jenkins
+  default_platform: github-actions
+
+orchestration:
+  kubernetes_configs: true
+  docker_compose_configs: true
+  helm_charts: false
+
+feature_flags:
+  enable_nodejs_analysis: true
+  enable_python_analysis: true
+  enable_java_analysis: true
+  enable_go_analysis: true
+  enable_php_analysis: true
+  enable_dotnet_analysis: true
+  enable_ruby_analysis: true
+  enable_rust_analysis: true
+  enable_react_analysis: true
+  enable_nextjs_analysis: true
+  enable_vue_analysis: true
+  enable_angular_analysis: true
+  enable_svelte_analysis: true
+  enable_flutter_analysis: true
+  enable_react_native_analysis: true
+  enable_swift_analysis: false
+  enable_kotlin_analysis: true
+  enable_dart_analysis: false
+  enable_scala_analysis: false
+  enable_elixir_analysis: false

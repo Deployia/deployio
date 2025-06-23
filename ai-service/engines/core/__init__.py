@@ -3,8 +3,6 @@ Core Engine Components
 """
 
 from .detector import UnifiedDetectionEngine
-from .models import *
+from .models import *  # noqa: F403, F401
 
-__all__ = [
-    "UnifiedDetectionEngine"
-]
+__all__ = ["UnifiedDetectionEngine"]

@@ -6,6 +6,7 @@ const deployment = require("./deployment");
 const user = require("./user");
 const project = require("./project");
 const external = require("./external");
+const notification = require("./notification");
 
 module.exports = {
   // New modular structure
@@ -14,4 +15,5 @@ module.exports = {
   user,
   project,
   external,
+  notification,
 };

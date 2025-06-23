@@ -6,6 +6,7 @@ const User = require("@models/User");
 const external = require("../external");
 const logger = require("@config/logger");
 const { getRedisClient } = require("@config/redisClient");
+const AuthNotifications = require("./authNotifications");
 
 /**
  * Generate JWT token for authentication
@@ -41,32 +42,11 @@ const registerUser = async (userData) => {
   if (userExists) {
     throw new Error("Email already registered");
   }
-
   // Generate OTP for email verification
   const otp = generateOtp();
   const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  // First, try to send the email BEFORE creating the user
-  // This prevents orphaned accounts if email service fails
-  try {
-    await external.email.sendEmail({
-      to: email,
-      subject: "Verify your DeployIO account (OTP)",
-      template: "otp",
-      variables: { username, otp },
-    });
-  } catch (emailError) {
-    logger.error(`Failed to send registration email to ${email}:`, {
-      error: emailError.message,
-      stack: emailError.stack,
-      email,
-    }); // Replaced console.error
-    // If email fails, don't create the user account
-    throw new Error(
-      "Unable to send verification email. Please try again later or contact support if the problem persists."
-    );
-  }
 
-  // Only create user after email is successfully sent
+  // Create user first to get userId for notification system
   const user = await User.create({
     username,
     email,
@@ -74,6 +54,34 @@ const registerUser = async (userData) => {
     otp,
     otpExpire,
   });
+
+  // Send OTP verification email via notification system
+  try {
+    await AuthNotifications.sendOTPVerification(
+      user._id,
+      { username, email },
+      otp,
+      false // not a resend
+    );
+
+    logger.info(`Registration OTP sent via notification system to ${email}`);
+  } catch (emailError) {
+    logger.error(
+      `Failed to send registration OTP via notification system to ${email}:`,
+      {
+        error: emailError.message,
+        stack: emailError.stack,
+        email,
+        userId: user._id,
+      }
+    );
+
+    // If notification fails, remove the user to prevent orphaned accounts
+    await User.findByIdAndDelete(user._id);
+    throw new Error(
+      "Unable to send verification email. Please try again later or contact support if the problem persists."
+    );
+  }
 
   // Do not authenticate yet, require OTP verification
   return {
@@ -132,9 +140,7 @@ const loginUser = async (email, password, loginInfo = {}) => {
       user.loginAttempts = 0;
       user.lockUntil = undefined;
       await user.save();
-    }
-
-    // Clear Redis-based login attempts on successful authentication
+    } // Clear Redis-based login attempts on successful authentication
     await clearLoginAttempts(email, loginInfo.ip); // Check if user is verified - return verification status instead of throwing error
     if (!user.isVerified) {
       // Generate OTP if user is not verified
@@ -142,27 +148,31 @@ const loginUser = async (email, password, loginInfo = {}) => {
       const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
       try {
-        // Try to send OTP email first
-        await external.email.sendEmail({
-          to: user.email,
-          subject: "Verify your DeployIO account (OTP)",
-          template: "otp",
-          variables: { username: user.username, otp },
-        });
+        // Send OTP email via notification system
+        await AuthNotifications.sendOTPVerification(
+          user._id,
+          { username: user.username, email: user.email },
+          otp,
+          false // not a resend
+        );
 
-        // Only save OTP to database if email was sent successfully
+        // Only save OTP to database if notification was sent successfully
         user.otp = otp;
         user.otpExpire = otpExpire;
         await user.save();
 
-        logger.info(`OTP email sent to ${user.email}`); // Replaced console.log
+        logger.info(`Login OTP sent via notification system to ${user.email}`);
       } catch (error) {
-        logger.error(`Failed to send OTP email to ${user.email}:`, {
-          error: error.message,
-          stack: error.stack,
-          email: user.email,
-        }); // Replaced console.error
-        // If email fails, throw an error instead of proceeding
+        logger.error(
+          `Failed to send login OTP via notification system to ${user.email}:`,
+          {
+            error: error.message,
+            stack: error.stack,
+            email: user.email,
+            userId: user._id,
+          }
+        );
+        // If notification fails, throw an error instead of proceeding
         throw new Error(
           "Unable to send verification email. Please try again later or contact support if the problem persists."
         );
@@ -238,12 +248,29 @@ const verifyOtp = async (email, otp) => {
   if (!user.otp || !user.otpExpire) throw new Error("No OTP requested");
   if (user.otp !== otp) throw new Error("Invalid OTP");
   if (user.otpExpire < Date.now()) throw new Error("OTP expired");
-
   // OTP valid, clear OTP fields and mark as verified
   user.otp = undefined;
   user.otpExpire = undefined;
   user.isVerified = true;
   await user.save();
+
+  // Send welcome notification to newly verified user
+  try {
+    await AuthNotifications.sendWelcome(user._id, {
+      username: user.username,
+      email: user.email,
+    });
+    logger.info(
+      `Welcome notification sent to newly verified user ${user.email}`
+    );
+  } catch (welcomeError) {
+    // Don't fail the verification if welcome notification fails
+    logger.error(`Failed to send welcome notification to ${user.email}:`, {
+      error: welcomeError.message,
+      userId: user._id,
+      email: user.email,
+    });
+  }
 
   // Now generate tokens for login
   const token = generateToken(user);
@@ -269,7 +296,6 @@ const forgotPassword = async (email, resetUrl) => {
   if (!user) {
     throw new Error("User with this email does not exist");
   }
-
   // Generate reset token
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
@@ -277,17 +303,30 @@ const forgotPassword = async (email, resetUrl) => {
   // Create reset URL
   const resetLink = `${resetUrl}/auth/reset-password/${resetToken}`;
   try {
-    // Send email
-    await external.email.sendEmail({
-      to: user.email,
-      subject: "Password Reset Request",
-      template: "passwordReset",
-      variables: { resetLink },
-    });
+    // Send password reset email via notification system
+    await AuthNotifications.sendPasswordReset(
+      user._id,
+      { username: user.username, email: user.email },
+      resetToken,
+      resetUrl
+    );
 
+    logger.info(
+      `Password reset email sent via notification system to ${user.email}`
+    );
     return "Password reset email sent";
   } catch (error) {
-    // If error sending email, clear reset token and expiry
+    logger.error(
+      `Failed to send password reset via notification system to ${user.email}:`,
+      {
+        error: error.message,
+        stack: error.stack,
+        email: user.email,
+        userId: user._id,
+      }
+    );
+
+    // If error sending notification, clear reset token and expiry
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save({ validateBeforeSave: false });
@@ -316,12 +355,40 @@ const resetPassword = async (token, newPassword) => {
   if (!user) {
     throw new Error("Invalid or expired token");
   }
-
   // Update password
   user.password = newPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
   await user.save();
+
+  // Send security notification for password change
+  try {
+    await AuthNotifications.sendAccountSecurity(
+      user._id,
+      {
+        username: user.username,
+        email: user.email,
+      },
+      {
+        securityAction: "Password Changed",
+        timestamp: new Date().toISOString(),
+        ipAddress: "Password reset via email", // In real implementation, capture actual IP
+        location: "Unknown",
+        device: "Password reset via email",
+      }
+    );
+    logger.info(`Password change security notification sent to ${user.email}`);
+  } catch (securityError) {
+    // Don't fail the password reset if notification fails
+    logger.error(
+      `Failed to send security notification for password change to ${user.email}:`,
+      {
+        error: securityError.message,
+        userId: user._id,
+        email: user.email,
+      }
+    );
+  }
 
   return "Password reset successful";
 };
@@ -404,31 +471,34 @@ const resendOtp = async (email) => {
   if (user.isVerified) {
     throw new Error("Account is already verified");
   }
-
   // Generate new OTP
   const otp = generateOtp();
   const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
   try {
-    // Try to send OTP email first
-    await external.email.sendEmail({
-      to: user.email,
-      subject: "Your DeployIO OTP (Resend)",
-      template: "otp",
-      variables: { username: user.username, otp },
-    });
+    // Send OTP resend email via notification system
+    await AuthNotifications.sendOTPVerification(
+      user._id,
+      { username: user.username, email: user.email },
+      otp,
+      true // this is a resend
+    );
 
-    // Only save OTP to database if email was sent successfully
+    // Only save OTP to database if notification was sent successfully
     user.otp = otp;
     user.otpExpire = otpExpire;
     await user.save();
-
-    logger.info(`OTP resent to ${user.email}`); // Replaced console.log
+    logger.info(`OTP resent via notification system to ${user.email}`);
   } catch (error) {
-    logger.error(`Failed to resend OTP email to ${user.email}:`, {
-      error: error.message,
-      stack: error.stack,
-      email: user.email,
-    }); // Replaced console.error
+    logger.error(
+      `Failed to resend OTP via notification system to ${user.email}:`,
+      {
+        error: error.message,
+        stack: error.stack,
+        email: user.email,
+        userId: user._id,
+      }
+    );
+
     throw new Error(
       "Unable to send verification email. Please try again later or contact support if the problem persists."
     );
@@ -606,6 +676,11 @@ async function addSession(userId, session) {
       throw new Error("User not found");
     }
 
+    // Initialize sessions array if it doesn't exist (for existing users)
+    if (!user.sessions) {
+      user.sessions = [];
+    }
+
     // Avoid duplicate sessions for the same device
     const existing = user.sessions.find(
       (s) => s.ip === session.ip && s.userAgent === session.userAgent
@@ -657,14 +732,21 @@ async function getSessions(userId) {
       throw new Error("User not found");
     }
 
+    // Initialize sessions array if it doesn't exist (for existing users)
+    if (!user.sessions) {
+      user.sessions = [];
+      await user.save();
+      return [];
+    }
+
     // Clean up expired remembered sessions
     const now = new Date();
+    const originalLength = user.sessions.length;
     user.sessions = user.sessions.filter(
       (s) => !s.rememberedUntil || s.rememberedUntil > now
     );
 
     // Save if we cleaned up any sessions
-    const originalLength = user.sessions.length;
     if (originalLength !== user.sessions.length) {
       await user.save();
     }
@@ -1326,6 +1408,68 @@ async function cleanupInactiveSessions() {
   }
 }
 
+/**
+ * Refresh access token using refresh token
+ */
+async function refreshAccessToken(refreshToken) {
+  try {
+    // Verify the refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const { id: userId, sessionId } = decoded;
+
+    if (!userId) {
+      throw new Error("Invalid refresh token format");
+    }
+
+    // Find the user and check if refresh token exists
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if the refresh token exists in user's refresh tokens
+    const tokenExists = user.refreshTokens.some(
+      (tokenObj) =>
+        tokenObj.token === refreshToken &&
+        new Date(tokenObj.expiresAt) > new Date()
+    );
+
+    if (!tokenExists) {
+      throw new Error("Invalid or expired refresh token");
+    }
+
+    // Generate new access token
+    const payload = { id: userId, sessionId };
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    // Generate new refresh token for rotation
+    const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+    });
+
+    // Remove old refresh token and store new one
+    await User.findByIdAndUpdate(userId, {
+      $pull: { refreshTokens: { token: refreshToken } },
+    });
+
+    await storeRefreshToken(userId, newRefreshToken);
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      user,
+    };
+  } catch (error) {
+    logger.error("Refresh token error:", {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  }
+}
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1333,6 +1477,7 @@ module.exports = {
   resetPassword,
   logoutUser,
   generateRefreshToken,
+  refreshAccessToken,
   verifyOtp,
   resendOtp,
   // OAuth providers and session management
@@ -1354,4 +1499,5 @@ module.exports = {
   get2FAStatus,
   generateNewBackupCodes,
   complete2FALogin,
+  refreshAccessToken,
 };

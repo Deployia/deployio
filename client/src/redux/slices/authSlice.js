@@ -69,7 +69,7 @@ export const registerUser = createAsyncThunk(
   "auth/register",
   async (userData, thunkAPI) => {
     try {
-      const response = await api.post("/auth/register", userData);
+      const response = await api.post("/users/auth/register", userData);
       return response.data;
     } catch (error) {
       const message =
@@ -89,7 +89,7 @@ export const loginUser = createAsyncThunk(
   "auth/login",
   async (userData, thunkAPI) => {
     try {
-      const response = await api.post("/auth/login", userData);
+      const response = await api.post("/users/auth/login", userData);
 
       // Check if 2FA is required from the response
       if (response.data.requires2FA) {
@@ -116,7 +116,7 @@ export const loginUser = createAsyncThunk(
 // Logout user
 export const logout = createAsyncThunk("auth/logout", async (_, thunkAPI) => {
   try {
-    const response = await api.get("/auth/logout");
+    const response = await api.get("/users/auth/logout");
     return response.data;
   } catch (error) {
     const message =
@@ -133,7 +133,7 @@ export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
   async (email, thunkAPI) => {
     try {
-      const response = await api.post("/auth/forgot-password", {
+      const response = await api.post("/users/auth/forgot-password", {
         email,
       });
       return response.data;
@@ -155,7 +155,7 @@ export const resetPassword = createAsyncThunk(
   "auth/resetPassword",
   async ({ token, password }, thunkAPI) => {
     try {
-      const response = await api.post(`/auth/reset-password/${token}`, {
+      const response = await api.post(`/users/auth/reset-password/${token}`, {
         password,
       });
       return response.data;
@@ -177,7 +177,7 @@ export const updatePassword = createAsyncThunk(
   "auth/updatePassword",
   async (passwordData, thunkAPI) => {
     try {
-      const response = await api.put("/user/update-password", passwordData);
+      const response = await api.put("/users/auth/update-password", passwordData);
       return response.data;
     } catch (error) {
       const message =
@@ -197,7 +197,7 @@ export const updateProfile = createAsyncThunk(
   "auth/updateProfile",
   async (formData, thunkAPI) => {
     try {
-      const response = await api.put("/user/profile", formData, {
+      const response = await api.put("/users/profile", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data.user;
@@ -212,7 +212,7 @@ export const updateProfile = createAsyncThunk(
 // Get current user
 export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
   try {
-    const response = await api.get("/auth/me"); // Removed _cb
+    const response = await api.get("/users/auth/me"); // Removed _cb
     return response.data;
   } catch (error) {
     const message =
@@ -228,7 +228,7 @@ export const refreshToken = createAsyncThunk(
   "auth/refreshToken",
   async (_, thunkAPI) => {
     try {
-      const response = await api.post("/auth/refresh-token", {});
+      const response = await api.post("/users/auth/refresh-token", {});
       return response.data;
     } catch (error) {
       const message =
@@ -247,7 +247,7 @@ export const verifyOtp = createAsyncThunk(
   "auth/verifyOtp",
   async ({ email, otp }, thunkAPI) => {
     try {
-      const response = await api.post("/auth/verify-otp", {
+      const response = await api.post("/users/auth/verify-otp", {
         email,
         otp,
       });
@@ -270,7 +270,7 @@ export const fetchProviders = createAsyncThunk(
   async (_, thunkAPI) => {
     // Removed options
     try {
-      const response = await api.get("/auth/providers"); // Removed _cb
+      const response = await api.get("/users/auth/providers"); // Removed _cb
       return response.data.providers;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -286,7 +286,7 @@ export const fetchSessions = createAsyncThunk(
   async (_, thunkAPI) => {
     // Removed options
     try {
-      const response = await api.get("/auth/sessions"); // Removed _cb
+      const response = await api.get("/users/auth/sessions"); // Removed _cb
       return response.data.sessions;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -301,9 +301,9 @@ export const unlinkProvider = createAsyncThunk(
   "auth/unlinkProvider",
   async (provider, thunkAPI) => {
     try {
-      await api.delete(`/auth/unlink/${provider}`);
+      await api.delete(`/users/auth/unlink/${provider}`);
       // Invalidate cache and re-fetch providers
-      invalidateCacheEntry("/auth/providers");
+      invalidateCacheEntry("/users/auth/providers");
       thunkAPI.dispatch(fetchProviders());
       return provider;
     } catch (error) {
@@ -319,9 +319,9 @@ export const deleteSession = createAsyncThunk(
   "auth/deleteSession",
   async (sessionId, thunkAPI) => {
     try {
-      await api.delete(`/auth/sessions/${sessionId}`);
+      await api.delete(`/users/auth/sessions/${sessionId}`);
       // Invalidate cache and re-fetch sessions
-      invalidateCacheEntry("/auth/sessions");
+      invalidateCacheEntry("/users/auth/sessions");
       thunkAPI.dispatch(fetchSessions());
       return sessionId;
     } catch (error) {
