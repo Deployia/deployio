@@ -11,12 +11,6 @@ const healthRoutes = require("./health");
 
 const router = express.Router();
 
-// Development routes (only in development mode)
-if (process.env.NODE_ENV === "development") {
-  const devRoutes = require("./dev");
-  router.use("/api/dev", devRoutes);
-}
-
 // Mount new modular routes
 router.use("/api/v1", apiV1Routes);
 router.use("/api/internal", apiInternalRoutes);
@@ -42,10 +36,6 @@ router.get("/", (req, res) => {
       "API v1 Notifications": "/api/v1/notifications",
       Webhooks: "/webhooks",
       Health: "/health",
-      ...(process.env.NODE_ENV === "development" && {
-        "Development Docs": "/api/dev/docs",
-        "Demo Token": "/api/dev/demo-token",
-      }),
     },
   });
 });
