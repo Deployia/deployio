@@ -536,44 +536,6 @@ async def detailed_health_check():
             status_code=500, detail=f"Detailed health check failed: {str(e)}"
         )
 
-
-# Helper function to convert AnalysisResult to AnalysisResponse
-def _convert_to_response(result: AnalysisResult) -> AnalysisResponse:
-    """Convert internal AnalysisResult to API response format"""
-
-    # Convert technology stack to dict
-    tech_stack = {
-        "language": result.technology_stack.language,
-        "framework": result.technology_stack.framework,
-        "database": result.technology_stack.database,
-        "build_tool": result.technology_stack.build_tool,
-        "package_manager": result.technology_stack.package_manager,
-        "runtime_version": result.technology_stack.runtime_version,
-        "additional_technologies": result.technology_stack.additional_technologies,
-        "architecture_pattern": result.technology_stack.architecture_pattern,
-        "deployment_strategy": result.technology_stack.deployment_strategy,
-    }
-
-    return AnalysisResponse(
-        repository_url=result.repository_url,
-        branch=result.branch,
-        analysis_approach=result.analysis_approach,
-        processing_time=result.processing_time,
-        confidence_score=result.confidence_score,
-        confidence_level=result.confidence_level.value,
-        technology_stack=tech_stack,
-        detected_files=result.detected_files,
-        recommendations=result.recommendations,
-        suggestions=result.suggestions,
-        quality_metrics=result.quality_metrics,
-        security_metrics=result.security_metrics,
-        dependency_analysis=result.detailed_analysis.get("dependency_analysis"),
-        llm_used=result.llm_used,
-        llm_confidence=result.llm_confidence,
-        llm_reasoning=result.llm_reasoning,
-    )
-
-
 class AnalysisResult:
     """Placeholder class for AnalysisResult"""
 
