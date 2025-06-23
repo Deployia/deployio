@@ -60,9 +60,6 @@ const invalidateAiCache = async (projectId) => {
   }
 };
 
-// Legacy compatibility functions (for gradual migration)
-const analyzeProjectStack = analyzeRepository;
-
 const generateEnvironmentConfig = async (
   projectId,
   environmentConfig,
