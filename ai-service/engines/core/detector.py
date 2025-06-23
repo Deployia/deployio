@@ -350,9 +350,7 @@ class UnifiedDetectionEngine:
             if result
         ):
             analysis_approach = "llm_enhanced"
-            llm_used = True
-
-        # Log the approach used
+            llm_used = True  # Log the approach used
         logger.info(
             f"Analysis approach determined: {analysis_approach} (LLM used: {llm_used})"
         )
@@ -379,6 +377,7 @@ class UnifiedDetectionEngine:
                 if code_quality_result
                 else None
             ),
+            dependency_analysis=self._extract_dependency_analysis(dependency_result),
             llm_used=llm_used,
         )
 
@@ -442,9 +441,7 @@ class UnifiedDetectionEngine:
             ),
             "github_client": "healthy",
             "cache_manager": "healthy",
-        }
-
-        # Test each component
+        }  # Test each component
         try:
             await self.github_client.test_connection()
         except Exception as e:
@@ -456,6 +453,56 @@ class UnifiedDetectionEngine:
             health_status["cache_manager"] = f"error: {str(e)}"
 
         return health_status
+
+    def _extract_dependency_analysis(self, dependency_result: Dict):
+        """Extract dependency analysis from result dict"""
+        if not dependency_result or "error" in dependency_result:
+            return None
+
+        # Import here to avoid circular imports
+        from engines.core.models import DependencyAnalysis
+
+        # Check if it's already a DependencyAnalysis object
+        if hasattr(dependency_result, "total_dependencies"):
+            return dependency_result
+
+        # Create DependencyAnalysis from dict
+        try:
+            return DependencyAnalysis(
+                total_dependencies=dependency_result.get("total_dependencies", 0),
+                direct_dependencies=dependency_result.get("direct_dependencies", 0),
+                dev_dependencies=dependency_result.get("dev_dependencies", 0),
+                package_managers=dependency_result.get("package_managers", []),
+                dependencies=dependency_result.get("dependencies", []),
+                security_vulnerabilities=dependency_result.get(
+                    "security_vulnerabilities", 0
+                ),
+                outdated_dependencies=dependency_result.get("outdated_dependencies", 0),
+                dependency_categories=dependency_result.get(
+                    "dependency_categories", {}
+                ),
+                metrics=dependency_result.get("metrics", {}),
+                total_vulnerabilities=dependency_result.get("total_vulnerabilities", 0),
+                critical_vulnerabilities=dependency_result.get(
+                    "critical_vulnerabilities", 0
+                ),
+                high_vulnerabilities=dependency_result.get("high_vulnerabilities", 0),
+                medium_vulnerabilities=dependency_result.get(
+                    "medium_vulnerabilities", 0
+                ),
+                low_vulnerabilities=dependency_result.get("low_vulnerabilities", 0),
+                major_updates_available=dependency_result.get(
+                    "major_updates_available", 0
+                ),
+                license_issues=dependency_result.get("license_issues", 0),
+                incompatible_licenses=dependency_result.get(
+                    "incompatible_licenses", []
+                ),
+                optimization_score=dependency_result.get("optimization_score", 0),
+            )
+        except Exception as e:
+            logger.warning(f"Failed to create DependencyAnalysis object: {e}")
+            return None
 
 
 # Alias for backward compatibility

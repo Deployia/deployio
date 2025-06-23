@@ -685,8 +685,34 @@ class DependencyAnalyzer(BaseAnalyzer):
 
     async def analyze(self, repository_data: dict, **kwargs):
         """Standard interface for orchestrator. Calls main dependency analysis logic."""
-        # You may want to adapt this to your main dependency analysis method
-        return await self.analyze_dependencies(repository_data, **kwargs)
+        # Extract key_files from repository_data for dependency analysis
+        key_files = repository_data.get("key_files", {})
+
+        # Perform dependency analysis
+        analysis_result = await self.analyze_dependencies(key_files)
+
+        # Convert to dict format for orchestrator compatibility
+        if hasattr(analysis_result, "__dict__"):
+            result_dict = analysis_result.__dict__
+        else:
+            result_dict = analysis_result
+
+        # Add confidence score
+        confidence = self._calculate_confidence(analysis_result)
+        result_dict["confidence"] = confidence
+
+        # Add detected files for orchestrator
+        result_dict["detected_files"] = list(key_files.keys())
+
+        # Add recommendations and suggestions if not present
+        if "recommendations" not in result_dict:
+            result_dict["recommendations"] = self._generate_recommendations(
+                analysis_result
+            )
+        if "suggestions" not in result_dict:
+            result_dict["suggestions"] = self._generate_suggestions(analysis_result)
+
+        return result_dict
 
     async def get_supported_ecosystems(self) -> List[str]:
         """Get list of supported package manager ecosystems"""
@@ -722,67 +748,135 @@ class DependencyAnalyzer(BaseAnalyzer):
 
         return min(confidence, 1.0)
 
-    def _generate_recommendations(
-        self, analysis_result: DependencyAnalysis
-    ) -> List[str]:
-        """Generate recommendations based on dependency analysis"""
+    def _generate_recommendations(self, analysis_result: DependencyAnalysis) -> list:
+        """Generate actionable recommendations based on dependency analysis"""
         recommendations = []
+
+        if analysis_result.total_dependencies == 0:
+            recommendations.append(
+                {
+                    "type": "info",
+                    "description": "No dependencies found - consider adding a package manager file",
+                }
+            )
+            return recommendations
 
         # Security recommendations
         if analysis_result.security_vulnerabilities > 0:
             recommendations.append(
-                f"Update {analysis_result.security_vulnerabilities} packages with known vulnerabilities"
+                {
+                    "type": "security",
+                    "description": f"Update {analysis_result.security_vulnerabilities} packages with security vulnerabilities",
+                }
             )
 
-        # Package management recommendations
+        if analysis_result.critical_vulnerabilities > 0:
+            recommendations.append(
+                {
+                    "type": "security",
+                    "description": f"Immediately address {analysis_result.critical_vulnerabilities} critical security vulnerabilities",
+                }
+            )
+
+        # Optimization recommendations
+        if analysis_result.optimization_score < 70:
+            recommendations.append(
+                {
+                    "type": "optimization",
+                    "description": "Optimize dependency management - review unused packages",
+                }
+            )
+
+        if analysis_result.outdated_dependencies > 10:
+            recommendations.append(
+                {
+                    "type": "maintenance",
+                    "description": "Update outdated dependencies to improve security and performance",
+                }
+            )
+
+        # License recommendations
+        if analysis_result.license_issues > 0:
+            recommendations.append(
+                {
+                    "type": "license",
+                    "description": "Review license compatibility issues in dependencies",
+                }
+            )
+
+        # General recommendations
         if len(analysis_result.package_managers) > 1:
             recommendations.append(
-                "Consider standardizing on a single package manager for consistency"
+                {
+                    "type": "consistency",
+                    "description": "Consider standardizing on a single package manager for consistency",
+                }
             )
 
-        # Dependency count recommendations
-        if analysis_result.total_dependencies > 100:
+        if analysis_result.dev_dependencies > analysis_result.direct_dependencies * 2:
             recommendations.append(
-                "Consider reviewing dependencies to reduce bundle size"
+                {
+                    "type": "optimization",
+                    "description": "Review development dependencies - consider reducing to improve build times",
+                }
             )
 
-        # Version pinning recommendations
-        version_quality = analysis_result.metrics.get(
-            "version_specification_quality", 0
-        )
-        if version_quality < 0.5:
-            recommendations.append(
-                "Consider pinning dependency versions for reproducible builds"
-            )
+        return recommendations[:5]  # Limit to top 5 recommendations
 
-        return recommendations[:5]
-
-    def _generate_suggestions(self, analysis_result: DependencyAnalysis) -> List[str]:
-        """Generate suggestions for dependency management"""
+    def _generate_suggestions(self, analysis_result: DependencyAnalysis) -> list:
+        """Generate helpful suggestions based on dependency analysis (as strings)"""
         suggestions = []
 
-        # Development dependencies ratio
-        dev_ratio = analysis_result.metrics.get("dev_ratio", 0)
-        if dev_ratio > 0.7:
+        if analysis_result.total_dependencies == 0:
             suggestions.append(
-                "High ratio of dev dependencies - consider if all are necessary"
+                "No dependency analysis performed - no package files found"
             )
-        elif dev_ratio < 0.1:
+            return suggestions
+
+        # Add ecosystem-specific suggestions
+        if "npm" in analysis_result.package_managers:
             suggestions.append(
-                "Consider adding development dependencies for testing and linting"
+                "Consider using npm audit to check for security vulnerabilities"
             )
-
-        # Package categories
-        categories = analysis_result.dependency_categories
-        if not categories.get("testing"):
-            suggestions.append("Consider adding testing frameworks")
-
-        if not categories.get("build_tools"):
             suggestions.append(
-                "Consider adding build tools for better development workflow"
+                "Use package-lock.json for consistent dependency versions"
             )
 
-        return suggestions[:3]
+        if "pip" in analysis_result.package_managers:
+            suggestions.append(
+                "Consider using virtual environments for Python dependency isolation"
+            )
+            suggestions.append(
+                "Use requirements.txt with pinned versions for reproducible builds"
+            )
+
+        if "maven" in analysis_result.package_managers:
+            suggestions.append(
+                "Use Maven dependency:analyze to identify unused dependencies"
+            )
+
+        if "gradle" in analysis_result.package_managers:
+            suggestions.append(
+                "Use Gradle dependency reports to analyze dependency conflicts"
+            )
+
+        # Performance suggestions
+        if analysis_result.total_dependencies > 100:
+            suggestions.append(
+                "Large number of dependencies detected - consider dependency tree analysis"
+            )
+
+        # Security suggestions
+        if analysis_result.security_vulnerabilities == 0:
+            suggestions.append(
+                "No known security vulnerabilities detected - great job!"
+            )
+        else:
+            suggestions.append(
+                "Run automated security scans regularly to catch new vulnerabilities"
+            )
+
+        return suggestions[:8]  # Limit to top 8 suggestions
 
     def _clean_version(self, version: str) -> str:
         """Clean version string by removing operators and whitespace"""

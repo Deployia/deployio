@@ -454,6 +454,9 @@ class AnalysisService:
             null_explanations = await self._explain_null_fields(result, mode)
             response_data["null_field_explanations"] = null_explanations
 
+        # Ensure all response fields are properly populated
+        response_data = self._ensure_complete_response(response_data, mode)
+
         logger.debug("Analysis result processing completed")
         return response_data
 
@@ -676,10 +679,13 @@ class AnalysisService:
 
         return insights
 
-    async def _generate_dependency_insights(
-        self, dependency_analysis: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    async def _generate_dependency_insights(self, dependency_analysis: dict) -> list:
         """Generate insights specific to dependencies"""
+        # Ensure dependency_analysis is a dict
+        if hasattr(dependency_analysis, "__dict__"):
+            dependency_analysis = dependency_analysis.__dict__
+        elif not isinstance(dependency_analysis, dict):
+            dependency_analysis = dict(dependency_analysis)
         insights = []
 
         # Example dependency insights
@@ -714,6 +720,105 @@ class AnalysisService:
             return "low"
         else:
             return "very_low"
+
+    def _ensure_complete_response(
+        self, response_data: Dict[str, Any], mode: str
+    ) -> Dict[str, Any]:
+        """Ensure response has no null fields and all required data"""
+
+        # Ensure basic fields are always present
+        if (
+            "technology_stack" not in response_data
+            or not response_data["technology_stack"]
+        ):
+            response_data["technology_stack"] = {
+                "language": None,
+                "framework": None,
+                "database": None,
+                "build_tool": None,
+                "package_manager": None,
+                "runtime_version": None,
+                "additional_technologies": [],
+                "architecture_pattern": None,
+                "deployment_strategy": None,
+            }
+
+        # Ensure dependency analysis is properly formatted
+        if mode in ["full", "dependencies"]:
+            if (
+                "dependency_analysis" not in response_data
+                or not response_data["dependency_analysis"]
+            ):
+                response_data["dependency_analysis"] = {
+                    "total_dependencies": 0,
+                    "direct_dependencies": 0,
+                    "dev_dependencies": 0,
+                    "package_managers": [],
+                    "security_vulnerabilities": 0,
+                    "outdated_dependencies": 0,
+                    "optimization_score": 0,
+                    "ecosystems": [],
+                    "critical_vulnerabilities": 0,
+                    "high_vulnerabilities": 0,
+                    "medium_vulnerabilities": 0,
+                    "low_vulnerabilities": 0,
+                    "license_issues": 0,
+                    "major_updates_available": 0,
+                }
+
+        # Ensure quality metrics are present
+        if mode in ["full", "quality"]:
+            if (
+                "quality_metrics" not in response_data
+                or not response_data["quality_metrics"]
+            ):
+                response_data["quality_metrics"] = {
+                    "overall_score": 0,
+                    "maintainability": 0,
+                    "complexity": 0,
+                    "test_coverage": 0,
+                    "code_duplication": 0,
+                    "technical_debt": 0,
+                }
+
+        # Ensure lists are never null
+        list_fields = ["recommendations", "suggestions", "insights", "detected_files"]
+        for field in list_fields:
+            if field not in response_data or response_data[field] is None:
+                response_data[field] = []
+
+        # Ensure numeric fields are never null
+        numeric_fields = ["confidence_score", "processing_time"]
+        for field in numeric_fields:
+            if field not in response_data or response_data[field] is None:
+                response_data[field] = 0.0
+
+        # Ensure string fields are never null
+        string_fields = [
+            "repository_url",
+            "branch",
+            "analysis_approach",
+            "confidence_level",
+        ]
+        for field in string_fields:
+            if field not in response_data or response_data[field] is None:
+                response_data[field] = "unknown"
+
+        # Fix specific field issues
+        if response_data["analysis_approach"] == "unknown":
+            response_data["analysis_approach"] = "rule_based"
+
+        if response_data["confidence_level"] == "unknown":
+            if response_data["confidence_score"] >= 0.8:
+                response_data["confidence_level"] = "high"
+            elif response_data["confidence_score"] >= 0.6:
+                response_data["confidence_level"] = "medium"
+            elif response_data["confidence_score"] >= 0.4:
+                response_data["confidence_level"] = "low"
+            else:
+                response_data["confidence_level"] = "very_low"
+
+        return response_data
 
 
 # Singleton instance for use across the application
