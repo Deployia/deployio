@@ -15,15 +15,14 @@ const router = express.Router();
  */
 const validateInternalService = (req, res, next) => {
   const serviceHeader = req.headers["x-internal-service"];
-  const expectedService = "deployio-ai-service";
-
-  if (serviceHeader !== expectedService) {
+  // Accept both ai-service and agent as valid internal callers
+  const allowedServices = ["deployio-ai-service", "deployio-agent"];
+  if (!allowedServices.includes(serviceHeader)) {
     return res.status(403).json({
       success: false,
       error: "Unauthorized internal service",
     });
   }
-
   next();
 };
 

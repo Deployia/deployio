@@ -11,6 +11,7 @@ from config.settings import settings
 from services.mongodb_service import mongodb_service
 from middleware import setup_exception_handlers, AuthMiddleware
 from routes import create_routes
+from middleware.auth import create_demo_routes  # Import demo route creator
 
 # Server start time for uptime calculation
 server_start = time.time()
@@ -117,6 +118,9 @@ app.add_middleware(AuthMiddleware, agent_secret=settings.agent_secret)
 # Include routes
 app.include_router(create_routes())
 
+# Register demo/protected test routes
+create_demo_routes(app)  # Register demo routes with the app
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -128,6 +132,12 @@ async def startup_event():
 async def shutdown_event():
     """Clean up services on shutdown"""
     await mongodb_service.close()
+
+
+@app.get("/agent/v1/hello")
+async def hello():
+    """Public hello endpoint for testing connectivity"""
+    return {"message": "Hello from DeployIO Agent!"}
 
 
 if __name__ == "__main__":

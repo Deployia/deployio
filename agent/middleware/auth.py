@@ -3,13 +3,17 @@ Authentication middleware for DeployIO Agent
 Header-based authentication for backend-to-agent communication
 """
 
+import httpx
 import logging
-from fastapi import HTTPException, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
+from fastapi import APIRouter, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
+TOKEN_VALIDATION_URL = f"{BACKEND_URL}/api/internal/auth/validate-token"
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -40,17 +44,38 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if self._is_wildcard_request(request):
             return await call_next(request)
 
-        # Check authentication for protected endpoints
-        if not self._authenticate_request(request):
+        # Only allow requests from backend express service (by header)
+        x_internal_service = request.headers.get("X-Internal-Service")
+        if x_internal_service != "deployio-backend":
             logger.warning(
-                f"Unauthorized request to {request.url.path} from {request.client.host}"
+                f"Blocked request to {request.url.path} from non-backend-service: {x_internal_service}"
             )
             return Response(
-                content='{"error": true, "message": "Unauthorized", "service": "deployio-agent"}',
-                status_code=401,
+                content='{"error": true, "message": "Forbidden: Only backend service allowed", "service": "deployio-agent"}',
+                status_code=403,
                 media_type="application/json",
             )
 
+        # Require Bearer token and validate with backend
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            logger.warning(
+                f"Missing or invalid Authorization header for {request.url.path}"
+            )
+            return Response(
+                content='{"error": true, "message": "Unauthorized: Missing Bearer token", "service": "deployio-agent"}',
+                status_code=401,
+                media_type="application/json",
+            )
+        token = auth_header.split(" ", 1)[1]
+        is_valid = await self._validate_token_with_backend(token)
+        if not is_valid:
+            logger.warning(f"Token validation failed for {request.url.path}")
+            return Response(
+                content='{"error": true, "message": "Unauthorized: Invalid token", "service": "deployio-agent"}',
+                status_code=401,
+                media_type="application/json",
+            )
         return await call_next(request)
 
     def _is_wildcard_request(self, request: Request) -> bool:
@@ -65,24 +90,48 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         return False
 
-    def _authenticate_request(self, request: Request) -> bool:
-        """Authenticate the request using headers"""
+    async def _validate_token_with_backend(self, token: str) -> bool:
+        """Validate the Bearer token with the backend service"""
 
-        # Check for X-Agent-Secret header
-        agent_secret = request.headers.get("X-Agent-Secret")
-        if agent_secret and agent_secret == self.agent_secret:
-            return True
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.post(
+                    TOKEN_VALIDATION_URL,
+                    json={"token": token},
+                    headers={"X-Internal-Service": "deployio-agent"},
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("success") and result.get("data", {}).get("valid")
+                else:
+                    logger.warning(f"Backend token validation failed: {response.text}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error validating token with backend: {str(e)}")
+            return False
 
-        # Check for Authorization header (Bearer token)
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-            if token == self.agent_secret:
-                return True
 
-        # Check for X-API-Key header
-        api_key = request.headers.get("X-API-Key")
-        if api_key and api_key == self.agent_secret:
-            return True
+def create_demo_routes(app):
+    router = APIRouter()
 
-        return False
+    @router.post("/agent/v1/demo-token")
+    async def get_demo_token():
+        """Fetch a demo user JWT token from backend for testing"""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.post(
+                    f"{BACKEND_URL}/api/internal/auth/demo-token",
+                    headers={"X-Internal-Service": "deployio-agent"},
+                )
+                if response.status_code == 200:
+                    return response.json()
+                return {"error": True, "message": response.text}
+        except Exception as e:
+            return {"error": True, "message": str(e)}
+
+    @router.get("/agent/v1/protected-test")
+    async def protected_test():
+        """A protected endpoint to test authentication"""
+        return {"message": "You have accessed a protected endpoint!"}
+
+    app.include_router(router)
