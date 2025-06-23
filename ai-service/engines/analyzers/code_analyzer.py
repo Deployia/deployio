@@ -6,7 +6,7 @@ Supports multiple programming languages and frameworks
 import re
 import ast
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from engines.core.models import CodeAnalysis, CodeMetrics, QualityIssue
 from .base_analyzer import BaseAnalyzer
@@ -942,16 +942,47 @@ class CodeAnalyzer(BaseAnalyzer):
         return ext in code_extensions
 
     async def analyze(self, repo_data: Dict) -> Dict:
-        """Analyze repository data for code quality"""
+        """Analyze repository data for code quality with stack and dependency context"""
         try:
-            analysis = await self.analyze_code(
-                repo_data["key_files"], repo_data["file_tree"]
+            # Extract contexts for better analysis
+            stack_context = repo_data.get("stack_context")
+            dependency_context = repo_data.get("dependency_context")
+
+            if stack_context:
+                logger.info(
+                    f"Using stack context for code analysis: {stack_context.get('language', 'unknown')} / {stack_context.get('framework', 'none')}"
+                )
+            if dependency_context:
+                logger.info(
+                    f"Using dependency context: {dependency_context.get('total_dependencies', 0)} dependencies"
+                )
+
+            # Perform enhanced code analysis with contexts
+            analysis = await self.analyze_code_with_context(
+                repo_data["key_files"],
+                repo_data["file_tree"],
+                stack_context,
+                dependency_context,
             )
+
+            # Calculate better confidence based on analysis results
+            base_confidence = 0.6 if analysis.total_files_analyzed > 0 else 0.1
+
+            # Boost confidence based on analysis quality
+            if analysis.total_files_analyzed > 5:
+                base_confidence += 0.2
+            if analysis.total_lines_of_code > 100:
+                base_confidence += 0.1
+            if analysis.language_distribution:
+                base_confidence += 0.1
+
+            confidence = min(base_confidence, 0.95)
+
             return {
                 "total_files": analysis.total_files_analyzed,
                 "total_lines": analysis.total_lines_of_code,
                 "language_distribution": analysis.language_distribution,
-                "confidence": 0.8 if analysis.total_files_analyzed > 0 else 0.2,
+                "confidence": confidence,
                 "metrics": {
                     "complexity": (
                         analysis.code_metrics.cyclomatic_complexity
@@ -961,17 +992,115 @@ class CodeAnalyzer(BaseAnalyzer):
                     "maintainability": (
                         analysis.code_metrics.maintainability_index
                         if analysis.code_metrics
-                        else 0
+                        else 50  # Default maintainability score
                     ),
+                    "overall_score": max(
+                        50,
+                        (
+                            100 - (analysis.code_metrics.cyclomatic_complexity * 5)
+                            if analysis.code_metrics
+                            else 75
+                        ),
+                    ),
+                    "test_coverage": 0,  # Placeholder
+                    "code_duplication": 0,  # Placeholder
+                    "technical_debt": len(analysis.quality_issues)
+                    * 10,  # Estimate based on issues
                 },
                 "quality_issues": [
                     {"type": issue.type, "severity": issue.severity}
                     for issue in analysis.quality_issues[:10]
                 ],
                 "recommendations": [
-                    {"suggestion": "Improve code quality based on detected issues"}
+                    {
+                        "type": "quality",
+                        "description": "Improve code quality based on detected issues",
+                    },
+                    {"type": "testing", "description": "Add comprehensive unit tests"},
+                    {
+                        "type": "documentation",
+                        "description": "Improve code documentation and comments",
+                    },
                 ],
-                "suggestions": ["Consider adding automated testing"],
+                "suggestions": [
+                    "Consider adding automated testing",
+                    "Implement code linting and formatting",
+                    "Add CI/CD pipeline for quality checks",
+                ],
+                "detected_files": list(repo_data["key_files"].keys())[
+                    :20
+                ],  # Limit for response size
             }
         except Exception as e:
-            return {"error": str(e)}
+            logger.error(f"Code analysis failed: {e}")
+            return {
+                "error": str(e),
+                "confidence": 0.0,
+                "metrics": {"complexity": 0, "maintainability": 0},
+                "recommendations": [],
+                "suggestions": ["Analysis failed - check repository accessibility"],
+                "detected_files": [],
+            }
+
+    async def analyze_code_with_context(
+        self,
+        key_files: Dict[str, str],
+        file_tree: List[Dict],
+        stack_context: Optional[Dict] = None,
+        dependency_context: Optional[Dict] = None,
+    ) -> CodeAnalysis:
+        """
+        Enhanced code analysis using stack and dependency context for better accuracy
+        """
+        # Use existing analyze_code method as base
+        base_analysis = await self.analyze_code(key_files, file_tree)
+
+        # Enhance analysis with context
+        if stack_context:
+            base_analysis = self._enhance_with_stack_context(
+                base_analysis, stack_context
+            )
+
+        if dependency_context:
+            base_analysis = self._enhance_with_dependency_context(
+                base_analysis, dependency_context
+            )
+
+        return base_analysis
+
+    def _enhance_with_stack_context(
+        self, analysis: CodeAnalysis, stack_context: Dict
+    ) -> CodeAnalysis:
+        """Enhance analysis using stack detection context"""
+        language = stack_context.get("language", "").lower()
+        framework = stack_context.get("framework", "").lower()
+
+        # Adjust complexity scoring based on framework patterns
+        if framework in ["react", "vue", "angular"]:
+            # Frontend frameworks often have higher file counts but lower complexity per file
+            analysis.code_metrics.complexity *= 0.9
+        elif framework in ["django", "flask", "fastapi"]:
+            # Backend frameworks might have higher complexity
+            analysis.code_metrics.complexity *= 1.1
+
+        logger.info(f"Enhanced code analysis with {language}/{framework} context")
+        return analysis
+
+    def _enhance_with_dependency_context(
+        self, analysis: CodeAnalysis, dependency_context: Dict
+    ) -> CodeAnalysis:
+        """Enhance analysis using dependency context"""
+        total_deps = dependency_context.get("total_dependencies", 0)
+
+        # Adjust maintainability based on dependency count
+        if total_deps > 50:
+            analysis.code_metrics.maintainability *= (
+                0.95  # Slightly reduce maintainability for high dependency count
+            )
+        elif total_deps < 10:
+            analysis.code_metrics.maintainability *= (
+                1.05  # Boost maintainability for minimal dependencies
+            )
+
+        logger.info(f"Enhanced code analysis with {total_deps} dependencies context")
+        return analysis

@@ -146,28 +146,44 @@ class LLMResponseParser:
         Returns:
             Parsed technology data with safety checks
         """
-        try:
-            # Clean and parse JSON
+        try:  # Clean and parse JSON
             clean_json = LLMResponseParser.clean_json_response(response_text)
             data = json.loads(clean_json)
 
+            # Check if response has new structured format with technology_detection section
+            tech_data = data.get(
+                "technology_detection", data
+            )  # Fallback to root level for compatibility
+
             # Validate required fields with safety checks
             result = {
-                "language": LLMResponseParser._safe_get(data, "language", "unknown"),
-                "framework": LLMResponseParser._safe_get(data, "framework", "unknown"),
-                "database": LLMResponseParser._safe_get(data, "database", None),
+                "language": LLMResponseParser._safe_get(
+                    tech_data, "language", "unknown"
+                ),
+                "framework": LLMResponseParser._safe_get(
+                    tech_data, "framework", "unknown"
+                ),
+                "database": LLMResponseParser._safe_get(tech_data, "database", None),
                 "confidence": float(
-                    LLMResponseParser._safe_get(data, "confidence", 0.5)
+                    LLMResponseParser._safe_get(tech_data, "confidence", 0.5)
                 ),
                 "additional_technologies": LLMResponseParser._safe_get_list(
-                    data, "additional_technologies"
+                    tech_data, "additional_technologies"
                 ),
                 "reasoning": LLMResponseParser._safe_get(
-                    data, "reasoning", "LLM technology detection"
+                    data,
+                    "reasoning",
+                    "LLM technology detection",  # Keep reasoning at root level
                 ),
                 "architecture_pattern": LLMResponseParser._safe_get(
-                    data, "architecture_pattern", None
+                    tech_data, "architecture_pattern", None
                 ),
+                "deployment_strategy": LLMResponseParser._safe_get(
+                    tech_data, "deployment_strategy", None
+                ),
+                # Include additional insights if present
+                "insights": LLMResponseParser._safe_get_list(data, "insights"),
+                "evidence": LLMResponseParser._safe_get(data, "evidence", {}),
             }
 
             # Validate confidence range
@@ -210,9 +226,7 @@ class LLMResponseParser:
         try:
             # Clean and parse JSON
             clean_json = LLMResponseParser.clean_json_response(response_text)
-            data = json.loads(clean_json)
-
-            # Validate and extract optimization data
+            data = json.loads(clean_json)  # Validate and extract optimization data
             result = {
                 "recommendations": LLMResponseParser._safe_get_list(
                     data, "recommendations"
@@ -220,6 +234,7 @@ class LLMResponseParser:
                 "additional_insights": LLMResponseParser._safe_get_list(
                     data, "additional_insights"
                 ),
+                "suggestions": LLMResponseParser._safe_get_list(data, "suggestions"),
                 "confidence_boost": float(
                     LLMResponseParser._safe_get(data, "confidence_boost", 0.1)
                 ),
@@ -231,6 +246,9 @@ class LLMResponseParser:
                 ),
                 "best_practices": LLMResponseParser._safe_get_list(
                     data, "best_practices"
+                ),
+                "null_field_explanations": LLMResponseParser._safe_get(
+                    data, "null_field_explanations", {}
                 ),
             }
 
@@ -244,16 +262,18 @@ class LLMResponseParser:
 
         except Exception as e:
             logger.error(f"Failed to parse optimization response: {e}")
-            logger.error(f"FALLBACK TRIGGERED: Optimization parsing failed - {str(e)}")
-
-            # Return fallback data or minimal structure
+            logger.error(
+                f"FALLBACK TRIGGERED: Optimization parsing failed - {str(e)}"
+            )  # Return fallback data or minimal structure
             return fallback_data or {
                 "recommendations": [],
                 "additional_insights": [],
+                "suggestions": [],
                 "confidence_boost": 0.05,
                 "reasoning": "Failed to parse LLM optimization response",
                 "deployment_strategy": None,
                 "best_practices": [],
+                "null_field_explanations": {},
             }
 
     @staticmethod

@@ -436,23 +436,46 @@ class AnalysisService:
                     "recommendations": result.recommendations or [],
                     "suggestions": result.suggestions or [],
                 }
-            )
-
-        # Generate insights if requested
+            )  # Generate insights if requested
         if include_insights:
-            insights = await self._generate_insights(result, mode)
-            response_data["insights"] = insights
-            logger.debug(f"Generated {len(insights)} insights")
-
-        # Add reasoning if requested
+            # Use LLM-generated insights ONLY
+            if hasattr(result, "insights") and result.insights:
+                # Convert insight objects to dicts if needed
+                insights = []
+                for insight in result.insights:
+                    if hasattr(insight, "__dict__"):
+                        insight_dict = {
+                            "category": insight.category,
+                            "title": insight.title,
+                            "description": insight.description,
+                            "reasoning": insight.reasoning,
+                            "confidence": insight.confidence,
+                            "evidence": insight.evidence or [],
+                            "recommendations": insight.recommendations or [],
+                            "severity": getattr(insight, "severity", None),
+                            "tags": getattr(insight, "tags", []),
+                        }
+                        insights.append(insight_dict)
+                    else:
+                        insights.append(insight)
+                response_data["insights"] = insights
+            else:
+                # Only include insights if LLM provided them
+                response_data["insights"] = []
+            logger.debug(
+                f"Generated {len(response_data['insights'])} insights"
+            )  # Add reasoning if requested (LLM-only, no hardcoded fallbacks)
         if include_reasoning:
-            reasoning = await self._generate_reasoning(result, mode)
-            response_data["reasoning"] = reasoning
-
-        # Explain null fields if requested
+            if hasattr(result, "llm_reasoning") and result.llm_reasoning:
+                response_data["reasoning"] = result.llm_reasoning
+            # No fallback reasoning - if LLM didn't provide it, we don't include it        # Explain null fields if requested (LLM-only, no hardcoded fallbacks)
         if explain_null_fields:
-            null_explanations = await self._explain_null_fields(result, mode)
-            response_data["null_field_explanations"] = null_explanations
+            if (
+                hasattr(result, "llm_null_explanations")
+                and result.llm_null_explanations
+            ):
+                response_data["null_field_explanations"] = result.llm_null_explanations
+            # Only include null field explanations if provided by LLM
 
         # Ensure all response fields are properly populated
         response_data = self._ensure_complete_response(response_data, mode)
@@ -485,230 +508,6 @@ class AnalysisService:
         else:
             logger.warning(f"Unknown technology stack format: {type(technology_stack)}")
             return {}
-
-    async def _generate_insights(
-        self, result: AnalysisResult, mode: str = "full"
-    ) -> List[Dict[str, Any]]:
-        """Generate insights from analysis result"""
-        insights = []
-
-        # Convert existing insights from result
-        if result.insights:
-            for insight in result.insights:
-                insight_dict = {
-                    "category": insight.category,
-                    "title": insight.title,
-                    "description": insight.description,
-                    "reasoning": insight.reasoning,
-                    "confidence": insight.confidence,
-                    "evidence": insight.evidence or [],
-                    "recommendations": insight.recommendations or [],
-                    "severity": getattr(insight, "severity", None),
-                    "tags": getattr(insight, "tags", []),
-                }
-                insights.append(insight_dict)
-
-        # Generate additional insights based on analysis results
-        if mode in ["full", "stack"] and result.technology_stack:
-            stack_insights = await self._generate_stack_insights(
-                result.technology_stack
-            )
-            insights.extend(stack_insights)
-
-        if mode in ["full", "quality"] and result.quality_metrics:
-            quality_insights = await self._generate_quality_insights(
-                result.quality_metrics
-            )
-            insights.extend(quality_insights)
-
-        if mode in ["full", "dependencies"] and result.dependency_analysis:
-            dep_insights = await self._generate_dependency_insights(
-                result.dependency_analysis
-            )
-            insights.extend(dep_insights)
-
-        return insights
-
-    async def _generate_reasoning(
-        self, result: AnalysisResult, mode: str = "full"
-    ) -> str:
-        """Generate comprehensive reasoning for the analysis"""
-        reasoning_parts = []
-
-        # Base reasoning
-        reasoning_parts.append(
-            f"Analysis completed using {result.analysis_approach} approach with "
-            f"{result.confidence_score:.1f}% confidence."
-        )
-
-        # Add specific reasoning based on mode and results
-        if mode in ["full", "stack"] and result.technology_stack:
-            tech_count = self._count_technologies(result.technology_stack)
-            reasoning_parts.append(
-                f"Detected {tech_count} technologies across the stack."
-            )
-
-        if mode in ["full", "quality"] and result.quality_metrics:
-            reasoning_parts.append(
-                "Code quality assessed based on static analysis and best practices."
-            )
-
-        if mode in ["full", "dependencies"] and result.dependency_analysis:
-            reasoning_parts.append(
-                "Dependencies analyzed for security vulnerabilities and outdated packages."
-            )
-
-        # LLM reasoning if available
-        if hasattr(result, "llm_reasoning") and result.llm_reasoning:
-            reasoning_parts.append(f"AI analysis: {result.llm_reasoning}")
-
-        return " ".join(reasoning_parts)
-
-    def _count_technologies(self, technology_stack) -> int:
-        """Count the number of technologies detected"""
-        if hasattr(technology_stack, "__dict__"):
-            attrs = [
-                getattr(technology_stack, attr)
-                for attr in dir(technology_stack)
-                if not attr.startswith("_")
-            ]
-            return len([attr for attr in attrs if attr])
-        elif isinstance(technology_stack, dict):
-            return len([value for value in technology_stack.values() if value])
-        return 0
-
-    async def _explain_null_fields(
-        self, result: AnalysisResult, mode: str = "full"
-    ) -> Dict[str, str]:
-        """Explain why certain fields might be null or empty"""
-        explanations = {}
-
-        # Check for null/empty fields and provide explanations
-        if not result.technology_stack or not self._count_technologies(
-            result.technology_stack
-        ):
-            explanations["technology_stack"] = (
-                "No recognizable technology stack detected in repository"
-            )
-
-        if not result.quality_metrics:
-            explanations["quality_metrics"] = (
-                "Code quality analysis not performed or no quality issues found"
-            )
-
-        if not result.dependency_analysis:
-            explanations["dependency_analysis"] = (
-                "No dependency files found or dependency analysis not requested"
-            )
-
-        if not result.security_metrics:
-            explanations["security_metrics"] = (
-                "Security analysis not performed or no security issues detected"
-            )
-
-        if not result.recommendations:
-            explanations["recommendations"] = (
-                "No specific recommendations generated based on current analysis"
-            )
-
-        if not result.suggestions:
-            explanations["suggestions"] = (
-                "No improvement suggestions available based on detected patterns"
-            )
-
-        return explanations
-
-    async def _generate_stack_insights(self, technology_stack) -> List[Dict[str, Any]]:
-        """Generate insights specific to technology stack"""
-        insights = []
-
-        # Convert to dict if needed
-        stack_dict = self._convert_technology_stack(technology_stack)
-
-        # Generate insights based on detected technologies
-        for category, technologies in stack_dict.items():
-            if technologies:
-                tech_list = (
-                    technologies if isinstance(technologies, list) else [technologies]
-                )
-                if len(tech_list) > 3:
-                    insights.append(
-                        {
-                            "category": "stack_complexity",
-                            "title": f"Complex {category} Stack",
-                            "description": f"Multiple {category} technologies detected: {', '.join(tech_list[:3])}...",
-                            "reasoning": "High number of technologies in single category may indicate complexity",
-                            "confidence": 0.8,
-                            "evidence": tech_list,
-                            "recommendations": [
-                                f"Consider consolidating {category} technologies"
-                            ],
-                            "severity": "medium",
-                            "tags": ["complexity", "architecture"],
-                        }
-                    )
-
-        return insights
-
-    async def _generate_quality_insights(
-        self, quality_metrics: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
-        """Generate insights specific to code quality"""
-        insights = []
-
-        # Example quality insights
-        if quality_metrics.get("complexity_score", 0) > 0.7:
-            insights.append(
-                {
-                    "category": "code_quality",
-                    "title": "High Code Complexity",
-                    "description": "Code complexity is above recommended thresholds",
-                    "reasoning": "High complexity can reduce maintainability and increase bug risk",
-                    "confidence": 0.9,
-                    "evidence": [
-                        f"Complexity score: {quality_metrics.get('complexity_score', 0):.2f}"
-                    ],
-                    "recommendations": [
-                        "Refactor complex functions",
-                        "Add more unit tests",
-                    ],
-                    "severity": "high",
-                    "tags": ["complexity", "maintainability"],
-                }
-            )
-
-        return insights
-
-    async def _generate_dependency_insights(self, dependency_analysis: dict) -> list:
-        """Generate insights specific to dependencies"""
-        # Ensure dependency_analysis is a dict
-        if hasattr(dependency_analysis, "__dict__"):
-            dependency_analysis = dependency_analysis.__dict__
-        elif not isinstance(dependency_analysis, dict):
-            dependency_analysis = dict(dependency_analysis)
-        insights = []
-
-        # Example dependency insights
-        outdated_count = dependency_analysis.get("outdated_dependencies", 0)
-        if outdated_count > 5:
-            insights.append(
-                {
-                    "category": "dependencies",
-                    "title": "Multiple Outdated Dependencies",
-                    "description": f"{outdated_count} dependencies are outdated",
-                    "reasoning": "Outdated dependencies may contain security vulnerabilities",
-                    "confidence": 0.85,
-                    "evidence": [f"{outdated_count} outdated packages found"],
-                    "recommendations": [
-                        "Update dependencies to latest versions",
-                        "Implement dependency monitoring",
-                    ],
-                    "severity": "medium",
-                    "tags": ["security", "maintenance"],
-                }
-            )
-
-        return insights
 
     def _get_confidence_level(self, confidence_score: float) -> str:
         """Convert confidence score to human-readable level"""

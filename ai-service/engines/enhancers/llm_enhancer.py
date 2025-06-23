@@ -5,7 +5,7 @@ Uses modular LLM services for clean separation of concerns
 
 import logging
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from engines.core.models import AnalysisResult, TechnologyStack
 from engines.core.llm import LLMClientManager, LLMAPIClient, LLMRequest, LLMProvider
@@ -24,6 +24,9 @@ class LLMEnhancementResult:
     reasoning: str
     additional_insights: List[str]
     recommendations: List[Dict[str, Any]]
+    suggestions: List[Dict[str, Any]] = field(default_factory=list)
+    insights: List[Dict[str, Any]] = field(default_factory=list)
+    null_field_explanations: Dict[str, str] = field(default_factory=dict)
     llm_enhanced: bool = False
 
 
@@ -295,9 +298,7 @@ class LLMEnhancer:
             response = await self.api_client.call_llm(request)
             if not response or not response.success:
                 logger.error("Optimization insights LLM call failed")
-                return None
-
-            # Parse optimization response
+                return None  # Parse optimization response
             optimization_data = self.response_parser.parse_optimization_response(
                 response.content
             )
@@ -306,7 +307,6 @@ class LLMEnhancer:
                 f"Optimization insights generated: {len(optimization_data.get('recommendations', []))} recommendations"
             )
             return optimization_data
-
         except Exception as e:
             logger.error(f"Optimization insights generation failed: {e}")
             return None
@@ -314,41 +314,121 @@ class LLMEnhancer:
     def _prepare_analysis_context(
         self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
     ) -> Dict[str, Any]:
-        """Prepare context for LLM analysis"""
-        # Get important files
+        """Prepare comprehensive context for LLM analysis with all analyzer results"""
+        # Get important files (extended list)
         key_files = {}
         important_files = [
             "package.json",
             "requirements.txt",
-            "Dockerfile",
+            "pyproject.toml",
+            "pipfile",
+            "pom.xml",
+            "build.gradle",
+            "composer.json",
+            "cargo.toml",
+            "go.mod",
+            "gemfile",
+            "dockerfile",
             "docker-compose.yml",
-            "README.md",
+            ".dockerignore",
+            "readme.md",
             "main.py",
             "app.py",
             "index.js",
             "server.js",
-            "pom.xml",
-            "build.gradle",
-            "Cargo.toml",
-            "go.mod",
-            "composer.json",
+            "app.js",
+            ".gitignore",
+            "config.py",
+            "settings.py",
+            "webpack.config.js",
+            "vite.config.js",
+            "tsconfig.json",
+            "babel.config.js",
+            "eslint.config.js",
         ]
 
         for filename, content in repository_files.items():
             file_lower = filename.lower()
             if any(imp_file in file_lower for imp_file in important_files):
-                # Limit content size for context window
-                key_files[filename] = content[:2000]
+                # Limit content size for context window (increased for better analysis)
+                key_files[filename] = content[:3000]
 
+        # Extract full analyzer context
+        stack_context = {}
+        if analysis_result.technology_stack:
+            stack_context = {
+                "language": getattr(analysis_result.technology_stack, "language", None),
+                "framework": getattr(
+                    analysis_result.technology_stack, "framework", None
+                ),
+                "database": getattr(analysis_result.technology_stack, "database", None),
+                "build_tool": getattr(
+                    analysis_result.technology_stack, "build_tool", None
+                ),
+                "package_manager": getattr(
+                    analysis_result.technology_stack, "package_manager", None
+                ),
+                "runtime_version": getattr(
+                    analysis_result.technology_stack, "runtime_version", None
+                ),
+                "additional_technologies": getattr(
+                    analysis_result.technology_stack, "additional_technologies", []
+                ),
+                "architecture_pattern": getattr(
+                    analysis_result.technology_stack, "architecture_pattern", None
+                ),
+                "deployment_strategy": getattr(
+                    analysis_result.technology_stack, "deployment_strategy", None
+                ),
+            }
+
+        # Extract dependency context
+        dependency_context = {}
+        if analysis_result.dependency_analysis:
+            if hasattr(analysis_result.dependency_analysis, "__dict__"):
+                dependency_context = {
+                    "total_dependencies": getattr(
+                        analysis_result.dependency_analysis, "total_dependencies", 0
+                    ),
+                    "security_vulnerabilities": getattr(
+                        analysis_result.dependency_analysis,
+                        "security_vulnerabilities",
+                        0,
+                    ),
+                    "outdated_dependencies": getattr(
+                        analysis_result.dependency_analysis, "outdated_dependencies", 0
+                    ),
+                    "package_managers": getattr(
+                        analysis_result.dependency_analysis, "package_managers", []
+                    ),
+                    "optimization_score": getattr(
+                        analysis_result.dependency_analysis, "optimization_score", 0
+                    ),
+                }
+            elif isinstance(analysis_result.dependency_analysis, dict):
+                dependency_context = analysis_result.dependency_analysis
+
+        # Extract code quality context
+        quality_context = {}
+        if analysis_result.quality_metrics:
+            quality_context = analysis_result.quality_metrics
+
+        # Prepare comprehensive context
         return {
-            "current_analysis": {
-                "language": analysis_result.technology_stack.language,
-                "framework": analysis_result.technology_stack.framework,
-                "confidence": analysis_result.confidence_score,
-                "detected_technologies": analysis_result.technology_stack.additional_technologies,
+            "repository_info": {
+                "url": analysis_result.repository_url,
+                "branch": getattr(analysis_result, "branch", "main"),
+                "analysis_approach": analysis_result.analysis_approach,
             },
-            "key_files": key_files,
-            "repository_url": analysis_result.repository_url,
+            "rule_based_analysis": {
+                "confidence_score": analysis_result.confidence_score,
+                "stack_detection": stack_context,
+                "dependency_analysis": dependency_context,
+                "code_quality": quality_context,
+            },
+            "file_previews": key_files,
+            "detected_files": analysis_result.detected_files[:20],  # Limit for context
+            "existing_insights": getattr(analysis_result, "insights", []),
         }
 
     def _create_enhancement_result(
@@ -357,9 +437,7 @@ class LLMEnhancer:
         tech_data: Dict[str, Any],
         optimization_data: Dict[str, Any],
     ) -> LLMEnhancementResult:
-        """Create final enhancement result from tech detection and optimization data"""
-
-        # Create enhanced technology stack
+        """Create final enhancement result from tech detection and optimization data"""  # Create enhanced technology stack
         enhanced_stack = TechnologyStack(
             language=tech_data.get(
                 "language", analysis_result.technology_stack.language
@@ -379,6 +457,7 @@ class LLMEnhancer:
                 analysis_result.technology_stack.architecture_pattern,
             ),
             deployment_strategy=optimization_data.get("deployment_strategy"),
+            confidence=tech_data.get("confidence", 0.0),  # Set LLM confidence
         )
 
         # Calculate confidence boost
@@ -388,9 +467,7 @@ class LLMEnhancer:
         optimization_boost = optimization_data.get("confidence_boost", 0)
         total_confidence_boost = max(
             0, min(0.4, base_confidence_boost + optimization_boost)
-        )
-
-        # Combine reasoning
+        )  # Combine reasoning
         tech_reasoning = tech_data.get("reasoning", "")
         opt_reasoning = optimization_data.get("reasoning", "")
         combined_reasoning = f"{tech_reasoning}. {opt_reasoning}".strip(". ")
@@ -401,6 +478,11 @@ class LLMEnhancer:
             reasoning=combined_reasoning or "LLM enhancement applied",
             additional_insights=optimization_data.get("additional_insights", []),
             recommendations=optimization_data.get("recommendations", []),
+            suggestions=optimization_data.get("suggestions", []),
+            insights=tech_data.get("insights", []),
+            null_field_explanations=optimization_data.get(
+                "null_field_explanations", {}
+            ),
             llm_enhanced=True,
         )
 

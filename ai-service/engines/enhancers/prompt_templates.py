@@ -80,8 +80,7 @@ Respond with ONLY valid JSON in this exact format:
         "strong_indicators": ["file1.ext: specific evidence", "pattern: evidence"],
         "weak_indicators": ["possible evidence"],
         "contradictory_evidence": ["conflicting signs if any"]
-    }},
-    "insights": [
+    }},    "insights": [
         {{
             "category": "detection",
             "title": "Primary Framework Detection",
@@ -90,13 +89,28 @@ Respond with ONLY valid JSON in this exact format:
             "confidence": 0.9,
             "evidence": ["package.json: react dependency", "src/*.jsx files"]
         }}
-    ]
+    ],
+    "suggestions": [
+        {{
+            "type": "optimization",
+            "priority": "medium",
+            "suggestion": "Consider implementing React.memo for performance optimization",
+            "reason": "Multiple React components detected without optimization patterns"
+        }}
+    ],
+    "reasoning": "Comprehensive analysis based on file contents, dependency patterns, and architectural structure. Confidence level determined by strength of evidence across multiple indicators.",
+    "null_field_explanations": {{
+        "database": "No database configuration files or connection strings detected in repository",
+        "testing_framework": "No testing dependencies or test files found in the codebase"
+    }}
 }}
 
 GUIDELINES:
 - Base confidence on actual evidence from files
-- Explain any null or uncertain fields
+- Explain any null or uncertain fields in null_field_explanations
 - Provide specific file evidence for each detection
+- Generate actionable insights and suggestions based on detected patterns
+- Include comprehensive reasoning for analysis approach and confidence
 - Consider version patterns and compatibility
 - Account for monorepo or multi-service architectures
 """
@@ -149,10 +163,21 @@ Respond with ONLY valid JSON in this exact format:
         "Insight 1 about the codebase",
         "Insight 2 about architecture"
     ],
+    "suggestions": [
+        {{
+            "type": "optimization|best_practice|tooling|architecture",
+            "priority": "high|medium|low",
+            "suggestion": "Specific improvement suggestion",
+            "reason": "Benefits and justification"
+        }}
+    ],
     "confidence_boost": 0.15,
-    "reasoning": "Explanation of analysis and confidence boost",
+    "reasoning": "Detailed explanation of analysis approach, confidence factors, and key findings that led to recommendations",
     "deployment_strategy": "recommended_deployment_approach",
-    "best_practices": ["practice1", "practice2"]
+    "best_practices": ["practice1", "practice2"],
+    "null_field_explanations": {{
+        "field_name": "Explanation for why field is null or missing"
+    }}
 }}
 
 Confidence boost should be 0.0-0.3 based on how much the analysis adds clarity.

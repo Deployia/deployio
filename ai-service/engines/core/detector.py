@@ -31,8 +31,7 @@ class UnifiedDetectionEngine:
     """
     Main detection engine that orchestrates all analysis operations.
 
-    Features:
-    - Unified analysis workflow
+    Features:    - Unified analysis workflow
     - Smart LLM enhancement
     - Confidence-based decision making
     - Comprehensive caching
@@ -44,17 +43,13 @@ class UnifiedDetectionEngine:
         self.stack_analyzer: BaseAnalyzer = StackAnalyzer()
         self.dependency_analyzer: BaseAnalyzer = DependencyAnalyzer()
         self.code_analyzer: BaseAnalyzer = CodeAnalyzer()
-        self.llm_enhancer = LLMEnhancer()
-
-        # Initialize utilities
+        self.llm_enhancer = LLMEnhancer()  # Initialize utilities
         self.github_client = GitHubClient()
         self.cache_manager = CacheManager()
 
-        # Configuration
-        self.llm_enhancement_threshold = 0.75  # Use LLM if confidence < 75%
-        self.parallel_analysis = True
-
-        logger.info("UnifiedDetectionEngine initialized successfully")
+        logger.info(
+            "UnifiedDetectionEngine initialized with intelligent analysis sequencing"
+        )
 
     async def analyze_repository(
         self,
@@ -112,41 +107,67 @@ class UnifiedDetectionEngine:
             # Step 3: Perform parallel analysis
             analysis_results = await self._perform_parallel_analysis(
                 repo_data, analysis_types
-            )
-
-            # Step 4: Combine results
+            )  # Step 4: Combine rule-based analyzer results (NO LLM logic here)
             combined_result = await self._combine_analysis_results(
                 repository_url, branch, analysis_results, repo_data
-            )  # Step 5: LLM enhancement (if needed)
-            if (
-                combined_result.confidence_score < self.llm_enhancement_threshold
-                or force_llm
-            ):
-                logger.info("Enhancing analysis with modular LLM system")
-                enhancement = await self.llm_enhancer.enhance_analysis(
-                    combined_result, repo_data
+            )  # Step 5: ALWAYS run LLM enhancer for insights/recommendations/suggestions
+            # The LLM enhancer is the ONLY component that generates insights, recommendations, and suggestions
+            logger.info(
+                "Running LLM enhancer for insights, recommendations, and suggestions"
+            )
+
+            enhancement = await self.llm_enhancer.enhance_analysis(
+                combined_result, repo_data
+            )
+
+            if enhancement and enhancement.llm_enhanced:
+                # Merge LLM-generated insights into combined_result
+                # Core fields: Use LLM data if confidence is higher, otherwise keep rule-based
+                llm_confidence = (
+                    getattr(enhancement.enhanced_stack, "confidence", 0) or 0
                 )
-
-                if enhancement and enhancement.llm_enhanced:
-                    # Merge enhancement into combined_result (AnalysisResult)
-                    combined_result.technology_stack = enhancement.enhanced_stack
-                    combined_result.confidence_score = min(
-                        combined_result.confidence_score + enhancement.confidence_boost,
-                        1.0,
-                    )
-                    combined_result.llm_used = True
-                    combined_result.analysis_approach = "llm_enhanced"
-                    combined_result.recommendations.extend(enhancement.recommendations)
-                    combined_result.suggestions.extend(enhancement.additional_insights)
-
+                if llm_confidence > combined_result.confidence_score:
                     logger.info(
-                        f"LLM enhancement applied - confidence boost: {enhancement.confidence_boost}"
+                        f"Using LLM technology stack (confidence: {llm_confidence:.2f} > {combined_result.confidence_score:.2f})"
                     )
+                    combined_result.technology_stack = enhancement.enhanced_stack
                 else:
-                    logger.warning("LLM enhancement failed or unavailable")
-                    logger.error(
-                        f"FALLBACK TRIGGERED: LLM enhancement failed for {repository_url}"
+                    logger.info(
+                        f"Keeping rule-based technology stack (confidence: {combined_result.confidence_score:.2f} >= {llm_confidence:.2f})"
                     )
+
+                # Update overall confidence with boost
+                combined_result.confidence_score = min(
+                    combined_result.confidence_score + enhancement.confidence_boost,
+                    1.0,
+                )
+                combined_result.llm_used = True
+                combined_result.analysis_approach = "llm_enhanced"
+
+                # Enhancement fields: ONLY from LLM (no fallbacks)
+                combined_result.recommendations = enhancement.recommendations
+                combined_result.suggestions = getattr(enhancement, "suggestions", [])
+                combined_result.llm_reasoning = enhancement.reasoning
+                combined_result.llm_confidence = llm_confidence
+
+                # Store LLM insights and null explanations if available
+                if hasattr(enhancement, "insights"):
+                    combined_result.insights = enhancement.insights
+                if hasattr(enhancement, "null_field_explanations"):
+                    combined_result.llm_null_explanations = (
+                        enhancement.null_field_explanations
+                    )
+
+                logger.info(
+                    f"LLM enhancement completed - confidence boost: {enhancement.confidence_boost}"
+                )
+            else:
+                logger.warning("LLM enhancement failed - using rule-based results only")
+                # Fallback: empty recommendations and suggestions since only LLM should generate them
+                combined_result.recommendations = []
+                combined_result.suggestions = []
+                combined_result.llm_used = False
+                combined_result.analysis_approach = "rule_based_only"
 
             # Step 6: Final processing
             combined_result.processing_time = time.time() - start_time
@@ -196,57 +217,99 @@ class UnifiedDetectionEngine:
     ) -> AnalysisResult:
         """
         Main entry point for technology stack detection
-        Alias for analyze_repository with stack detection focus
-        """
+        Alias for analyze_repository with stack detection focus"""
         return await self.analyze_repository(
             repository_url=repository_url, branch=branch, analysis_types=[analysis_type]
         )
+
+    async def _perform_intelligent_analysis(
+        self, repo_data: Dict, analysis_types: List[AnalysisType]
+    ) -> Dict[AnalysisType, Dict]:
+        """
+        Perform analysis with intelligent dependencies for better accuracy:
+        1. Stack Detection (foundation)
+        2. Dependency Analysis (uses stack context)
+        3. Code Quality (uses stack + dependency context)
+
+        This approach provides more accurate results with better context.
+        """
+        analysis_results = {}
+        stack_context = None
+        dependency_context = None
+
+        logger.info(
+            f"Running intelligent analysis with dependencies for {len(analysis_types)} analysis types"
+        )
+
+        # Step 1: Stack Detection (foundation - runs first if needed)
+        if AnalysisType.STACK_DETECTION in analysis_types:
+            try:
+                logger.info("Step 1: Running stack detection (foundation)")
+                stack_result = await self.stack_analyzer.analyze(repo_data)
+                analysis_results[AnalysisType.STACK_DETECTION] = stack_result
+                stack_context = stack_result
+                logger.info(
+                    f"Stack detection completed: {stack_result.get('language', 'unknown')} / {stack_result.get('framework', 'none')}"
+                )
+            except Exception as e:
+                logger.error(f"Stack detection failed: {e}")
+                analysis_results[AnalysisType.STACK_DETECTION] = {"error": str(e)}
+
+        # Step 2: Dependency Analysis (uses stack context for better parsing)
+        if AnalysisType.DEPENDENCY_ANALYSIS in analysis_types:
+            try:
+                logger.info("Step 2: Running dependency analysis (with stack context)")
+                # Enhance repo_data with stack context for more accurate dependency parsing
+                enhanced_repo_data = repo_data.copy()
+                if stack_context:
+                    enhanced_repo_data["stack_context"] = stack_context
+
+                dependency_result = await self.dependency_analyzer.analyze(
+                    enhanced_repo_data
+                )
+                analysis_results[AnalysisType.DEPENDENCY_ANALYSIS] = dependency_result
+                dependency_context = dependency_result
+                logger.info(
+                    f"Dependency analysis completed: {dependency_result.get('total_dependencies', 0)} dependencies"
+                )
+            except Exception as e:
+                logger.error(f"Dependency analysis failed: {e}")
+                analysis_results[AnalysisType.DEPENDENCY_ANALYSIS] = {"error": str(e)}
+
+        # Step 3: Code Quality (uses both stack and dependency context)
+        if AnalysisType.CODE_QUALITY in analysis_types:
+            try:
+                logger.info("Step 3: Running code quality analysis (with full context)")
+                # Enhance repo_data with both stack and dependency context
+                enhanced_repo_data = repo_data.copy()
+                if stack_context:
+                    enhanced_repo_data["stack_context"] = stack_context
+                if dependency_context:
+                    enhanced_repo_data["dependency_context"] = dependency_context
+
+                quality_result = await self.code_analyzer.analyze(enhanced_repo_data)
+                analysis_results[AnalysisType.CODE_QUALITY] = quality_result
+                logger.info(
+                    f"Code quality analysis completed: {quality_result.get('total_files_analyzed', 0)} files analyzed"
+                )
+            except Exception as e:
+                logger.error(f"Code quality analysis failed: {e}")
+                analysis_results[AnalysisType.CODE_QUALITY] = {"error": str(e)}
+
+        logger.info(
+            f"Intelligent analysis completed successfully with {len(analysis_results)} results"
+        )
+        return analysis_results
 
     async def _perform_parallel_analysis(
         self, repo_data: Dict, analysis_types: List[AnalysisType]
     ) -> Dict[AnalysisType, Dict]:
         """
-        Perform analysis operations in parallel for better performance
+        Legacy parallel analysis - kept for backward compatibility
+        For better accuracy, use _perform_intelligent_analysis instead
         """
-        tasks = {}
-
-        # Create analysis tasks
-        if AnalysisType.STACK_DETECTION in analysis_types:
-            tasks[AnalysisType.STACK_DETECTION] = self.stack_analyzer.analyze(repo_data)
-
-        if AnalysisType.DEPENDENCY_ANALYSIS in analysis_types:
-            tasks[AnalysisType.DEPENDENCY_ANALYSIS] = self.dependency_analyzer.analyze(
-                repo_data
-            )
-
-        if AnalysisType.CODE_QUALITY in analysis_types:
-            tasks[AnalysisType.CODE_QUALITY] = self.code_analyzer.analyze(repo_data)
-
-        # Execute tasks in parallel
-        if self.parallel_analysis and len(tasks) > 1:
-            logger.info(f"Running {len(tasks)} analysis tasks in parallel")
-            results = await asyncio.gather(*tasks.values(), return_exceptions=True)
-
-            # Map results back to analysis types
-            analysis_results = {}
-            for i, analysis_type in enumerate(tasks.keys()):
-                if isinstance(results[i], Exception):
-                    logger.error(f"{analysis_type.value} analysis failed: {results[i]}")
-                    analysis_results[analysis_type] = {"error": str(results[i])}
-                else:
-                    analysis_results[analysis_type] = results[i]
-        else:
-            # Sequential execution
-            logger.info("Running analysis tasks sequentially")
-            analysis_results = {}
-            for analysis_type, task in tasks.items():
-                try:
-                    analysis_results[analysis_type] = await task
-                except Exception as e:
-                    logger.error(f"{analysis_type.value} analysis failed: {e}")
-                    analysis_results[analysis_type] = {"error": str(e)}
-
-        return analysis_results
+        # Use intelligent analysis for better results
+        return await self._perform_intelligent_analysis(repo_data, analysis_types)
 
     async def _combine_analysis_results(
         self,
@@ -303,22 +366,15 @@ class UnifiedDetectionEngine:
         detected_files = []
         for result in analysis_results.values():
             if "detected_files" in result and "error" not in result:
-                detected_files.extend(result["detected_files"])
-
-        # Remove duplicates while preserving order
+                detected_files.extend(
+                    result["detected_files"]
+                )  # Remove duplicates while preserving order
         detected_files = list(dict.fromkeys(detected_files))
 
-        # Combine recommendations
-        recommendations = []
-        for result in analysis_results.values():
-            if "recommendations" in result and "error" not in result:
-                recommendations.extend(result["recommendations"])
-
-        # Combine suggestions
-        suggestions = []
-        for result in analysis_results.values():
-            if "suggestions" in result and "error" not in result:
-                suggestions.extend(result["suggestions"])
+        # DO NOT collect recommendations/suggestions from analyzers
+        # Only LLM enhancer should generate these
+        recommendations = []  # Will be populated by LLM enhancer only
+        suggestions = []  # Will be populated by LLM enhancer only
 
         # Create detailed analysis
         detailed_analysis = {

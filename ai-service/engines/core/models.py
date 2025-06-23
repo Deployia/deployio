@@ -48,6 +48,9 @@ class TechnologyStack:
     framework: Optional[str] = None
     database: Optional[str] = None
     type: Optional[str] = None  # Added to support input dicts with 'type' key
+
+    # Enhanced fields
+    confidence: Optional[float] = None  # LLM confidence for this stack detection
     version: Optional[str] = None  # Added to support input dicts with 'version' key
     confidence: Optional[float] = (
         None  # Added to support input dicts with 'confidence' key

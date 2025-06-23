@@ -60,13 +60,14 @@ class DependencyAnalyzer(BaseAnalyzer):
         }
 
     async def analyze_dependencies(
-        self, key_files: Dict[str, str]
+        self, key_files: Dict[str, str], stack_context: Optional[Dict] = None
     ) -> DependencyAnalysis:
         """
-        Analyze dependencies from project files
+        Analyze dependencies from project files with optional stack context
 
         Args:
             key_files: Dictionary of file paths and their content
+            stack_context: Optional stack detection results for better context
 
         Returns:
             DependencyAnalysis with extracted dependencies
@@ -75,8 +76,14 @@ class DependencyAnalyzer(BaseAnalyzer):
         package_managers = set()
         vulnerability_count = 0
 
-        # Analyze each dependency file
-        for file_path, content in key_files.items():
+        # Use stack context to prioritize which files to analyze first
+        prioritized_files = self._prioritize_files_by_stack(key_files, stack_context)
+        logger.info(
+            f"Analyzing {len(prioritized_files)} dependency files with stack context"
+        )
+
+        # Analyze each dependency file in priority order
+        for file_path, content in prioritized_files.items():
             filename = file_path.split("/")[-1].lower()
 
             if filename in self.analyzers:
@@ -688,8 +695,15 @@ class DependencyAnalyzer(BaseAnalyzer):
         # Extract key_files from repository_data for dependency analysis
         key_files = repository_data.get("key_files", {})
 
-        # Perform dependency analysis
-        analysis_result = await self.analyze_dependencies(key_files)
+        # Extract stack context for better analysis
+        stack_context = repository_data.get("stack_context")
+        if stack_context:
+            logger.info(
+                f"Using stack context for dependency analysis: {stack_context.get('language', 'unknown')} / {stack_context.get('framework', 'none')}"
+            )
+
+        # Perform dependency analysis with stack context
+        analysis_result = await self.analyze_dependencies(key_files, stack_context)
 
         # Convert to dict format for orchestrator compatibility
         if hasattr(analysis_result, "__dict__"):
@@ -704,13 +718,8 @@ class DependencyAnalyzer(BaseAnalyzer):
         # Add detected files for orchestrator
         result_dict["detected_files"] = list(key_files.keys())
 
-        # Add recommendations and suggestions if not present
-        if "recommendations" not in result_dict:
-            result_dict["recommendations"] = self._generate_recommendations(
-                analysis_result
-            )
-        if "suggestions" not in result_dict:
-            result_dict["suggestions"] = self._generate_suggestions(analysis_result)
+        # DO NOT add recommendations and suggestions - only LLM should generate them
+        # Removed hardcoded recommendations/suggestions to avoid repetitive outputs
 
         return result_dict
 
@@ -740,143 +749,15 @@ class DependencyAnalyzer(BaseAnalyzer):
 
         # Boost for having multiple package managers detected
         if len(analysis_result.package_managers) > 0:
-            confidence += 0.3
-
-        # Boost for having version information
+            confidence += 0.3  # Boost for having version information
         if analysis_result.metrics.get("version_specification_quality", 0) > 0.7:
             confidence += 0.2
 
         return min(confidence, 1.0)
 
-    def _generate_recommendations(self, analysis_result: DependencyAnalysis) -> list:
-        """Generate actionable recommendations based on dependency analysis"""
-        recommendations = []
-
-        if analysis_result.total_dependencies == 0:
-            recommendations.append(
-                {
-                    "type": "info",
-                    "description": "No dependencies found - consider adding a package manager file",
-                }
-            )
-            return recommendations
-
-        # Security recommendations
-        if analysis_result.security_vulnerabilities > 0:
-            recommendations.append(
-                {
-                    "type": "security",
-                    "description": f"Update {analysis_result.security_vulnerabilities} packages with security vulnerabilities",
-                }
-            )
-
-        if analysis_result.critical_vulnerabilities > 0:
-            recommendations.append(
-                {
-                    "type": "security",
-                    "description": f"Immediately address {analysis_result.critical_vulnerabilities} critical security vulnerabilities",
-                }
-            )
-
-        # Optimization recommendations
-        if analysis_result.optimization_score < 70:
-            recommendations.append(
-                {
-                    "type": "optimization",
-                    "description": "Optimize dependency management - review unused packages",
-                }
-            )
-
-        if analysis_result.outdated_dependencies > 10:
-            recommendations.append(
-                {
-                    "type": "maintenance",
-                    "description": "Update outdated dependencies to improve security and performance",
-                }
-            )
-
-        # License recommendations
-        if analysis_result.license_issues > 0:
-            recommendations.append(
-                {
-                    "type": "license",
-                    "description": "Review license compatibility issues in dependencies",
-                }
-            )
-
-        # General recommendations
-        if len(analysis_result.package_managers) > 1:
-            recommendations.append(
-                {
-                    "type": "consistency",
-                    "description": "Consider standardizing on a single package manager for consistency",
-                }
-            )
-
-        if analysis_result.dev_dependencies > analysis_result.direct_dependencies * 2:
-            recommendations.append(
-                {
-                    "type": "optimization",
-                    "description": "Review development dependencies - consider reducing to improve build times",
-                }
-            )
-
-        return recommendations[:5]  # Limit to top 5 recommendations
-
-    def _generate_suggestions(self, analysis_result: DependencyAnalysis) -> list:
-        """Generate helpful suggestions based on dependency analysis (as strings)"""
-        suggestions = []
-
-        if analysis_result.total_dependencies == 0:
-            suggestions.append(
-                "No dependency analysis performed - no package files found"
-            )
-            return suggestions
-
-        # Add ecosystem-specific suggestions
-        if "npm" in analysis_result.package_managers:
-            suggestions.append(
-                "Consider using npm audit to check for security vulnerabilities"
-            )
-            suggestions.append(
-                "Use package-lock.json for consistent dependency versions"
-            )
-
-        if "pip" in analysis_result.package_managers:
-            suggestions.append(
-                "Consider using virtual environments for Python dependency isolation"
-            )
-            suggestions.append(
-                "Use requirements.txt with pinned versions for reproducible builds"
-            )
-
-        if "maven" in analysis_result.package_managers:
-            suggestions.append(
-                "Use Maven dependency:analyze to identify unused dependencies"
-            )
-
-        if "gradle" in analysis_result.package_managers:
-            suggestions.append(
-                "Use Gradle dependency reports to analyze dependency conflicts"
-            )
-
-        # Performance suggestions
-        if analysis_result.total_dependencies > 100:
-            suggestions.append(
-                "Large number of dependencies detected - consider dependency tree analysis"
-            )
-
-        # Security suggestions
-        if analysis_result.security_vulnerabilities == 0:
-            suggestions.append(
-                "No known security vulnerabilities detected - great job!"
-            )
-        else:
-            suggestions.append(
-                "Run automated security scans regularly to catch new vulnerabilities"
-            )
-
-        return suggestions[:8]  # Limit to top 8 suggestions
+    # REMOVED: _generate_recommendations and _generate_suggestions methods
+    # Only LLM enhancer should generate recommendations and suggestions
+    # This prevents hardcoded, repetitive outputs
 
     def _clean_version(self, version: str) -> str:
         """Clean version string by removing operators and whitespace"""
@@ -1109,3 +990,55 @@ class DependencyAnalyzer(BaseAnalyzer):
 
         # Clamp to valid range
         return max(0.0, min(1.0, score))
+
+    def _prioritize_files_by_stack(
+        self, key_files: Dict[str, str], stack_context: Optional[Dict] = None
+    ) -> Dict[str, str]:
+        """Prioritize dependency files based on detected stack"""
+        if not stack_context:
+            return key_files
+
+        language = stack_context.get("language", "").lower()
+        framework = stack_context.get("framework", "").lower()
+
+        # Define priority order based on stack
+        priority_files = []
+
+        # JavaScript/TypeScript ecosystem
+        if language in ["javascript", "typescript"]:
+            priority_files = ["package.json", "yarn.lock", "package-lock.json"]
+        # Python ecosystem
+        elif language == "python":
+            if framework == "django":
+                priority_files = ["requirements.txt", "pyproject.toml", "pipfile"]
+            else:
+                priority_files = ["pyproject.toml", "requirements.txt", "pipfile"]
+        # Java ecosystem
+        elif language in ["java", "kotlin"]:
+            priority_files = ["pom.xml", "build.gradle", "build.gradle.kts"]
+        # Other languages
+        elif language == "php":
+            priority_files = ["composer.json"]
+        elif language == "rust":
+            priority_files = ["cargo.toml"]
+        elif language == "go":
+            priority_files = ["go.mod"]
+        elif language == "ruby":
+            priority_files = ["gemfile"]
+
+        # Reorder files by priority
+        prioritized = {}
+
+        # Add high-priority files first
+        for priority_file in priority_files:
+            for file_path, content in key_files.items():
+                if priority_file in file_path.lower():
+                    prioritized[file_path] = content
+
+        # Add remaining files
+        for file_path, content in key_files.items():
+            if file_path not in prioritized:
+                prioritized[file_path] = content
+
+        logger.info(f"Prioritized {len(prioritized)} files for {language} stack")
+        return prioritized
