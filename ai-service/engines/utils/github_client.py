@@ -3,7 +3,6 @@ GitHub Client - Clean interface for GitHub API operations
 Focused utility for repository data fetching
 """
 
-import asyncio
 import logging
 from typing import Dict, List, Optional, Any, Tuple
 from urllib.parse import urlparse
@@ -72,7 +71,7 @@ class GitHubClient:
             owner, repo = self._parse_repository_url(repository_url)
 
             async with self:
-                # Get repository info
+                # Get repository info (will raise if not found)
                 repo_info = await self._get_repository_info(owner, repo)
 
                 # Get file tree
@@ -99,15 +98,20 @@ class GitHubClient:
 
         except Exception as e:
             logger.error(f"Failed to fetch repository data: {e}")
-            raise
+            raise ValueError(f"Repository fetch failed: {e}")
 
     async def _get_repository_info(self, owner: str, repo: str) -> Dict:
-        """Get basic repository information"""
+        """Get basic repository information, with robust not-found detection"""
         url = f"{self.base_url}/repos/{owner}/{repo}"
 
         async with self.session.get(url) as response:
-            if response.status == 200:
+            content_type = response.headers.get("Content-Type", "")
+            if response.status == 200 and "application/json" in content_type:
                 data = await response.json()
+                # If the repo doesn't exist, GitHub sometimes returns a JSON with a 'message' key
+                if data.get("message", "").lower() == "not found":
+                    logger.warning(f"Repository not found: {owner}/{repo}")
+                    raise ValueError(f"Repository not found: {owner}/{repo}")
                 return {
                     "name": data.get("name"),
                     "full_name": data.get("full_name"),
@@ -123,8 +127,12 @@ class GitHubClient:
                     ),
                 }
             else:
-                logger.warning(f"Could not fetch repo info: {response.status}")
-                return {}
+                logger.warning(
+                    f"Could not fetch repo info: {response.status} {content_type}"
+                )
+                raise ValueError(
+                    f"Repository not found or invalid response: {owner}/{repo}"
+                )
 
     async def _get_file_tree(self, owner: str, repo: str, branch: str) -> List[Dict]:
         """Get repository file tree"""

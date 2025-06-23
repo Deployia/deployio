@@ -134,6 +134,7 @@ class AnalysisService:
                 tracker = progress_service.get_tracker(analysis_id)
                 if tracker:
                     await tracker.fail(f"Analysis failed: {str(e)}", e)
+            # Do not return a result, just propagate the error
             raise
 
     async def analyze_technology_stack(
@@ -179,7 +180,8 @@ class AnalysisService:
                 f"Technology stack analysis failed for {repository_url}: {str(e)}",
                 exc_info=True,
             )
-            raise Exception(f"Technology stack analysis failed: {str(e)}")
+            # Do not return a result, just propagate the error
+            raise
 
     async def analyze_code_quality(
         self,
@@ -224,7 +226,8 @@ class AnalysisService:
                 f"Code quality analysis failed for {repository_url}: {str(e)}",
                 exc_info=True,
             )
-            raise Exception(f"Code quality analysis failed: {str(e)}")
+            # Do not return a result, just propagate the error
+            raise
 
     async def analyze_dependencies(
         self,
@@ -269,7 +272,8 @@ class AnalysisService:
                 f"Dependency analysis failed for {repository_url}: {str(e)}",
                 exc_info=True,
             )
-            raise Exception(f"Dependency analysis failed: {str(e)}")
+            # Do not return a result, just propagate the error
+            raise
 
     async def get_supported_technologies(self) -> Dict[str, Any]:
         """

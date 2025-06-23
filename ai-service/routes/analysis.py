@@ -223,8 +223,16 @@ async def analyze_repository(
             f"Repository analysis failed for {request.repository_url}: {str(e)}",
             exc_info=True,
         )
+        # Custom error handling for known errors
+        error_message = str(e)
+        if "Repository not found" in error_message or "invalid response" in error_message:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Repository not found or inaccessible: {request.repository_url}"
+            )
+        # Add more custom error checks as needed
         raise HTTPException(
-            status_code=500, detail=f"Repository analysis failed: {str(e)}"
+            status_code=500, detail=f"Repository analysis failed: {error_message}"
         )
 
 

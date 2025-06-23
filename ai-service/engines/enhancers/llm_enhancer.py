@@ -355,7 +355,6 @@ class LLMEnhancer:
             if any(imp_file in file_lower for imp_file in important_files):
                 # Limit content size for context window (increased for better analysis)
                 key_files[filename] = content[:3000]
-        logger.info(f"Key files for LLM prompt: {list(key_files.keys())}")
 
         # Extract full analyzer context
         stack_context = {}
