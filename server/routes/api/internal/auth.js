@@ -136,4 +136,25 @@ router.post("/validate-token", validateInternalService, async (req, res) => {
   }
 });
 
+/**
+ * @desc Generate a demo user JWT token for development/testing only
+ * @route POST /api/internal/auth/demo-token
+ * @access Internal services only
+ */
+router.post("/demo-token", validateInternalService, (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).json({ success: false, error: "Not found" });
+  }
+  const payload = {
+    id: "demo_user",
+    email: "demo@deployio.com",
+    username: "demo",
+    type: "demo",
+  };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+  });
+  return res.status(200).json({ success: true, token });
+});
+
 module.exports = router;

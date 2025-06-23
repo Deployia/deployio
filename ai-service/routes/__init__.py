@@ -7,7 +7,9 @@ from fastapi import APIRouter
 from .health import router as health_router
 from .analysis import router as analysis_router
 from .optimization import router as optimization_router
+from .dev import router as dev_router  # noqa: F401
 from engines.core.models import ConfidenceLevel  # noqa: F401
+import os
 
 
 def create_routes() -> APIRouter:
@@ -41,5 +43,13 @@ def create_routes() -> APIRouter:
         prefix="/service/v1/optimization",
         tags=["Optimization"],
     )
+
+    # Dev endpoints (only in non-production)
+    if os.getenv("ENVIRONMENT", "development") != "production":
+        api_router.include_router(
+            dev_router,
+            prefix="",
+            tags=["Dev"],
+        )
 
     return api_router
