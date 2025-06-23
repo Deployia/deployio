@@ -1,10 +1,17 @@
 // AI Service Module - Centralized exports for all AI functionality
-const { aiServiceClient, checkAiServiceHealth } = require("./aiServiceClient");
+const {
+  aiServiceClient,
+  checkAiServiceHealth,
+  getDetailedAiServiceHealth,
+} = require("./aiServiceClient");
 const {
   analyzeRepository,
+  detectTechnologyStack,
   analyzeCodeQuality,
-  analyzeSecurity,
+  analyzeDependencies,
+  getAnalysisProgress,
   getSupportedTechnologies,
+  analyzeProjectStack, // Legacy compatibility
 } = require("./analysisService");
 const {
   generateDockerfile,
@@ -101,13 +108,16 @@ module.exports = {
   // Client and health
   aiServiceClient,
   checkAiServiceHealth,
+  getDetailedAiServiceHealth,
 
   // Analysis services
   analyzeRepository,
-  analyzeProjectStack, // Legacy compatibility
+  detectTechnologyStack,
   analyzeCodeQuality,
-  analyzeSecurity,
+  analyzeDependencies,
+  getAnalysisProgress,
   getSupportedTechnologies,
+  analyzeProjectStack, // Legacy compatibility
 
   // Generation services
   generateDockerfile,

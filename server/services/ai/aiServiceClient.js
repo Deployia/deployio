@@ -50,17 +50,28 @@ const generateAiServiceToken = (user) => {
   );
 };
 
+// Generate demo JWT token for public endpoints (heavily rate limited)
+const generateDemoToken = () => {
+  return jwt.sign(
+    {
+      id: "demo_user",
+      email: "demo@deployio.com",
+      username: "demo",
+      type: "demo",
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" } // Short expiry for demo tokens
+  );
+};
+
 // Check AI service health
 const checkAiServiceHealth = async () => {
   try {
-    const response = await aiServiceClient.get("/service/v1/health");
+    const response = await aiServiceClient.get("/analysis/health");
     return {
       status: "healthy",
       timestamp: new Date().toISOString(),
-      version: response.data.version,
-      uptime: response.data.uptime,
-      redis_status: response.data.redis_status,
-      purpose: response.data.purpose,
+      data: response.data.data,
     };
   } catch (error) {
     logger.error("AI service health check failed:", error.message);
@@ -72,8 +83,29 @@ const checkAiServiceHealth = async () => {
   }
 };
 
+// Get detailed AI service health
+const getDetailedAiServiceHealth = async () => {
+  try {
+    const response = await aiServiceClient.get("/analysis/health/detailed");
+    return {
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      data: response.data.data,
+    };
+  } catch (error) {
+    logger.error("AI service detailed health check failed:", error.message);
+    return {
+      status: "unhealthy",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    };
+  }
+};
+
 module.exports = {
   aiServiceClient,
   generateAiServiceToken,
+  generateDemoToken,
   checkAiServiceHealth,
+  getDetailedAiServiceHealth,
 };

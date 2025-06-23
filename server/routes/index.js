@@ -10,6 +10,12 @@ const healthRoutes = require("./health");
 
 const router = express.Router();
 
+// Development routes (only in development mode)
+if (process.env.NODE_ENV === "development") {
+  const devRoutes = require("./dev");
+  router.use("/api/dev", devRoutes);
+}
+
 // Mount new modular routes
 router.use("/api/v1", apiV1Routes);
 router.use("/webhooks", webhookRoutes);
@@ -33,6 +39,10 @@ router.get("/", (req, res) => {
       "API v1 Admin": "/api/v1/admin",
       Webhooks: "/webhooks",
       Health: "/health",
+      ...(process.env.NODE_ENV === "development" && {
+        "Development Docs": "/api/dev/docs",
+        "Demo Token": "/api/dev/demo-token",
+      }),
     },
   });
 });
