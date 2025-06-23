@@ -5,6 +5,7 @@ const express = require("express");
 
 // Import new modular routes
 const apiV1Routes = require("./api/v1");
+const apiInternalRoutes = require("./api/internal");
 const webhookRoutes = require("./webhooks");
 const healthRoutes = require("./health");
 
@@ -18,6 +19,7 @@ if (process.env.NODE_ENV === "development") {
 
 // Mount new modular routes
 router.use("/api/v1", apiV1Routes);
+router.use("/api/internal", apiInternalRoutes);
 router.use("/webhooks", webhookRoutes);
 router.use("/health", healthRoutes);
 
