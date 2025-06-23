@@ -99,23 +99,42 @@ module.exports = (app) => {
     }
     next();
   });
-
-  // Swagger (only in local/development)
+  // Modern Swagger Documentation System (FastAPI-like)
   if (process.env.NODE_ENV === "development") {
-    const swaggerOptions = {
-      definition: {
-        openapi: "3.0.0",
-        info: {
-          title: "DeployIO API Docs",
-          version: "1.0.0",
-          description: "API documentation for DeployIO MERN Template",
-        },
-        servers: [{ url: "/" }],
-      },
-      apis: ["./docs/*.js"],
-    };
+    const swaggerOptions = require("./swagger");
     const swaggerSpec = swaggerJsdoc(swaggerOptions);
-    app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+    // Custom CSS for better UI
+    const customCss = `
+      .swagger-ui .topbar { display: none; }
+      .swagger-ui .info { margin-bottom: 30px; }
+      .swagger-ui .info .title { font-size: 36px; color: #3b82f6; }
+      .swagger-ui .info .description { font-size: 16px; line-height: 1.6; }
+      .swagger-ui .scheme-container { background: #f8fafc; border: 1px solid #e2e8f0; }
+      .swagger-ui .opblock .opblock-summary { border-left: 4px solid #3b82f6; }
+      .swagger-ui .btn.authorize { background-color: #3b82f6; border-color: #3b82f6; }
+      .swagger-ui .btn.authorize:hover { background-color: #2563eb; }
+    `;
+
+    app.use(
+      "/api/v1/docs",
+      swaggerUi.serve,
+      swaggerUi.setup(swaggerSpec, {
+        customCss,
+        customSiteTitle: "DeployIO API Documentation",
+        customfavIcon: "/favicon.ico",
+        swaggerOptions: {
+          persistAuthorization: true,
+          displayRequestDuration: true,
+          docExpansion: "none",
+          filter: true,
+          showExtensions: true,
+          tryItOutEnabled: true,
+        },
+      })
+    );
+
+    logger.info("📚 Swagger documentation available at /api/v1/docs");
   } // Passport
   app.use(passport.initialize());
 

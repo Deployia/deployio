@@ -1,19 +1,22 @@
 /**
  * @swagger
- * tags:
- *   - name: Auth
- *     description: Authentication and user management
  *
- * /api/v1/auth/register:
+ * /api/v1/users/auth/register:
  *   post:
  *     summary: Register a new user
- *     tags: [Auth]
+ *     description: Create a new user account with email verification
+ *     tags: [Authentication]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/RegisterRequest'
+ *           example:
+ *             name: "John Doe"
+ *             email: "john@example.com"
+ *             password: "securePassword123"
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -21,361 +24,336 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               success: true
+ *               message: "User registered successfully. Please verify your email."
+ *               data:
+ *                 user:
+ *                   _id: "60d5ecb54b24a627f8b7c123"
+ *                   name: "John Doe"
+ *                   email: "john@example.com"
+ *                   role: "user"
+ *                   isEmailVerified: false
+ *                 token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       409:
+ *         description: User already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "User already exists with this email"
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
  *
- * /api/v1/auth/login:
+ * /api/v1/users/auth/login:
  *   post:
- *     summary: Login user
- *     tags: [Auth]
+ *     summary: User login
+ *     description: Authenticate user and receive JWT token
+ *     tags: [Authentication]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
+ *             $ref: '#/components/schemas/LoginRequest'
+ *           example:
+ *             email: "john@example.com"
+ *             password: "securePassword123"
  *     responses:
  *       200:
- *         description: User logged in successfully
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               success: true
+ *               message: "Login successful"
+ *               data:
+ *                 user:
+ *                   _id: "60d5ecb54b24a627f8b7c123"
+ *                   name: "John Doe"
+ *                   email: "john@example.com"
+ *                   role: "user"
+ *                   isEmailVerified: true
+ *                 token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Invalid email or password"
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
  *
- * /api/v1/auth/forgot-password:
+ * /api/v1/users/auth/forgot-password:
  *   post:
- *     summary: Send password reset email
- *     tags: [Auth]
+ *     summary: Request password reset
+ *     description: Send password reset email to user
+ *     tags: [Authentication]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [email]
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *           example:
+ *             email: "john@example.com"
  *     responses:
  *       200:
  *         description: Password reset email sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "Password reset email sent"
+ *               data: {}
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "No user found with this email"
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
  *
- * /api/v1/auth/reset-password/{token}:
+ * /api/v1/users/auth/reset-password/{token}:
  *   post:
- *     summary: Reset password using token
- *     tags: [Auth]
+ *     summary: Reset password
+ *     description: Reset user password using reset token
+ *     tags: [Authentication]
+ *     security: []
  *     parameters:
- *       - in: path
- *         name: token
- *         schema:
- *           type: string
+ *       - name: token
+ *         in: path
  *         required: true
  *         description: Password reset token
+ *         schema:
+ *           type: string
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [password]
  *             properties:
  *               password:
  *                 type: string
+ *                 minLength: 6
+ *                 description: New password
+ *           example:
+ *             password: "newSecurePassword123"
  *     responses:
  *       200:
  *         description: Password reset successful
- *
- * /api/v1/auth/logout:
- *   get:
- *     summary: Logout user
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: User logged out successfully
- *
- * /api/v1/auth/me:
- *   get:
- *     summary: Get current authenticated user
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Current user info
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/User'
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "Password reset successful"
+ *               data: {}
+ *       400:
+ *         description: Invalid or expired token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Invalid or expired reset token"
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
  *
- * /api/v1/auth/google:
+ * /api/v1/users/auth/verify-otp:
+ *   post:
+ *     summary: Verify OTP
+ *     description: Verify email using OTP code
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               otp:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 6
+ *           example:
+ *             email: "john@example.com"
+ *             otp: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "Email verified successfully"
+ *               data: {}
+ *       400:
+ *         description: Invalid OTP
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Invalid or expired OTP"
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *
+ * /api/v1/users/auth/resend-otp:
+ *   post:
+ *     summary: Resend OTP
+ *     description: Resend email verification OTP
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *           example:
+ *             email: "john@example.com"
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "OTP sent successfully"
+ *               data: {}
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *
+ * /api/v1/users/auth/logout:
  *   get:
- *     summary: Start Google OAuth login
- *     tags: [Auth]
+ *     summary: User logout
+ *     description: Logout user and invalidate token
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "Logout successful"
+ *               data: {}
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *
+ * /api/v1/users/auth/me:
+ *   get:
+ *     summary: Get current user
+ *     description: Get current authenticated user profile
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *             example:
+ *               success: true
+ *               message: "User profile retrieved"
+ *               data:
+ *                 _id: "60d5ecb54b24a627f8b7c123"
+ *                 name: "John Doe"
+ *                 email: "john@example.com"
+ *                 role: "user"
+ *                 isEmailVerified: true
+ *                 createdAt: "2021-06-25T10:30:00.000Z"
+ *                 updatedAt: "2021-06-25T10:30:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *
+ * /api/v1/users/auth/google:
+ *   get:
+ *     summary: Google OAuth login
+ *     description: Initiate Google OAuth authentication
+ *     tags: [Authentication]
+ *     security: []
  *     responses:
  *       302:
- *         description: Redirect to Google
+ *         description: Redirect to Google OAuth
  *
- * /api/v1/auth/google/callback:
+ * /api/v1/users/auth/google/callback:
  *   get:
  *     summary: Google OAuth callback
- *     tags: [Auth]
+ *     description: Handle Google OAuth callback
+ *     tags: [Authentication]
+ *     security: []
+ *     parameters:
+ *       - name: code
+ *         in: query
+ *         description: OAuth authorization code
+ *         schema:
+ *           type: string
+ *       - name: state
+ *         in: query
+ *         description: OAuth state parameter
+ *         schema:
+ *           type: string
  *     responses:
  *       302:
- *         description: Redirect to frontend after login
- *
- * /api/v1/auth/refresh-token:
- *   post:
- *     summary: Refresh JWT access token
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Access token refreshed
- *
- * /api/v1/auth/providers:
- *   get:
- *     summary: Get linked OAuth providers
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of linked providers
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 providers:
- *                   type: array
- *                   items:
- *                     type: string
- *
- * /api/v1/auth/unlink/{provider}:
- *   delete:
- *     summary: Unlink an OAuth provider
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: provider
- *         required: true
- *         schema:
- *           type: string
- *         description: OAuth provider name (e.g., google, github)
- *     responses:
- *       200:
- *         description: Provider unlinked successfully
- *
- * /api/v1/auth/sessions:
- *   get:
- *     summary: Get user sessions
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of user sessions
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 sessions:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       _id:
- *                         type: string
- *                       ip:
- *                         type: string
- *                       userAgent:
- *                         type: string
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *
- * /api/v1/auth/sessions/{sessionId}:
- *   delete:
- *     summary: Delete a user session
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: Session ID to delete
- *     responses:
- *       200:
- *         description: Session deleted successfully
- *
- * /api/v1/auth/2fa/generate:
- *   get:
- *     summary: Generate 2FA secret and QR code
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: 2FA secret generated
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 otpauthUrl:
- *                   type: string
- *                 base32:
- *                   type: string
- *
- * /api/v1/auth/2fa/enable:
- *   post:
- *     summary: Enable 2FA for user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               token:
- *                 type: string
- *               secret:
- *                 type: string
- *     responses:
- *       200:
- *         description: 2FA enabled successfully
- *
- * /api/v1/auth/2fa/verify:
- *   post:
- *     summary: Verify 2FA code during login
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               token:
- *                 type: string
- *               userId:
- *                 type: string
- *     responses:
- *       200:
- *         description: 2FA verification successful
- *
- * /api/v1/auth/2fa/disable:
- *   post:
- *     summary: Disable 2FA for user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: 2FA disabled successfully
- *
- * /api/v1/auth/2fa/status:
- *   get:
- *     summary: Get 2FA status for user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: 2FA status
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 enabled:
- *                   type: boolean
- *                 methods:
- *                   type: array
- *                   items:
- *                     type: string
- *
- * /api/v1/auth/2fa/backup-codes:
- *   post:
- *     summary: Generate new 2FA backup codes
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Backup codes generated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 codes:
- *                   type: array
- *                   items:
- *                     type: string
- *
- * components:
- *   schemas:
- *     User:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           description: The user ID
- *         username:
- *           type: string
- *         email:
- *           type: string
- *         googleId:
- *           type: string
- *           description: Google OAuth ID (if registered with Google)
- *         createdAt:
- *           type: string
- *           format: date-time
- *       required:
- *         - username
- *         - email
- *         - password
- *
- *     RegisterRequest:
- *       type: object
- *       properties:
- *         username:
- *           type: string
- *         email:
- *           type: string
- *         password:
- *           type: string
- *       required:
- *         - username
- *         - email
- *         - password
- *
- *     AuthResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *         user:
- *           $ref: '#/components/schemas/User'
+ *         description: Redirect to frontend with token
+ *       400:
+ *         description: OAuth authentication failed
  */
