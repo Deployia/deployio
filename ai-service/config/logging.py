@@ -16,12 +16,28 @@ def get_logging_config(debug: bool = False) -> Dict[str, Any]:
         "disable_existing_loggers": False,
         "formatters": {
             "default": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "()": "colorlog.ColoredFormatter",
+                "format": "%(asctime)s - %(name)s - %(log_color)s%(levelname)s%(reset)s - %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
+                "log_colors": {
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "bold_red,bg_white",
+                },
             },
             "access": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "()": "colorlog.ColoredFormatter",
+                "format": "%(asctime)s - %(name)s - %(log_color)s%(levelname)s%(reset)s - %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
+                "log_colors": {
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "bold_red,bg_white",
+                },
             },
         },
         "handlers": {
