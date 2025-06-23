@@ -49,12 +49,12 @@ class LLMResponseParser:
             # Validate JSON
             json.loads(json_text)  # This will raise an exception if invalid
 
-            logger.debug(f"Successfully cleaned JSON: {json_text[:200]}...")
+            # logger.debug(f"Successfully cleaned JSON: {json_text[:200]}...")
             return json_text
 
         except Exception as e:
-            logger.error(f"Failed to clean JSON response: {e}")
-            logger.error(f"Original response: {response_text[:500]}...")
+            logger.error(f"Failed to clean JSON response: {str(e)[:100]}")
+            logger.error(f"Original response: {response_text[:100]}...")
             return LLMResponseParser._create_fallback_json(response_text)
 
     @staticmethod
@@ -82,7 +82,7 @@ class LLMResponseParser:
             return json.dumps(pairs) if pairs else "{}"
 
         except Exception as e:
-            logger.error(f"Failed to extract key-value pairs: {e}")
+            logger.error(f"Failed to extract key-value pairs: {str(e)[:100]}")
             return "{}"
 
     @staticmethod
@@ -111,7 +111,7 @@ class LLMResponseParser:
             return json_text.strip()
 
         except Exception as e:
-            logger.error(f"Failed to fix JSON syntax: {e}")
+            logger.error(f"Failed to fix JSON syntax: {str(e)[:100]}")
             return json_text
 
     @staticmethod
@@ -129,8 +129,30 @@ class LLMResponseParser:
                 "framework": "unknown",
                 "confidence": 0.1,
                 "recommendations": [],
+                "suggestions": [],
+                "insights": [],
+                "null_field_explanations": {},
             }
         )
+
+    @staticmethod
+    def _normalize_suggestions(suggestions) -> list:
+        """Ensure suggestions is a list of dicts (objects)"""
+        if not suggestions:
+            return []
+        # If already a list of dicts, return as is
+        if all(isinstance(item, dict) for item in suggestions):
+            return suggestions
+        # If list of strings, wrap as dicts with 'suggestion' field
+        normalized = []
+        for item in suggestions:
+            if isinstance(item, dict):
+                normalized.append(item)
+            elif isinstance(item, str):
+                normalized.append({"suggestion": item})
+            else:
+                normalized.append({"suggestion": str(item)})
+        return normalized
 
     @staticmethod
     def parse_technology_detection(
@@ -181,23 +203,26 @@ class LLMResponseParser:
                 "deployment_strategy": LLMResponseParser._safe_get(
                     tech_data, "deployment_strategy", None
                 ),
-                # Include additional insights if present
+                # Always include these fields for consistency
                 "insights": LLMResponseParser._safe_get_list(data, "insights"),
+                "suggestions": LLMResponseParser._normalize_suggestions(
+                    data.get("suggestions", [])
+                ),
+                "recommendations": LLMResponseParser._safe_get_list(
+                    data, "recommendations"
+                ),
+                "null_field_explanations": LLMResponseParser._safe_get(
+                    data, "null_field_explanations", {}
+                ),
                 "evidence": LLMResponseParser._safe_get(data, "evidence", {}),
             }
 
             # Validate confidence range
             result["confidence"] = max(0.0, min(1.0, result["confidence"]))
 
-            logger.debug(f"Successfully parsed technology detection: {result}")
             return result
 
-        except Exception as e:
-            logger.error(f"Failed to parse technology detection: {e}")
-            logger.error(
-                f"FALLBACK TRIGGERED: Technology detection parsing failed - {str(e)}"
-            )
-
+        except Exception:
             # Return fallback data or minimal structure
             return fallback_data or {
                 "language": "unknown",
@@ -207,6 +232,11 @@ class LLMResponseParser:
                 "additional_technologies": [],
                 "reasoning": "Failed to parse LLM response",
                 "architecture_pattern": None,
+                "insights": [],
+                "suggestions": [],
+                "recommendations": [],
+                "null_field_explanations": {},
+                "evidence": {},
             }
 
     @staticmethod
@@ -234,7 +264,10 @@ class LLMResponseParser:
                 "additional_insights": LLMResponseParser._safe_get_list(
                     data, "additional_insights"
                 ),
-                "suggestions": LLMResponseParser._safe_get_list(data, "suggestions"),
+                "suggestions": LLMResponseParser._normalize_suggestions(
+                    data.get("suggestions", [])
+                ),
+                "insights": LLMResponseParser._safe_get_list(data, "insights"),
                 "confidence_boost": float(
                     LLMResponseParser._safe_get(data, "confidence_boost", 0.1)
                 ),
@@ -255,20 +288,21 @@ class LLMResponseParser:
             # Validate confidence boost range
             result["confidence_boost"] = max(0.0, min(0.5, result["confidence_boost"]))
 
-            logger.debug(
-                f"Successfully parsed optimization response: {len(result['recommendations'])} recommendations"
-            )
+            # logger.debug(
+            #     f"Successfully parsed optimization response: {len(result['recommendations'])} recommendations"
+            # )
             return result
 
         except Exception as e:
-            logger.error(f"Failed to parse optimization response: {e}")
+            logger.error(f"Failed to parse optimization response: {str(e)[:100]}")
             logger.error(
-                f"FALLBACK TRIGGERED: Optimization parsing failed - {str(e)}"
-            )  # Return fallback data or minimal structure
+                f"FALLBACK TRIGGERED: Optimization parsing failed - {str(e)[:100]}"
+            )
             return fallback_data or {
                 "recommendations": [],
                 "additional_insights": [],
                 "suggestions": [],
+                "insights": [],
                 "confidence_boost": 0.05,
                 "reasoning": "Failed to parse LLM optimization response",
                 "deployment_strategy": None,
@@ -313,6 +347,9 @@ class LLMResponseParser:
                     "architecture_pattern": LLMResponseParser._safe_get(
                         data.get("technology_stack", {}), "architecture_pattern", None
                     ),
+                    "deployment_strategy": LLMResponseParser._safe_get(
+                        data.get("technology_stack", {}), "deployment_strategy", None
+                    ),
                 },
                 "confidence": float(
                     LLMResponseParser._safe_get(data, "confidence", 0.5)
@@ -323,11 +360,18 @@ class LLMResponseParser:
                 "additional_insights": LLMResponseParser._safe_get_list(
                     data, "additional_insights"
                 ),
+                "insights": LLMResponseParser._safe_get_list(data, "insights"),
+                "suggestions": LLMResponseParser._normalize_suggestions(
+                    data.get("suggestions", [])
+                ),
                 "reasoning": LLMResponseParser._safe_get(
                     data, "reasoning", "Comprehensive LLM analysis"
                 ),
                 "confidence_boost": float(
                     LLMResponseParser._safe_get(data, "confidence_boost", 0.1)
+                ),
+                "null_field_explanations": LLMResponseParser._safe_get(
+                    data, "null_field_explanations", {}
                 ),
             }
 
@@ -335,14 +379,14 @@ class LLMResponseParser:
             result["confidence"] = max(0.0, min(1.0, result["confidence"]))
             result["confidence_boost"] = max(0.0, min(0.5, result["confidence_boost"]))
 
-            logger.debug("Successfully parsed comprehensive response")
+            # logger.debug("Successfully parsed comprehensive response")
             return result
 
         except Exception as e:
-            logger.error(f"Failed to parse comprehensive response: {e}")
-            logger.error(f"FALLBACK TRIGGERED: Comprehensive parsing failed - {str(e)}")
-
-            # Return fallback data or minimal structure
+            logger.error(f"Failed to parse comprehensive response: {str(e)[:100]}")
+            logger.error(
+                f"FALLBACK TRIGGERED: Comprehensive parsing failed - {str(e)[:100]}"
+            )
             return fallback_data or {
                 "technology_stack": {
                     "language": "unknown",
@@ -350,12 +394,16 @@ class LLMResponseParser:
                     "database": None,
                     "additional_technologies": [],
                     "architecture_pattern": None,
+                    "deployment_strategy": None,
                 },
                 "confidence": 0.1,
                 "recommendations": [],
                 "additional_insights": [],
+                "insights": [],
+                "suggestions": [],
                 "reasoning": "Failed to parse comprehensive LLM response",
                 "confidence_boost": 0.05,
+                "null_field_explanations": {},
             }
 
     @staticmethod
@@ -394,5 +442,5 @@ class LLMResponseParser:
                     return False
             return True
         except Exception as e:
-            logger.error(f"Failed to validate response structure: {e}")
+            logger.error(f"Failed to validate response structure: {str(e)[:100]}")
             return False

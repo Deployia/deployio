@@ -434,7 +434,9 @@ class AnalysisService:
             response_data.update(
                 {
                     "recommendations": result.recommendations or [],
-                    "suggestions": result.suggestions or [],
+                    "suggestions": self._normalize_suggestions_service(
+                        result.suggestions
+                    ),
                 }
             )  # Generate insights if requested
         if include_insights:
@@ -618,6 +620,31 @@ class AnalysisService:
                 response_data["confidence_level"] = "very_low"
 
         return response_data
+
+    def _normalize_suggestions_service(self, suggestions) -> list:
+        """Ensure suggestions is a list of dicts with expected fields for API response"""
+        if not suggestions:
+            return []
+        normalized = []
+        for item in suggestions:
+            if isinstance(item, dict):
+                # Only keep allowed fields
+                norm = {
+                    "type": item.get("type"),
+                    "priority": item.get("priority"),
+                    "suggestion": item.get("suggestion")
+                    or item.get("title")
+                    or str(item),
+                    "reason": item.get("reason") or item.get("description"),
+                }
+                # Remove None fields
+                norm = {k: v for k, v in norm.items() if v is not None}
+                normalized.append(norm)
+            elif isinstance(item, str):
+                normalized.append({"suggestion": item})
+            else:
+                normalized.append({"suggestion": str(item)})
+        return normalized
 
 
 # Singleton instance for use across the application

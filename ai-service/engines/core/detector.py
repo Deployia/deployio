@@ -3,7 +3,6 @@ Main Detection Engine - Orchestrates all analysis operations
 Clean, modular, and highly accurate detection system
 """
 
-import asyncio
 import logging
 import time
 from typing import Dict, List
@@ -121,45 +120,29 @@ class UnifiedDetectionEngine:
             )
 
             if enhancement and enhancement.llm_enhanced:
-                # Merge LLM-generated insights into combined_result
-                # Core fields: Use LLM data if confidence is higher, otherwise keep rule-based
-                llm_confidence = (
-                    getattr(enhancement.enhanced_stack, "confidence", 0) or 0
+                # Always use LLM-enhanced stack and fields if available
+                logger.info(
+                    f"Using LLM technology stack (confidence: {getattr(enhancement.enhanced_stack, 'confidence', 0):.2f})"
                 )
-                if llm_confidence > combined_result.confidence_score:
-                    logger.info(
-                        f"Using LLM technology stack (confidence: {llm_confidence:.2f} > {combined_result.confidence_score:.2f})"
-                    )
-                    combined_result.technology_stack = enhancement.enhanced_stack
-                else:
-                    logger.info(
-                        f"Keeping rule-based technology stack (confidence: {combined_result.confidence_score:.2f} >= {llm_confidence:.2f})"
-                    )
-
-                # Update overall confidence with boost
-                combined_result.confidence_score = min(
-                    combined_result.confidence_score + enhancement.confidence_boost,
-                    1.0,
+                combined_result.technology_stack = enhancement.enhanced_stack
+                combined_result.confidence_score = (
+                    getattr(enhancement.enhanced_stack, "confidence", 0.0) or 0.0
                 )
                 combined_result.llm_used = True
                 combined_result.analysis_approach = "llm_enhanced"
-
-                # Enhancement fields: ONLY from LLM (no fallbacks)
                 combined_result.recommendations = enhancement.recommendations
                 combined_result.suggestions = getattr(enhancement, "suggestions", [])
                 combined_result.llm_reasoning = enhancement.reasoning
-                combined_result.llm_confidence = llm_confidence
-
-                # Store LLM insights and null explanations if available
-                if hasattr(enhancement, "insights"):
-                    combined_result.insights = enhancement.insights
-                if hasattr(enhancement, "null_field_explanations"):
-                    combined_result.llm_null_explanations = (
-                        enhancement.null_field_explanations
-                    )
-
+                combined_result.llm_confidence = (
+                    getattr(enhancement.enhanced_stack, "confidence", 0.0) or 0.0
+                )
+                combined_result.insights = getattr(enhancement, "insights", [])
+                combined_result.llm_null_explanations = getattr(
+                    enhancement, "null_field_explanations", {}
+                )
+                # Dependency analysis and related metrics always come from analyzer
                 logger.info(
-                    f"LLM enhancement completed - confidence boost: {enhancement.confidence_boost}"
+                    f"LLM enhancement completed - confidence: {combined_result.confidence_score}"
                 )
             else:
                 logger.warning("LLM enhancement failed - using rule-based results only")

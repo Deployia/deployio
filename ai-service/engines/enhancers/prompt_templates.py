@@ -18,40 +18,78 @@ class PromptTemplates:
 
         Returns:
             Formatted prompt for enhanced technology detection
-        """
-        current_analysis = context.get("current_analysis", {})
-        key_files = context.get("key_files", {})
+        """  # Extract data from the correct context structure
+        rule_based = context.get("rule_based_analysis", {})
+        stack_detection = rule_based.get("stack_detection", {})
+        dependency_analysis = rule_based.get("dependency_analysis", {})
+        file_previews = context.get("file_previews", {})
+        repository_info = context.get("repository_info", {})
+        detected_files = context.get("detected_files", [])
 
         # Build file content section
         file_content = ""
-        for filename, content in key_files.items():
-            file_content += f"\n--- {filename} ---\n{content[:1500]}\n"
+        if file_previews:
+            for filename, content in file_previews.items():
+                file_content += f"\n--- {filename} ---\n{content[:1500]}\n"
+        else:
+            file_content = "No file previews available - analysis based on dependency and metadata detection."
+
+        # Add detected files information for context
+        detected_files_info = ""
+        if detected_files:
+            detected_files_info = f"""
+DETECTED PROJECT FILES:
+{detected_files[:15]}  # Show first 15 files
+Total Files Detected: {len(detected_files)}
+"""
+
+        # Build dependency summary
+        dependency_summary = ""
+        if dependency_analysis:
+            total_deps = dependency_analysis.get("total_dependencies", 0)
+            package_managers = dependency_analysis.get("package_managers", [])
+            dependencies = dependency_analysis.get("dependencies", [])
+
+            dependency_summary = f"""
+DEPENDENCY ANALYSIS DETECTED:
+- Total Dependencies: {total_deps}
+- Package Managers: {package_managers}
+- Key Dependencies: {[dep.get('name', '') for dep in dependencies[:10] if isinstance(dep, dict)]}
+- Dependency Categories: {dependency_analysis.get('dependency_categories', {})}
+"""
 
         prompt = f"""
 You are an expert software architect with deep knowledge of technology stacks, frameworks, and development patterns. 
 
 CONTEXT:
-Repository URL: {context.get('repository_url', 'unknown')}
+Repository URL: {repository_info.get('url', 'unknown')}
+Branch: {repository_info.get('branch', 'main')}
 
-Current Rule-Based Analysis:
-- Language: {current_analysis.get('language', 'unknown')}
-- Framework: {current_analysis.get('framework', 'unknown')}
-- Confidence: {current_analysis.get('confidence', 0):.2f}
-- Detected Technologies: {current_analysis.get('detected_technologies', [])}
+CURRENT RULE-BASED ANALYSIS:
+- Language: {stack_detection.get('language', 'unknown')}
+- Framework: {stack_detection.get('framework', 'unknown')}
+- Package Manager: {stack_detection.get('package_manager', 'unknown')}
+- Build Tool: {stack_detection.get('build_tool', 'unknown')}
+- Confidence: {rule_based.get('confidence_score', 0):.2f}
+- Additional Technologies: {stack_detection.get('additional_technologies', [])}
 
-Repository Files Analysis:
+{dependency_summary}
+
+{detected_files_info}
+
+REPOSITORY FILES ANALYSIS:
 {file_content}
 
-TASK:
-Analyze the repository comprehensively and provide enhanced technology detection with detailed reasoning.
+IMPORTANT: Even if file content is limited, you have comprehensive dependency analysis data and file structure information above. Use this data to provide meaningful insights and reasoning.
 
 ANALYSIS REQUIREMENTS:
 1. **Primary Technology Stack**: Identify the main language, framework, and architecture
 2. **Secondary Technologies**: Detect supporting tools, libraries, and services
 3. **Architecture Pattern**: Determine the architectural approach (MVC, microservices, serverless, etc.)
-4. **Deployment Strategy**: Identify containerization, cloud services, and deployment tools
+4. **Deployment Strategy**: Identify containerization, cloud services, and deployment tools  
 5. **Confidence Assessment**: Rate confidence based on evidence strength
-6. **Missing Information**: Explain why certain fields might be null or uncertain
+6. **Meaningful Insights**: Generate insights based on detected dependencies and patterns - DO NOT say files are empty
+7. **Actionable Recommendations**: Provide specific suggestions based on detected technologies
 
 RESPONSE FORMAT:
 Respond with ONLY valid JSON in this exact format:
@@ -114,7 +152,11 @@ GUIDELINES:
 - Consider version patterns and compatibility
 - Account for monorepo or multi-service architectures
 """
-        return prompt.strip()
+        return prompt.strip() @ staticmethod
+
+    def get_technology_detection_prompt(context: Dict[str, Any]) -> str:
+        """Alias for get_enhanced_technology_detection_prompt for backward compatibility"""
+        return PromptTemplates.get_enhanced_technology_detection_prompt(context)
 
     @staticmethod
     def get_optimization_prompt(context: Dict[str, Any]) -> str:
@@ -130,58 +172,86 @@ GUIDELINES:
         tech_data = context.get("technology_data", {})
         original_analysis = context.get("original_analysis", {})
 
-        prompt = f"""
-You are an expert DevOps engineer providing optimization recommendations for a software project.
+        # Get detected dependencies and files for more context
+        detected_files = original_analysis.get("detected_files", [])
+        dependency_info = ""
 
-Detected Technology Stack:
+        if tech_data.get("additional_technologies"):
+            dependency_info = f"Additional Technologies Detected: {tech_data.get('additional_technologies', [])}"
+
+        prompt = f"""
+You are an expert DevOps engineer and software architect providing optimization recommendations for a software project.
+
+DETECTED TECHNOLOGY STACK:
 - Language: {tech_data.get('language', 'unknown')}
 - Framework: {tech_data.get('framework', 'unknown')}
 - Database: {tech_data.get('database', 'none')}
 - Architecture: {tech_data.get('architecture_pattern', 'unknown')}
-- Additional Technologies: {tech_data.get('additional_technologies', [])}
+- Build Tool: {tech_data.get('build_tool', 'unknown')}
+- Package Manager: {tech_data.get('package_manager', 'unknown')}
+{dependency_info}
 
-Current Confidence: {original_analysis.get('confidence', 0)}
+DETECTED PROJECT FILES:
+{detected_files[:10]}
 
-Your task is to provide optimization recommendations and insights:
-1. Best practices for the detected technology stack
-2. Performance optimization suggestions
-3. Security recommendations
-4. Deployment strategy recommendations
-5. Additional tools and technologies that would benefit this project
+ANALYSIS CONTEXT:
+- Current Confidence: {original_analysis.get('confidence', 0):.2f}
+- Detection Method: {tech_data.get('detection_method', 'rule_based')}
+
+TASK: Based on the detected technology stack and project structure, provide comprehensive optimization recommendations and actionable insights.
+
+FOCUS AREAS:
+1. Technology-specific best practices and optimizations
+2. Performance improvements for the detected stack
+3. Security recommendations based on the technologies used
+4. Development workflow and tooling suggestions
+5. Deployment and infrastructure recommendations
+6. Code quality and maintainability improvements
+
+IMPORTANT: Generate meaningful, actionable insights based on the ACTUAL detected technologies. Do not provide generic advice.
 
 Respond with ONLY valid JSON in this exact format:
 {{
     "recommendations": [
         {{
-            "type": "performance|security|deployment|monitoring|testing",
+            "type": "performance|security|deployment|monitoring|testing|tooling",
             "priority": "high|medium|low", 
-            "suggestion": "Specific actionable recommendation",
-            "reason": "Why this is important"
+            "suggestion": "Specific actionable recommendation based on detected tech stack",
+            "reason": "Why this is important for this specific technology combination"
         }}
     ],
-    "additional_insights": [
-        "Insight 1 about the codebase",
-        "Insight 2 about architecture"
+    "insights": [
+        {{
+            "category": "architecture|performance|security|development|deployment",
+            "title": "Specific insight title",
+            "description": "Detailed insight based on detected technologies",
+            "reasoning": "Why this insight is relevant to the detected stack",
+            "confidence": 0.8,
+            "evidence": ["Evidence from detected technologies"]
+        }}
     ],
     "suggestions": [
         {{
-            "type": "optimization|best_practice|tooling|architecture",
+            "type": "optimization|best_practice|tooling|architecture|security",
             "priority": "high|medium|low",
-            "suggestion": "Specific improvement suggestion",
-            "reason": "Benefits and justification"
+            "suggestion": "Specific improvement suggestion for this tech stack",
+            "reason": "Benefits and justification based on detected technologies"
         }}
     ],
     "confidence_boost": 0.15,
-    "reasoning": "Detailed explanation of analysis approach, confidence factors, and key findings that led to recommendations",
-    "deployment_strategy": "recommended_deployment_approach",
-    "best_practices": ["practice1", "practice2"],
+    "reasoning": "Comprehensive analysis of the detected technology stack shows [specific analysis based on actual detected technologies]. Recommendations focus on [specific areas relevant to the stack].",
     "null_field_explanations": {{
-        "field_name": "Explanation for why field is null or missing"
+        "database": "No database configuration detected - this appears to be a frontend-only or API-only project",
+        "testing_framework": "No testing dependencies found - recommend adding testing infrastructure"
     }}
 }}
 
-Confidence boost should be 0.0-0.3 based on how much the analysis adds clarity.
-Focus on actionable, technology-specific recommendations.
+GUIDELINES:
+- Confidence boost should be 0.05-0.25 based on clarity added
+- Focus on technology-specific, actionable recommendations
+- Generate insights that leverage the detected technology combination
+- Provide explanations for any missing or null fields
+- Base all suggestions on the actual detected technologies, not generic advice
 """
         return prompt.strip()
 
@@ -197,12 +267,17 @@ Focus on actionable, technology-specific recommendations.
             Formatted prompt for comprehensive analysis
         """
         current_analysis = context.get("current_analysis", {})
+        # Support both 'key_files' and 'file_previews' for robustness
         key_files = context.get("key_files", {})
+        if not key_files:
+            key_files = context.get("file_previews", {})
 
         # Build file content section
         file_content = ""
         for filename, content in key_files.items():
             file_content += f"\n--- {filename} ---\n{content[:800]}\n"
+        if not file_content:
+            file_content = "No file content available."
 
         prompt = f"""
 You are an expert software architect and DevOps engineer analyzing a repository.
@@ -238,12 +313,32 @@ Respond with ONLY valid JSON in this exact format:
             "reason": "Justification"
         }}
     ],
+    "insights": [
+        {{
+            "category": "detection|architecture|performance|security|development|deployment",
+            "title": "Insight title",
+            "description": "Detailed insight based on detected technologies",
+            "reasoning": "Why this insight is relevant",
+            "confidence": 0.8,
+            "evidence": ["Evidence from files or patterns"]
+        }}
+    ],
+    "suggestions": [
+        {{
+            "type": "optimization|best_practice|tooling|architecture|security",
+            "priority": "high|medium|low",
+            "suggestion": "Specific improvement suggestion",
+            "reason": "Benefits and justification"
+        }}
+    ],
     "additional_insights": ["insight1", "insight2"],
     "reasoning": "Analysis explanation",
     "confidence_boost": 0.15
 }}
 
-Be accurate, evidence-based, and provide actionable recommendations.
+GUIDELINES:
+- Always include at least one entry in both 'insights' and 'suggestions' arrays, based on the repository files and detected stack.
+- Be accurate, evidence-based, and provide actionable recommendations.
 """
         return prompt.strip()
 
@@ -292,8 +387,28 @@ Respond with ONLY valid JSON in this exact format:
     ],
     "strengths": ["strength1", "strength2"],
     "recommendations": ["improvement1", "improvement2"],
-    "complexity_assessment": "low|medium|high"
+    "complexity_assessment": "low|medium|high",
+    "insights": [{{
+        "category": "quality|structure|performance|security|style",
+        "title": "Insight title",
+        "description": "Detailed insight based on code analysis",
+        "reasoning": "Why this insight is relevant",
+        "confidence": 0.8,
+        "evidence": ["Evidence from code"]
+    }}],
+    "suggestions": [
+        "Specific suggestion for code quality improvement 1",
+        "Specific suggestion for code quality improvement 2"
+    ],
+    "null_field_explanations": {{
+        "issues": "Explain if no issues found",
+        "recommendations": "Explain if no recommendations",
+        "insights": "Explain if no insights",
+        "suggestions": "Explain if no suggestions"
+    }}
 }}
+
+ALL FIELDS above must be present in the response, even if empty.
 
 Focus on constructive feedback and actionable improvements.
 """
@@ -378,3 +493,70 @@ Focus on practical, implementable security improvements.
             return all(key in context for key in required_keys)
         except Exception:
             return False
+
+    @staticmethod
+    def get_dependency_analysis_prompt(context: Dict[str, Any]) -> str:
+        """
+        Build prompt for dependency analysis
+
+        Args:
+            context: Dependency analysis context
+
+        Returns:
+            Formatted prompt for dependency analysis
+        """
+        dependencies = context.get("dependencies", [])
+        package_managers = context.get("package_managers", [])
+        file_content = context.get("file_content", "")
+
+        prompt = f"""
+You are a software dependency expert analyzing a project's dependencies and package management.
+
+Detected Dependencies:
+{dependencies[:10]}
+
+Package Managers:
+{package_managers}
+
+File Content (truncated):
+{file_content[:1200]}
+
+Analyze the dependency structure, risks, and opportunities for improvement.
+
+Respond with ONLY valid JSON in this exact format:
+{{
+    "dependency_score": 0.8,
+    "package_managers": ["npm", "pip"],
+    "dependencies": [{{
+        "name": "dependency_name",
+        "version": "x.y.z",
+        "category": "runtime|dev|peer|optional",
+        "risk": "low|medium|high",
+        "reason": "Why this risk level"
+    }}],
+    "recommendations": ["recommendation1", "recommendation2"],
+    "insights": [{{
+        "category": "dependency|security|maintenance",
+        "title": "Insight title",
+        "description": "Detailed insight based on dependencies",
+        "reasoning": "Why this insight is relevant",
+        "confidence": 0.8,
+        "evidence": ["Evidence from dependencies"]
+    }}],
+    "suggestions": [
+        "Specific suggestion for dependency management 1",
+        "Specific suggestion for dependency management 2"
+    ],
+    "null_field_explanations": {{
+        "dependencies": "Explain if no dependencies found",
+        "recommendations": "Explain if no recommendations",
+        "insights": "Explain if no insights",
+        "suggestions": "Explain if no suggestions"
+    }}
+}}
+
+ALL FIELDS above must be present in the response, even if empty.
+
+Focus on actionable, evidence-based dependency management improvements.
+"""
+        return prompt.strip()

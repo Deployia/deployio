@@ -67,6 +67,13 @@ class InsightModel(BaseModel):
     tags: List[str] = []
 
 
+class SuggestionModel(BaseModel):
+    type: Optional[str] = None
+    priority: Optional[str] = None
+    suggestion: str
+    reason: Optional[str] = None
+
+
 class AnalysisResponse(BaseModel):
     # Basic information
     repository_url: str
@@ -80,7 +87,7 @@ class AnalysisResponse(BaseModel):
     technology_stack: Dict
     detected_files: List[str]
     recommendations: List[Dict]
-    suggestions: List[str]
+    suggestions: List[SuggestionModel]
 
     # Insights
     insights: List[InsightModel] = []
@@ -125,7 +132,7 @@ class CodeQualityResponse(BaseModel):
     confidence_level: str
     quality_metrics: Dict
     recommendations: List[Dict]
-    suggestions: List[str]
+    suggestions: List[SuggestionModel]
     insights: List[InsightModel] = []
     reasoning: str = ""
     null_field_explanations: Dict[str, str] = {}
@@ -141,7 +148,7 @@ class DependencyAnalysisResponse(BaseModel):
     confidence_level: str
     dependency_analysis: Dict
     recommendations: List[Dict]
-    suggestions: List[str]
+    suggestions: List[SuggestionModel]
     insights: List[InsightModel] = []
     reasoning: str = ""
     null_field_explanations: Dict[str, str] = {}

@@ -68,7 +68,7 @@ class LLMEnhancer:
     async def enhance_analysis(
         self,
         analysis_result: AnalysisResult,
-        repository_files: Dict[str, str],
+        repository_data: Dict[str, Any],
         enhancement_type: str = "comprehensive",
     ) -> LLMEnhancementResult:
         """
@@ -76,15 +76,18 @@ class LLMEnhancer:
 
         Args:
             analysis_result: Current analysis results
-            repository_files: Repository file contents
-            enhancement_type: Type of enhancement (three_step, comprehensive, etc.)
-
-        Returns:
+            repository_data: Full repository data structure from GitHub client
+            enhancement_type: Type of enhancement (three_step, comprehensive, etc.)        Returns:
             LLMEnhancementResult with enhanced analysis
         """
         try:
             logger.info(
                 f"Starting modular LLM enhancement for {analysis_result.repository_url}"
+            )
+
+            # Extract repository files from repository_data structure
+            repository_files = (
+                repository_data.get("key_files", {}) if repository_data else {}
             )
 
             # Check if LLM services are available
@@ -260,9 +263,9 @@ class LLMEnhancer:
                 response.content, fallback_data
             )
 
-            logger.debug(
-                f"Technology detection successful: {tech_data.get('language')} / {tech_data.get('framework')}"
-            )
+            # logger.debug(
+            #     f"Technology detection successful: {tech_data.get('language')} / {tech_data.get('framework')}"
+            # )
             return tech_data
 
         except Exception as e:
@@ -303,9 +306,9 @@ class LLMEnhancer:
                 response.content
             )
 
-            logger.debug(
-                f"Optimization insights generated: {len(optimization_data.get('recommendations', []))} recommendations"
-            )
+            # logger.debug(
+            #     f"Optimization insights generated: {len(optimization_data.get('recommendations', []))} recommendations"
+            # )
             return optimization_data
         except Exception as e:
             logger.error(f"Optimization insights generation failed: {e}")
@@ -352,6 +355,7 @@ class LLMEnhancer:
             if any(imp_file in file_lower for imp_file in important_files):
                 # Limit content size for context window (increased for better analysis)
                 key_files[filename] = content[:3000]
+        logger.info(f"Key files for LLM prompt: {list(key_files.keys())}")
 
         # Extract full analyzer context
         stack_context = {}
@@ -490,8 +494,11 @@ class LLMEnhancer:
         self, analysis_result: AnalysisResult, parsed_data: Dict[str, Any]
     ) -> LLMEnhancementResult:
         """Create enhancement result from comprehensive analysis"""
-        tech_stack_data = parsed_data.get("technology_stack", {})
+        # # Log the parsed LLM response for debugging
+        # logger.debug(f"Parsed LLM response: {parsed_data}")
 
+        tech_stack_data = parsed_data.get("technology_stack", {})
+        # Always prefer LLM's detected values if present
         enhanced_stack = TechnologyStack(
             language=tech_stack_data.get(
                 "language", analysis_result.technology_stack.language
@@ -504,9 +511,30 @@ class LLMEnhancer:
             ),
             additional_technologies=tech_stack_data.get("additional_technologies", []),
             architecture_pattern=tech_stack_data.get("architecture_pattern"),
+            deployment_strategy=tech_stack_data.get("deployment_strategy", None),
+            confidence=parsed_data.get("confidence", 0.0),
         )
 
         confidence_boost = max(0, min(0.4, parsed_data.get("confidence_boost", 0.1)))
+
+        # Null field explanations: if a field is null but mentioned in reasoning, add an explanation
+        null_field_explanations = parsed_data.get("null_field_explanations", {})
+        for field_name in ["database", "architecture_pattern", "deployment_strategy"]:
+            if getattr(enhanced_stack, field_name, None) is None:
+                # Try to extract explanation from reasoning if available
+                reasoning = parsed_data.get("reasoning", "")
+                if (
+                    field_name in reasoning.lower()
+                    and field_name not in null_field_explanations
+                ):
+                    null_field_explanations[field_name] = (
+                        "Mentioned in reasoning but not detected in files."
+                    )
+
+        # Log the final merged result for debugging
+        # logger.debug(
+        #     f"Final merged enhancement result: stack={enhanced_stack}, insights={parsed_data.get('insights', [])}, suggestions={parsed_data.get('suggestions', [])}"
+        # )
 
         return LLMEnhancementResult(
             enhanced_stack=enhanced_stack,
@@ -514,6 +542,9 @@ class LLMEnhancer:
             reasoning=parsed_data.get("reasoning", "Comprehensive LLM analysis"),
             additional_insights=parsed_data.get("additional_insights", []),
             recommendations=parsed_data.get("recommendations", []),
+            suggestions=parsed_data.get("suggestions", []),
+            insights=parsed_data.get("insights", []),
+            null_field_explanations=null_field_explanations,
             llm_enhanced=True,
         )
 
