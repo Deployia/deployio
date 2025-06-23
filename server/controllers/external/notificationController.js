@@ -1,5 +1,5 @@
-const notificationService = require("../services/notification/notificationService");
-const logger = require("../config/logger");
+const notificationService = require("@services/notification/notificationService");
+const logger = require("@config/logger");
 const { validationResult } = require("express-validator");
 
 /**
@@ -336,7 +336,7 @@ const sendImmediateNotification = async (req, res) => {
 const getNotificationPreferences = async (req, res) => {
   try {
     const userId = req.user.id;
-    const userService = require("../services/user/userService");
+    const userService = require("../../services/user/userService");
 
     const preferences = await userService.getNotificationPreferences(userId);
 
@@ -374,7 +374,7 @@ const updateNotificationPreferences = async (req, res) => {
 
     const userId = req.user.id;
     const preferences = req.body;
-    const userService = require("../services/user/userService");
+    const userService = require("../../services/user/userService");
 
     const updatedPreferences = await userService.updateNotificationPreferences(
       userId,
@@ -417,7 +417,7 @@ const registerPushToken = async (req, res) => {
     const userId = req.user.id;
     const { token, platform, deviceId } = req.body;
 
-    const pushChannel = require("../services/notification/channels/pushChannel");
+    const pushChannel = require("../../services/notification/channels/pushChannel");
     const result = await pushChannel.registerPushToken(
       userId,
       token,
@@ -461,7 +461,7 @@ const unregisterPushToken = async (req, res) => {
     const userId = req.user.id;
     const { deviceId } = req.body;
 
-    const pushChannel = require("../services/notification/channels/pushChannel");
+    const pushChannel = require("../../services/notification/channels/pushChannel");
     const result = await pushChannel.unregisterPushToken(userId, deviceId);
 
     res.json({

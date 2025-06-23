@@ -1,7 +1,7 @@
 const express = require("express");
 const { body, query } = require("express-validator");
-const { protect } = require("../../../../middleware/authMiddleware");
-const notificationController = require("../../../../controllers/notificationController");
+const { protect } = require("@middleware/authMiddleware");
+const notificationController = require("@controllers/external/notificationController");
 
 const router = express.Router();
 
