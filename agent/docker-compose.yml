@@ -26,9 +26,6 @@ services:
   # DeployIO Agent API
   deployio-agent:
     image: ${ECR_IMAGE:-deployio-agent:local}
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: deployio-agent
     restart: unless-stopped
     env_file:
