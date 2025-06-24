@@ -21,8 +21,12 @@ RUN adduser -S deployio -u 1001
 RUN chown -R deployio:nodejs /app
 USER deployio
 
-# Create the /app/logs directory
-RUN mkdir -p /app/logs && chown -R node:node /app/logs
+# Temporarily switch to root to create and set permissions for /app/logs
+USER root
+RUN mkdir -p /app/logs && chown -R deployio:nodejs /app/logs
+
+# Switch back to non-root user
+USER deployio
 
 # Expose port
 EXPOSE 3000
