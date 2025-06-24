@@ -26,6 +26,8 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         docs_url="/service/v1/docs",
         redoc_url="/service/v1/redoc",
+        openapi_url="/service/v1/openapi.json",
+        openapi_version="3.0.3",  # Explicitly set OpenAPI version
     )
 
     # Add security middleware
