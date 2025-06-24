@@ -20,7 +20,11 @@ import {
   createApiKey,
   deleteApiKey,
   fetchApiKeys,
-} from "@redux/slices/userSlice";
+  selectApiKeys,
+  selectApiKeyLoading,
+  selectNewlyCreatedKey,
+  clearNewlyCreatedKey,
+} from "@redux/slices/apiKeySlice";
 import { fetchProviders } from "@redux/slices/authSlice";
 import { get2FAStatus } from "@redux/slices/twoFactorSlice";
 import { useModal } from "@context/ModalContext";
@@ -34,18 +38,20 @@ import {
 
 const SecurityTab = () => {
   const dispatch = useDispatch();
-  const { openModal, closeModal } = useModal();
-  // Get all required data from Redux state
+  const { openModal, closeModal } = useModal(); // Get all required data from Redux state
   const { user: authUser, providers: linkedProviders } = useSelector(
     (state) => state.auth
   );
-  const { apiKeys } = useSelector((state) => state.userProfile);
+  const apiKeys = useSelector(selectApiKeys);
+  const apiKeyLoading = useSelector(selectApiKeyLoading);
+  const newlyCreatedKey = useSelector(selectNewlyCreatedKey);
   const { twoFactorEnabled } = useSelector((state) => state.twoFactor); // Local state
   const [showCreateApiKey, setShowCreateApiKey] = useState(false);
   const [newApiKeyName, setNewApiKeyName] = useState("");
   const [generatedApiKey, setGeneratedApiKey] = useState(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+  // Compute loading states
+  const isCreatingKey = apiKeyLoading.create;
 
   // Calculate security score using utility
   const securityScore = calculateSecurityScore({
@@ -71,7 +77,18 @@ const SecurityTab = () => {
       }
     };
     loadData();
-  }, [dispatch]);
+  }, [dispatch]); // Check for newly created key and handle display
+  useEffect(() => {
+    if (newlyCreatedKey) {
+      setGeneratedApiKey(newlyCreatedKey.key || newlyCreatedKey.fullKey);
+      // Clear the newly created key from Redux after displaying
+      const timer = setTimeout(() => {
+        dispatch(clearNewlyCreatedKey());
+      }, 30000); // Clear after 30 seconds for security
+
+      return () => clearTimeout(timer);
+    }
+  }, [newlyCreatedKey, dispatch]);
   const generateApiKey = async () => {
     if (!newApiKeyName.trim()) {
       toast.error("Please enter a name for the API key");
@@ -79,10 +96,8 @@ const SecurityTab = () => {
     }
 
     try {
-      setIsGeneratingKey(true);
       const result = await dispatch(createApiKey({ name: newApiKeyName }));
       if (createApiKey.fulfilled.match(result)) {
-        setGeneratedApiKey(result.payload.key);
         setNewApiKeyName("");
         setShowCreateApiKey(false);
         toast.success("API key generated successfully");
@@ -92,8 +107,6 @@ const SecurityTab = () => {
       }
     } catch {
       toast.error("Failed to generate API key");
-    } finally {
-      setIsGeneratingKey(false);
     }
   };
   const handleDeleteApiKey = (keyId, keyName) => {
@@ -309,10 +322,10 @@ const SecurityTab = () => {
                   {" "}
                   <button
                     onClick={generateApiKey}
-                    disabled={isGeneratingKey || !newApiKeyName.trim()}
+                    disabled={isCreatingKey || !newApiKeyName.trim()}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
-                    {isGeneratingKey ? (
+                    {isCreatingKey ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                         <span>Generating...</span>

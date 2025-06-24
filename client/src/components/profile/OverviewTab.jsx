@@ -16,23 +16,23 @@ import {
 import {
   fetchUserActivity,
   fetchDashboardStats,
-  fetchApiKeys,
 } from "@redux/slices/userSlice";
 import { fetchProviders } from "@redux/slices/authSlice";
+import { fetchApiKeys, selectApiKeys } from "@redux/slices/apiKeySlice";
 import LoadingState from "./LoadingState";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
 import { calculateSecurityScore } from "@utils/securityScore";
 
 const OverviewTab = () => {
   const dispatch = useDispatch();
-
   // Get data from Redux state
   const { user: authUser, providers: linkedProviders } = useSelector(
     (state) => state.auth
   );
-  const { activities, dashboardStats, apiKeys } = useSelector(
+  const { activities, dashboardStats } = useSelector(
     (state) => state.userProfile
   );
+  const apiKeys = useSelector(selectApiKeys);
   const { twoFactorEnabled } = useSelector((state) => state.twoFactor);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true); // Load overview data on mount

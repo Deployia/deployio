@@ -1,8 +1,7 @@
-import { store } from "@redux/store";
-import { logUserActivity } from "@redux/slices/userSlice";
+import api from "@utils/api";
 
 /**
- * Activity Logger Utility
+ * Activity Logger Utility - Updated to use AuditLog system
  * Provides easy integration for automatic activity logging throughout the application
  */
 class ActivityLogger {
@@ -12,101 +11,108 @@ class ActivityLogger {
     }
     return ActivityLogger.instance;
   }
+
   /**
-   * Log a user activity
-   * @param {string} action - The action performed
-   * @param {string} type - The type of activity (auth, security, profile, system)
-   * @param {string|object} details - Additional details about the activity
-   * @returns {Promise} - The dispatch promise
+   * Log a user activity using the AuditLog system
+   * @param {string} action - The action performed (e.g., "user.login", "security.api_key_created")
+   * @param {object} details - Additional details about the activity
+   * @param {string} type - Legacy type field for backward compatibility
+   * @returns {Promise} - The API call promise
    */
-  log(action, type = "system", details = null) {
+  async log(action, details = {}, type = "system") {
     try {
       const activityData = {
         action,
-        type,
-        details:
-          typeof details === "string" ? details : JSON.stringify(details),
-        timestamp: new Date().toISOString(),
+        details: typeof details === "object" ? details : { note: details },
+        type, // For backward compatibility with existing controller
+        ip: this.getClientIP(),
       };
 
-      // Dispatch to Redux store and return the promise
-      return store.dispatch(logUserActivity(activityData));
+      // Use the correct AuditLog endpoint
+      const response = await api.post("/users/activity", activityData);
+      return response.data.activity;
     } catch (error) {
       console.warn("Failed to log activity:", error);
-      return Promise.reject(error);
+      throw error;
     }
   }
-  // Convenience methods for different activity types
-  auth(action, details = null) {
-    return this.log(action, "auth", details);
+
+  /**
+   * Get client IP (best effort from available sources)
+   */
+  getClientIP() {
+    // In browser environment, we can't directly get IP
+    // The server will use req.ip as fallback
+    return undefined;
   }
 
-  security(action, details = null) {
-    return this.log(action, "security", details);
+  // Convenience methods for different activity types with proper action naming
+  auth(action, details = {}) {
+    return this.log(`user.${action}`, details, "auth");
   }
 
-  profile(action, details = null) {
-    return this.log(action, "profile", details);
+  security(action, details = {}) {
+    return this.log(`security.${action}`, details, "security");
   }
 
-  system(action, details = null) {
-    return this.log(action, "system", details);
+  profile(action, details = {}) {
+    return this.log(`profile.${action}`, details, "profile");
   }
 
-  // Common activity shortcuts
+  system(action, details = {}) {
+    return this.log(`system.${action}`, details, "system");
+  }
+
+  // Updated common activity shortcuts to use proper action naming
   login(method = "email") {
-    return this.auth("User logged in", { method });
+    return this.auth("login", { method });
   }
 
   logout() {
-    return this.auth("User logged out");
+    return this.auth("logout");
   }
 
   profileUpdate(fields = []) {
-    return this.profile("Profile updated", { updatedFields: fields });
+    return this.profile("updated", { updatedFields: fields });
   }
 
   passwordChange() {
-    return this.security("Password changed");
+    return this.security("password_changed");
   }
 
   enable2FA() {
-    return this.security("Two-factor authentication enabled");
+    return this.security("2fa_enabled");
   }
 
   disable2FA() {
-    return this.security("Two-factor authentication disabled");
+    return this.security("2fa_disabled");
   }
 
   sessionTerminated(sessionId) {
-    return this.security("Session terminated", { sessionId });
+    return this.security("session_terminated", { sessionId });
   }
 
   notificationSettingsChanged(changes = {}) {
-    return this.profile("Notification settings updated", changes);
-  }
-  apiKeyGenerated(keyName = null) {
-    const details = keyName ? { keyName } : { keyName: "New API Key" };
-    return this.security("API key generated", details);
+    return this.profile("notification_settings_changed", changes);
   }
 
-  apiKeyRevoked(keyId, keyName = null) {
-    return this.security("API key revoked", {
-      keyId,
-      keyName: keyName || "Unknown Key",
-    });
+  apiKeyGenerated(keyName = "New API Key") {
+    return this.security("api_key_created", { keyName });
+  }
+
+  apiKeyRevoked(keyId, keyName = "Unknown Key") {
+    return this.security("api_key_revoked", { keyId, keyName });
   }
 
   deploymentCreated(deploymentId, projectId) {
-    return this.system("Deployment created", { deploymentId, projectId });
+    return this.system("deployment_created", { deploymentId, projectId });
   }
-
   projectCreated(projectId, projectName) {
-    return this.system("Project created", { projectId, projectName });
+    return this.system("project_created", { projectId, projectName });
   }
 
   projectDeleted(projectId, projectName) {
-    return this.system("Project deleted", { projectId, projectName });
+    return this.system("project_deleted", { projectId, projectName });
   }
 }
 
