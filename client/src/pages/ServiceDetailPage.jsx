@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import logStreamWebSocket from "@services/logStreamWebSocket";
 import SEO from "@components/SEO";
+import { LoadingState, InlineSpinner } from "@components/ui/Spinner";
 import {
   FaArrowLeft,
   FaPlay,
@@ -30,10 +31,12 @@ const ServiceDetailPage = () => {
   const { serviceName } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-
   // Service data state
   const [serviceData, setServiceData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [serviceLoading, setServiceLoading] = useState(true);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [logsLoading, setLogsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   // Logs state
@@ -41,9 +44,38 @@ const ServiceDetailPage = () => {
   const [isLogStreamActive, setIsLogStreamActive] = useState(false);
   const [logFilter, setLogFilter] = useState("");
   const [logLevel, setLogLevel] = useState("all");
-
   // Metrics state
   const [metrics, setMetrics] = useState(null);
+
+  // Add custom CSS for scrollbar styling
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(31, 31, 31, 0.8);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #525252;
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #737373;
+      }
+      .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #525252 rgba(31, 31, 31, 0.8);
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   // Check authentication and admin role
   useEffect(() => {
@@ -58,33 +90,64 @@ const ServiceDetailPage = () => {
     }
   }, [isAuthenticated, user, navigate]); // Valid service names
   const validServices = useMemo(() => ["backend", "ai-service", "agent"], []);
-
   const fetchServiceData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch service details
-      const serviceResponse = await backend.get(`/health/services/${serviceName}`);
-      setServiceData(serviceResponse.data.data);
+      // Fetch all data in parallel for better performance
+      const requests = [
+        // Service details
+        backend
+          .get(`/health/services/${serviceName}`)
+          .then((response) => {
+            setServiceData(response.data.data);
+            setServiceLoading(false);
+            return response;
+          })
+          .catch((err) => {
+            setServiceLoading(false);
+            throw err;
+          }),
 
-      // Fetch metrics
-      const metricsResponse = await backend.get(
-        `/health/services/${serviceName}/metrics`,
-        {
-          withCredentials: true,
-        }
-      );
-      setMetrics(metricsResponse.data.data);
+        // Metrics
+        backend
+          .get(`/health/services/${serviceName}/metrics`, {
+            withCredentials: true,
+          })
+          .then((response) => {
+            setMetrics(response.data.data);
+            setMetricsLoading(false);
+            return response;
+          })
+          .catch((err) => {
+            setMetricsLoading(false);
+            console.warn(`Failed to fetch metrics for ${serviceName}:`, err);
+            return null; // Don't fail the whole request for metrics
+          }),
 
-      // Fetch recent logs
-      const logsResponse = await backend.get(
-        `/health/services/${serviceName}/logs?lines=50`,
-        {
-          withCredentials: true,
-        }
-      );
-      setLogs(logsResponse.data.data.logs || []);
+        // Recent logs
+        backend
+          .get(`/health/services/${serviceName}/logs?lines=50`, {
+            withCredentials: true,
+          })
+          .then((response) => {
+            setLogs(response.data.data.logs || []);
+            setLogsLoading(false);
+            return response;
+          })
+          .catch((err) => {
+            setLogsLoading(false);
+            console.warn(`Failed to fetch logs for ${serviceName}:`, err);
+            return null; // Don't fail the whole request for logs
+          }),
+      ];
+
+      // Wait for the main service data (required), but don't block on metrics/logs
+      await requests[0];
+
+      // Continue with other requests in background
+      Promise.allSettled(requests.slice(1));
 
       setLastUpdated(new Date());
     } catch (err) {
@@ -272,7 +335,6 @@ const ServiceDetailPage = () => {
 
     return matchesFilter && matchesLevel;
   });
-
   if (!isAuthenticated || user?.role !== "admin") {
     return null;
   }
@@ -322,31 +384,33 @@ const ServiceDetailPage = () => {
                   )}
                 </div>
               </div>
-            </div>
-
+            </div>{" "}
             <button
               onClick={fetchServiceData}
               disabled={loading}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors duration-200"
             >
-              <FaSyncAlt className={loading ? "animate-spin" : ""} />
+              {loading ? (
+                <InlineSpinner size="sm" color="white" />
+              ) : (
+                <FaSyncAlt />
+              )}
               {loading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
-
           {error && (
             <div className="mb-6 p-4 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center gap-2">
               <FaExclamationTriangle className="text-red-400" />
               <span className="text-red-300">{error}</span>
             </div>
-          )}
-
-          {loading ? (
+          )}{" "}
+          {loading && !serviceData ? (
             <div className="min-h-[400px] flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                <p className="text-neutral-400">Loading service details...</p>
-              </div>
+              <LoadingState
+                text="Loading service details..."
+                size="lg"
+                color="blue"
+              />
             </div>
           ) : serviceData ? (
             <div className="space-y-6">
@@ -631,10 +695,18 @@ const ServiceDetailPage = () => {
                       </button>
                     )}
                   </div>
-                </div>
-
-                <div className="h-96 overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm">
-                  {filteredLogs.length === 0 ? (
+                </div>{" "}
+                <div className="h-96 overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm custom-scrollbar">
+                  {logsLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <LoadingState
+                        text="Loading logs..."
+                        size="md"
+                        color="green"
+                        textClassName="text-green-400"
+                      />
+                    </div>
+                  ) : filteredLogs.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-neutral-500">
                       <FaInfoCircle className="mr-2" />
                       No logs available
@@ -669,15 +741,15 @@ const ServiceDetailPage = () => {
                           </span>
                           {log.source === "realtime" && (
                             <span className="text-green-400 text-xs">●</span>
-                          )}
+                          )}{" "}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
+              </div>{" "}
               {/* Additional Metrics */}
-              {metrics && (
+              {metricsLoading ? (
                 <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="h-10 w-10 rounded-lg bg-yellow-600/20 text-yellow-400 flex items-center justify-center">
@@ -692,10 +764,36 @@ const ServiceDetailPage = () => {
                       </p>
                     </div>
                   </div>
-                  <pre className="text-xs text-neutral-300 bg-black/30 p-4 rounded-lg border border-neutral-700 overflow-auto">
-                    {JSON.stringify(metrics, null, 2)}
-                  </pre>
+                  <div className="flex items-center justify-center py-8">
+                    <LoadingState
+                      text="Loading metrics..."
+                      size="md"
+                      color="yellow"
+                      textClassName="text-yellow-400"
+                    />
+                  </div>
                 </div>
+              ) : (
+                metrics && (
+                  <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 rounded-lg bg-yellow-600/20 text-yellow-400 flex items-center justify-center">
+                        <FaChartLine className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-white heading">
+                          Performance Metrics
+                        </h2>
+                        <p className="text-xs text-neutral-400">
+                          Additional service performance data
+                        </p>
+                      </div>
+                    </div>
+                    <pre className="text-xs text-neutral-300 bg-black/30 p-4 rounded-lg border border-neutral-700 overflow-auto">
+                      {JSON.stringify(metrics, null, 2)}
+                    </pre>
+                  </div>
+                )
               )}
             </div>
           ) : (

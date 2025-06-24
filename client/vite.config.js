@@ -24,15 +24,17 @@ export default defineConfig(({ mode }) => {
   // Use environment default if value is not provided
   const currentDefaults =
     defaults[env.VITE_APP_ENV || mode] || defaults.development;
-
   // CSP configuration based on environment
   const getCSP = (mode) => {
     const baseCSP =
       "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:;";
 
     if (mode === "development") {
-      // Allow localhost connections in development
-      return baseCSP + " connect-src 'self' http://localhost:* https: wss:;";
+      // Allow localhost connections and WebSocket protocols in development
+      return (
+        baseCSP +
+        " connect-src 'self' http://localhost:* ws://localhost:* https: wss:;"
+      );
     } else {
       // Strict HTTPS only in production
       return baseCSP + " connect-src 'self' https: wss:;";
