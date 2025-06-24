@@ -16,10 +16,10 @@ def setup_cors(app: FastAPI) -> None:
     else:  # Production - specific origins only
         origins = [
             "https://deployio.tech",
-            "https://app.deployio.tech",
+            "https://www.deployio.tech",
+            "https://api.deployio.tech",
+            "https://service.deployio.tech",
             "https://agent.deployio.tech",
-            "http://localhost:3000",  # Local development
-            "http://localhost:5173",  # Vite dev server
         ]
 
         # Add any additional origins from environment

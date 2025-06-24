@@ -20,7 +20,12 @@ def setup_cors(app):
     # Environment-specific CORS configuration
     if environment == "production":
         # PRODUCTION: Only allow the actual production domains
-        allowed_origins = []
+        allowed_origins = [
+            "https://deployio.tech",
+            "https://www.deployio.tech",
+            "https://api.deployio.tech",
+            "https://service.deployio.tech",
+        ]
         if production_url:
             allowed_origins.append(production_url)
             # Also allow https version if not already specified

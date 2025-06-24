@@ -5,7 +5,18 @@ const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_APP_BACKEND_URL,
+  baseURL:
+    import.meta.env.VITE_APP_BACKEND_URL + "/api/v1" ||
+    "https://api.deployio.tech/api/v1",
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000, // 10 second timeout
+});
+
+const backend = axios.create({
+  baseURL: import.meta.env.VITE_APP_BACKEND_URL || "https://api.deployio.tech",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -127,4 +138,5 @@ export const invalidateAllCacheEntriesForUrl = (url) => {
   keysToDelete.forEach((key) => cache.delete(key));
 };
 
-export default api;
+// Export both APIs
+export { api, backend };

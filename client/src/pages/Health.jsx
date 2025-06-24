@@ -24,6 +24,7 @@ import {
   FaArrowRight,
 } from "react-icons/fa";
 import axios from "axios";
+import { backend } from "../utils/api";
 
 function Health() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -289,175 +290,162 @@ function Health() {
       </div>
     );
   };
-  const fetchStatuses = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-      try {
-        // Backend health check
-        const beHealth = await axios.get("http://localhost:3000/health");
+  const fetchStatuses = useCallback(async () => {
+    try {
+      const response = await backend.get("/health");
 
-        // Update backend service state
+      // Update backend service state
+      setServices((prev) => ({
+        ...prev,
+        backend: {
+          ...prev.backend,
+          status: response.data.status || "unknown",
+          uptime: response.data.uptime || 0,
+          message: `${response.data.service || "Backend"} v${
+            response.data.version || "unknown"
+          } (${response.data.environment || "unknown"})`,
+          mongodb_status: response.data.services?.database?.status || "unknown",
+          redis_status: response.data.services?.redis?.status || "unknown",
+          memory: response.data.memory || {},
+          version: response.data.version || "unknown",
+          responseTime: response.data.responseTime || 0,
+        },
+      }));
+
+      // Update FastAPI AI Service from backend health response
+      const aiServiceData = response.data.services?.aiService;
+      if (aiServiceData) {
         setServices((prev) => ({
           ...prev,
-          backend: {
-            ...prev.backend,
-            status: beHealth.data.status || "unknown",
-            uptime: beHealth.data.uptime || 0,
-            message: `${beHealth.data.service || "Backend"} v${
-              beHealth.data.version || "unknown"
-            } (${beHealth.data.environment || "unknown"})`,
-            mongodb_status:
-              beHealth.data.services?.database?.status || "unknown",
-            redis_status: beHealth.data.services?.redis?.status || "unknown",
-            memory: beHealth.data.memory || {},
-            version: beHealth.data.version || "unknown",
-            responseTime: beHealth.data.responseTime || 0,
+          fastapi: {
+            ...prev.fastapi,
+            status: aiServiceData.status || "unknown",
+            uptime: aiServiceData.uptime || 0,
+            message: `AI Service v${aiServiceData.version || "unknown"}`,
+            redis_status: "unknown", // AI service redis status not reported
+            memory: {},
+            responseTime: aiServiceData.responseTime || 0,
           },
         }));
+      } else {
+        setServices((prev) => ({
+          ...prev,
+          fastapi: {
+            ...prev.fastapi,
+            status: "unhealthy",
+            message: "Service not detected by backend",
+            redis_status: "unknown",
+          },
+        }));
+      } // Update DeployIO Agent from backend health response first
+      const agentServiceData = response.data.services?.deploymentAgent;
+      if (agentServiceData) {
+        setServices((prev) => ({
+          ...prev,
+          agent: {
+            ...prev.agent,
+            status: agentServiceData.status || "unknown",
+            uptime: agentServiceData.uptime || 0,
+            message: `Agent v${
+              agentServiceData.version || "unknown"
+            } (via backend)`,
+            docker_status:
+              agentServiceData.services?.docker?.status || "unknown",
+            version: agentServiceData.version || "unknown",
+            purpose: "Container management and deployment automation",
+            memory: {},
+            responseTime: agentServiceData.responseTime || 0,
+            services: agentServiceData.services || {},
+          },
+        }));
+      } else {
+        // Try direct connection to agent if backend doesn't have info
+        try {
+          const agentUrl = "https://agent.deployio.tech";
+          const agentResponse = await fetch(`${agentUrl}/agent/v1/health`, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "DeployIO-Frontend-HealthCheck/1.0",
+            },
+            signal: AbortSignal.timeout(10000), // 10 second timeout
+          });
 
-        // Update FastAPI AI Service from backend health response
-        const aiServiceData = beHealth.data.services?.aiService;
-        if (aiServiceData) {
-          setServices((prev) => ({
-            ...prev,
-            fastapi: {
-              ...prev.fastapi,
-              status: aiServiceData.status || "unknown",
-              uptime: aiServiceData.uptime || 0,
-              message: `AI Service v${aiServiceData.version || "unknown"}`,
-              redis_status: "unknown", // AI service redis status not reported
-              memory: {},
-              responseTime: aiServiceData.responseTime || 0,
-            },
-          }));
-        } else {
-          setServices((prev) => ({
-            ...prev,
-            fastapi: {
-              ...prev.fastapi,
-              status: "unhealthy",
-              message: "Service not detected by backend",
-              redis_status: "unknown",
-            },
-          }));
-        } // Update DeployIO Agent from backend health response first
-        const agentServiceData = beHealth.data.services?.deploymentAgent;
-        if (agentServiceData) {
-          setServices((prev) => ({
-            ...prev,
-            agent: {
-              ...prev.agent,
-              status: agentServiceData.status || "unknown",
-              uptime: agentServiceData.uptime || 0,
-              message: `Agent v${
-                agentServiceData.version || "unknown"
-              } (via backend)`,
-              docker_status:
-                agentServiceData.services?.docker?.status || "unknown",
-              version: agentServiceData.version || "unknown",
-              purpose: "Container management and deployment automation",
-              memory: {},
-              responseTime: agentServiceData.responseTime || 0,
-              services: agentServiceData.services || {},
-            },
-          }));
-        } else {
-          // Try direct connection to agent if backend doesn't have info
-          try {
-            const agentUrl = "https://agent.deployio.tech";
-            const agentResponse = await fetch(`${agentUrl}/agent/v1/health`, {
-              method: "GET",
-              headers: {
-                Accept: "application/json",
-                "User-Agent": "DeployIO-Frontend-HealthCheck/1.0",
-              },
-              signal: AbortSignal.timeout(10000), // 10 second timeout
-            });
-
-            if (agentResponse.ok) {
-              const agentHealth = await agentResponse.json();
-              setServices((prev) => ({
-                ...prev,
-                agent: {
-                  ...prev.agent,
-                  status: agentHealth.status || "unknown",
-                  uptime: agentHealth.uptime || 0,
-                  message: `Agent v${
-                    agentHealth.version || "unknown"
-                  } (direct)`,
-                  docker_status:
-                    agentHealth.services?.docker?.status || "unknown",
-                  version: agentHealth.version || "unknown",
-                  purpose:
-                    agentHealth.purpose ||
-                    "Container management and deployment automation",
-                  memory: agentHealth.memory || {},
-                  responseTime: agentHealth.responseTime || 0,
-                  services: agentHealth.services || {},
-                },
-              }));
-            } else {
-              throw new Error(
-                `Agent responded with status ${agentResponse.status}`
-              );
-            }
-          } catch (agentError) {
-            console.warn("Agent health check failed:", agentError);
+          if (agentResponse.ok) {
+            const agentHealth = await agentResponse.json();
             setServices((prev) => ({
               ...prev,
               agent: {
                 ...prev.agent,
-                status: "unhealthy",
-                message: agentError.message || "Service unavailable",
-                docker_status: "unknown",
-                purpose: "Container management and deployment automation",
+                status: agentHealth.status || "unknown",
+                uptime: agentHealth.uptime || 0,
+                message: `Agent v${agentHealth.version || "unknown"} (direct)`,
+                docker_status:
+                  agentHealth.services?.docker?.status || "unknown",
+                version: agentHealth.version || "unknown",
+                purpose:
+                  agentHealth.purpose ||
+                  "Container management and deployment automation",
+                memory: agentHealth.memory || {},
+                responseTime: agentHealth.responseTime || 0,
+                services: agentHealth.services || {},
               },
             }));
-          }
-        } // Test protected endpoints if authenticated
-        if (isAuthenticated) {
-          // Test Backend protected endpoint
-          try {
-            const backendProtectedResponse = await axios.get(
-              "http://localhost:3000/protected/data"
+          } else {
+            throw new Error(
+              `Agent responded with status ${agentResponse.status}`
             );
-            setServices((prev) => ({
-              ...prev,
-              backend: {
-                ...prev.backend,
-                protectedData: backendProtectedResponse.data,
-                protectedError: null,
-              },
-            }));
-          } catch (backendProtectedErr) {
-            setServices((prev) => ({
-              ...prev,
-              backend: {
-                ...prev.backend,
-                protectedData: null,
-                protectedError:
-                  backendProtectedErr.response?.data?.message ||
-                  backendProtectedErr.message,
-              },
-            }));
           }
+        } catch (agentError) {
+          console.warn("Agent health check failed:", agentError);
+          setServices((prev) => ({
+            ...prev,
+            agent: {
+              ...prev.agent,
+              status: "unhealthy",
+              message: agentError.message || "Service unavailable",
+              docker_status: "unknown",
+              purpose: "Container management and deployment automation",
+            },
+          }));
         }
-
-        setLastUpdated(new Date());
-      } catch (err) {
-        setError(err.message || "Error fetching statuses");
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+      } // Test protected endpoints if authenticated
+      if (isAuthenticated) {
+        // Test Backend protected endpoint
+        try {
+          const backendProtectedResponse = await axios.get(
+            "http://localhost:3000/protected/data"
+          );
+          setServices((prev) => ({
+            ...prev,
+            backend: {
+              ...prev.backend,
+              protectedData: backendProtectedResponse.data,
+              protectedError: null,
+            },
+          }));
+        } catch (backendProtectedErr) {
+          setServices((prev) => ({
+            ...prev,
+            backend: {
+              ...prev.backend,
+              protectedData: null,
+              protectedError:
+                backendProtectedErr.response?.data?.message ||
+                backendProtectedErr.message,
+            },
+          }));
+        }
       }
-    },
-    [isAuthenticated]
-  );
+
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err.message || "Error fetching statuses");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchStatuses();

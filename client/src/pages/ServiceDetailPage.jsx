@@ -24,7 +24,7 @@ import {
   FaSearch,
   FaSyncAlt,
 } from "react-icons/fa";
-import axios from "axios";
+import { backend } from "../utils/api";
 
 const ServiceDetailPage = () => {
   const { serviceName } = useParams();
@@ -65,17 +65,12 @@ const ServiceDetailPage = () => {
       setError(null);
 
       // Fetch service details
-      const serviceResponse = await axios.get(
-        `http://localhost:3000/health/service/${serviceName}`,
-        {
-          withCredentials: true,
-        }
-      );
+      const serviceResponse = await backend.get(`/services/${serviceName}`);
       setServiceData(serviceResponse.data.data);
 
       // Fetch metrics
-      const metricsResponse = await axios.get(
-        `http://localhost:3000/health/service/${serviceName}/metrics`,
+      const metricsResponse = await backend.get(
+        `/services/${serviceName}/metrics`,
         {
           withCredentials: true,
         }
@@ -83,8 +78,8 @@ const ServiceDetailPage = () => {
       setMetrics(metricsResponse.data.data);
 
       // Fetch recent logs
-      const logsResponse = await axios.get(
-        `http://localhost:3000/health/service/${serviceName}/logs?lines=50`,
+      const logsResponse = await backend.get(
+        `/services/${serviceName}/logs?lines=50`,
         {
           withCredentials: true,
         }

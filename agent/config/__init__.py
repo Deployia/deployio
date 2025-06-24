@@ -36,7 +36,7 @@ def create_app() -> FastAPI:
     # Add compression middleware
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-    # Setup CORS
+    # Add CORS middleware using setup_cors function
     setup_cors(app)
 
     logger.info(f"FastAPI app created: {settings.app_name} v{settings.version}")

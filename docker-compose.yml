@@ -58,11 +58,10 @@ services:
       - /tmp:noexec,nosuid,size=100m
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`api.deployio.tech`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
-      - "traefik.http.routers.backend.tls.domains[0].main=deployio.tech"
-      - "traefik.http.routers.backend.tls.domains[0].sans=www.deployio.tech"
+      - "traefik.http.routers.backend.tls.domains[0].main=api.deployio.tech"
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
       - "traefik.http.routers.backend.priority=2"
     depends_on:
@@ -83,11 +82,10 @@ services:
       - /tmp:noexec,nosuid,size=100m
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ai-service.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/service`)"
+      - "traefik.http.routers.ai-service.rule=Host(`service.deployio.tech`)"
       - "traefik.http.routers.ai-service.entrypoints=websecure"
       - "traefik.http.routers.ai-service.tls.certresolver=myresolver"
-      - "traefik.http.routers.ai-service.tls.domains[0].main=deployio.tech"
-      - "traefik.http.routers.ai-service.tls.domains[0].sans=www.deployio.tech"
+      - "traefik.http.routers.ai-service.tls.domains[0].main=service.deployio.tech"
       - "traefik.http.services.ai-service.loadbalancer.server.port=8000"
       - "traefik.http.routers.ai-service.priority=2"
     networks:
