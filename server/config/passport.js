@@ -4,6 +4,12 @@ const GitHubStrategy = require("passport-github2").Strategy;
 const User = require("../models/User");
 const crypto = require("crypto");
 
+function sanitizeUsername(username) {
+  if (!username) return undefined;
+  // Only allow letters, numbers, hyphens, and underscores
+  return username.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+}
+
 passport.use(
   new GoogleStrategy(
     {
@@ -29,7 +35,11 @@ passport.use(
         }
         if (!user) {
           user = await User.create({
-            username: profile.displayName,
+            username: sanitizeUsername(
+              profile.displayName ||
+                profile.username ||
+                profile.emails?.[0]?.value?.split("@")[0]
+            ),
             email: profile.emails[0].value,
             googleId: profile.id,
             password: crypto.randomBytes
@@ -38,7 +48,8 @@ passport.use(
             profileImage:
               profile.photos && profile.photos[0]
                 ? profile.photos[0].value
-                : "",            isVerified: true, // OAuth users are automatically verified
+                : "",
+            isVerified: true, // OAuth users are automatically verified
           });
         } else {
           // Update profile image if changed
@@ -73,7 +84,8 @@ passport.use(
         let user = await User.findOne({ githubId: profile.id });
         // Try to find by email for account linking
         if (!user && profile.emails && profile.emails[0]) {
-          user = await User.findOne({ email: profile.emails[0].value });          if (user) {
+          user = await User.findOne({ email: profile.emails[0].value });
+          if (user) {
             user.githubId = profile.id;
             user.isVerified = true; // Verify existing user when linking OAuth account
             if (profile.photos && profile.photos[0]) {
@@ -84,7 +96,11 @@ passport.use(
         }
         if (!user) {
           user = await User.create({
-            username: profile.displayName || profile.username,
+            username: sanitizeUsername(
+              profile.displayName ||
+                profile.username ||
+                profile.emails?.[0]?.value?.split("@")[0]
+            ),
             email:
               (profile.emails &&
                 profile.emails[0] &&
@@ -97,7 +113,8 @@ passport.use(
             profileImage:
               profile.photos && profile.photos[0]
                 ? profile.photos[0].value
-                : "",            isVerified: true, // OAuth users are automatically verified
+                : "",
+            isVerified: true, // OAuth users are automatically verified
           });
         } else {
           if (
