@@ -185,7 +185,7 @@ async function getAiServiceDetails() {
     const axios = require("axios");
     const aiServiceUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
-    const response = await axios.get(`${aiServiceUrl}/health`, {
+    const response = await axios.get(`${aiServiceUrl}/service/v1/health`, {
       timeout: 10000,
     });
 

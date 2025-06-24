@@ -98,7 +98,7 @@ async function checkAiServiceHealth() {
     const aiServiceUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
     const start = Date.now();
-    const response = await axios.get(`${aiServiceUrl}/health`, {
+    const response = await axios.get(`${aiServiceUrl}/service/v1/health`, {
       timeout: 5000,
       headers: {
         "User-Agent": "Express-Backend-HealthCheck/1.0",
@@ -125,7 +125,7 @@ async function checkAiServiceHealth() {
 async function checkDeploymentAgentHealth() {
   try {
     const axios = require("axios");
-    const agentUrl = process.env.AGENT_URL || "http://localhost:8001";
+    const agentUrl = process.env.AGENT_URL || "http://localhost:5000";
 
     const start = Date.now();
     const response = await axios.get(`${agentUrl}/agent/v1/health`, {

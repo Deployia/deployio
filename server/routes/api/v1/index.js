@@ -20,14 +20,4 @@ router.use("/users", userRoutes);
 router.use("/admin", adminRoutes);
 router.use("/external", externalRoutes);
 
-// API v1 health check
-router.get("/health", (req, res) => {
-  res.json({
-    success: true,
-    version: "v1",
-    timestamp: new Date().toISOString(),
-    message: "DeployIO API v1 is running",
-  });
-});
-
 module.exports = router;

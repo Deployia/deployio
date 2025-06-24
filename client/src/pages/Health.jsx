@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import api from "@utils/api";
 import useEnvironmentInfo from "@utils/useEnvironmentInfo";
 import Spinner from "@components/Spinner";
 import SEO from "@components/SEO.jsx";
@@ -26,6 +25,7 @@ import {
   FaEye,
   FaArrowRight,
 } from "react-icons/fa";
+import axios from "axios";
 
 function Health() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -302,7 +302,7 @@ function Health() {
       setError(null);
       try {
         // Backend health check
-        const beHealth = await api.get("/health");
+        const beHealth = await axios.get("http://localhost:3000/health");
 
         // Update backend service state
         setServices((prev) => ({
@@ -328,7 +328,7 @@ function Health() {
         let faHealthError = null;
         try {
           // Check if AI service is available through backend proxy
-          faHealth = await api.get("/projects/ai/health");
+          faHealth = await axios.get("http://localhost:8000/service/v1/health");
 
           setServices((prev) => ({
             ...prev,
@@ -364,9 +364,7 @@ function Health() {
         let agentHealthError = null;
         try {
           // Direct call to agent health endpoint
-          const agentUrl = import.meta.env.DEV
-            ? "http://localhost:8001"
-            : "https://agent.deployio.tech";
+          const agentUrl = "https://agent.deployio.tech";
 
           const agentResponse = await fetch(`${agentUrl}/agent/v1/health`, {
             method: "GET",
@@ -420,7 +418,9 @@ function Health() {
         if (isAuthenticated) {
           // Test Backend protected endpoint
           try {
-            const backendProtectedResponse = await api.get("/protected/data");
+            const backendProtectedResponse = await axios.get(
+              "http://localhost:3000/protected/data"
+            );
             setServices((prev) => ({
               ...prev,
               backend: {

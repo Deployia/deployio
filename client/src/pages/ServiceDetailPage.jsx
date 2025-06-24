@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import api from "@utils/api";
 import logStreamWebSocket from "@services/logStreamWebSocket";
 import SEO from "@components/SEO";
 import {
@@ -25,6 +24,7 @@ import {
   FaSearch,
   FaSyncAlt,
 } from "react-icons/fa";
+import axios from "axios";
 
 const ServiceDetailPage = () => {
   const { serviceName } = useParams();
@@ -65,18 +65,29 @@ const ServiceDetailPage = () => {
       setError(null);
 
       // Fetch service details
-      const serviceResponse = await api.get(`/health/service/${serviceName}`);
+      const serviceResponse = await axios.get(
+        `http://localhost:3000/health/service/${serviceName}`,
+        {
+          withCredentials: true,
+        }
+      );
       setServiceData(serviceResponse.data.data);
 
       // Fetch metrics
-      const metricsResponse = await api.get(
-        `/health/service/${serviceName}/metrics`
+      const metricsResponse = await axios.get(
+        `http://localhost:3000/health/service/${serviceName}/metrics`,
+        {
+          withCredentials: true,
+        }
       );
       setMetrics(metricsResponse.data.data);
 
       // Fetch recent logs
-      const logsResponse = await api.get(
-        `/health/service/${serviceName}/logs?lines=50`
+      const logsResponse = await axios.get(
+        `http://localhost:3000/health/service/${serviceName}/logs?lines=50`,
+        {
+          withCredentials: true,
+        }
       );
       setLogs(logsResponse.data.data.logs || []);
 

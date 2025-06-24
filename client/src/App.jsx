@@ -84,7 +84,6 @@ import { getMe } from "@redux/index";
 
 // Utility pages
 const Health = lazy(() => import("@pages/Health"));
-const LogTestPage = lazy(() => import("@pages/LogTestPage"));
 const ServiceDetailPage = lazy(() => import("@pages/ServiceDetailPage"));
 
 // Layout Components
@@ -162,11 +161,9 @@ function App() {
           </Route>
           {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>
-            {" "}
             {/* Public Pages */}
             <Route index element={<Home />} />
             <Route path="health" element={<Health />} />
-            <Route path="test" element={<LogTestPage />} />
             {/* Legal Pages */}
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             <Route path="terms-of-service" element={<TermsOfService />} />
