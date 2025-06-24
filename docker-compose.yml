@@ -75,6 +75,8 @@ services:
     image: 533266971626.dkr.ecr.ap-south-1.amazonaws.com/deployio-ai-service:latest
     env_file:
       - ./ai-service/.env.production
+    volumes:
+      - ./ai-service/logs:/app/logs
     security_opt:
       - no-new-privileges:true
     read_only: true

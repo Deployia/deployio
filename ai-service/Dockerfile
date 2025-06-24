@@ -41,6 +41,7 @@ COPY --from=builder /venv /venv
 COPY . .
 
 # Set permissions for non-root user
+RUN mkdir -p /app/logs && chown deployio:deployio /app/logs
 RUN chown -R deployio:deployio /app
 
 # Switch to non-root user
