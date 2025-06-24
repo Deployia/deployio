@@ -24,8 +24,8 @@ def create_app() -> FastAPI:
         version=settings.version,
         description=settings.description,
         debug=settings.debug,
-        docs_url="/agent/v1/docs" if settings.debug else None,
-        redoc_url="/agent/v1/redoc" if settings.debug else None,
+        docs_url="/agent/v1/docs",
+        redoc_url="/agent/v1/redoc",
     )
 
     # Add security middleware
