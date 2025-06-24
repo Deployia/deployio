@@ -55,9 +55,8 @@ const NotificationCenter = ({ isOpen, onClose }) => {
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen, onClose]);
-
   // Filter notifications based on current filter
-  const filteredNotifications = notifications.filter((notification) => {
+  const filteredNotifications = (notifications || []).filter((notification) => {
     if (filter === "unread") return notification.status === "unread";
     if (filter === "read") return notification.status === "read";
     return true; // 'all'

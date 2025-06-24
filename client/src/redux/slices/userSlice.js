@@ -7,7 +7,7 @@ export const fetchNotificationPreferences = createAsyncThunk(
   "userProfile/fetchNotificationPreferences",
   async (_, thunkAPI) => {
     try {
-      const response = await api.get("/external/notification/preferences");
+      const response = await api.get("/external/notifications/preferences");
       return response.data.preferences;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -23,10 +23,10 @@ export const updateNotificationPreferences = createAsyncThunk(
   async (preferences, thunkAPI) => {
     try {
       const response = await api.put(
-        "/external/notification/preferences",
+        "/external/notifications/preferences",
         preferences
       );
-      invalidateCacheEntry("/external/notification/preferences", undefined);
+      invalidateCacheEntry("/external/notifications/preferences", undefined);
       thunkAPI.dispatch(fetchNotificationPreferences());
       return response.data.preferences;
     } catch (error) {

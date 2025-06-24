@@ -283,6 +283,27 @@ class NotificationService {
       throw error;
     }
   }
+  /**
+   * Get unread notification count for user
+   * @param {string} userId - User ID
+   * @returns {Promise<number>} Unread count
+   */
+  async getUnreadCount(userId) {
+    try {
+      const count = await Notification.countDocuments({
+        user: userId,
+        status: "unread",
+      });
+
+      return count;
+    } catch (error) {
+      logger.error("Failed to get unread count", {
+        userId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 
   /**
    * Mark all notifications as read for user

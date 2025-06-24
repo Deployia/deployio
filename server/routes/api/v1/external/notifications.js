@@ -44,6 +44,13 @@ router.get(
 );
 
 /**
+ * @route   GET /api/notifications/unread-count
+ * @desc    Get unread notification count for user
+ * @access  Private
+ */
+router.get("/unread-count", protect, notificationController.getUnreadCount);
+
+/**
  * @route   GET /api/notifications/stats
  * @desc    Get notification statistics for user
  * @access  Private
@@ -70,11 +77,18 @@ router.put(
 );
 
 /**
- * @route   PUT /api/notifications/read-all
- * @desc    Mark all notifications as read
+ * @route   POST /api/notifications/:id/read
+ * @desc    Mark a single notification as read
  * @access  Private
  */
-router.put("/read-all", protect, notificationController.markAllAsRead);
+router.post("/:id/read", protect, notificationController.markSingleAsRead);
+
+/**
+ * @route   POST /api/notifications/mark-all-read
+ * @desc    Mark all notifications as read (frontend expects this endpoint)
+ * @access  Private
+ */
+router.post("/mark-all-read", protect, notificationController.markAllAsRead);
 
 /**
  * @route   DELETE /api/notifications

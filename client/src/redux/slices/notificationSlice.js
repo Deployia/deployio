@@ -13,7 +13,7 @@ export const fetchNotifications = createAsyncThunk(
       if (type) queryParams.append("type", type);
 
       const response = await api.get(`/external/notifications?${queryParams}`);
-      return response.data;
+      return response.data.data; // Return the data object which contains notifications and pagination
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message
@@ -209,10 +209,18 @@ const notificationSlice = createSlice({
           state.notifications.push(...notifications);
         }
 
-        state.pagination = pagination;
+        state.pagination = {
+          currentPage: pagination.current,
+          totalPages: pagination.pages,
+          total: pagination.total,
+          limit: action.meta.arg?.limit || 20,
+        };
+
+        // Update unread count if provided
         if (typeof unreadCount === "number") {
           state.unreadCount = unreadCount;
         }
+
         state.lastFetch = Date.now();
       })
       .addCase(fetchNotifications.rejected, (state, action) => {

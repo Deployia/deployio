@@ -27,15 +27,20 @@ const getNotifications = async (req, res) => {
       sortBy,
       sortOrder,
     };
-
     const result = await notificationService.getUserNotifications(
       userId,
       filters
     );
 
+    // Also get unread count for the header
+    const unreadCount = await notificationService.getUnreadCount(userId);
+
     res.json({
       success: true,
-      data: result,
+      data: {
+        ...result,
+        unreadCount,
+      },
     });
   } catch (error) {
     logger.error("Get notifications failed", {
@@ -483,6 +488,65 @@ const unregisterPushToken = async (req, res) => {
   }
 };
 
+/**
+ * Get unread notification count
+ */
+const getUnreadCount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const count = await notificationService.getUnreadCount(userId);
+
+    res.json({
+      success: true,
+      count,
+    });
+  } catch (error) {
+    logger.error("Get unread count failed", {
+      userId: req.user?.id,
+      error: error.message,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to get unread count",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Mark a single notification as read
+ */
+const markSingleAsRead = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const notificationId = req.params.id;
+
+    const notification = await notificationService.markAsRead(userId, [
+      notificationId,
+    ]);
+
+    res.json({
+      success: true,
+      message: "Notification marked as read",
+      notification,
+    });
+  } catch (error) {
+    logger.error("Mark single notification as read failed", {
+      userId: req.user?.id,
+      notificationId: req.params.id,
+      error: error.message,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to mark notification as read",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getNotifications,
   markAsRead,
@@ -495,4 +559,6 @@ module.exports = {
   updateNotificationPreferences,
   registerPushToken,
   unregisterPushToken,
+  getUnreadCount,
+  markSingleAsRead,
 };

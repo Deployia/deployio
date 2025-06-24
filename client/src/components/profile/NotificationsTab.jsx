@@ -18,7 +18,6 @@ import {
 } from "@redux/slices/userSlice";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
 import LoadingState from "./LoadingState";
-import activityLogger from "@/utils/activityLogger";
 
 const NotificationsTab = () => {
   const dispatch = useDispatch();
@@ -81,10 +80,7 @@ const NotificationsTab = () => {
       await dispatch(
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
-      toast.success("Notification settings updated"); // Log activity and wait for completion
-      await activityLogger.notificationSettingsChanged({
-        [key]: !localPreferences[key],
-      });
+      toast.success("Notification settings updated");
     } catch {
       // Revert local state on error
       setLocalPreferences(localPreferences);
@@ -103,10 +99,7 @@ const NotificationsTab = () => {
       await dispatch(
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
-      toast.success("Quiet hours updated"); // Log activity and wait for completion
-      await activityLogger.notificationSettingsChanged({
-        quietHours: newQuietHours,
-      });
+      toast.success("Quiet hours updated");
     } catch {
       setQuietHours(quietHours);
       toast.error("Failed to update quiet hours");
@@ -124,10 +117,7 @@ const NotificationsTab = () => {
       await dispatch(
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
-      toast.success("Digest settings updated"); // Log activity and wait for completion
-      await activityLogger.notificationSettingsChanged({
-        digestSettings: newDigestSettings,
-      });
+      toast.success("Digest settings updated");
     } catch {
       setDigestSettings(digestSettings);
       toast.error("Failed to update digest settings");
