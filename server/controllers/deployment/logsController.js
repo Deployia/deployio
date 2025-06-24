@@ -60,15 +60,42 @@ const getLogs = async (req, res) => {
  */
 const streamLogs = async (req, res) => {
   try {
-    const { resourceType, resourceId } = req.params;
+    const { resourceType, resourceId } = req.params; // Set SSE headers with secure CORS
+    const origin = req.get("Origin") || "";
+    const allowedOrigins = [
+      "https://deployio.tech",
+      "https://www.deployio.tech",
+      "https://app.deployio.tech",
+      "https://admin.deployio.tech",
+      "https://dashboard.deployio.tech",
+      "https://api.deployio.tech",
+      "https://service.deployio.tech",
+      "https://agent.deployio.tech",
+    ];
 
-    // Set SSE headers
+    // Add localhost origins for development
+    if (process.env.NODE_ENV === "development") {
+      allowedOrigins.push(
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000"
+      );
+    }
+
+    const corsOrigin = allowedOrigins.includes(origin)
+      ? origin
+      : "https://deployio.tech";
+
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Headers": "Cache-Control",
+      "Access-Control-Allow-Credentials": "true",
     });
 
     // Send initial connection event

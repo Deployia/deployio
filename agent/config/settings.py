@@ -24,6 +24,10 @@ class Settings:
 
     # CORS settings
     cors_origins: Optional[str] = os.getenv("CORS_ORIGINS")
+    whitelisted_subdomains: Optional[str] = os.getenv("WHITELISTED_SUBDOMAINS")
+    allow_subdomain_wildcards: bool = (
+        os.getenv("ALLOW_SUBDOMAIN_WILDCARDS", "false").lower() == "true"
+    )
 
     # Docker settings
     docker_socket: str = os.getenv("DOCKER_SOCKET", "/var/run/docker.sock")

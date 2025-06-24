@@ -163,7 +163,7 @@ module.exports = (app) => {
 
   // Security
   app.use(helmet());
-  app.use(hpp()); // CORS - Environment-specific configuration for security
+  app.use(hpp()); // CORS - Environment-specific configuration with subdomain whitelisting
   const corsOptions = {
     origin: function (origin, callback) {
       // Define allowed origins based on environment
@@ -178,6 +178,21 @@ module.exports = (app) => {
         nodeEnv === "dev" ||
         nodeEnv !== "production";
 
+      const baseDomain = "deployio.tech";
+      const whitelistedSubdomains = [
+        "app",
+        "admin",
+        "dashboard",
+        "demo",
+        "staging",
+        "test",
+        "dev",
+        "api",
+        "service",
+        "agent",
+        "www",
+      ];
+
       const allowedOrigins = isDevelopment
         ? [
             process.env.FRONTEND_URL_DEV || "http://localhost:5173",
@@ -187,11 +202,45 @@ module.exports = (app) => {
             "http://127.0.0.1:5173",
             "http://127.0.0.1:3000",
             "http://127.0.0.1:8000",
+            `https://${baseDomain}`,
+            `https://www.${baseDomain}`,
+            `https://api.${baseDomain}`,
+            `https://service.${baseDomain}`,
+            `https://agent.${baseDomain}`,
           ]
         : [
             process.env.FRONTEND_URL_PROD,
+            `https://${baseDomain}`,
+            `https://www.${baseDomain}`,
+            `https://api.${baseDomain}`,
+            `https://service.${baseDomain}`,
+            `https://agent.${baseDomain}`,
+            // Add whitelisted subdomains for production
+            ...whitelistedSubdomains.map(
+              (sub) => `https://${sub}.${baseDomain}`
+            ),
             // NEVER include localhost in production for security
           ];
+
+      // Helper function to check if origin is a valid subdomain
+      const isValidSubdomain = (origin) => {
+        if (!origin.startsWith("https://")) return false;
+
+        const hostname = origin.replace("https://", "").split("/")[0];
+
+        // Check if it's the base domain or www
+        if (hostname === baseDomain || hostname === `www.${baseDomain}`) {
+          return true;
+        }
+
+        // Check if it's a whitelisted subdomain
+        if (hostname.endsWith(`.${baseDomain}`)) {
+          const subdomain = hostname.replace(`.${baseDomain}`, "");
+          return whitelistedSubdomains.includes(subdomain);
+        }
+
+        return false;
+      };
 
       // Allow requests with no origin (mobile apps, Postman, health checks, etc.)
       // In development: allow all no-origin requests
@@ -199,19 +248,29 @@ module.exports = (app) => {
       if (!origin) {
         return callback(null, true);
       }
+
+      // Check static allowed origins first
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        // Log blocked origins in development for debugging
-        if (isDevelopment) {
-          logger.warn(
-            `CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(
-              ", "
-            )}`
-          );
-        }
-        callback(new Error("Not allowed by CORS policy"));
+        return callback(null, true);
       }
+
+      // In production, also check subdomain whitelist
+      if (!isDevelopment && isValidSubdomain(origin)) {
+        return callback(null, true);
+      }
+
+      // Log blocked origins for debugging
+      if (isDevelopment) {
+        logger.warn(
+          `CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(
+            ", "
+          )}`
+        );
+      } else {
+        logger.warn(`CORS blocked origin in production: ${origin}`);
+      }
+
+      callback(new Error("Not allowed by CORS policy"));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
