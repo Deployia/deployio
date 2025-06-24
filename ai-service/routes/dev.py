@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Header
 import os
-import requests
+import httpx
 
 router = APIRouter()
 
@@ -10,7 +10,7 @@ router = APIRouter()
     tags=["Dev"],
     include_in_schema=os.getenv("ENVIRONMENT", "development") != "production",
 )
-def get_demo_user_token(
+async def get_demo_user_token(
     x_internal_service: str = Header(
         default="deployio-ai-service",
         description="Internal service header required for backend authentication. Should be 'deployio-ai-service' for this route.",
@@ -30,18 +30,18 @@ def get_demo_user_token(
 
     backend_url = os.getenv("BACKEND_URL", "http://localhost:3000")
     try:
-        resp = requests.post(
-            f"{backend_url}/api/internal/auth/demo-token",
-            headers={"X-Internal-Service": x_internal_service},
-            timeout=5,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        if not data.get("success") or not data.get("token"):
-            raise HTTPException(
-                status_code=500, detail="Token not found in backend response"
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(
+                f"{backend_url}/api/internal/auth/demo-token",
+                headers={"X-Internal-Service": x_internal_service},
             )
-        return {"access_token": data["token"], "token_type": "bearer"}
+            resp.raise_for_status()
+            data = resp.json()
+            if not data.get("success") or not data.get("token"):
+                raise HTTPException(
+                    status_code=500, detail="Token not found in backend response"
+                )
+            return {"access_token": data["token"], "token_type": "bearer"}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get demo token: {str(e)}"
