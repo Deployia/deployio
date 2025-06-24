@@ -69,55 +69,6 @@ export const logUserActivity = createAsyncThunk(
   }
 );
 
-// Fetch API keys
-export const fetchApiKeys = createAsyncThunk(
-  "userProfile/fetchApiKeys",
-  async (_, thunkAPI) => {
-    try {
-      const response = await api.get("/users/api-keys");
-      return response.data.apiKeys;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
-
-// Create API key
-export const createApiKey = createAsyncThunk(
-  "userProfile/createApiKey",
-  async (keyData, thunkAPI) => {
-    try {
-      const response = await api.post("/users/api-keys", keyData);
-      invalidateCacheEntry("/users/api-keys", undefined);
-      thunkAPI.dispatch(fetchApiKeys());
-      return response.data.apiKey;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
-
-// Delete API key
-export const deleteApiKey = createAsyncThunk(
-  "userProfile/deleteApiKey",
-  async (keyId, thunkAPI) => {
-    try {
-      await api.delete(`/users/api-keys/${keyId}`);
-      invalidateCacheEntry("/users/api-keys", undefined);
-      thunkAPI.dispatch(fetchApiKeys());
-      return keyId;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
-
 // Fetch dashboard stats
 export const fetchDashboardStats = createAsyncThunk(
   "userProfile/fetchDashboardStats",
@@ -142,9 +93,6 @@ const userProfileSlice = createSlice({
       updateNotificationPreferences: false,
       userActivity: false,
       logActivity: false,
-      apiKeys: false,
-      createApiKey: false,
-      deleteApiKey: false,
       dashboardStats: false,
     },
 
@@ -154,24 +102,16 @@ const userProfileSlice = createSlice({
       updateNotificationPreferences: null,
       userActivity: null,
       logActivity: null,
-      apiKeys: null,
-      createApiKey: null,
-      deleteApiKey: null,
       dashboardStats: null,
     },
 
     // Success states
     success: {
       updateNotificationPreferences: false,
-      createApiKey: false,
-      deleteApiKey: false,
-    },
-
-    // Data
+    }, // Data
     notificationPreferences: null,
     activities: [],
     activityPagination: null,
-    apiKeys: [],
     dashboardStats: null,
   },
   reducers: {
@@ -285,57 +225,7 @@ const userProfileSlice = createSlice({
       .addCase(logUserActivity.rejected, (state, action) => {
         state.loading.logActivity = false;
         state.error.logActivity = action.payload;
-      })
-
-      // API Keys
-      .addCase(fetchApiKeys.pending, (state) => {
-        state.loading.apiKeys = true;
-        state.error.apiKeys = null;
-      })
-      .addCase(fetchApiKeys.fulfilled, (state, action) => {
-        state.loading.apiKeys = false;
-        state.apiKeys = action.payload;
-      })
-      .addCase(fetchApiKeys.rejected, (state, action) => {
-        state.loading.apiKeys = false;
-        state.error.apiKeys = action.payload;
-      })
-
-      .addCase(createApiKey.pending, (state) => {
-        state.loading.createApiKey = true;
-        state.error.createApiKey = null;
-        state.success.createApiKey = false;
-      })
-      .addCase(createApiKey.fulfilled, (state, action) => {
-        state.loading.createApiKey = false;
-        state.success.createApiKey = true;
-        // Ensure a new array reference for apiKeys
-        state.apiKeys = [...state.apiKeys, action.payload];
-      })
-      .addCase(createApiKey.rejected, (state, action) => {
-        state.loading.createApiKey = false;
-        state.error.createApiKey = action.payload;
-      })
-
-      .addCase(deleteApiKey.pending, (state) => {
-        state.loading.deleteApiKey = true;
-        state.error.deleteApiKey = null;
-        state.success.deleteApiKey = false;
-      })
-      .addCase(deleteApiKey.fulfilled, (state, action) => {
-        state.loading.deleteApiKey = false;
-        state.success.deleteApiKey = true;
-        // Ensure a new array reference for apiKeys after deletion
-        state.apiKeys = state.apiKeys.filter(
-          (key) => key._id !== action.payload
-        );
-      })
-      .addCase(deleteApiKey.rejected, (state, action) => {
-        state.loading.deleteApiKey = false;
-        state.error.deleteApiKey = action.payload;
-      })
-
-      // Dashboard Stats
+      }) // Dashboard Stats
       .addCase(fetchDashboardStats.pending, (state) => {
         state.loading.dashboardStats = true;
         state.error.dashboardStats = null;

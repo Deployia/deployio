@@ -8,6 +8,8 @@ import deploymentReducer from "./slices/deploymentSlice";
 import analyticsReducer from "./slices/analyticsSlice";
 import documentationReducer from "./slices/documentationSlice";
 import blogReducer from "./slices/blogSlice";
+import apiKeyReducer from "./slices/apiKeySlice";
+import notificationReducer from "./slices/notificationSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -18,6 +20,8 @@ const rootReducer = combineReducers({
   analytics: analyticsReducer,
   documentation: documentationReducer,
   blog: blogReducer,
+  apiKeys: apiKeyReducer,
+  notifications: notificationReducer,
 });
 
 export const store = configureStore({
