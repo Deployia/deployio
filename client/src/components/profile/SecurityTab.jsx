@@ -14,7 +14,7 @@ import toast from "react-hot-toast";
 import TwoFactorSection from "./TwoFactorSection";
 import OAuthAccountsSection from "./OAuthAccountsSection";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
-import LoadingState from "./LoadingState";
+import { FormSectionSkeleton, StatsGridSkeleton } from "./LoadingState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import {
   createApiKey,
@@ -28,7 +28,6 @@ import {
 import { fetchProviders } from "@redux/slices/authSlice";
 import { get2FAStatus } from "@redux/slices/twoFactorSlice";
 import { useModal } from "@context/ModalContext";
-import activityLogger from "@/utils/activityLogger";
 import {
   calculateSecurityScore,
   getSecurityScoreColor,
@@ -94,19 +93,11 @@ const SecurityTab = () => {
       toast.error("Please enter a name for the API key");
       return;
     }
-
     try {
       const result = await dispatch(createApiKey({ name: newApiKeyName }));
       if (createApiKey.fulfilled.match(result)) {
         setNewApiKeyName("");
-        setShowCreateApiKey(false); // Dual-track approach: Log activity
-        try {
-          // Log to audit trail (always)
-          await activityLogger.apiKeyGenerated(newApiKeyName);
-        } catch (loggingError) {
-          console.warn("Failed to log activity:", loggingError);
-          // Don't break the flow if logging fails
-        }
+        setShowCreateApiKey(false);
 
         // Show success feedback
         toast.success("API key generated successfully");
@@ -125,19 +116,6 @@ const SecurityTab = () => {
         onConfirm={async () => {
           try {
             await dispatch(deleteApiKey(keyId));
-
-            // Dual-track approach: Log activity AND send notification
-            try {
-              // 1. Log to audit trail (always)
-              await activityLogger.apiKeyRevoked(keyId, keyName);
-
-              // 2. Send notification (for security awareness)
-              // Note: For API key deletion, we might want a less prominent notification
-              // This demonstrates selective notification strategy
-            } catch (loggingError) {
-              console.warn("Failed to log activity:", loggingError);
-            }
-
             toast.success("API key deleted successfully");
             closeModal();
           } catch (error) {
@@ -152,10 +130,15 @@ const SecurityTab = () => {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
-  };
-  // Show loading state during initial load
+  }; // Show loading state during initial load
   if (isInitialLoading) {
-    return <LoadingState message="Loading security settings..." />;
+    return (
+      <div className="space-y-8">
+        <StatsGridSkeleton columns={3} />
+        <FormSectionSkeleton rows={4} />
+        <FormSectionSkeleton rows={3} />
+      </div>
+    );
   }
 
   return (

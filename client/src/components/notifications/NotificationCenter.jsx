@@ -20,7 +20,7 @@ import {
   selectNotificationError,
   clearNotificationError,
 } from "@redux";
-import LoadingState from "@components/profile/LoadingState";
+import { NotificationListSkeleton } from "./NotificationSkeleton";
 
 const NotificationCenter = ({ isOpen, onClose }) => {
   const dispatch = useDispatch();
@@ -180,7 +180,6 @@ const NotificationCenter = ({ isOpen, onClose }) => {
             )}
           </div>
         </div>
-
         {/* Error Display */}
         {error.fetch && (
           <div className="px-4 py-2 bg-red-500/10 border-l-4 border-red-500 text-red-400 text-sm">
@@ -192,14 +191,11 @@ const NotificationCenter = ({ isOpen, onClose }) => {
               <FaTimes className="w-3 h-3 inline" />
             </button>
           </div>
-        )}
-
+        )}{" "}
         {/* Notifications List */}
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-80 overflow-y-auto custom-scrollbar">
           {loading.fetch && filteredNotifications.length === 0 ? (
-            <div className="p-4">
-              <LoadingState message="Loading notifications..." />
-            </div>
+            <NotificationListSkeleton count={4} />
           ) : filteredNotifications.length === 0 ? (
             <div className="p-6 text-center text-gray-400">
               <FaBell className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -216,7 +212,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
                     key={notification._id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className={`p-3 hover:bg-neutral-800/30 cursor-pointer transition-colors ${
+                    className={`notification-item p-3 hover:bg-neutral-800/30 cursor-pointer transition-colors ${
                       notification.status === "unread"
                         ? "bg-neutral-800/20"
                         : ""
@@ -262,7 +258,6 @@ const NotificationCenter = ({ isOpen, onClose }) => {
             </div>
           )}
         </div>
-
         {/* Footer */}
         {filteredNotifications.length > 0 && (
           <div className="px-4 py-2 border-t border-neutral-800/50 text-center">

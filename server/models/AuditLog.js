@@ -17,6 +17,11 @@ const auditLogSchema = new mongoose.Schema(
         "user.2fa_enable",
         "user.2fa_disable",
 
+        // Profile actions
+        "profile.update",
+        "profile.updated",
+        "profile.image_change",
+
         // Project actions
         "project.create",
         "project.update",
@@ -246,6 +251,7 @@ auditLogSchema.statics.getCategory = function (action) {
     "user.password_change": "security",
     "user.2fa_enable": "security",
     "user.2fa_disable": "security",
+    "profile.": "data",
     "project.": "data",
     "deployment.": "system",
     "container.": "system",

@@ -6,8 +6,11 @@ import {
   fetchUnreadCount,
   selectUnreadCount,
   selectNotificationLoading,
+  addNotification,
+  updateNotificationCount,
 } from "@redux";
 import NotificationCenter from "./NotificationCenter";
+import { useNotifications } from "@hooks/useNotifications";
 
 const NotificationBell = () => {
   const dispatch = useDispatch();
@@ -17,17 +20,58 @@ const NotificationBell = () => {
   const unreadCount = useSelector(selectUnreadCount);
   const loading = useSelector(selectNotificationLoading);
 
-  // Fetch unread count on mount and periodically
+  // WebSocket notifications hook
+  const {
+    isConnected: wsConnected,
+    addListener,
+    removeListener,
+  } = useNotifications();
+
+  // Fetch unread count on mount and periodically (fallback when WebSocket isn't available)
   useEffect(() => {
     dispatch(fetchUnreadCount());
 
-    // Poll for unread count every 30 seconds
-    const interval = setInterval(() => {
-      dispatch(fetchUnreadCount());
-    }, 30000);
+    // Only poll if WebSocket is not connected
+    if (!wsConnected) {
+      const interval = setInterval(() => {
+        dispatch(fetchUnreadCount());
+      }, 30000);
 
-    return () => clearInterval(interval);
-  }, [dispatch]);
+      return () => clearInterval(interval);
+    }
+  }, [dispatch, wsConnected]);
+
+  // Set up WebSocket listeners for real-time updates
+  useEffect(() => {
+    if (!wsConnected) return;
+
+    // Listen for new notifications
+    const handleNewNotification = (notification) => {
+      dispatch(addNotification(notification));
+
+      // Show browser notification if permission is granted
+      if (Notification.permission === "granted") {
+        new Notification(notification.title, {
+          body: notification.message,
+          icon: "/favicon.png",
+          tag: notification._id,
+        });
+      }
+    };
+
+    // Listen for unread count updates
+    const handleCountUpdate = (data) => {
+      dispatch(updateNotificationCount(data.count));
+    };
+
+    addListener("new_notification", handleNewNotification);
+    addListener("notification_count", handleCountUpdate);
+
+    return () => {
+      removeListener("new_notification", handleNewNotification);
+      removeListener("notification_count", handleCountUpdate);
+    };
+  }, [dispatch, wsConnected, addListener, removeListener]);
 
   const handleToggle = () => {
     setIsOpen(!isOpen);

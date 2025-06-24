@@ -297,9 +297,7 @@ const logUserActivity = async (userId, activityData) => {
   try {
     // Get user info for the audit log
     const user = await User.findById(userId).select("email username");
-    if (!user) throw new Error("User not found");
-
-    // Create audit log entry
+    if (!user) throw new Error("User not found"); // Create audit log entry
     const auditLog = new AuditLog({
       action: action,
       actor: {
@@ -313,6 +311,8 @@ const logUserActivity = async (userId, activityData) => {
         userAgent: userAgent,
       },
       details: details || {},
+      category: AuditLog.getCategory(action),
+      severity: AuditLog.getSeverity(action),
     });
 
     await auditLog.save();

@@ -3,9 +3,8 @@ import { FaDesktop, FaMobile } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { deleteSession, fetchSessions } from "@redux/slices/authSlice";
-import LoadingState from "./LoadingState";
+import { ActivityListSkeleton } from "./LoadingState";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
-import activityLogger from "@/utils/activityLogger";
 
 const SessionsTab = () => {
   const dispatch = useDispatch();
@@ -30,9 +29,6 @@ const SessionsTab = () => {
     try {
       await dispatch(deleteSession(sessionId)).unwrap();
       toast.success("Session terminated successfully");
-
-      // Log activity - no need to refresh data, Redux handles it
-      await activityLogger.sessionTerminated(sessionId);
     } catch (error) {
       toast.error(error || "Failed to terminate session");
     }
@@ -70,10 +66,9 @@ const SessionsTab = () => {
 
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays} days ago`;
-  };
-  // Show loading state during initial load
+  }; // Show loading state during initial load
   if (isInitialLoading) {
-    return <LoadingState message="Loading sessions..." />;
+    return <ActivityListSkeleton items={3} />;
   }
 
   return (

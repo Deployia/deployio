@@ -179,6 +179,26 @@ const notificationSlice = createSlice({
       state.unreadCount += 1;
     },
 
+    // Add new notification (WebSocket real-time)
+    addNotification: (state, action) => {
+      const newNotification = action.payload;
+      // Add to beginning of notifications array
+      state.notifications.unshift(newNotification);
+
+      // Update unread count if notification is unread
+      if (newNotification.status === "unread") {
+        state.unreadCount += 1;
+      }
+
+      // Update pagination
+      state.pagination.total += 1;
+    },
+
+    // Update notification count (WebSocket real-time)
+    updateNotificationCount: (state, action) => {
+      state.unreadCount = action.payload;
+    },
+
     // Set unread count (for real-time updates)
     setUnreadCount: (state, action) => {
       state.unreadCount = action.payload;
@@ -307,6 +327,8 @@ export const {
   incrementUnreadCount,
   setUnreadCount,
   setLastFetch,
+  addNotification,
+  updateNotificationCount,
 } = notificationSlice.actions;
 
 // Selectors

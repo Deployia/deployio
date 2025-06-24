@@ -17,7 +17,7 @@ import {
   fetchNotificationPreferences,
 } from "@redux/slices/userSlice";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
-import LoadingState from "./LoadingState";
+import { NotificationPreferencesSkeleton } from "./LoadingState";
 
 const NotificationsTab = () => {
   const dispatch = useDispatch();
@@ -149,10 +149,9 @@ const NotificationsTab = () => {
       toast.error("This browser doesn't support notifications");
     }
   };
-
   // Show loading state during initial load
   if (isInitialLoading) {
-    return <LoadingState message="Loading notification preferences..." />;
+    return <NotificationPreferencesSkeleton categories={4} />;
   }
 
   const notificationCategories = [

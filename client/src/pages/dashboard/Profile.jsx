@@ -22,7 +22,7 @@ import {
   SecurityTab,
   NotificationsTab,
 } from "@components/profile";
-import ActivityAnalytics from "@components/profile/ActivityAnalytics";
+import AnalyticsTab from "@components/profile/AnalyticsTab";
 
 function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -110,7 +110,7 @@ function Profile() {
         case "activity":
           return <ActivityTab />;
         case "analytics":
-          return <ActivityAnalytics />;
+          return <AnalyticsTab />;
         default:
           return null;
       }

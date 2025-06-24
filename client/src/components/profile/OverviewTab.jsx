@@ -12,38 +12,37 @@ import {
   FaClock,
   FaExclamationTriangle,
   FaKey,
+  FaBell,
 } from "react-icons/fa";
-import {
-  fetchUserActivity,
-  fetchDashboardStats,
-} from "@redux/slices/userSlice";
+import { fetchDashboardStats } from "@redux/slices/userSlice";
 import { fetchProviders } from "@redux/slices/authSlice";
 import { fetchApiKeys, selectApiKeys } from "@redux/slices/apiKeySlice";
-import LoadingState from "./LoadingState";
+import { fetchNotifications, selectNotifications } from "@redux";
+import { ProfileCardSkeleton, StatsGridSkeleton } from "./LoadingState";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
 import { calculateSecurityScore } from "@utils/securityScore";
 
 const OverviewTab = () => {
   const dispatch = useDispatch();
+
   // Get data from Redux state
   const { user: authUser, providers: linkedProviders } = useSelector(
     (state) => state.auth
   );
-  const { activities, dashboardStats } = useSelector(
-    (state) => state.userProfile
-  );
+  const { dashboardStats } = useSelector((state) => state.userProfile);
+  const notifications = useSelector(selectNotifications);
   const apiKeys = useSelector(selectApiKeys);
   const { twoFactorEnabled } = useSelector((state) => state.twoFactor);
 
-  const [isInitialLoading, setIsInitialLoading] = useState(true); // Load overview data on mount
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Load overview data on mount
   useEffect(() => {
     const loadData = async () => {
       try {
         await Promise.allSettled([
-          // Load activities with a specific identifier to avoid conflicts
-          dispatch(
-            fetchUserActivity({ page: 1, limit: 5, source: "overview" })
-          ),
+          // Load recent notifications instead of activities
+          dispatch(fetchNotifications({ page: 1, limit: 5 })),
           dispatch(fetchDashboardStats()),
           dispatch(fetchApiKeys()),
           dispatch(fetchProviders()),
@@ -79,20 +78,19 @@ const OverviewTab = () => {
     // Profile is complete if at least 75% of required fields are filled
     return completedFields.length >= Math.ceil(requiredFields.length * 0.75);
   }, [authUser]);
-
-  // Calculate activity metrics
+  // Calculate activity metrics from notifications
   const activityMetrics = useMemo(() => {
-    if (!activities || activities.length === 0) return null;
+    if (!notifications || notifications.length === 0) return null;
 
     const now = new Date();
-    const last7Days = activities.filter(
-      (activity) =>
-        new Date(activity.timestamp) >=
+    const last7Days = notifications.filter(
+      (notification) =>
+        new Date(notification.createdAt) >=
         new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     );
 
-    const typeDistribution = last7Days.reduce((acc, activity) => {
-      acc[activity.type] = (acc[activity.type] || 0) + 1;
+    const typeDistribution = last7Days.reduce((acc, notification) => {
+      acc[notification.type] = (acc[notification.type] || 0) + 1;
       return acc;
     }, {});
 
@@ -105,7 +103,7 @@ const OverviewTab = () => {
         { type: "none", count: 0 }
       ).type,
     };
-  }, [activities]);
+  }, [notifications]);
   const getSecurityScoreColorClasses = (score) => {
     if (score >= 80) return "text-green-400 bg-green-500/20";
     if (score >= 60) return "text-yellow-400 bg-yellow-500/20";
@@ -232,10 +230,15 @@ const OverviewTab = () => {
     }
     return items;
   }, [authUser, activityMetrics, apiKeys, linkedProviders, profileComplete]);
-
   // Show loading state during initial load
   if (isInitialLoading) {
-    return <LoadingState message="Loading overview..." />;
+    return (
+      <div className="space-y-8">
+        <StatsGridSkeleton columns={3} />
+        <ProfileCardSkeleton />
+        <StatsGridSkeleton columns={2} />
+      </div>
+    );
   }
 
   return (
@@ -531,46 +534,51 @@ const OverviewTab = () => {
               </Link>
             </div>{" "}
             <div className="space-y-3">
-              {(activities || []).length > 0 ? (
-                (activities || []).slice(0, 5).map((activity, index) => (
+              {(notifications || []).length > 0 ? (
+                (notifications || []).slice(0, 5).map((notification, index) => (
                   <div
-                    key={activity._id || index}
+                    key={notification._id || index}
                     className="flex items-center gap-3 p-3 hover:bg-neutral-800/50 rounded-lg transition-colors"
                   >
                     <div
                       className={`p-2 rounded-full ${
-                        activity.type === "security"
+                        notification.type === "security"
                           ? "bg-red-500/20 text-red-400"
-                          : activity.type === "auth"
+                          : notification.type === "auth"
                           ? "bg-blue-500/20 text-blue-400"
-                          : activity.type === "profile"
+                          : notification.type === "profile"
                           ? "bg-green-500/20 text-green-400"
+                          : notification.type === "system"
+                          ? "bg-orange-500/20 text-orange-400"
                           : "bg-purple-500/20 text-purple-400"
                       }`}
                     >
-                      {activity.type === "security" ? (
+                      {notification.type === "security" ? (
                         <FaShieldAlt className="w-4 h-4" />
-                      ) : activity.type === "auth" ? (
+                      ) : notification.type === "auth" ? (
                         <FaUser className="w-4 h-4" />
+                      ) : notification.type === "system" ? (
+                        <FaBell className="w-4 h-4" />
                       ) : (
                         <FaClock className="w-4 h-4" />
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="text-white text-sm">{activity.action}</p>
+                      <p className="text-white text-sm">{notification.title}</p>
                       <p className="text-xs text-gray-400">
-                        {activity.time ||
-                          new Date(activity.timestamp).toLocaleString()}
+                        {new Date(notification.createdAt).toLocaleString()}
                       </p>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8">
-                  <FaClock className="w-8 h-8 text-gray-500 mx-auto mb-3" />
-                  <p className="text-gray-400 text-sm">No recent activity</p>
+                  <FaBell className="w-8 h-8 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">
+                    No recent notifications
+                  </p>
                   <p className="text-gray-500 text-xs mt-1">
-                    Your account activity will appear here
+                    Your notifications will appear here
                   </p>
                 </div>
               )}

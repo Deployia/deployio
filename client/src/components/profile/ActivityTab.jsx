@@ -1,166 +1,198 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
-  FaShieldAlt,
-  FaUser,
-  FaLock,
-  FaCog,
-  FaSignInAlt,
+  FaBell,
   FaFilter,
   FaChevronLeft,
   FaChevronRight,
+  FaCheck,
+  FaExclamationTriangle,
+  FaInfoCircle,
+  FaRocket,
+  FaShieldAlt,
 } from "react-icons/fa";
-import { fetchUserActivity } from "@redux/slices/userSlice";
-import LoadingState from "./LoadingState";
+import { motion } from "framer-motion";
+import {
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  selectNotifications,
+  selectNotificationPagination,
+  selectNotificationLoading,
+  selectNotificationError,
+} from "@redux";
+import { ActivityListSkeleton } from "./LoadingState";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
 
 const ActivityTab = () => {
   const dispatch = useDispatch();
 
-  // Get data from Redux state
-  const { activities, activityPagination, loading } = useSelector(
-    (state) => state.userProfile
-  );
-  const isLoading = loading?.userActivity || false;
+  // Get notifications from Redux state (replacing activities)
+  const notifications = useSelector(selectNotifications);
+  const pagination = useSelector(selectNotificationPagination);
+  const loading = useSelector(selectNotificationLoading);
+  const error = useSelector(selectNotificationError);
 
   const [filter, setFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const itemsPerPage = 10; // Reduced for better pagination UX
-  // Load activities data
-  const loadActivities = useCallback(
-    async (page = 1, type = filter) => {
+  const itemsPerPage = 10;
+
+  // Load notifications data (replacing activities)
+  const loadNotifications = useCallback(
+    async (page = 1, status = filter) => {
       try {
         const params = {
           page,
           limit: itemsPerPage,
-          source: "activity-tab", // Add source identifier
         };
 
-        // Only add type filter if it's not "all"
-        if (type !== "all") {
-          params.type = type;
+        // Only add status filter if it's not "all"
+        if (status !== "all") {
+          params.status = status;
         }
 
-        await dispatch(fetchUserActivity(params));
+        await dispatch(fetchNotifications(params));
       } catch (error) {
-        console.error("Error loading activities:", error);
+        console.error("Error loading notifications:", error);
       }
     },
     [dispatch, filter, itemsPerPage]
-  ); // Load activities on mount
+  );
+
+  // Load notifications on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        await loadActivities(1, filter);
+        await loadNotifications(1, filter);
       } catch (error) {
-        console.error("Error loading activities:", error);
+        console.error("Error loading notifications:", error);
       } finally {
         setIsInitialLoading(false);
       }
     };
 
     loadData();
-  }, [loadActivities, filter]);
+  }, [loadNotifications, filter]);
 
   // Handle filter change
   const handleFilterChange = async (newFilter) => {
     setFilter(newFilter);
     setCurrentPage(1);
-    await loadActivities(1, newFilter);
+    await loadNotifications(1, newFilter);
   };
 
   // Handle page change
   const handlePageChange = async (newPage) => {
-    if (newPage >= 1 && newPage <= (activityPagination?.pages || 1)) {
+    if (newPage >= 1 && newPage <= (pagination?.totalPages || 1)) {
       setCurrentPage(newPage);
-      await loadActivities(newPage, filter);
+      await loadNotifications(newPage, filter);
     }
   };
 
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case "auth":
-        return <FaSignInAlt className="w-5 h-5" />;
-      case "security":
-        return <FaShieldAlt className="w-5 h-5" />;
-      case "profile":
-        return <FaUser className="w-5 h-5" />;
-      case "system":
-        return <FaCog className="w-5 h-5" />;
-      default:
-        return <FaLock className="w-5 h-5" />;
+  // Handle notification click (mark as read)
+  const handleNotificationClick = async (notification) => {
+    if (notification.status === "unread") {
+      try {
+        await dispatch(markNotificationRead(notification._id)).unwrap();
+      } catch (error) {
+        console.error("Failed to mark notification as read:", error);
+      }
     }
   };
 
-  const getActivityColor = (type) => {
-    switch (type) {
-      case "auth":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-      case "security":
-        return "bg-red-500/20 text-red-400 border-red-500/30";
-      case "profile":
-        return "bg-green-500/20 text-green-400 border-green-500/30";
-      case "system":
-        return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-      default:
-        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+  // Mark all notifications as read
+  const handleMarkAllRead = async () => {
+    try {
+      await dispatch(markAllNotificationsRead()).unwrap();
+      // Reload current page
+      await loadNotifications(currentPage, filter);
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
     }
   };
-  const formatTimeAgo = (timestamp) => {
+
+  const getNotificationIcon = (type) => {
+    if (type?.startsWith("deployment.")) return FaRocket;
+    if (type?.startsWith("security.")) return FaShieldAlt;
+    if (type?.startsWith("system.")) return FaExclamationTriangle;
+    return FaInfoCircle;
+  };
+
+  const getNotificationColor = (notification) => {
+    if (notification.priority === "urgent")
+      return "text-red-400 border-red-500/30 bg-red-500/10";
+    if (notification.priority === "high")
+      return "text-orange-400 border-orange-500/30 bg-orange-500/10";
+    if (notification.type?.startsWith("deployment.success"))
+      return "text-green-400 border-green-500/30 bg-green-500/10";
+    if (notification.type?.startsWith("deployment.failed"))
+      return "text-red-400 border-red-500/30 bg-red-500/10";
+    if (notification.type?.startsWith("security."))
+      return "text-yellow-400 border-yellow-500/30 bg-yellow-500/10";
+    return "text-blue-400 border-blue-500/30 bg-blue-500/10";
+  };
+
+  // Format relative time
+  const formatTimeAgo = (date) => {
     const now = new Date();
-    const time = new Date(timestamp);
-    const diffInSeconds = Math.floor((now - time) / 1000);
+    const notificationDate = new Date(date);
+    const diffInSeconds = Math.floor((now - notificationDate) / 1000);
 
     if (diffInSeconds < 60) return "Just now";
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400)
       return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 2592000)
-      return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    return time.toLocaleDateString();
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
-  // Filter activities based on selected filter
-  // Note: We're doing server-side filtering now, so we just use activities directly
-  const displayActivities = activities || [];
-
   // Show loading state during initial load
   if (isInitialLoading) {
-    return <LoadingState message="Loading activities..." />;
+    return <ActivityListSkeleton items={8} />;
   }
 
+  const displayNotifications = notifications || [];
+
   return (
-    <ProfileErrorBoundary fallbackMessage="Failed to load activities">
+    <ProfileErrorBoundary fallbackMessage="Failed to load activity">
       <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              Account Activity
+              Recent Activity
             </h3>
             <p className="text-gray-400">
-              View your recent account activity and security events.
+              View your recent notifications and system activity.
             </p>
           </div>
+          {displayNotifications.some((n) => n.status === "unread") && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={loading.markAllRead}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              <FaCheck className="w-4 h-4" />
+              Mark All Read
+            </button>
+          )}
         </div>
+
         {/* Filter */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <FaFilter className="w-4 h-4 text-gray-400" />
             <span className="text-sm text-gray-400">Filter:</span>
-          </div>{" "}
+          </div>
           <div className="flex gap-2 flex-wrap">
             {[
               { value: "all", label: "All" },
-              { value: "auth", label: "Authentication" },
-              { value: "security", label: "Security" },
-              { value: "profile", label: "Profile" },
-              { value: "system", label: "System" },
+              { value: "unread", label: "Unread" },
+              { value: "read", label: "Read" },
             ].map(({ value, label }) => (
               <button
                 key={value}
                 onClick={() => handleFilterChange(value)}
-                disabled={isLoading}
+                disabled={loading.fetch}
                 className={`px-3 py-1 text-xs rounded-full transition-colors disabled:opacity-50 ${
                   filter === value
                     ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
@@ -171,109 +203,125 @@ const ActivityTab = () => {
               </button>
             ))}
           </div>
-        </div>{" "}
-        {/* Loading State */}
-        {isLoading && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-            <span className="ml-3 text-gray-400">Loading activities...</span>
+        </div>
+
+        {/* Error State */}
+        {error.fetch && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
+            Failed to load activity: {error.fetch}
           </div>
         )}
-        {/* Activities List */}
-        {!isLoading &&
-        (!displayActivities || displayActivities.length === 0) ? (
+
+        {/* Loading State */}
+        {loading.fetch && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+            <span className="ml-3 text-gray-400">Loading activity...</span>
+          </div>
+        )}
+
+        {/* Notifications List */}
+        {!loading.fetch &&
+        (!displayNotifications || displayNotifications.length === 0) ? (
           <div className="text-center py-12">
-            <FaLock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+            <FaBell className="w-12 h-12 text-gray-500 mx-auto mb-4" />
             <p className="text-gray-400">No activity found</p>
             <p className="text-gray-500 text-sm mt-2">
               {filter !== "all"
-                ? `No ${filter} activities to display`
-                : "Your account activity will appear here"}
+                ? `No ${filter} notifications to display`
+                : "Your activity will appear here"}
             </p>
           </div>
         ) : (
-          !isLoading && (
+          !loading.fetch && (
             <div className="space-y-4">
-              {displayActivities.map((activity, index) => (
-                <div
-                  key={`${activity.timestamp}-${index}`}
-                  className="flex items-start gap-4 p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 transition-colors"
-                >
-                  <div
-                    className={`p-3 rounded-full border ${getActivityColor(
-                      activity.type
-                    )}`}
+              {displayNotifications.map((notification) => {
+                const IconComponent = getNotificationIcon(notification.type);
+                const colorClass = getNotificationColor(notification);
+
+                return (
+                  <motion.div
+                    key={notification._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex items-start gap-4 p-4 rounded-lg border transition-colors cursor-pointer ${
+                      notification.status === "unread"
+                        ? "bg-neutral-800/50 border-neutral-600/50"
+                        : "bg-neutral-800/30 border-neutral-700/50"
+                    } hover:border-neutral-600/50`}
+                    onClick={() => handleNotificationClick(notification)}
                   >
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-white mb-1">
-                      {activity.action}
-                    </h4>
-                    {activity.details && (
-                      <p className="text-sm text-gray-400 mb-2">
-                        {activity.details}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span>{formatTimeAgo(activity.timestamp)}</span>
-                      {activity.ip && <span>IP: {activity.ip}</span>}
+                    <div className={`p-3 rounded-full border ${colorClass}`}>
+                      <IconComponent className="w-5 h-5" />
                     </div>
-                  </div>
-                  <span
-                    className={`px-3 py-1 text-xs rounded-full border ${getActivityColor(
-                      activity.type
-                    )}`}
-                  >
-                    {activity.type}
-                  </span>
-                </div>
-              ))}{" "}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-medium text-white mb-1 truncate">
+                          {notification.title}
+                        </h4>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {notification.status === "unread" && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          )}
+                          <span className="text-xs text-gray-400">
+                            {formatTimeAgo(notification.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-400 mb-2 line-clamp-2">
+                        {notification.message}
+                      </p>
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span
+                          className={`px-2 py-1 rounded-full border ${colorClass}`}
+                        >
+                          {notification.type || "notification"}
+                        </span>
+                        {notification.priority &&
+                          notification.priority !== "normal" && (
+                            <span className="capitalize">
+                              {notification.priority} priority
+                            </span>
+                          )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )
         )}
-        {/* Pagination */}
-        {!isLoading &&
-          displayActivities &&
-          displayActivities.length > 0 &&
-          activityPagination &&
-          activityPagination.pages > 1 && (
-            <div className="mt-6 space-y-4">
-              {/* Pagination Info */}
-              <div className="text-center text-sm text-gray-500">
-                Showing page {activityPagination.current} of{" "}
-                {activityPagination.pages}({activityPagination.total} total
-                activities)
-              </div>
 
-              {/* Pagination Controls */}
-              <div className="flex items-center justify-center gap-2">
-                {/* Previous Button */}
+        {/* Pagination */}
+        {!loading.fetch &&
+          displayNotifications &&
+          displayNotifications.length > 0 &&
+          pagination &&
+          pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-6 border-t border-neutral-800/50">
+              <div className="text-sm text-gray-400">
+                Page {pagination.currentPage} of {pagination.totalPages} (
+                {pagination.total} total)
+              </div>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1 || isLoading}
-                  className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-neutral-800/50 border border-neutral-700/50 text-gray-400 hover:bg-neutral-700/50 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  disabled={currentPage === 1 || loading.fetch}
+                  className="p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FaChevronLeft className="w-3 h-3" />
-                  Previous
+                  <FaChevronLeft className="w-4 h-4" />
                 </button>
-
-                {/* Page Info */}
-                <div className="px-4 py-2 text-sm text-gray-400">
-                  Page {currentPage} of {activityPagination.pages}
-                </div>
-
-                {/* Next Button */}
+                <span className="px-3 py-1 text-sm text-gray-300">
+                  {currentPage}
+                </span>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={
-                    currentPage === (activityPagination?.pages || 1) ||
-                    isLoading
+                    currentPage === pagination.totalPages || loading.fetch
                   }
-                  className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-neutral-800/50 border border-neutral-700/50 text-gray-400 hover:bg-neutral-700/50 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Next
-                  <FaChevronRight className="w-3 h-3" />
+                  <FaChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>

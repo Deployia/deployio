@@ -33,10 +33,9 @@ class ApiKeyService {
       });
       if (existingKey) {
         throw new Error("API key with this name already exists");
-      }
-
-      // Generate secure API key
-      const keyType = permissions.includes("write") ? "live" : "test";
+      } // Generate secure API key
+      const validPermissions = permissions || ["projects:read"];
+      const keyType = validPermissions.includes("write") ? "live" : "test";
       const fullKey = this.generateApiKey(keyType);
       const keyPrefix = fullKey.substring(0, 12); // dp_live_xxxx or dp_test_xxxx
 
@@ -50,7 +49,7 @@ class ApiKeyService {
         keyHash,
         keyPrefix,
         user: userId,
-        permissions: permissions || ["projects:read"],
+        permissions: validPermissions,
         expiresAt,
         status: "active",
         lastUsed: null,

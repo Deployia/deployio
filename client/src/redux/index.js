@@ -161,4 +161,6 @@ export {
   selectUnreadNotifications,
   selectNotificationsByType,
   selectRecentNotifications,
+  addNotification,
+  updateNotificationCount,
 } from "./slices/notificationSlice";
