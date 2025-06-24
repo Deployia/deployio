@@ -46,17 +46,15 @@ services:
     networks:
       - deployio-network
     depends_on:
-      - traefik
-
-  # Default Landing Page
+      - traefik # Default Landing Page
   landing-page:
     build: ./landing-page
     container_name: landing-page
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      # This will catch all subdomains except reserved ones
-      - "traefik.http.routers.landing.rule=HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.deployio.tech`) && !Host(`agent.deployio.tech`) && !Host(`app.deployio.tech`) && !Host(`traefik.deployio.tech`)"
+      # Catch-all rule for any subdomain (reserved routes have higher priority)
+      - "traefik.http.routers.landing.rule=HostRegexp(`^.+\\.deployio\\.tech$`)"
       - "traefik.http.routers.landing.tls.certresolver=letsencrypt"
       - "traefik.http.routers.landing.priority=1"
       - "traefik.http.services.landing.loadbalancer.server.port=80"
