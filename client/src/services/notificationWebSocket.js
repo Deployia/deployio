@@ -20,7 +20,6 @@ class NotificationWebSocketService {
     this.isConnecting = false;
     this.shouldReconnect = true;
   }
-
   /**
    * Initialize Socket.IO connection
    */
@@ -43,7 +42,8 @@ class NotificationWebSocketService {
       const serverUrl = import.meta.env.VITE_API_URL || window.location.origin;
 
       this.socket = io(serverUrl, {
-        path: "/ws/notifications",
+        path: "/socket.io",
+        namespace: "/notifications",
         auth: {
           token: token,
         },

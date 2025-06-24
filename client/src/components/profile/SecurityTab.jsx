@@ -373,85 +373,176 @@ const SecurityTab = () => {
           )}{" "}
           {/* API Keys List */}
           <div className="space-y-4">
-            {" "}
-            {apiKeys &&
-              apiKeys.map((apiKey) => (
-                <div
-                  key={apiKey._id}
-                  className="flex items-center justify-between p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    {" "}
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-medium text-white">
-                        {apiKey.name || "Unnamed Key"}
-                      </h4>
-                      <div className="flex gap-1">
-                        {(apiKey.permissions || []).map((permission) => (
-                          <span
-                            key={permission}
-                            className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full"
-                          >
-                            {permission}
-                          </span>
-                        ))}
+            {apiKeyLoading.fetch ? (
+              // Skeleton loading for API keys
+              <div className="space-y-3">
+                {[...Array(2)].map((_, index) => (
+                  <div
+                    key={index}
+                    className="p-4 bg-neutral-800/30 border border-neutral-700/30 rounded-lg animate-pulse"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="h-4 bg-neutral-700/50 rounded w-32 mb-2"></div>
+                        <div className="h-3 bg-neutral-700/30 rounded w-48"></div>
                       </div>
-                    </div>{" "}
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <code className="font-mono">
-                        {apiKey.maskedKey && apiKey.maskedKey.includes("*")
-                          ? apiKey.maskedKey
-                          : `${apiKey.maskedKey?.slice(
-                              0,
-                              12
-                            )}...${apiKey.maskedKey?.slice(-4)}`}
-                      </code>
-                      <span>
-                        Created:{" "}
-                        {apiKey.created
-                          ? new Date(apiKey.created).toLocaleDateString()
-                          : "N/A"}
-                      </span>
-                      {apiKey.lastUsed && (
-                        <span>
-                          Last used:{" "}
-                          {new Date(apiKey.lastUsed).toLocaleDateString()}
-                        </span>
-                      )}
+                      <div className="h-8 bg-neutral-700/50 rounded w-20"></div>
                     </div>
-                  </div>{" "}
-                  <div className="flex items-center gap-2">
-                    {" "}
-                    <button
-                      onClick={() => copyToClipboard(apiKey.key || "")}
-                      className="p-2 text-gray-400 hover:text-white transition-colors"
-                      title="Copy key"
-                      disabled={apiKey.key && apiKey.key.includes("*")}
-                    >
-                      <FaCopy />
-                    </button>{" "}
-                    <button
-                      onClick={() =>
-                        handleDeleteApiKey(apiKey._id, apiKey.name)
-                      }
-                      className="p-2 text-red-400 hover:text-red-300 transition-colors"
-                      title="Delete key"
-                    >
-                      <FaTrash />
-                    </button>
                   </div>
-                </div>
-              ))}
-          </div>{" "}
-          {(!apiKeys || apiKeys.length === 0) && !showCreateApiKey && (
-            <div className="text-center py-8">
-              <FaKey className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-400">No API keys created yet</p>
-              <p className="text-sm text-gray-500">
-                Create your first API key to get started
-              </p>{" "}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : apiKeys && apiKeys.length > 0 ? (
+              apiKeys.map((apiKey) => (
+                <motion.div
+                  key={apiKey._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="group p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 hover:bg-neutral-800/70 transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <FaKey className="text-blue-400 text-sm" />
+                          <h4 className="font-medium text-white truncate">
+                            {apiKey.name || "Unnamed Key"}
+                          </h4>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full border ${
+                              apiKey.status === "active"
+                                ? "bg-green-500/20 text-green-400 border-green-500/30"
+                                : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                            }`}
+                          >
+                            {apiKey.status || "active"}
+                          </span>
+
+                          {/* Usage indicator */}
+                          {apiKey.lastUsed && (
+                            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
+                              Recently used
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Permissions */}
+                      {apiKey.permissions && apiKey.permissions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {apiKey.permissions.map((permission) => (
+                            <span
+                              key={permission}
+                              className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-md border border-purple-500/30"
+                            >
+                              {permission}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Key details */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-400 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Created:</span>
+                          <span className="text-gray-300">
+                            {apiKey.created || apiKey.createdAt
+                              ? new Date(
+                                  apiKey.created || apiKey.createdAt
+                                ).toLocaleDateString()
+                              : "N/A"}
+                          </span>
+                        </div>
+
+                        {apiKey.lastUsed && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Last used:</span>
+                            <span className="text-gray-300">
+                              {new Date(apiKey.lastUsed).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+
+                        {apiKey.usage && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Usage:</span>
+                            <span className="text-gray-300">
+                              {apiKey.usage.totalRequests || 0} requests
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Key preview (partial) */}
+                      <div className="p-2 bg-neutral-900/50 border border-neutral-700/50 rounded-md">
+                        <div className="flex items-center justify-between">
+                          <code className="text-xs text-gray-400 font-mono truncate">
+                            {apiKey.maskedKey && apiKey.maskedKey.includes("*")
+                              ? apiKey.maskedKey
+                              : apiKey.maskedKey?.slice(0, 12) +
+                                  "..." +
+                                  apiKey.maskedKey?.slice(-4) ||
+                                `dk_${"*".repeat(8)}...${apiKey._id.slice(-4)}`}
+                          </code>
+                          <span className="text-xs text-gray-500 ml-2">
+                            ID: {apiKey._id.slice(-8)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={() =>
+                          copyToClipboard(apiKey.key || apiKey._id)
+                        }
+                        className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors tooltip"
+                        title={apiKey.key ? "Copy API Key" : "Copy Key ID"}
+                        disabled={apiKey.key && apiKey.key.includes("*")}
+                      >
+                        <FaCopy className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          handleDeleteApiKey(apiKey._id, apiKey.name)
+                        }
+                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors tooltip"
+                        title="Delete API Key"
+                      >
+                        <FaTrash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              // Empty state
+              <div className="text-center py-12 border border-neutral-700/50 rounded-lg bg-neutral-800/30">
+                <FaKey className="mx-auto text-5xl text-gray-500 mb-4" />
+                <h4 className="text-lg font-medium text-gray-300 mb-2">
+                  No API Keys Created
+                </h4>
+                <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                  API keys allow you to authenticate with our services
+                  programmatically. Create your first key to get started with
+                  our API.
+                </p>
+                <button
+                  onClick={() => setShowCreateApiKey(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <FaPlus className="w-4 h-4" />
+                  Create Your First Key
+                </button>
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
     </ProfileErrorBoundary>

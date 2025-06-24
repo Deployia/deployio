@@ -147,6 +147,7 @@ export {
   setConnectionStatus,
   markAsReadLocal,
   incrementUnreadCount,
+  setUnreadCount,
   setLastFetch,
   selectNotifications,
   selectUnreadCount,

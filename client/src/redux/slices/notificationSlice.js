@@ -174,11 +174,14 @@ const notificationSlice = createSlice({
         notification.readAt = new Date().toISOString();
         state.unreadCount = Math.max(0, state.unreadCount - 1);
       }
-    },
-
-    // Increment unread count (for real-time updates)
+    }, // Increment unread count (for real-time updates)
     incrementUnreadCount: (state) => {
       state.unreadCount += 1;
+    },
+
+    // Set unread count (for real-time updates)
+    setUnreadCount: (state, action) => {
+      state.unreadCount = action.payload;
     },
 
     // Set last fetch timestamp
@@ -294,6 +297,7 @@ export const {
   setConnectionStatus,
   markAsReadLocal,
   incrementUnreadCount,
+  setUnreadCount,
   setLastFetch,
 } = notificationSlice.actions;
 

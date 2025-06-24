@@ -52,9 +52,7 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
-    plugins: [react(), tailwindcss(), cspPlugin],
-
-    // Path aliases for cleaner imports
+    plugins: [react(), tailwindcss(), cspPlugin], // Path aliases for cleaner imports
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -69,6 +67,7 @@ export default defineConfig(({ mode }) => {
         "@downloads": path.resolve(__dirname, "./src/pages/downloads"),
         "@redux": path.resolve(__dirname, "./src/redux"),
         "@utils": path.resolve(__dirname, "./src/utils"),
+        "@services": path.resolve(__dirname, "./src/services"),
         "@constants": path.resolve(__dirname, "./src/constants"),
         "@context": path.resolve(__dirname, "./src/context"),
         "@hooks": path.resolve(__dirname, "./src/hooks"),
