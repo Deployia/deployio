@@ -215,7 +215,7 @@ async function authenticateUser(token) {
       throw new Error("Account not verified");
     }
   }
-  if (user.status !== "active") throw new Error("Account is not active");
+
   // Optionally: sessionId validation can be added here if needed
   return { user, sessionId };
 }
