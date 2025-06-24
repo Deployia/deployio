@@ -1,6 +1,7 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const logger = require("./logger");
+const { authenticateUser } = require("../middleware/authMiddleware");
 
 /**
  * WebSocket Configuration Module
@@ -60,18 +61,13 @@ class WebSocketManager {
     const authMiddleware = async (socket, next) => {
       try {
         let token;
-
-        // Extract token from multiple sources (same as Express middleware)
         if (tokenExtractor) {
           token = tokenExtractor(socket);
         } else {
-          // Check cookies first (primary method - same as Express)
           if (socket.handshake.headers.cookie) {
             const cookies = this.parseCookies(socket.handshake.headers.cookie);
             token = cookies.token;
           }
-
-          // Fallback to other methods
           if (!token) {
             token =
               socket.handshake.auth.token ||
@@ -79,37 +75,8 @@ class WebSocketManager {
               socket.handshake.headers.authorization?.replace("Bearer ", "");
           }
         }
-
-        if (!token) {
-          return next(new Error("Authentication token required"));
-        }
-
-        // Verify JWT token using the same secret as Express
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const { id, sessionId } = decoded;
-
-        if (!id) {
-          return next(new Error("Invalid token format"));
-        }
-
-        // Get user from database (same as Express middleware)
-        const User = require("../models/User");
-        const user = await User.findById(id);
-
-        if (!user) {
-          return next(new Error("User not found"));
-        }
-
-        // Check if user account is active/verified (same checks as Express)
-        if (!user.isVerified) {
-          return next(new Error("Account not verified"));
-        }
-
-        if (user.status !== "active") {
-          return next(new Error("Account is not active"));
-        }
-
-        // Add user info to socket (consistent with Express req.user)
+        // Use shared authentication logic
+        const { user, sessionId } = await authenticateUser(token);
         socket.userId = user._id.toString();
         socket.userRole = user.role;
         socket.userEmail = user.email;
@@ -123,24 +90,21 @@ class WebSocketManager {
           status: user.status,
         };
         socket.sessionId = sessionId;
-
         logger.debug("WebSocket user authenticated", {
           userId: user._id.toString(),
           email: user.email,
           role: user.role,
           sessionId: sessionId,
         });
-
         next();
       } catch (error) {
         logger.error("WebSocket authentication failed", {
           error: error.message,
           socketId: socket.id,
         });
-        next(new Error("Authentication failed"));
+        next(new Error(error.message || "Authentication failed"));
       }
     };
-
     this.middlewares.push(authMiddleware);
   }
 

@@ -1,16 +1,21 @@
 const webSocketManager = require("../config/webSocketManager");
-const notificationHandlers = require("./notificationHandlers");
-const logStreamHandlers = require("./logStreamHandlers");
+const webSocketRegistry = require("./core/WebSocketRegistry");
 const logger = require("../config/logger");
+
+// Import namespace classes
+const NotificationsNamespace = require("./namespaces/NotificationsNamespace");
+const LogStreamingNamespace = require("./namespaces/LogStreamingNamespace");
+const ChatNamespace = require("./namespaces/ChatNamespace");
+const BuildLogsNamespace = require("./namespaces/BuildLogsNamespace");
 
 /**
  * WebSocket Initialization Module
- * Sets up all WebSocket namespaces and handlers following the modular architecture pattern
+ * Centralized WebSocket setup with modular namespace architecture
  * @param {Object} server - HTTP server instance
  * @param {Object} options - Configuration options
  */
 function initializeWebSockets(server, options = {}) {
-  logger.info("Initializing WebSocket services...");
+  logger.info("Initializing centralized WebSocket services...");
 
   // Default WebSocket configuration
   const defaultConfig = {
@@ -26,26 +31,17 @@ function initializeWebSockets(server, options = {}) {
       maxHttpBufferSize: 1e6, // 1MB
     },
 
-    // Authentication options
-    auth: {
-      required: true,
-      tokenExtractor: null, // Custom token extractor function
-      userProvider: null, // Custom user provider function
-    }, // Feature flags
+    // Feature flags for enabling/disabling namespaces
     features: {
       notifications: true,
+      logStreaming: true,
       chat: false, // Future: Real-time chat
-      logStreaming: true, // System log streaming
-      deploymentLogs: false, // Future: Real-time deployment logs
-      systemMonitoring: false, // Future: Real-time system monitoring
+      buildLogs: false, // Future: Build log streaming
     },
 
-    // Namespace configurations
-    namespaces: {
-      notifications: "/notifications",
-      chat: "/chat",
-      logs: "/logs",
-      monitoring: "/monitoring",
+    // Global WebSocket options
+    auth: {
+      required: true,
     },
   };
 
@@ -55,27 +51,32 @@ function initializeWebSockets(server, options = {}) {
     // Initialize WebSocket manager
     const io = webSocketManager.initialize(server, config.socketIO);
 
-    // Add authentication middleware if required
+    // Initialize the registry with the WebSocket manager
+    webSocketRegistry.initialize(webSocketManager);
+
+    // Add global authentication middleware to WebSocket manager
     if (config.auth.required) {
-      webSocketManager.addAuthMiddleware({
-        tokenExtractor: config.auth.tokenExtractor,
-        userProvider: config.auth.userProvider,
-      });
+      webSocketManager.addAuthMiddleware();
     }
 
-    // Set up namespaces based on enabled features
-    setupEnabledNamespaces(config);
+    // Initialize enabled namespaces
+    setupNamespaces(config.features);
 
     // Add global connection handlers
     setupGlobalHandlers();
 
-    logger.info("WebSocket services initialized successfully", {
-      enabledFeatures: Object.entries(config.features)
-        .filter(([, enabled]) => enabled)
-        .map(([feature]) => feature),
-      namespaces: Object.entries(config.namespaces)
-        .filter(([feature]) => config.features[feature])
-        .map(([, namespace]) => namespace),
+    // Log successful initialization
+    const enabledFeatures = Object.entries(config.features)
+      .filter(([, enabled]) => enabled)
+      .map(([feature]) => feature);
+
+    const registryStats = webSocketRegistry.getStats();
+
+    logger.info("Centralized WebSocket services initialized successfully", {
+      enabledFeatures,
+      totalNamespaces: registryStats.totalNamespaces,
+      namespaces: Object.keys(registryStats.namespaces),
+      architecture: "modular",
     });
 
     return io;
@@ -90,77 +91,139 @@ function initializeWebSockets(server, options = {}) {
 
 /**
  * Set up namespaces based on enabled features
- * @param {Object} config - Configuration object
+ * @param {Object} features - Feature flags
  */
-function setupEnabledNamespaces(config) {
-  // Notifications namespace
-  if (config.features.notifications) {
-    webSocketManager.registerNamespace(
-      config.namespaces.notifications,
-      notificationHandlers
-    );
-    logger.info("Notifications WebSocket namespace registered", {
-      namespace: config.namespaces.notifications,
+function setupNamespaces(features) {
+  logger.info("Setting up WebSocket namespaces...", { features });
+
+  // Notifications namespace - Always initialize if enabled
+  if (features.notifications) {
+    try {
+      NotificationsNamespace.initialize();
+      logger.info("✓ Notifications namespace initialized", {
+        namespace: "/notifications",
+        requireAuth: true,
+        requireAdmin: false,
+      });
+    } catch (error) {
+      logger.error("✗ Failed to initialize notifications namespace", {
+        error: error.message,
+      });
+    }
+  }
+
+  // Log streaming namespace - Admin only
+  if (features.logStreaming) {
+    try {
+      LogStreamingNamespace.initialize();
+      logger.info("✓ Log streaming namespace initialized", {
+        namespace: "/logs",
+        requireAuth: true,
+        requireAdmin: true,
+      });
+    } catch (error) {
+      logger.error("✗ Failed to initialize log streaming namespace", {
+        error: error.message,
+      });
+    }
+  }
+
+  // Chat namespace - Future feature
+  if (features.chat) {
+    try {
+      ChatNamespace.initialize();
+      logger.info("✓ Chat namespace initialized", {
+        namespace: "/chat",
+        requireAuth: true,
+        requireAdmin: false,
+        status: "ready_for_implementation",
+      });
+    } catch (error) {
+      logger.error("✗ Failed to initialize chat namespace", {
+        error: error.message,
+      });
+    }
+  } else {
+    logger.debug("Chat namespace disabled", {
+      namespace: "/chat",
+      status: "available_for_future_use",
     });
   }
 
-  // Chat namespace (future feature)
-  if (config.features.chat) {
-    // const chatHandlers = require("./chatHandlers");
-    // webSocketManager.registerNamespace(config.namespaces.chat, chatHandlers);
-    logger.info("Chat WebSocket namespace would be registered", {
-      namespace: config.namespaces.chat,
-      status: "not_implemented",
-    });
-  }
-  // System log streaming namespace
-  if (config.features.logStreaming) {
-    logStreamHandlers.register(webSocketManager);
-    logger.info("System log streaming WebSocket namespace registered", {
-      namespace: "/logs",
-      status: "active",
+  // Build logs namespace - Future feature
+  if (features.buildLogs) {
+    try {
+      BuildLogsNamespace.initialize();
+      logger.info("✓ Build logs namespace initialized", {
+        namespace: "/build-logs",
+        requireAuth: true,
+        requireAdmin: false,
+        status: "ready_for_implementation",
+      });
+    } catch (error) {
+      logger.error("✗ Failed to initialize build logs namespace", {
+        error: error.message,
+      });
+    }
+  } else {
+    logger.debug("Build logs namespace disabled", {
+      namespace: "/build-logs",
+      status: "available_for_future_use",
     });
   }
 
-  // System monitoring namespace (future feature)
-  if (config.features.systemMonitoring) {
-    // const monitoringHandlers = require("./monitoringHandlers");
-    // webSocketManager.registerNamespace(config.namespaces.monitoring, monitoringHandlers);
-    logger.info("System monitoring WebSocket namespace would be registered", {
-      namespace: config.namespaces.monitoring,
-      status: "not_implemented",
-    });
-  }
+  logger.info("Namespace setup completed");
 }
 
 /**
  * Set up global connection handlers
  */
 function setupGlobalHandlers() {
-  // Add connection analytics
+  // Add global connection analytics
   webSocketManager.addConnectionHandler((socket) => {
-    // Track connection metrics
     logger.debug("WebSocket connection established", {
       userId: socket.userId,
+      userEmail: socket.userEmail,
+      userRole: socket.userRole,
       userAgent: socket.handshake.headers["user-agent"],
       ip: socket.handshake.address,
       timestamp: new Date().toISOString(),
     });
+
+    // Track connection metrics
+    if (socket.userId) {
+      // Could add connection metrics here
+      logger.info("Authenticated user connected", {
+        userId: socket.userId,
+        email: socket.userEmail,
+        role: socket.userRole,
+      });
+    }
   });
 
-  // Add error handling
+  // Add global error handling
   webSocketManager.addConnectionHandler((socket) => {
     socket.on("error", (error) => {
       logger.error("WebSocket client error", {
         userId: socket.userId,
+        userEmail: socket.userEmail,
         socketId: socket.id,
         error: error.message,
       });
     });
+
+    socket.on("disconnect", (reason) => {
+      logger.debug("WebSocket client disconnected", {
+        userId: socket.userId,
+        userEmail: socket.userEmail,
+        socketId: socket.id,
+        reason,
+        timestamp: new Date().toISOString(),
+      });
+    });
   });
 
-  // Add rate limiting (future feature)
-  // webSocketManager.addConnectionHandler(setupRateLimiting);
+  logger.debug("Global WebSocket handlers configured");
 }
 
 /**
@@ -172,36 +235,113 @@ function getWebSocketManager() {
 }
 
 /**
+ * Get WebSocket registry instance
+ * @returns {Object} WebSocket registry instance
+ */
+function getWebSocketRegistry() {
+  return webSocketRegistry;
+}
+
+/**
+ * Get WebSocket statistics
+ * @returns {Object} WebSocket statistics
+ */
+function getWebSocketStats() {
+  return webSocketRegistry.getStats();
+}
+
+/**
+ * Broadcast message to all users across all namespaces
+ * @param {String} event - Event name
+ * @param {Object} data - Data to broadcast
+ */
+function broadcastToAll(event, data) {
+  webSocketRegistry.broadcastToAll(event, data);
+}
+
+/**
+ * Broadcast message to specific user across all namespaces
+ * @param {String} userId - User ID
+ * @param {String} event - Event name
+ * @param {Object} data - Data to broadcast
+ */
+function broadcastToUser(userId, event, data) {
+  webSocketRegistry.broadcastToUser(userId, event, data);
+}
+
+/**
+ * Broadcast message to users with specific role across all namespaces
+ * @param {String} role - User role
+ * @param {String} event - Event name
+ * @param {Object} data - Data to broadcast
+ */
+function broadcastToRole(role, event, data) {
+  webSocketRegistry.broadcastToRole(role, event, data);
+}
+
+/**
  * Graceful shutdown for WebSocket connections
  */
 function shutdownWebSockets() {
-  logger.info("Shutting down WebSocket services...");
+  logger.info("Shutting down centralized WebSocket services...");
 
-  if (webSocketManager.getIO()) {
-    // Notify all clients about shutdown
-    webSocketManager.broadcast("server_shutdown", {
-      message: "Server is shutting down",
-      timestamp: new Date().toISOString(),
-    });
+  try {
+    if (webSocketManager.getIO()) {
+      // Notify all clients about shutdown
+      webSocketRegistry.broadcastToAll("server_shutdown", {
+        message: "Server is shutting down",
+        timestamp: new Date().toISOString(),
+      });
 
-    // Cleanup log stream handlers
-    try {
-      logStreamHandlers.cleanup();
-    } catch (error) {
-      logger.error("Error cleaning up log stream handlers:", error);
+      // Cleanup all namespaces
+      webSocketRegistry.cleanup();
+
+      // Cleanup log stream handlers specifically
+      try {
+        LogStreamingNamespace.cleanup();
+      } catch (error) {
+        logger.error("Error cleaning up log stream handlers:", error);
+      }
+
+      // Close all connections
+      webSocketManager.getIO().close();
+      logger.info("✓ Centralized WebSocket services shut down successfully");
     }
-
-    // Close all connections
-    webSocketManager.getIO().close();
-    logger.info("WebSocket services shut down successfully");
+  } catch (error) {
+    logger.error("Error during WebSocket shutdown:", {
+      error: error.message,
+      stack: error.stack,
+    });
   }
 }
+
+// Export helper functions for external use
+const WebSocketHelpers = {
+  // Notification helpers
+  sendNotificationToUser: NotificationsNamespace.sendNotificationToUser,
+  broadcastNotificationToRole: NotificationsNamespace.broadcastToRole,
+  broadcastNotificationToAll: NotificationsNamespace.broadcastToAll,
+
+  // Build log helpers (when implemented)
+  broadcastBuildLog: BuildLogsNamespace.broadcastBuildLog,
+  broadcastBuildStatus: BuildLogsNamespace.broadcastBuildStatus,
+
+  // General helpers
+  broadcastToAll,
+  broadcastToUser,
+  broadcastToRole,
+  getWebSocketStats,
+};
 
 module.exports = {
   initializeWebSockets,
   getWebSocketManager,
+  getWebSocketRegistry,
   shutdownWebSockets,
 
-  // Re-export manager for direct access
+  // Export helpers for use in other parts of the application
+  ...WebSocketHelpers,
+
+  // Re-export manager for backward compatibility
   webSocketManager,
 };

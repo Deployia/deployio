@@ -10,8 +10,8 @@ import ProtectedRoute from "@components/ProtectedRoute";
 import Modal from "@components/Modal";
 import ScrollToTop from "@components/ScrollToTop";
 
-// Services
-import notificationService from "@services/notificationService";
+// Hooks
+import { useNotifications } from "@hooks/useNotifications";
 
 // Lazy loaded components for performance optimization
 // Authentication Pages
@@ -103,27 +103,16 @@ const ProductsLayout = lazy(() => import("@components/layouts/ProductsLayout"));
  * Handles routing, authentication, and lazy loading
  */
 function App() {
-  const { loading, user: authUser } = useSelector((state) => state.auth);
+  const { loading } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
+
+  // Initialize notification service using the new hook
+  useNotifications();
 
   // Initialize authentication state on app load
   useEffect(() => {
     dispatch(getMe());
   }, [dispatch]);
-
-  // Initialize notification service when user is authenticated
-  useEffect(() => {
-    if (authUser && !loading.me) {
-      notificationService.initialize();
-    }
-
-    // Cleanup on logout
-    return () => {
-      if (!authUser) {
-        notificationService.disconnect();
-      }
-    };
-  }, [authUser, loading.me]);
 
   // Show loading spinner while checking authentication
   if (loading.me) {

@@ -299,51 +299,99 @@ async function getServiceLogs(serviceName, lines, level) {
       searchedPaths: getLogPaths(serviceName),
     };
   }
-
   try {
-    // Platform-agnostic log reading
+    // Optimized log reading using streams for better performance
     const readRecentLines = async (filePath, numLines) => {
+      const { spawn } = require("child_process");
+      const { createReadStream } = require("fs");
+      const { stat } = require("fs").promises;
+
+      // First, try efficient platform-specific commands
+      const useStreamingApproach = numLines > 1000; // Use streaming for large requests
+
+      if (!useStreamingApproach) {
+        // For smaller requests, use platform commands (fastest)
+        return await readWithPlatformCommand(filePath, numLines);
+      }
+
+      // For larger requests, use efficient streaming approach
+      return await readWithStreaming(filePath, numLines);
+    };
+
+    const readWithPlatformCommand = async (filePath, numLines) => {
       const { exec } = require("child_process");
       const util = require("util");
       const execPromise = util.promisify(exec);
 
       let command;
-      let useNodeFallback = false;
 
-      // Try platform-specific commands first
       if (process.platform === "win32") {
-        // Windows PowerShell with error handling
-        command = `powershell -Command "try { Get-Content -Path '${filePath.replace(
+        // Optimized Windows PowerShell command
+        command = `powershell -Command "Get-Content -Path '${filePath.replace(
           /'/g,
           "''"
-        )}' -Tail ${numLines} -ErrorAction Stop } catch { exit 1 }"`;
+        )}' -Tail ${numLines} -ReadCount 0"`;
       } else {
-        // Unix-like systems (Linux, macOS)
+        // Unix-like systems - tail is very efficient
         command = `tail -n ${numLines} "${filePath}"`;
       }
 
       try {
-        const { stdout, stderr } = await execPromise(command);
-        if (stderr && stderr.trim()) {
-          console.warn(`Command stderr: ${stderr}`);
-        }
+        const { stdout } = await execPromise(command, {
+          timeout: 30000, // 30 second timeout
+          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+        });
         return stdout;
       } catch (cmdError) {
-        console.warn(
-          `Platform command failed, using Node.js fallback: ${cmdError.message}`
-        );
-        useNodeFallback = true;
+        console.warn(`Platform command failed: ${cmdError.message}`);
+        // Fallback to streaming approach
+        return await readWithStreaming(filePath, numLines);
       }
+    };
 
-      if (useNodeFallback) {
-        // Node.js fallback for cross-platform compatibility
+    const readWithStreaming = async (filePath, numLines) => {
+      const readline = require("readline");
+      const { createReadStream } = require("fs");
+      const { stat } = require("fs").promises;
+
+      try {
+        const fileStats = await stat(filePath);
+        const fileSize = fileStats.size;
+
+        // For very large files, start reading from near the end
+        const estimatedLineLength = 200; // Average log line length
+        const estimatedBytesNeeded = numLines * estimatedLineLength;
+        const startPosition = Math.max(0, fileSize - estimatedBytesNeeded * 2);
+
+        const lines = [];
+        const fileStream = createReadStream(filePath, {
+          start: startPosition,
+          encoding: "utf8",
+        });
+
+        const rl = readline.createInterface({
+          input: fileStream,
+          crlfDelay: Infinity,
+        });
+
+        for await (const line of rl) {
+          lines.push(line);
+        }
+
+        // Return the last numLines
+        const recentLines = lines.slice(-numLines);
+        return recentLines.join("\n");
+      } catch (streamError) {
+        // Final fallback - read entire file (not recommended for large files)
+        console.warn(
+          `Streaming failed, using basic fallback: ${streamError.message}`
+        );
+        const fs = require("fs");
         const fileContent = await fs.promises.readFile(filePath, "utf8");
         const allLines = fileContent.split(/\r?\n/);
         const recentLines = allLines.slice(-numLines);
         return recentLines.join("\n");
       }
-
-      throw new Error("All log reading methods failed");
     };
 
     const stdout = await readRecentLines(logFile, lines);
@@ -379,6 +427,7 @@ async function getServiceLogs(serviceName, lines, level) {
       logFile,
       platform: process.platform,
       foundAt: logFile,
+      optimized: true,
     };
   } catch (error) {
     logger.error(`Error reading logs for ${serviceName}:`, error);

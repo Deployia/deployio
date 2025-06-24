@@ -29,7 +29,6 @@ import { fetchProviders } from "@redux/slices/authSlice";
 import { get2FAStatus } from "@redux/slices/twoFactorSlice";
 import { useModal } from "@context/ModalContext";
 import activityLogger from "@/utils/activityLogger";
-import notificationService from "@services/notificationService";
 import {
   calculateSecurityScore,
   getSecurityScoreColor,
@@ -100,20 +99,12 @@ const SecurityTab = () => {
       const result = await dispatch(createApiKey({ name: newApiKeyName }));
       if (createApiKey.fulfilled.match(result)) {
         setNewApiKeyName("");
-        setShowCreateApiKey(false);
-
-        // Dual-track approach: Log activity AND send notification
+        setShowCreateApiKey(false); // Dual-track approach: Log activity
         try {
-          // 1. Log to audit trail (always)
+          // Log to audit trail (always)
           await activityLogger.apiKeyGenerated(newApiKeyName);
-
-          // 2. Send notification (for user awareness)
-          await notificationService.apiKeyCreated(newApiKeyName);
         } catch (loggingError) {
-          console.warn(
-            "Failed to log activity or send notification:",
-            loggingError
-          );
+          console.warn("Failed to log activity:", loggingError);
           // Don't break the flow if logging fails
         }
 

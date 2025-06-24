@@ -31,6 +31,7 @@ const { connectRedis } = require("./config/redisClient");
     features: {
       notifications: true,
       chat: false,
+      logStreaming: true, // <-- Enabled log streaming
       deploymentLogs: false,
       systemMonitoring: false,
     },
@@ -62,6 +63,5 @@ const { connectRedis } = require("./config/redisClient");
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔌 WebSocket services ready`);
-    console.log(`📡 Notifications WebSocket available at /notifications`);
   });
 })();

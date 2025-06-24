@@ -192,8 +192,37 @@ const moderatorOrAdmin = (req, res, next) => {
   }
 };
 
+/**
+ * Shared authentication logic for both Express and WebSocket
+ * @param {string} token - JWT token
+ * @returns {Promise<{user: object, sessionId: string}>}
+ * @throws {Error} - Throws error if authentication fails
+ */
+async function authenticateUser(token) {
+  if (!token) throw new Error("Authentication token required");
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const { id, sessionId } = decoded;
+  if (!id) throw new Error("Invalid token format");
+  const user = await User.findById(id);
+  if (!user) throw new Error("User not found");
+  if (!user.isVerified) {
+    // Auto-verify OAuth users who might have been created before the fix
+    if (user.googleId || user.githubId) {
+      user.isVerified = true;
+      await user.save();
+      logger.info(`Auto-verified OAuth user: ${user.email}`);
+    } else {
+      throw new Error("Account not verified");
+    }
+  }
+  if (user.status !== "active") throw new Error("Account is not active");
+  // Optionally: sessionId validation can be added here if needed
+  return { user, sessionId };
+}
+
 module.exports = {
   protect,
   adminOnly,
   moderatorOrAdmin,
+  authenticateUser, // Export for WebSocket use
 };
