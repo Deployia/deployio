@@ -9,11 +9,20 @@ const { getRedisClient } = require("@config/redisClient");
 // Basic health check
 router.get("/", async (req, res) => {
   try {
+    const startTime = Date.now();
+
     const health = {
+      service: "Express Backend",
       status: "healthy",
       timestamp: new Date().toISOString(),
+      version: process.env.APP_VERSION || "1.0.0",
+      environment: process.env.NODE_ENV || "development",
       uptime: process.uptime(),
-      memory: process.memoryUsage(),
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        external: Math.round(process.memoryUsage().external / 1024 / 1024),
+      },
       services: {},
     };
 
@@ -21,6 +30,7 @@ router.get("/", async (req, res) => {
     health.services.database = {
       status: mongoose.connection.readyState === 1 ? "healthy" : "unhealthy",
       readyState: mongoose.connection.readyState,
+      name: mongoose.connection.name,
     };
 
     // Check Redis connection
@@ -46,49 +56,14 @@ router.get("/", async (req, res) => {
       res.status(503);
     }
 
+    // Add response time
+    health.responseTime = Date.now() - startTime;
+
     res.json(health);
   } catch (error) {
     res.status(500).json({
+      service: "Express Backend",
       status: "unhealthy",
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-// Detailed health check
-router.get("/detailed", async (req, res) => {
-  try {
-    const health = {
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      version: process.env.APP_VERSION || "1.0.0",
-      environment: process.env.NODE_ENV || "development",
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      cpu: process.cpuUsage(),
-      services: {},
-      external: {},
-    };
-
-    // Database health
-    health.services.database = await getDatabaseHealth();
-
-    // Redis health
-    health.services.redis = await getRedisHealth();
-
-    // File system health
-    health.services.filesystem = await getFilesystemHealth();
-
-    // External services health
-    health.external.aiService = await checkAiServiceHealth();
-    health.external.deploymentAgent = await checkDeploymentAgentHealth();
-    health.external.github = await checkGitHubApiHealth();
-
-    res.json(health);
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
       error: error.message,
       timestamp: new Date().toISOString(),
     });
@@ -119,95 +94,61 @@ router.get("/readiness", async (req, res) => {
 // Helper functions
 async function checkAiServiceHealth() {
   try {
-    // TODO: Implement AI service health check
-    return { status: "healthy", responseTime: 0 };
+    const axios = require("axios");
+    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+
+    const start = Date.now();
+    const response = await axios.get(`${aiServiceUrl}/health`, {
+      timeout: 5000,
+      headers: {
+        "User-Agent": "Express-Backend-HealthCheck/1.0",
+      },
+    });
+
+    const responseTime = Date.now() - start;
+
+    return {
+      status: "healthy",
+      responseTime,
+      version: response.data.version || "unknown",
+      uptime: response.data.uptime || 0,
+    };
   } catch (error) {
-    return { status: "unhealthy", error: error.message };
+    return {
+      status: "unhealthy",
+      error: error.message,
+      code: error.code || error.response?.status,
+    };
   }
 }
 
 async function checkDeploymentAgentHealth() {
   try {
-    // TODO: Implement deployment agent health check
-    return { status: "healthy", responseTime: 0 };
-  } catch (error) {
-    return { status: "unhealthy", error: error.message };
-  }
-}
+    const axios = require("axios");
+    const agentUrl = process.env.AGENT_URL || "http://localhost:8001";
 
-async function checkGitHubApiHealth() {
-  try {
-    // TODO: Implement GitHub API health check
-    return { status: "healthy", responseTime: 0 };
-  } catch (error) {
-    return { status: "unhealthy", error: error.message };
-  }
-}
-
-async function getDatabaseHealth() {
-  try {
     const start = Date.now();
-    await mongoose.connection.db.admin().ping();
+    const response = await axios.get(`${agentUrl}/agent/v1/health`, {
+      timeout: 5000,
+      headers: {
+        "User-Agent": "Express-Backend-HealthCheck/1.0",
+      },
+    });
+
     const responseTime = Date.now() - start;
 
     return {
       status: "healthy",
       responseTime,
-      readyState: mongoose.connection.readyState,
-      collections: mongoose.connection.collections
-        ? Object.keys(mongoose.connection.collections).length
-        : 0,
+      version: response.data.version || "unknown",
+      uptime: response.data.uptime || 0,
+      services: response.data.services || {},
     };
   } catch (error) {
     return {
       status: "unhealthy",
       error: error.message,
-      readyState: mongoose.connection.readyState,
-    };
-  }
-}
-
-async function getRedisHealth() {
-  try {
-    const redisClient = getRedisClient();
-    if (!redisClient) {
-      return { status: "unavailable", message: "Redis client not initialized" };
-    }
-
-    const start = Date.now();
-    await redisClient.ping();
-    const responseTime = Date.now() - start;
-
-    return {
-      status: "healthy",
-      responseTime,
-      connected: redisClient.isReady,
-    };
-  } catch (error) {
-    return {
-      status: "unhealthy",
-      error: error.message,
-    };
-  }
-}
-
-async function getFilesystemHealth() {
-  try {
-    const fs = require("fs").promises;
-    const start = Date.now();
-    await fs.access("/tmp", fs.constants.W_OK);
-    const responseTime = Date.now() - start;
-
-    return {
-      status: "healthy",
-      responseTime,
-      writable: true,
-    };
-  } catch (error) {
-    return {
-      status: "unhealthy",
-      error: error.message,
-      writable: false,
+      code: error.code || error.response?.status,
     };
   }
 }

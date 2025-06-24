@@ -109,6 +109,7 @@
     "@middleware": "server/middleware",
     "@config": "server/config",
     "@utils": "server/utils",
-    "@routes": "server/routes"
+    "@routes": "server/routes",
+    "@websockets": "server/websockets"
   }
 }

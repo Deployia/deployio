@@ -4,7 +4,6 @@ require("module-alias/register");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 const http = require("http");
-const { Server } = require("socket.io");
 
 // Load env vars
 dotenv.config();
@@ -26,27 +25,43 @@ const { connectRedis } = require("./config/redisClient");
   // Create HTTP server
   const server = http.createServer(app);
 
-  // Set up Socket.IO
-  const io = new Server(server, {
-    cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
-      methods: ["GET", "POST"],
-      credentials: true,
+  // Initialize WebSocket services
+  const { initializeWebSockets } = require("./websockets");
+  const io = initializeWebSockets(server, {
+    features: {
+      notifications: true,
+      chat: false,
+      deploymentLogs: false,
+      systemMonitoring: false,
     },
-    path: "/ws/notifications",
   });
 
-  // Make io available globally for notification services
-  global.io = io;
+  // Graceful shutdown handling
+  const { shutdownWebSockets } = require("./websockets");
 
-  // Set up WebSocket authentication and connection handling
-  const setupWebSocketAuth = require("./config/websocket");
-  setupWebSocketAuth(io);
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, shutting down gracefully");
+    shutdownWebSockets();
+    server.close(() => {
+      console.log("Server shut down successfully");
+      process.exit(0);
+    });
+  });
+
+  process.on("SIGINT", () => {
+    console.log("SIGINT received, shutting down gracefully");
+    shutdownWebSockets();
+    server.close(() => {
+      console.log("Server shut down successfully");
+      process.exit(0);
+    });
+  });
 
   // Start server
   const PORT = process.env.PORT || 5000;
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🔌 WebSocket server ready at /ws/notifications`);
+    console.log(`🔌 WebSocket services ready`);
+    console.log(`📡 Notifications WebSocket available at /notifications`);
   });
 })();

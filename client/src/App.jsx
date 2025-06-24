@@ -84,6 +84,8 @@ import { getMe } from "@redux/index";
 
 // Utility pages
 const Health = lazy(() => import("@pages/Health"));
+const LogTestPage = lazy(() => import("@pages/LogTestPage"));
+const ServiceDetailPage = lazy(() => import("@pages/ServiceDetailPage"));
 
 // Layout Components
 const DashboardLayout = lazy(() =>
@@ -141,8 +143,7 @@ function App() {
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password/:token" element={<ResetPassword />} />
             <Route path="verify-otp" element={<VerifyOtp />} />
-          </Route>
-
+          </Route>{" "}
           {/* Protected Admin Routes */}
           <Route element={<ProtectedRoute admin={true} />}>
             <Route path="admin" element={<AdminLayout />}>
@@ -154,13 +155,18 @@ function App() {
               <Route path="security" element={<AdminSecurity />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
+            <Route
+              path="service/:serviceName"
+              element={<ServiceDetailPage />}
+            />
           </Route>
-
           {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>
+            {" "}
             {/* Public Pages */}
             <Route index element={<Home />} />
             <Route path="health" element={<Health />} />
+            <Route path="test" element={<LogTestPage />} />
             {/* Legal Pages */}
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             <Route path="terms-of-service" element={<TermsOfService />} />

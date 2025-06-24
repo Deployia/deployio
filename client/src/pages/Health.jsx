@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import api from "@utils/api";
 import useEnvironmentInfo from "@utils/useEnvironmentInfo";
 import Spinner from "@components/Spinner";
@@ -22,10 +23,13 @@ import {
   FaCopy,
   FaChevronDown,
   FaChevronUp,
+  FaEye,
+  FaArrowRight,
 } from "react-icons/fa";
 
 function Health() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -37,6 +41,9 @@ function Health() {
     message: "",
     type: "success",
   });
+
+  // Check if user is admin
+  const isAdmin = user?.role === "admin";
 
   // Organized service states
   const [services, setServices] = useState({
@@ -142,14 +149,25 @@ function Health() {
         </span>
       </div>
     );
-  };
-  // Component for individual service card
+  }; // Component for individual service card
   const ServiceCard = ({ serviceKey, service }) => {
     const IconComponent = service.icon;
     const colorClasses = {
       green: "bg-green-600/20 text-green-400",
       blue: "bg-blue-600/20 text-blue-400",
       purple: "bg-purple-600/20 text-purple-400",
+    };
+
+    const serviceNameMap = {
+      backend: "backend",
+      fastapi: "ai-service",
+      agent: "agent",
+    };
+
+    const handleDetailClick = () => {
+      if (isAdmin && serviceNameMap[serviceKey]) {
+        navigate(`/service/${serviceNameMap[serviceKey]}`);
+      }
     };
 
     return (
@@ -176,8 +194,18 @@ function Health() {
               </p>
             </div>
           </div>
-          <div className="flex items-center justify-end sm:justify-start">
+          <div className="flex items-center gap-2">
             <StatusIndicator status={service.status} type="service" />
+            {isAdmin && (
+              <button
+                onClick={handleDetailClick}
+                className="ml-2 px-3 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 hover:text-blue-300 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm"
+                title="View detailed monitoring"
+              >
+                <FaEye className="h-3 w-3" />
+                Details
+              </button>
+            )}
           </div>
         </div>
 
@@ -273,67 +301,122 @@ function Health() {
       }
       setError(null);
       try {
-        // Backend greeting + health
-        const beHello = await api.get("/hello");
-        const beHealth = await api.get("/health"); // FastAPI health through Express backend (recommended approach)
+        // Backend health check
+        const beHealth = await api.get("/health");
+
+        // Update backend service state
+        setServices((prev) => ({
+          ...prev,
+          backend: {
+            ...prev.backend,
+            status: beHealth.data.status || "unknown",
+            uptime: beHealth.data.uptime || 0,
+            message: `${beHealth.data.service || "Backend"} (${
+              beHealth.data.environment || "unknown"
+            })`,
+            mongodb_status:
+              beHealth.data.services?.database?.status || "unknown",
+            redis_status: beHealth.data.services?.redis?.status || "unknown",
+            memory: beHealth.data.memory || {},
+            version: beHealth.data.version || "unknown",
+            responseTime: beHealth.data.responseTime || 0,
+          },
+        }));
+
+        // FastAPI AI Service health check
         let faHealth = null;
         let faHealthError = null;
-
         try {
+          // Check if AI service is available through backend proxy
           faHealth = await api.get("/projects/ai/health");
+
+          setServices((prev) => ({
+            ...prev,
+            fastapi: {
+              ...prev.fastapi,
+              status: faHealth.data.status || "unknown",
+              uptime: faHealth.data.uptime || 0,
+              message: `${faHealth.data.service || "AI Service"} v${
+                faHealth.data.version || "unknown"
+              }`,
+              redis_status: faHealth.data.services?.redis?.status || "unknown",
+              memory: faHealth.data.memory || {},
+              responseTime: faHealth.data.responseTime || 0,
+            },
+          }));
         } catch (faError) {
           console.warn("FastAPI health check failed:", faError);
           faHealthError = faError.response?.data?.message || faError.message;
+
+          setServices((prev) => ({
+            ...prev,
+            fastapi: {
+              ...prev.fastapi,
+              status: "unhealthy",
+              message: faHealthError || "Service unavailable",
+              redis_status: "unknown",
+            },
+          }));
         }
 
         // DeployIO Agent health check
         let agentHealth = null;
         let agentHealthError = null;
-
         try {
           // Direct call to agent health endpoint
-          agentHealth = await fetch(
-            "https://agent.deployio.tech/agent/v1/health"
-          ).then((res) => res.json());
+          const agentUrl = import.meta.env.DEV
+            ? "http://localhost:8001"
+            : "https://agent.deployio.tech";
+
+          const agentResponse = await fetch(`${agentUrl}/agent/v1/health`, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "DeployIO-Frontend-HealthCheck/1.0",
+            },
+            signal: AbortSignal.timeout(10000), // 10 second timeout
+          });
+
+          if (agentResponse.ok) {
+            agentHealth = await agentResponse.json();
+
+            setServices((prev) => ({
+              ...prev,
+              agent: {
+                ...prev.agent,
+                status: agentHealth.status || "unknown",
+                uptime: agentHealth.uptime || 0,
+                message: `${agentHealth.service || "Agent"} v${
+                  agentHealth.version || "unknown"
+                }`,
+                docker_status:
+                  agentHealth.services?.docker?.status || "unknown",
+                version: agentHealth.version || "unknown",
+                purpose: agentHealth.purpose || "unknown",
+                memory: agentHealth.memory || {},
+                responseTime: agentHealth.responseTime || 0,
+                services: agentHealth.services || {},
+              },
+            }));
+          } else {
+            throw new Error(
+              `Agent responded with status ${agentResponse.status}`
+            );
+          }
         } catch (agentError) {
           console.warn("Agent health check failed:", agentError);
           agentHealthError = agentError.message;
-        } // Update services state
-        setServices((prev) => ({
-          backend: {
-            ...prev.backend,
-            status: beHealth.data.status,
-            uptime: beHello.data.uptime,
-            message: beHello.data.message,
-            mongodb_status: beHealth.data.mongodb_status,
-            redis_status: beHealth.data.redis_status,
-            protectedData: null,
-            protectedError: null,
-          },
-          fastapi: {
-            ...prev.fastapi,
-            status: faHealth?.data?.data?.status || "error",
-            uptime: faHealth?.data?.data?.uptime || 0,
-            message: faHealthError
-              ? `Error: ${faHealthError}`
-              : faHealth?.data?.data?.service_name || "AI Processing Service",
-            redis_status: faHealth?.data?.data?.redis_status || "unknown",
-          },
-          agent: {
-            ...prev.agent,
-            status: agentHealth?.status || "error",
-            uptime: agentHealth?.uptime || 0,
-            message: agentHealthError
-              ? `Error: ${agentHealthError}`
-              : agentHealth?.service_name || "DeployIO Agent",
-            docker_status:
-              agentHealth?.services?.docker === "ok"
-                ? "connected"
-                : agentHealth?.services?.docker || "unknown",
-            version: agentHealth?.version || "unknown",
-            purpose: agentHealth?.purpose || "Container deployment management",
-          },
-        })); // Test protected endpoints if authenticated
+          setServices((prev) => ({
+            ...prev,
+            agent: {
+              ...prev.agent,
+              status: "unhealthy",
+              message: agentHealthError || "Service unavailable",
+              docker_status: "unknown",
+              purpose: "unknown",
+            },
+          }));
+        } // Test protected endpoints if authenticated
         if (isAuthenticated) {
           // Test Backend protected endpoint
           try {
@@ -447,6 +530,30 @@ function Health() {
                 <span className="text-sm font-medium">
                   {copyFeedback.message}
                 </span>
+              </div>
+            </div>
+          )}
+          {/* Admin Features Banner */}
+          {isAdmin && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/30 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FaShieldAlt className="text-purple-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">
+                      Admin Dashboard
+                    </h3>{" "}
+                    <p className="text-neutral-400 text-sm">
+                      Advanced monitoring tools available - Click
+                      &quot;Details&quot; on any service for comprehensive
+                      monitoring
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-purple-400">
+                  <FaArrowRight />
+                  <span className="text-sm">Enhanced Access</span>
+                </div>
               </div>
             </div>
           )}

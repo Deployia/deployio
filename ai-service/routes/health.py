@@ -17,29 +17,60 @@ server_start = time.time()
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint"""
+    """Comprehensive health check endpoint"""
     try:
+        start_time = time.time()
+
         # Check Redis connection
         redis_client = get_redis_client()
+        redis_health = {"status": "disconnected", "responseTime": None, "error": None}
+
         try:
-            redis_status = (
-                "connected"
-                if (redis_client and redis_client.ping())
-                else "disconnected"
-            )
-        except Exception:
-            redis_status = "disconnected"
+            redis_start = time.time()
+            if redis_client and redis_client.ping():
+                redis_health = {
+                    "status": "connected",
+                    "responseTime": round((time.time() - redis_start) * 1000, 2),
+                    "error": None,
+                }
+            else:
+                redis_health["error"] = "Redis client unavailable"
+        except Exception as redis_error:
+            redis_health["status"] = "error"
+            redis_health["error"] = str(redis_error)
 
         uptime = time.time() - server_start
+        response_time = round((time.time() - start_time) * 1000, 2)
+
+        # Determine overall status
+        overall_status = (
+            "healthy" if redis_health["status"] == "connected" else "degraded"
+        )
 
         return HealthResponse(
-            service_name="FastAPI AI Service",
-            status="ok",
-            redis_status=redis_status,
+            service="FastAPI AI Service",
+            status=overall_status,
+            timestamp=time.time(),
+            version="1.0.0",
             uptime=uptime,
+            responseTime=response_time,
+            memory={
+                "usage": "N/A",  # Python memory usage would require psutil
+                "limit": "N/A",
+            },
+            services={"redis": redis_health},
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        logger.error(f"Health check failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "service": "FastAPI AI Service",
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": time.time(),
+            },
+        )
 
 
 @router.get("/hello", response_model=HelloResponse)

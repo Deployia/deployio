@@ -50,9 +50,8 @@ class WebSocketManager {
     logger.info("WebSocket server initialized successfully");
     return this.io;
   }
-
   /**
-   * Add authentication middleware
+   * Add authentication middleware that uses the same JWT system as Express backend
    * @param {Object} options - Authentication options
    */
   addAuthMiddleware(options = {}) {
@@ -62,37 +61,74 @@ class WebSocketManager {
       try {
         let token;
 
-        // Extract token using custom extractor or default method
+        // Extract token from multiple sources (same as Express middleware)
         if (tokenExtractor) {
           token = tokenExtractor(socket);
         } else {
-          token =
-            socket.handshake.auth.token ||
-            socket.handshake.query.token ||
-            socket.handshake.headers.authorization?.replace("Bearer ", "");
+          // Check cookies first (primary method - same as Express)
+          if (socket.handshake.headers.cookie) {
+            const cookies = this.parseCookies(socket.handshake.headers.cookie);
+            token = cookies.token;
+          }
+
+          // Fallback to other methods
+          if (!token) {
+            token =
+              socket.handshake.auth.token ||
+              socket.handshake.query.token ||
+              socket.handshake.headers.authorization?.replace("Bearer ", "");
+          }
         }
 
         if (!token) {
           return next(new Error("Authentication token required"));
         }
 
-        // Verify JWT token
+        // Verify JWT token using the same secret as Express
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const { id, sessionId } = decoded;
 
-        // Get user info using custom provider or default
-        let user = decoded;
-        if (userProvider) {
-          user = await userProvider(decoded.id);
+        if (!id) {
+          return next(new Error("Invalid token format"));
         }
 
-        // Add user info to socket
-        socket.userId = decoded.id;
-        socket.userRole = decoded.role || user?.role;
-        socket.user = user;
+        // Get user from database (same as Express middleware)
+        const User = require("../models/User");
+        const user = await User.findById(id);
+
+        if (!user) {
+          return next(new Error("User not found"));
+        }
+
+        // Check if user account is active/verified (same checks as Express)
+        if (!user.isVerified) {
+          return next(new Error("Account not verified"));
+        }
+
+        if (user.status !== "active") {
+          return next(new Error("Account is not active"));
+        }
+
+        // Add user info to socket (consistent with Express req.user)
+        socket.userId = user._id.toString();
+        socket.userRole = user.role;
+        socket.userEmail = user.email;
+        socket.user = {
+          id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isVerified: user.isVerified,
+          status: user.status,
+        };
+        socket.sessionId = sessionId;
 
         logger.debug("WebSocket user authenticated", {
-          userId: decoded.id,
-          role: socket.userRole,
+          userId: user._id.toString(),
+          email: user.email,
+          role: user.role,
+          sessionId: sessionId,
         });
 
         next();
@@ -106,7 +142,50 @@ class WebSocketManager {
     };
 
     this.middlewares.push(authMiddleware);
-    return this;
+  }
+
+  /**
+   * Parse cookies from cookie header string
+   * @param {string} cookieHeader - Raw cookie header
+   * @returns {Object} Parsed cookies object
+   */
+  parseCookies(cookieHeader) {
+    const cookies = {};
+    cookieHeader.split(";").forEach((cookie) => {
+      const [name, value] = cookie.trim().split("=");
+      if (name && value) {
+        cookies[name] = decodeURIComponent(value);
+      }
+    });
+    return cookies;
+  }
+
+  /**
+   * Add admin-only middleware for WebSocket connections
+   */
+  addAdminMiddleware() {
+    const adminMiddleware = (socket, next) => {
+      try {
+        if (!socket.user || socket.userRole !== "admin") {
+          return next(new Error("Admin privileges required"));
+        }
+
+        logger.debug("WebSocket admin access granted", {
+          userId: socket.userId,
+          email: socket.userEmail,
+        });
+
+        next();
+      } catch (error) {
+        logger.error("WebSocket admin middleware failed", {
+          error: error.message,
+          userId: socket.userId,
+        });
+        next(error);
+      }
+    };
+
+    this.middlewares.push(adminMiddleware);
   }
 
   /**

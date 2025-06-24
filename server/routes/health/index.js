@@ -4,10 +4,10 @@
 const express = require("express");
 const router = express.Router();
 const healthRoutes = require("./health");
-const metricsRoutes = require("./metrics");
+const serviceRoutes = require("./service");
 
 // Mount health and monitoring routes
 router.use("/", healthRoutes);
-router.use("/metrics", metricsRoutes);
+router.use("/service", serviceRoutes);
 
 module.exports = router;

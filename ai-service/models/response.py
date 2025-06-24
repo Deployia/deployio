@@ -22,10 +22,14 @@ class ErrorResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    service_name: str
+    service: str
     status: str
-    redis_status: str
+    timestamp: float
+    version: str
     uptime: float
+    responseTime: float
+    memory: dict
+    services: dict
 
 
 class HelloResponse(BaseModel):
