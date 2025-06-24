@@ -139,4 +139,5 @@ export const invalidateAllCacheEntriesForUrl = (url) => {
 };
 
 // Export both APIs
-export { api, backend };
+export { backend };
+export default api;
