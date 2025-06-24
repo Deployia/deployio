@@ -24,6 +24,7 @@ services:
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
     networks:
       - deployio-network
+
   # DeployIO Agent API
   deployio-agent:
     # For local development, use: docker-compose up --build
@@ -35,7 +36,7 @@ services:
     container_name: deployio-agent
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.production
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
@@ -50,6 +51,7 @@ services:
       - deployio-network
     depends_on:
       - traefik
+
   # Default Landing Page
   landing-page:
     build: ./landing-page

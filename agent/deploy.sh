@@ -17,9 +17,9 @@ if [ -n "$ECR_IMAGE" ]; then
     echo "⬇️  Pulling ECR image..."
     docker pull $ECR_IMAGE
 
-    # Start services
+    # Start services with production environment
     echo "🚀 Starting services with ECR image..."
-    docker-compose up -d
+    ENV_FILE=.env.production docker-compose up -d
 
 else
     echo "🏗️  Local Development Mode"

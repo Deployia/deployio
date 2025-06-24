@@ -10,9 +10,24 @@ from .settings import settings
 def setup_cors(app: FastAPI) -> None:
     """Setup CORS middleware with environment-specific settings"""
 
-    # Development - allow all origins
+    # Development - allow common development origins
     if settings.debug:
-        origins = ["*"]
+        origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8000",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:8000",
+            "https://localhost:3000",
+            "https://localhost:5173",
+            "https://localhost:8000",
+            "https://deployio.tech",
+            "https://www.deployio.tech",
+            "https://api.deployio.tech",
+            "https://service.deployio.tech",
+            "https://agent.deployio.tech",
+        ]
     else:  # Production - specific origins only
         origins = [
             "https://deployio.tech",
@@ -22,9 +37,14 @@ def setup_cors(app: FastAPI) -> None:
             "https://agent.deployio.tech",
         ]
 
-        # Add any additional origins from environment
-        if settings.cors_origins:
-            origins.extend(settings.cors_origins.split(","))
+    # Add any additional origins from environment
+    if settings.cors_origins:
+        additional_origins = [
+            origin.strip()
+            for origin in settings.cors_origins.split(",")
+            if origin.strip()
+        ]
+        origins.extend(additional_origins)
 
     app.add_middleware(
         CORSMiddleware,
