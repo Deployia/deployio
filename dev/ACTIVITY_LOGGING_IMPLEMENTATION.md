@@ -303,6 +303,7 @@ await activityLogger.log(
 **Answer**: Audit logs will be displayed in **multiple interfaces** depending on the user role and context:
 
 #### **🔵 For Regular Users** - Activity Panel in Profile:
+
 ```javascript
 // Location: /dashboard/profile?tab=activity
 // Component: ActivityTab.jsx (to be created)
@@ -310,6 +311,7 @@ await activityLogger.log(
 ```
 
 **UI Design**:
+
 - **Timeline View** - Chronological list of user's activities
 - **Activity Cards** - Each action shown with icon, timestamp, details
 - **Filter Options** - By type (security, profile, system), date range
@@ -317,17 +319,18 @@ await activityLogger.log(
 - **Export Option** - Download activity history for personal records
 
 **Example Activity Panel**:
+
 ```jsx
 // ActivityTab.jsx - User's personal activity view
 <div className="activity-timeline">
-  <ActivityItem 
+  <ActivityItem
     icon={<FaKey />}
     action="API Key Created"
     details="Production API Key"
     timestamp="2 hours ago"
     type="security"
   />
-  <ActivityItem 
+  <ActivityItem
     icon={<FaUser />}
     action="Profile Updated"
     details="Updated email address"
@@ -338,6 +341,7 @@ await activityLogger.log(
 ```
 
 #### **🔴 For Admins** - Comprehensive Audit Dashboard:
+
 ```javascript
 // Location: /admin/audit-logs
 // Component: AuditLogDashboard.jsx (to be created)
@@ -345,6 +349,7 @@ await activityLogger.log(
 ```
 
 **Admin Dashboard Features**:
+
 - **System-wide Activity View** - All user actions across platform
 - **User Activity Filtering** - View specific user's complete history
 - **Security Event Monitoring** - Failed logins, suspicious activities
@@ -358,19 +363,20 @@ await activityLogger.log(
 
 ### **📊 AUDIT LOGS vs NOTIFICATIONS COMPARISON**
 
-| **Aspect** | **🔍 Audit Logs** | **🔔 Notifications** |
-|------------|-------------------|----------------------|
-| **Purpose** | **Historical Record & Compliance** | **Real-time Communication** |
-| **Audience** | Users (own actions) + Admins (all actions) | Users (relevant events) |
-| **Retention** | **Permanent** (compliance requirement) | **Temporary** (can be deleted) |
-| **Data** | **Complete technical details** | **User-friendly messages** |
-| **Timing** | **Always logged** (every action) | **Selective** (important events only) |
-| **Visibility** | **On-demand** (when user checks activity) | **Proactive** (pushed to user) |
-| **Format** | **Structured data** (action, actor, context) | **Human-readable** (title, message) |
+| **Aspect**     | **🔍 Audit Logs**                            | **🔔 Notifications**                  |
+| -------------- | -------------------------------------------- | ------------------------------------- |
+| **Purpose**    | **Historical Record & Compliance**           | **Real-time Communication**           |
+| **Audience**   | Users (own actions) + Admins (all actions)   | Users (relevant events)               |
+| **Retention**  | **Permanent** (compliance requirement)       | **Temporary** (can be deleted)        |
+| **Data**       | **Complete technical details**               | **User-friendly messages**            |
+| **Timing**     | **Always logged** (every action)             | **Selective** (important events only) |
+| **Visibility** | **On-demand** (when user checks activity)    | **Proactive** (pushed to user)        |
+| **Format**     | **Structured data** (action, actor, context) | **Human-readable** (title, message)   |
 
 ### **🎯 PRACTICAL DIFFERENCES**:
 
 #### **Audit Log Example**:
+
 ```javascript
 // Technical record for compliance/debugging
 {
@@ -383,12 +389,13 @@ await activityLogger.log(
 ```
 
 #### **Notification Example**:
+
 ```javascript
 // User-friendly message for immediate awareness
 {
   title: "🔑 New API Key Created",
   message: "Your Production API Key is ready to use. Keep it secure!",
-  type: "security.api_key_created", 
+  type: "security.api_key_created",
   priority: "normal",
   action: { label: "View API Keys", url: "/dashboard/profile?tab=security" }
 }
@@ -403,28 +410,30 @@ await activityLogger.log(
 #### **🔄 DUAL-TRACK APPROACH**:
 
 Every significant user action should trigger **BOTH**:
+
 1. **📝 Audit Log Entry** (for compliance/history)
 2. **🔔 Notification** (for user awareness - when appropriate)
 
 #### **Implementation Pattern**:
+
 ```javascript
 // Example: API Key Creation
 const handleCreateApiKey = async (keyData) => {
   try {
     // 1. Perform the action
     const result = await dispatch(createApiKey(keyData));
-    
+
     if (createApiKey.fulfilled.match(result)) {
       // 2. Log to audit trail (ALWAYS)
       await activityLogger.apiKeyGenerated(keyData.name);
-      
+
       // 3. Send notification (CONDITIONAL)
       await notificationService.send({
         userId: user.id,
         type: "security.api_key_created",
         title: "🔑 API Key Created",
         message: `Your ${keyData.name} is ready to use`,
-        priority: "normal"
+        priority: "normal",
       });
     }
   } catch (error) {
@@ -436,6 +445,7 @@ const handleCreateApiKey = async (keyData) => {
 ### **📋 IMPLEMENTATION RULES**:
 
 #### **🔍 Audit Logs** - Log EVERYTHING:
+
 - ✅ **All Security Actions** (login, 2FA, API keys, password changes)
 - ✅ **All Profile Changes** (email, name, preferences)
 - ✅ **All System Operations** (deployments, projects, settings)
@@ -443,6 +453,7 @@ const handleCreateApiKey = async (keyData) => {
 - ✅ **Failed Operations** (failed logins, permission denials)
 
 #### **🔔 Notifications** - Notify SELECTIVELY:
+
 - ✅ **Important Security Events** (new API key, login from new device)
 - ✅ **Deployment Status** (success, failure, completion)
 - ✅ **System Updates** (maintenance, new features)
@@ -453,7 +464,8 @@ const handleCreateApiKey = async (keyData) => {
 
 ### **🎯 FRONTEND IMPLEMENTATION PLAN**
 
-#### **Phase 1: User Activity Panel** 
+#### **Phase 1: User Activity Panel**
+
 ```javascript
 // Component: ActivityTab.jsx
 // Route: /dashboard/profile?tab=activity
@@ -467,8 +479,9 @@ Features:
 ```
 
 #### **Phase 2: Admin Audit Dashboard**
+
 ```javascript
-// Component: AuditLogDashboard.jsx  
+// Component: AuditLogDashboard.jsx
 // Route: /admin/audit-logs
 // Data: All audit logs via GET /admin/audit-logs
 
@@ -481,6 +494,7 @@ Features:
 ```
 
 #### **Phase 3: Integration & Analytics**
+
 ```javascript
 // Enhanced features:
 - Real-time activity streams
@@ -495,13 +509,15 @@ Features:
 ### **🔐 SECURITY & COMPLIANCE BENEFITS**
 
 #### **Audit Logs Provide**:
+
 - **🔍 Complete Accountability** - Who did what, when, where
 - **📊 Compliance Evidence** - SOC2, GDPR, HIPAA requirements
-- **🚨 Security Forensics** - Incident investigation capabilities  
+- **🚨 Security Forensics** - Incident investigation capabilities
 - **📈 Usage Analytics** - Platform usage patterns and insights
 - **🔧 Debugging Support** - Technical troubleshooting data
 
 #### **Notifications Provide**:
+
 - **⚡ Real-time Awareness** - Immediate feedback on important events
 - **🔔 Proactive Communication** - Users informed without checking logs
 - **🎯 Contextual Actions** - Direct links to relevant pages/actions
@@ -510,4 +526,4 @@ Features:
 
 ---
 
-**💡 The key insight: Audit logs are for the *system* (compliance, security, debugging), while notifications are for the *user* (awareness, engagement, action).**
+**💡 The key insight: Audit logs are for the _system_ (compliance, security, debugging), while notifications are for the _user_ (awareness, engagement, action).**
