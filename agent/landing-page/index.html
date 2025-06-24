@@ -14,144 +14,372 @@
     <script>
       tailwind.config = {
         theme: {
+          screens: {
+            xs: "475px",
+            sm: "640px",
+            md: "768px",
+            lg: "1024px",
+            xl: "1280px",
+            "2xl": "1536px",
+          },
           extend: {
             fontFamily: {
-              'sans': ['DM Sans', 'sans-serif'],
-              'heading': ['Space Grotesk', 'sans-serif'],
+              sans: ["DM Sans", "sans-serif"],
+              heading: ["Space Grotesk", "sans-serif"],
             },
             animation: {
-              'gradient': 'gradient 3s ease infinite',
-              'pulse-dot': 'pulse 2s infinite',
-              'float': 'float 6s ease-in-out infinite',
+              gradient: "gradient 3s ease infinite",
+              "pulse-dot": "pulse 2s infinite",
+              float: "float 6s ease-in-out infinite",
             },
             keyframes: {
               gradient: {
-                '0%, 100%': { 'background-position': '0% 50%' },
-                '50%': { 'background-position': '100% 50%' }
+                "0%, 100%": { "background-position": "0% 50%" },
+                "50%": { "background-position": "100% 50%" },
               },
               float: {
-                '0%, 100%': { transform: 'translateY(0px)' },
-                '50%': { transform: 'translateY(-20px)' }
-              }
-            }
-          }
-        }
-      }
+                "0%, 100%": { transform: "translateY(0px)" },
+                "50%": { transform: "translateY(-20px)" },
+              },
+            },
+          },
+        },
+      };
     </script>
     <link rel="icon" type="image/png" href="favicon.png" />
-  </head>  <body class="h-full bg-black text-white overflow-hidden font-sans">
+  </head>
+
+  <body class="min-h-screen bg-black text-white overflow-x-hidden font-sans">
     <!-- Neural Network Background -->
-    <div class="fixed inset-0 z-0 opacity-60">
+    <div class="fixed inset-0 z-0 opacity-40 md:opacity-60">
       <canvas id="neural-canvas" class="w-full h-full"></canvas>
     </div>
 
     <!-- Main Content -->
-    <div class="relative z-10 h-full flex items-center justify-center p-4">
-      <div class="text-center max-w-2xl w-full">
-        <!-- Brand -->
-        <div class="flex items-center justify-center gap-3 mb-8">
-          <img src="favicon.png" alt="Deployio Logo" class="w-10 h-10 rounded-xl" />
-          <span class="text-3xl font-bold font-heading text-white">Deployio</span>
-        </div>
+    <div
+      class="relative z-10 min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8"
+    >
+      <div
+        id="main-content"
+        class="text-center max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-3xl w-full"
+      >
+        <!-- Regular Subdomain Content (Default) -->
+        <div id="regular-content">
+          <!-- Brand -->
+          <div
+            class="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8"
+          >
+            <img
+              src="favicon.png"
+              alt="Deployio Logo"
+              class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl"
+            />
+            <span class="text-2xl sm:text-3xl font-bold font-heading text-white"
+              >Deployio</span
+            >
+          </div>
 
-        <!-- Hero Badge -->
-        <div class="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 text-sm font-medium mb-6 backdrop-blur-sm">
-          <span class="text-lg">🚀</span>
-          <span>Subdomain Ready for Deployment</span>
-          <div class="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-        </div>
+          <!-- Hero Badge -->
+          <div
+            class="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 text-xs sm:text-sm font-medium mb-4 sm:mb-6 backdrop-blur-sm mx-2"
+          >
+            <span class="text-base sm:text-lg">🚀</span>
+            <span class="hidden xs:inline">Subdomain Ready for Deployment</span>
+            <span class="xs:hidden">Ready to Deploy</span>
+            <div class="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+          </div>
 
-        <!-- Main Title -->
-        <h1 class="font-heading text-4xl md:text-6xl font-bold mb-6 leading-tight">
-          <span class="block mb-2">
-            <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-[length:200%_200%] animate-gradient">
-              This Subdomain
+          <!-- Main Title -->
+          <h1
+            class="font-heading text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight px-2"
+          >
+            <span class="block mb-1 sm:mb-2">
+              <span
+                class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-[length:200%_200%] animate-gradient"
+              >
+                This Subdomain
+              </span>
             </span>
-          </span>
-          <span class="block text-2xl md:text-3xl text-gray-400 font-normal">
-            is Ready for Your App
-          </span>
-        </h1>
+            <span
+              class="block text-lg xs:text-xl sm:text-2xl md:text-3xl text-gray-400 font-normal"
+            >
+              is Ready for Your App
+            </span>
+          </h1>
 
-        <!-- Animated Subtitle -->
-        <div class="mb-8">
-          <p class="text-lg text-gray-300 mb-4">
-            <span id="typed-text">Deploy your applications instantly...</span>
-            <span class="animate-pulse text-blue-400">|</span>
-          </p>
-        </div>
+          <!-- Animated Subtitle -->
+          <div class="mb-6 sm:mb-8 px-2">
+            <p class="text-base sm:text-lg text-gray-300 mb-4">
+              <span id="typed-text">Deploy your applications instantly...</span>
+              <span class="animate-pulse text-blue-400">|</span>
+            </p>
+          </div>
 
-        <!-- Status Card -->
-        <div class="bg-neutral-900/80 backdrop-blur-lg border border-neutral-700/50 rounded-2xl p-6 mb-8 max-w-lg mx-auto">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-3">
-              <div class="relative">
-                <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse-dot"></div>
-                <div class="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-ping"></div>
+          <!-- Status Card -->
+          <div
+            class="bg-neutral-900/80 backdrop-blur-lg border border-neutral-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 max-w-sm sm:max-w-lg mx-2 sm:mx-auto"
+          >
+            <div class="flex items-center justify-between mb-3 sm:mb-4">
+              <div class="flex items-center gap-2 sm:gap-3">
+                <div class="relative">
+                  <div
+                    class="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-pulse-dot"
+                  ></div>
+                  <div
+                    class="absolute inset-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-ping"
+                  ></div>
+                </div>
+                <span class="text-white font-semibold text-sm sm:text-base"
+                  >Subdomain Active</span
+                >
               </div>
-              <span class="text-white font-semibold">Subdomain Active</span>
+              <div
+                class="px-2 sm:px-3 py-1 bg-green-500/20 text-green-400 text-xs sm:text-sm rounded-full border border-green-500/30"
+              >
+                Available Now
+              </div>
             </div>
-            <div class="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full border border-green-500/30">
-              Available Now
+            <p
+              class="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4 text-left sm:text-center"
+            >
+              This subdomain is configured and ready for immediate deployment.
+              Deploy any application stack with zero configuration.
+            </p>
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+              <div class="flex flex-col items-center gap-1">
+                <span class="text-base sm:text-lg">⚡</span>
+                <span class="text-xs text-gray-400">Instant Deploy</span>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <span class="text-base sm:text-lg">🔒</span>
+                <span class="text-xs text-gray-400">SSL Enabled</span>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <span class="text-base sm:text-lg">🌐</span>
+                <span class="text-xs text-gray-400">Global CDN</span>
+              </div>
             </div>
           </div>
-          <p class="text-gray-400 text-sm mb-4">
-            This subdomain is configured and ready for immediate deployment. 
-            Deploy any application stack with zero configuration.
-          </p>
-          <div class="grid grid-cols-3 gap-4 text-center">
-            <div class="flex flex-col items-center gap-1">
-              <span class="text-lg">⚡</span>
-              <span class="text-xs text-gray-400">Instant Deploy</span>
-            </div>
-            <div class="flex flex-col items-center gap-1">
-              <span class="text-lg">🔒</span>
-              <span class="text-xs text-gray-400">SSL Enabled</span>
-            </div>
-            <div class="flex flex-col items-center gap-1">
-              <span class="text-lg">🌐</span>
-              <span class="text-xs text-gray-400">Global CDN</span>
-            </div>
-          </div>
-        </div>
 
-        <!-- Tech Stack Pills -->
-        <div class="flex flex-wrap justify-center gap-2 mb-8 max-w-md mx-auto">
-          <span class="px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default">React</span>
-          <span class="px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default">Vue.js</span>
-          <span class="px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default">Next.js</span>
-          <span class="px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default">Node.js</span>
-          <span class="px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default">Python</span>
-          <span class="px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default">Docker</span>
-        </div>
-
-        <!-- CTA Button -->
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-          <a 
-            href="https://deployio.tech" 
-            class="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 flex items-center justify-center overflow-hidden"
+          <!-- Tech Stack Pills -->
+          <div
+            class="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-6 sm:mb-8 max-w-xs sm:max-w-md mx-auto px-2"
           >
-            <div class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <span class="relative flex items-center">
-              <span>Deploy Your App Here</span>
-              <svg class="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
-              </svg>
+            <span
+              class="px-2 sm:px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-xs sm:text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default"
+              >React</span
+            >
+            <span
+              class="px-2 sm:px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-xs sm:text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default"
+              >Vue.js</span
+            >
+            <span
+              class="px-2 sm:px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-xs sm:text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default"
+              >Next.js</span
+            >
+            <span
+              class="px-2 sm:px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-xs sm:text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default"
+              >Node.js</span
+            >
+            <span
+              class="px-2 sm:px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-xs sm:text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default"
+              >Python</span
+            >
+            <span
+              class="px-2 sm:px-3 py-1 bg-white/5 border border-blue-500/20 rounded-lg text-xs sm:text-sm text-gray-300 backdrop-blur-sm hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-all cursor-default"
+              >Docker</span
+            >
+          </div>
+
+          <!-- CTA Button -->
+          <div
+            class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-2"
+          >
+            <a
+              href="https://deployio.tech"
+              class="group relative px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 flex items-center justify-center overflow-hidden text-sm sm:text-base"
+            >
+              <div
+                class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              ></div>
+              <span class="relative flex items-center">
+                <span>Deploy Your App Here</span>
+                <svg
+                  class="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  ></path>
+                </svg>
+              </span>
+            </a>
+            <a
+              href="https://deployio.tech/auth/register"
+              class="px-6 sm:px-8 py-3 sm:py-4 border-2 border-gray-600 hover:border-blue-500/50 text-gray-300 hover:text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm bg-black/20 hover:bg-black/30 text-sm sm:text-base"
+            >
+              Sign Up Free
+            </a>
+          </div>
+
+          <!-- Footer Link -->
+          <div class="mt-6 sm:mt-8 text-center px-2">
+            <p class="text-gray-500 text-xs sm:text-sm">
+              Powered by
+              <a
+                href="https://deployio.tech"
+                class="text-blue-400 hover:text-blue-300 transition-colors font-semibold"
+                >Deployio Platform</a
+              >
+            </p>
+          </div>
+        </div>
+
+        <!-- Reserved Subdomain Content (Hidden by default) -->
+        <div id="reserved-content" class="hidden">
+          <!-- Brand -->
+          <div
+            class="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8"
+          >
+            <img
+              src="favicon.png"
+              alt="Deployio Logo"
+              class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl"
+            />
+            <span class="text-2xl sm:text-3xl font-bold font-heading text-white"
+              >Deployio</span
+            >
+          </div>
+
+          <!-- Reserved Badge -->
+          <div
+            class="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-full text-red-300 text-xs sm:text-sm font-medium mb-4 sm:mb-6 backdrop-blur-sm mx-2"
+          >
+            <span class="text-base sm:text-lg">🔒</span>
+            <span>Reserved Subdomain</span>
+          </div>
+
+          <!-- Main Title -->
+          <h1
+            class="font-heading text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight px-2"
+          >
+            <span class="block mb-1 sm:mb-2">
+              <span
+                class="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 bg-[length:200%_200%] animate-gradient"
+              >
+                Access Restricted
+              </span>
             </span>
-          </a>
-          <a 
-            href="https://deployio.tech/auth/register" 
-            class="px-8 py-4 border-2 border-gray-600 hover:border-blue-500/50 text-gray-300 hover:text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm bg-black/20 hover:bg-black/30"
-          >
-            Sign Up Free
-          </a>
-        </div>
+            <span
+              class="block text-lg xs:text-xl sm:text-2xl md:text-3xl text-gray-400 font-normal"
+            >
+              This subdomain is reserved
+            </span>
+          </h1>
 
-        <!-- Footer Link -->
-        <div class="mt-8 text-center">
-          <p class="text-gray-500 text-sm">
-            Powered by <a href="https://deployio.tech" class="text-blue-400 hover:text-blue-300 transition-colors font-semibold">Deployio Platform</a>
-          </p>
+          <!-- Reserved Message -->
+          <div class="mb-6 sm:mb-8 px-2">
+            <p class="text-base sm:text-lg text-gray-300 mb-4">
+              This subdomain is reserved for Deployio platform services and is
+              not available for user applications.
+            </p>
+          </div>
+
+          <!-- Status Card -->
+          <div
+            class="bg-neutral-900/80 backdrop-blur-lg border border-red-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 max-w-sm sm:max-w-lg mx-2 sm:mx-auto"
+          >
+            <div class="flex items-center justify-between mb-3 sm:mb-4">
+              <div class="flex items-center gap-2 sm:gap-3">
+                <div class="relative">
+                  <div
+                    class="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-400 rounded-full"
+                  ></div>
+                </div>
+                <span class="text-white font-semibold text-sm sm:text-base"
+                  >Subdomain Reserved</span
+                >
+              </div>
+              <div
+                class="px-2 sm:px-3 py-1 bg-red-500/20 text-red-400 text-xs sm:text-sm rounded-full border border-red-500/30"
+              >
+                Not Available
+              </div>
+            </div>
+            <p
+              class="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4 text-left sm:text-center"
+            >
+              This subdomain is reserved for platform infrastructure and cannot
+              be used for user deployments.
+            </p>
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+              <div class="flex flex-col items-center gap-1">
+                <span class="text-base sm:text-lg">🏗️</span>
+                <span class="text-xs text-gray-400">Platform Use</span>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <span class="text-base sm:text-lg">🔒</span>
+                <span class="text-xs text-gray-400">Restricted</span>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <span class="text-base sm:text-lg">⚙️</span>
+                <span class="text-xs text-gray-400">System</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA Button -->
+          <div
+            class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-2"
+          >
+            <a
+              href="https://deployio.tech"
+              class="group relative px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 flex items-center justify-center overflow-hidden text-sm sm:text-base"
+            >
+              <div
+                class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              ></div>
+              <span class="relative flex items-center">
+                <span>Go to Platform</span>
+                <svg
+                  class="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  ></path>
+                </svg>
+              </span>
+            </a>
+            <a
+              href="https://deployio.tech/contact"
+              class="px-6 sm:px-8 py-3 sm:py-4 border-2 border-gray-600 hover:border-red-500/50 text-gray-300 hover:text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm bg-black/20 hover:bg-black/30 text-sm sm:text-base"
+            >
+              Contact Support
+            </a>
+          </div>
+
+          <!-- Footer Link -->
+          <div class="mt-6 sm:mt-8 text-center px-2">
+            <p class="text-gray-500 text-xs sm:text-sm">
+              Powered by
+              <a
+                href="https://deployio.tech"
+                class="text-blue-400 hover:text-blue-300 transition-colors font-semibold"
+                >Deployio Platform</a
+              >
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,0 +1,26 @@
+{
+  "reserved_subdomains": [
+    "landing",
+    "admin",
+    "dashboard",
+    "api",
+    "cdn",
+    "static",
+    "assets",
+    "mail",
+    "ftp",
+    "www",
+    "blog",
+    "docs",
+    "support",
+    "status",
+    "monitor"
+  ],
+  "platform_url": "https://deployio.tech",
+  "contact_email": "support@deployio.tech",
+  "reserved_message": {
+    "title": "Reserved Subdomain",
+    "subtitle": "This subdomain is reserved for platform use",
+    "description": "This subdomain is reserved for Deployio platform services and is not available for user applications."
+  }
+}
