@@ -60,7 +60,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl --fail http://localhost:3000/api/v1/health || exit 1",
+          "curl --fail http://localhost:3000/health || exit 1",
         ]
       interval: 10s
       timeout: 5s

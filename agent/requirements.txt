@@ -12,3 +12,4 @@ passlib[bcrypt]>=1.7.4
 pyyaml>=6.0.1
 boto3>=1.34.0
 botocore>=1.34.0
+colorlog>=6.7.0

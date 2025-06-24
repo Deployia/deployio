@@ -21,6 +21,9 @@ RUN adduser -S deployio -u 1001
 RUN chown -R deployio:nodejs /app
 USER deployio
 
+# Create the /app/logs directory
+RUN mkdir -p /app/logs && chown -R node:node /app/logs
+
 # Expose port
 EXPOSE 3000
 
