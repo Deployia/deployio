@@ -19,10 +19,6 @@ RUN chmod -R 644 /usr/share/nginx/html/* && \
 
 # nginx runs as root in containers by default (this is secure and standard)
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/health || exit 1
-
 # Expose port 80
 EXPOSE 80
 

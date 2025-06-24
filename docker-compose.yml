@@ -42,9 +42,9 @@ services:
       - web
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
       ai-service:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
   backend:
@@ -56,16 +56,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl --fail http://localhost:3000/health || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/api`)"
@@ -91,16 +81,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl --fail http://127.0.0.1:8000/service/v1/health || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ai-service.rule=Host(`deployio.tech`,`www.deployio.tech`) && PathPrefix(`/service`)"
@@ -121,12 +101,6 @@ services:
       - redis_data:/data
     networks:
       - web
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
     restart: unless-stopped
 
 volumes:

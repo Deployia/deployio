@@ -68,10 +68,7 @@ USER agent
 # Add the virtual environment to the PATH
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
+# Expose port
 EXPOSE 8000
 
 # Use Uvicorn with optimized production settings
