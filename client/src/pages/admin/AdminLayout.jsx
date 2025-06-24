@@ -13,6 +13,7 @@ import {
   FiMenu,
   FiX,
   FiLogOut,
+  FiActivity,
 } from "react-icons/fi";
 import { logout } from "@redux/slices/authSlice";
 
@@ -26,7 +27,6 @@ const AdminLayout = () => {
     dispatch(logout());
     navigate("/");
   };
-
   const sidebarItems = [
     { icon: FiBarChart, label: "Dashboard", path: "/admin" },
     { icon: FiUsers, label: "Users", path: "/admin/users" },
@@ -34,6 +34,7 @@ const AdminLayout = () => {
     { icon: FiBook, label: "Blogs", path: "/admin/blogs" },
     { icon: FiDatabase, label: "Deployments", path: "/admin/deployments" },
     { icon: FiShield, label: "Security", path: "/admin/security" },
+    { icon: FiActivity, label: "Health Monitor", path: "/health" },
     { icon: FiSettings, label: "Settings", path: "/admin/settings" },
   ];
   return (

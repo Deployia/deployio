@@ -145,6 +145,7 @@ function App() {
           </Route>{" "}
           {/* Protected Admin Routes */}
           <Route element={<ProtectedRoute admin={true} />}>
+            {" "}
             <Route path="admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />
@@ -154,16 +155,13 @@ function App() {
               <Route path="security" element={<AdminSecurity />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
-            <Route
-              path="service/:serviceName"
-              element={<ServiceDetailPage />}
-            />
           </Route>
           {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>
             {/* Public Pages */}
             <Route index element={<Home />} />
             <Route path="health" element={<Health />} />
+            <Route path="health/:serviceName" element={<ServiceDetailPage />} />
             {/* Legal Pages */}
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             <Route path="terms-of-service" element={<TermsOfService />} />

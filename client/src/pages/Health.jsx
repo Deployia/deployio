@@ -20,8 +20,6 @@ import {
   FaKey,
   FaSync,
   FaCopy,
-  FaChevronDown,
-  FaChevronUp,
   FaEye,
   FaArrowRight,
 } from "react-icons/fa";
@@ -34,7 +32,6 @@ function Health() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [showBackendJson, setShowBackendJson] = useState(true);
   // Copy feedback state
   const [copyFeedback, setCopyFeedback] = useState({
     show: false,
@@ -166,7 +163,7 @@ function Health() {
 
     const handleDetailClick = () => {
       if (isAdmin && serviceNameMap[serviceKey]) {
-        navigate(`/service/${serviceNameMap[serviceKey]}`);
+        navigate(`/health/${serviceNameMap[serviceKey]}`);
       }
     };
 
@@ -311,9 +308,9 @@ function Health() {
             ...prev.backend,
             status: beHealth.data.status || "unknown",
             uptime: beHealth.data.uptime || 0,
-            message: `${beHealth.data.service || "Backend"} (${
-              beHealth.data.environment || "unknown"
-            })`,
+            message: `${beHealth.data.service || "Backend"} v${
+              beHealth.data.version || "unknown"
+            } (${beHealth.data.environment || "unknown"})`,
             mongodb_status:
               beHealth.data.services?.database?.status || "unknown",
             redis_status: beHealth.data.services?.redis?.status || "unknown",
@@ -323,97 +320,105 @@ function Health() {
           },
         }));
 
-        // FastAPI AI Service health check
-        let faHealth = null;
-        let faHealthError = null;
-        try {
-          // Check if AI service is available through backend proxy
-          faHealth = await axios.get("http://localhost:8000/service/v1/health");
-
+        // Update FastAPI AI Service from backend health response
+        const aiServiceData = beHealth.data.services?.aiService;
+        if (aiServiceData) {
           setServices((prev) => ({
             ...prev,
             fastapi: {
               ...prev.fastapi,
-              status: faHealth.data.status || "unknown",
-              uptime: faHealth.data.uptime || 0,
-              message: `${faHealth.data.service || "AI Service"} v${
-                faHealth.data.version || "unknown"
-              }`,
-              redis_status: faHealth.data.services?.redis?.status || "unknown",
-              memory: faHealth.data.memory || {},
-              responseTime: faHealth.data.responseTime || 0,
+              status: aiServiceData.status || "unknown",
+              uptime: aiServiceData.uptime || 0,
+              message: `AI Service v${aiServiceData.version || "unknown"}`,
+              redis_status: "unknown", // AI service redis status not reported
+              memory: {},
+              responseTime: aiServiceData.responseTime || 0,
             },
           }));
-        } catch (faError) {
-          console.warn("FastAPI health check failed:", faError);
-          faHealthError = faError.response?.data?.message || faError.message;
-
+        } else {
           setServices((prev) => ({
             ...prev,
             fastapi: {
               ...prev.fastapi,
               status: "unhealthy",
-              message: faHealthError || "Service unavailable",
+              message: "Service not detected by backend",
               redis_status: "unknown",
             },
           }));
-        }
-
-        // DeployIO Agent health check
-        let agentHealth = null;
-        let agentHealthError = null;
-        try {
-          // Direct call to agent health endpoint
-          const agentUrl = "https://agent.deployio.tech";
-
-          const agentResponse = await fetch(`${agentUrl}/agent/v1/health`, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              "User-Agent": "DeployIO-Frontend-HealthCheck/1.0",
-            },
-            signal: AbortSignal.timeout(10000), // 10 second timeout
-          });
-
-          if (agentResponse.ok) {
-            agentHealth = await agentResponse.json();
-
-            setServices((prev) => ({
-              ...prev,
-              agent: {
-                ...prev.agent,
-                status: agentHealth.status || "unknown",
-                uptime: agentHealth.uptime || 0,
-                message: `${agentHealth.service || "Agent"} v${
-                  agentHealth.version || "unknown"
-                }`,
-                docker_status:
-                  agentHealth.services?.docker?.status || "unknown",
-                version: agentHealth.version || "unknown",
-                purpose: agentHealth.purpose || "unknown",
-                memory: agentHealth.memory || {},
-                responseTime: agentHealth.responseTime || 0,
-                services: agentHealth.services || {},
-              },
-            }));
-          } else {
-            throw new Error(
-              `Agent responded with status ${agentResponse.status}`
-            );
-          }
-        } catch (agentError) {
-          console.warn("Agent health check failed:", agentError);
-          agentHealthError = agentError.message;
+        } // Update DeployIO Agent from backend health response first
+        const agentServiceData = beHealth.data.services?.deploymentAgent;
+        if (agentServiceData) {
           setServices((prev) => ({
             ...prev,
             agent: {
               ...prev.agent,
-              status: "unhealthy",
-              message: agentHealthError || "Service unavailable",
-              docker_status: "unknown",
-              purpose: "unknown",
+              status: agentServiceData.status || "unknown",
+              uptime: agentServiceData.uptime || 0,
+              message: `Agent v${
+                agentServiceData.version || "unknown"
+              } (via backend)`,
+              docker_status:
+                agentServiceData.services?.docker?.status || "unknown",
+              version: agentServiceData.version || "unknown",
+              purpose: "Container management and deployment automation",
+              memory: {},
+              responseTime: agentServiceData.responseTime || 0,
+              services: agentServiceData.services || {},
             },
           }));
+        } else {
+          // Try direct connection to agent if backend doesn't have info
+          try {
+            const agentUrl = "https://agent.deployio.tech";
+            const agentResponse = await fetch(`${agentUrl}/agent/v1/health`, {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                "User-Agent": "DeployIO-Frontend-HealthCheck/1.0",
+              },
+              signal: AbortSignal.timeout(10000), // 10 second timeout
+            });
+
+            if (agentResponse.ok) {
+              const agentHealth = await agentResponse.json();
+              setServices((prev) => ({
+                ...prev,
+                agent: {
+                  ...prev.agent,
+                  status: agentHealth.status || "unknown",
+                  uptime: agentHealth.uptime || 0,
+                  message: `Agent v${
+                    agentHealth.version || "unknown"
+                  } (direct)`,
+                  docker_status:
+                    agentHealth.services?.docker?.status || "unknown",
+                  version: agentHealth.version || "unknown",
+                  purpose:
+                    agentHealth.purpose ||
+                    "Container management and deployment automation",
+                  memory: agentHealth.memory || {},
+                  responseTime: agentHealth.responseTime || 0,
+                  services: agentHealth.services || {},
+                },
+              }));
+            } else {
+              throw new Error(
+                `Agent responded with status ${agentResponse.status}`
+              );
+            }
+          } catch (agentError) {
+            console.warn("Agent health check failed:", agentError);
+            setServices((prev) => ({
+              ...prev,
+              agent: {
+                ...prev.agent,
+                status: "unhealthy",
+                message: agentError.message || "Service unavailable",
+                docker_status: "unknown",
+                purpose: "Container management and deployment automation",
+              },
+            }));
+          }
         } // Test protected endpoints if authenticated
         if (isAuthenticated) {
           // Test Backend protected endpoint
@@ -718,37 +723,15 @@ function Health() {
                           >
                             <FaCopy className="mr-1" /> Copy
                           </button>
-                          <button
-                            onClick={() => setShowBackendJson(!showBackendJson)}
-                            className="text-xs text-neutral-400 hover:text-white transition-colors flex items-center"
-                          >
-                            {showBackendJson ? (
-                              <>
-                                <FaChevronUp className="mr-1" /> Hide
-                              </>
-                            ) : (
-                              <>
-                                <FaChevronDown className="mr-1" /> Show
-                              </>
-                            )}
-                          </button>
                         </div>
                       </div>
-                      {showBackendJson ? (
-                        <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-x-auto bg-black/30 p-3 rounded border">
-                          {JSON.stringify(
-                            services.backend.protectedData,
-                            null,
-                            2
-                          )}
-                        </pre>
-                      ) : (
-                        <div className="text-xs text-green-400 font-mono bg-black/30 p-3 rounded border">
-                          <span className="text-neutral-400">
-                            Click &quot;Show&quot; to view JSON response
-                          </span>
-                        </div>
-                      )}
+                      <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-x-auto bg-black/30 p-3 rounded border">
+                        {JSON.stringify(
+                          services.backend.protectedData,
+                          null,
+                          2
+                        )}
+                      </pre>
                     </div>
                   </div>
                 )}
