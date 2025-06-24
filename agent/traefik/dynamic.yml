@@ -1,5 +1,6 @@
 http:
-  routers: # Agent API - Reserved subdomain
+  routers:
+    # Agent API - Reserved subdomain
     agent-api:
       rule: "Host(`agent.deployio.tech`)"
       service: agent-service
@@ -17,15 +18,17 @@ http:
       tls:
         certResolver: letsencrypt
       middlewares:
-        - agent-cors # Traefik Dashboard - Reserved subdomain
+        - agent-cors
 
+    # Traefik Dashboard - Reserved subdomain
     traefik-dashboard:
       rule: "Host(`traefik.deployio.tech`)"
       service: "api@internal"
       priority: 10
       tls:
-        certResolver: letsencrypt # Smart landing page - Handles both regular and reserved subdomains
+        certResolver: letsencrypt
 
+    # Smart landing page - Handles both regular and reserved subdomains
     smart-landing:
       rule: "HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.deployio.tech`) && !Host(`agent.deployio.tech`) && !Host(`app.deployio.tech`) && !Host(`traefik.deployio.tech`)"
       service: landing-service
@@ -33,8 +36,9 @@ http:
       tls:
         certResolver: letsencrypt
       middlewares:
-        - landing-cors  services:
+        - landing-cors
 
+  services:
     # DeployIO Agent service
     agent-service:
       loadBalancer:
