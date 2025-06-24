@@ -11,7 +11,7 @@ const OAuthButton = ({ href, children }) => {
 
 const OAuthSection = () => {
   const getOAuthUrl = (provider) => {
-    const baseUrl = `${import.meta.env.VITE_APP_BACKEND_URL}/users/auth`;
+    const baseUrl = `${import.meta.env.VITE_APP_BACKEND_URL}/api/v1/users/auth`;
     return `${baseUrl}/${provider}`;
   };
   return (
