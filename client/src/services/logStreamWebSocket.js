@@ -1,17 +1,13 @@
-import { io } from "socket.io-client";
-import { getAuthToken } from "@utils/auth";
+import WebSocketService from "./websocketService";
 
 /**
  * Log Streaming WebSocket Service
  * Provides real-time log streaming from backend services
+ * Uses centralized WebSocket service with cookie-based authentication
  */
 class LogStreamWebSocket {
   constructor() {
-    this.socket = null;
-    this.isConnected = false;
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 1000;
+    this.namespace = "/logs";
     this.streams = new Map();
     this.eventHandlers = new Map();
   }
@@ -22,88 +18,60 @@ class LogStreamWebSocket {
    */
   async connect(options = {}) {
     try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("Authentication token required for log streaming");
-      }
-
-      const socketUrl = `${
-        import.meta.env.VITE_WS_URL || window.location.origin
-      }/logs`;
-
-      this.socket = io(socketUrl, {
-        auth: {
-          token,
-        },
-        transports: ["websocket", "polling"],
-        autoConnect: true,
-        reconnection: true,
-        reconnectionAttempts: this.maxReconnectAttempts,
-        reconnectionDelay: this.reconnectDelay,
-        ...options,
-      });
-
+      await WebSocketService.connect(this.namespace, options);
       this.setupEventHandlers();
-
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Connection timeout"));
-        }, 10000);
-
-        this.socket.on("connect", () => {
-          clearTimeout(timeout);
-          this.isConnected = true;
-          this.reconnectAttempts = 0;
-          console.log("Connected to log streaming service");
-          resolve();
-        });
-
-        this.socket.on("connect_error", (error) => {
-          clearTimeout(timeout);
-          console.error("Log streaming connection error:", error);
-          reject(error);
-        });
-      });
+      console.log("Connected to log streaming service");
     } catch (error) {
       console.error("Failed to connect to log streaming service:", error);
       throw error;
     }
   }
-
   /**
    * Setup socket event handlers
    */
   setupEventHandlers() {
-    this.socket.on("connect", () => {
-      this.isConnected = true;
+    const socket = WebSocketService.getSocket(this.namespace);
+    if (!socket) return;
+
+    // Clear existing handlers
+    socket.off("connect");
+    socket.off("disconnect");
+    socket.off("reconnect");
+    socket.off("reconnect_error");
+    socket.off("stream:available");
+    socket.off("stream:started");
+    socket.off("stream:stopped");
+    socket.off("stream:data");
+    socket.off("stream:history-complete");
+    socket.off("stream:error");
+
+    socket.on("connect", () => {
       this.emit("connected");
     });
 
-    this.socket.on("disconnect", (reason) => {
-      this.isConnected = false;
+    socket.on("disconnect", (reason) => {
       console.log("Disconnected from log streaming service:", reason);
       this.emit("disconnected", { reason });
     });
 
-    this.socket.on("reconnect", (attemptNumber) => {
-      this.isConnected = true;
+    socket.on("reconnect", (attemptNumber) => {
       console.log(
         `Reconnected to log streaming service (attempt ${attemptNumber})`
       );
       this.emit("reconnected", { attemptNumber });
     });
 
-    this.socket.on("reconnect_error", (error) => {
+    socket.on("reconnect_error", (error) => {
       console.error("Log streaming reconnection error:", error);
       this.emit("reconnect_error", { error });
     });
 
     // Stream-specific events
-    this.socket.on("stream:available", (data) => {
+    socket.on("stream:available", (data) => {
       this.emit("streams_available", data);
     });
 
-    this.socket.on("stream:started", (data) => {
+    socket.on("stream:started", (data) => {
       this.streams.set(data.streamId, {
         ...data,
         status: "active",
@@ -112,26 +80,25 @@ class LogStreamWebSocket {
       this.emit("stream_started", data);
     });
 
-    this.socket.on("stream:stopped", (data) => {
+    socket.on("stream:stopped", (data) => {
       this.streams.delete(data.streamId);
       this.emit("stream_stopped", data);
     });
 
-    this.socket.on("stream:data", (data) => {
+    socket.on("stream:data", (data) => {
       this.emit("stream_data", data);
       this.emit(`stream_data_${data.streamId}`, data);
     });
 
-    this.socket.on("stream:history-complete", (data) => {
+    socket.on("stream:history-complete", (data) => {
       this.emit("stream_history_complete", data);
     });
 
-    this.socket.on("stream:error", (data) => {
+    socket.on("stream:error", (data) => {
       console.error("Stream error:", data);
       this.emit("stream_error", data);
     });
   }
-
   /**
    * Start streaming logs for a specific service
    * @param {string} streamId - Unique identifier for the stream
@@ -139,11 +106,11 @@ class LogStreamWebSocket {
    * @param {number} lines - Number of recent lines to fetch initially
    */
   startStream(streamId, logType, lines = 50) {
-    if (!this.isConnected) {
+    if (!this.isConnected()) {
       throw new Error("Not connected to log streaming service");
     }
 
-    this.socket.emit("stream:start", {
+    WebSocketService.emit(this.namespace, "stream:start", {
       streamId,
       logType,
       lines,
@@ -155,22 +122,22 @@ class LogStreamWebSocket {
    * @param {string} streamId - Stream identifier to stop
    */
   stopStream(streamId) {
-    if (!this.isConnected) {
+    if (!this.isConnected()) {
       throw new Error("Not connected to log streaming service");
     }
 
-    this.socket.emit("stream:stop", { streamId });
+    WebSocketService.emit(this.namespace, "stream:stop", { streamId });
   }
 
   /**
    * List available log streams
    */
   listStreams() {
-    if (!this.isConnected) {
+    if (!this.isConnected()) {
       throw new Error("Not connected to log streaming service");
     }
 
-    this.socket.emit("stream:list");
+    WebSocketService.emit(this.namespace, "stream:list");
   }
 
   /**
@@ -178,6 +145,13 @@ class LogStreamWebSocket {
    */
   getActiveStreams() {
     return Array.from(this.streams.values());
+  }
+
+  /**
+   * Check if connected
+   */
+  isConnected() {
+    return WebSocketService.isConnected(this.namespace);
   }
 
   /**
@@ -219,25 +193,20 @@ class LogStreamWebSocket {
       });
     }
   }
-
   /**
    * Disconnect from log streaming service
    */
   disconnect() {
-    if (this.socket) {
-      // Stop all active streams
-      this.streams.forEach((stream, streamId) => {
-        this.stopStream(streamId);
-      });
+    // Stop all active streams
+    this.streams.forEach((stream, streamId) => {
+      this.stopStream(streamId);
+    });
 
-      this.socket.disconnect();
-      this.socket = null;
-      this.isConnected = false;
-      this.streams.clear();
-      this.eventHandlers.clear();
+    WebSocketService.disconnect(this.namespace);
+    this.streams.clear();
+    this.eventHandlers.clear();
 
-      console.log("Disconnected from log streaming service");
-    }
+    console.log("Disconnected from log streaming service");
   }
 
   /**
@@ -245,9 +214,9 @@ class LogStreamWebSocket {
    */
   getStatus() {
     return {
-      isConnected: this.isConnected,
+      isConnected: this.isConnected(),
       activeStreams: this.streams.size,
-      reconnectAttempts: this.reconnectAttempts,
+      namespace: this.namespace,
     };
   }
 }

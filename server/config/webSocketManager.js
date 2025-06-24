@@ -372,12 +372,29 @@ class WebSocketManager {
       });
     });
   }
-
   /**
    * Get Socket.IO instance
    */
   getIO() {
     return this.io;
+  }
+
+  /**
+   * Get a specific namespace
+   * @param {string} namespaceName - The namespace name (e.g., '/logs')
+   * @returns {Object|null} Socket.IO namespace instance or null
+   */
+  getNamespace(namespaceName) {
+    if (!this.io) return null;
+    return this.io.of(namespaceName);
+  }
+
+  /**
+   * Get specific namespace
+   * @param {String} namespace - Namespace path
+   */
+  getNamespace(namespace) {
+    return this.io ? this.io.of(namespace) : null;
   }
 
   /**

@@ -233,52 +233,138 @@ async function getAgentServiceDetails() {
 }
 
 async function getServiceLogs(serviceName, lines, level) {
-  const fs = require("fs").promises;
+  const fs = require("fs");
   const path = require("path");
 
-  // Map service names to log files
-  const logFiles = {
-    backend: path.join(process.cwd(), "logs", "combined.log"),
-    "ai-service": path.join(
-      process.cwd(),
-      "..",
-      "ai-service",
-      "logs",
-      "ai-service.log"
-    ),
-    agent: path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
+  // Platform-agnostic log file detection
+  const getLogPaths = (serviceName) => {
+    const basePaths = {
+      backend: [
+        // Development paths
+        path.join(process.cwd(), "logs", "combined.log"),
+        path.join(process.cwd(), "server", "logs", "combined.log"),
+        // Docker paths
+        "/app/logs/combined.log",
+        "/usr/src/app/logs/combined.log",
+        // EC2 Ubuntu paths
+        "/home/ubuntu/deployio/server/logs/combined.log",
+        "/opt/deployio/server/logs/combined.log",
+      ],
+      "ai-service": [
+        // Development paths
+        path.join(process.cwd(), "..", "ai-service", "logs", "ai-service.log"),
+        path.join(process.cwd(), "ai-service", "logs", "ai-service.log"),
+        // Docker paths
+        "/app/logs/ai-service.log",
+        "/usr/src/app/logs/ai-service.log",
+        // EC2 Ubuntu paths
+        "/home/ubuntu/deployio/ai-service/logs/ai-service.log",
+        "/opt/deployio/ai-service/logs/ai-service.log",
+      ],
+      agent: [
+        // Development paths
+        path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
+        path.join(process.cwd(), "agent", "logs", "agent.log"),
+        // Docker paths
+        "/app/logs/agent.log",
+        "/usr/src/app/logs/agent.log",
+        // EC2 Ubuntu paths (may be on different instance)
+        "/home/ubuntu/deployio/agent/logs/agent.log",
+        "/opt/deployio/agent/logs/agent.log",
+      ],
+    };
+    return basePaths[serviceName] || [];
   };
 
-  const logFile = logFiles[serviceName];
+  // Find the first existing log file
+  const findLogFile = (serviceName) => {
+    const paths = getLogPaths(serviceName);
+    for (const logPath of paths) {
+      if (fs.existsSync(logPath)) {
+        return logPath;
+      }
+    }
+    return null;
+  };
+
+  const logFile = findLogFile(serviceName);
   if (!logFile) {
-    throw new Error("Invalid service name");
+    return {
+      logs: [],
+      totalLines: 0,
+      logFile: `No log file found for ${serviceName}`,
+      error: `Log file not found. Searched paths: ${getLogPaths(
+        serviceName
+      ).join(", ")}`,
+      searchedPaths: getLogPaths(serviceName),
+    };
   }
 
   try {
-    const { exec } = require("child_process");
-    const util = require("util");
-    const execPromise = util.promisify(exec);
+    // Platform-agnostic log reading
+    const readRecentLines = async (filePath, numLines) => {
+      const { exec } = require("child_process");
+      const util = require("util");
+      const execPromise = util.promisify(exec);
 
-    // Get recent lines
-    const command =
-      process.platform === "win32"
-        ? `powershell "Get-Content -Path '${logFile}' -Tail ${lines}"`
-        : `tail -n ${lines} "${logFile}"`;
+      let command;
+      let useNodeFallback = false;
 
-    const { stdout } = await execPromise(command);
+      // Try platform-specific commands first
+      if (process.platform === "win32") {
+        // Windows PowerShell with error handling
+        command = `powershell -Command "try { Get-Content -Path '${filePath.replace(
+          /'/g,
+          "''"
+        )}' -Tail ${numLines} -ErrorAction Stop } catch { exit 1 }"`;
+      } else {
+        // Unix-like systems (Linux, macOS)
+        command = `tail -n ${numLines} "${filePath}"`;
+      }
+
+      try {
+        const { stdout, stderr } = await execPromise(command);
+        if (stderr && stderr.trim()) {
+          console.warn(`Command stderr: ${stderr}`);
+        }
+        return stdout;
+      } catch (cmdError) {
+        console.warn(
+          `Platform command failed, using Node.js fallback: ${cmdError.message}`
+        );
+        useNodeFallback = true;
+      }
+
+      if (useNodeFallback) {
+        // Node.js fallback for cross-platform compatibility
+        const fileContent = await fs.promises.readFile(filePath, "utf8");
+        const allLines = fileContent.split(/\r?\n/);
+        const recentLines = allLines.slice(-numLines);
+        return recentLines.join("\n");
+      }
+
+      throw new Error("All log reading methods failed");
+    };
+
+    const stdout = await readRecentLines(logFile, lines);
     const logLines = stdout
       .trim()
-      .split("\n")
+      .split(/\r?\n/)
       .filter((line) => line.trim());
 
-    // Parse and filter logs
-    let filteredLogs = logLines.map((line, index) => ({
-      id: index,
-      timestamp: new Date().toISOString(), // This would be parsed from actual log
-      raw: line,
-      level: extractLogLevel(line),
-      message: line,
-    }));
+    // Parse and filter logs with better timestamp extraction
+    let filteredLogs = logLines.map((line, index) => {
+      const parsed = parseLogLine(line, serviceName);
+      return {
+        id: `${serviceName}_${Date.now()}_${index}`,
+        timestamp: parsed.timestamp || new Date().toISOString(),
+        raw: line,
+        level: parsed.level || "INFO",
+        message: parsed.message || line,
+        service: serviceName,
+        parsed: parsed.parsed || false,
+      };
+    });
 
     // Filter by level if specified
     if (level !== "all") {
@@ -291,23 +377,91 @@ async function getServiceLogs(serviceName, lines, level) {
       logs: filteredLogs,
       totalLines: logLines.length,
       logFile,
+      platform: process.platform,
+      foundAt: logFile,
     };
   } catch (error) {
-    if (error.code === "ENOENT") {
-      return {
-        logs: [],
-        totalLines: 0,
-        logFile,
-        error: "Log file not found",
-      };
-    }
-    throw error;
+    logger.error(`Error reading logs for ${serviceName}:`, error);
+    return {
+      logs: [],
+      totalLines: 0,
+      logFile,
+      error: error.message,
+      platform: process.platform,
+    };
   }
 }
 
-function extractLogLevel(logLine) {
-  const levelMatch = logLine.match(/\[(ERROR|WARN|INFO|DEBUG)\]/i);
-  return levelMatch ? levelMatch[1].toUpperCase() : "INFO";
+function parseLogLine(line, serviceName) {
+  try {
+    // Try to parse as JSON first (for structured logs)
+    if (line.startsWith("{")) {
+      const parsed = JSON.parse(line);
+      return {
+        parsed: true,
+        timestamp: parsed.timestamp,
+        level: parsed.level,
+        message: parsed.message,
+        ...parsed,
+      };
+    }
+
+    // Parse different log formats based on service
+    switch (serviceName) {
+      case "backend":
+        // Winston format: timestamp [level]: message
+        const winstonMatch = line.match(
+          /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(\w+)\]:\s+(.+)$/
+        );
+        if (winstonMatch) {
+          return {
+            parsed: true,
+            timestamp: winstonMatch[1],
+            level: winstonMatch[2],
+            message: winstonMatch[3],
+          };
+        }
+        break;
+
+      case "ai-service":
+      case "agent":
+        // Uvicorn format: INFO:     message or with timestamp
+        const uvicornMatch = line.match(/^(\w+):\s+(.+)$/);
+        if (uvicornMatch) {
+          return {
+            parsed: true,
+            level: uvicornMatch[1],
+            message: uvicornMatch[2],
+          };
+        }
+
+        // Alternative format with timestamp
+        const timestampedMatch = line.match(
+          /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.+)$/
+        );
+        if (timestampedMatch) {
+          return {
+            parsed: true,
+            timestamp: new Date(timestampedMatch[1]).toISOString(),
+            level: timestampedMatch[2],
+            message: timestampedMatch[3],
+          };
+        }
+        break;
+    }
+
+    // Fallback for unmatched patterns
+    return {
+      parsed: false,
+      message: line,
+    };
+  } catch (error) {
+    return {
+      parsed: false,
+      message: line,
+      parseError: error.message,
+    };
+  }
 }
 
 async function getBackendMetrics() {

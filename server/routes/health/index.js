@@ -8,6 +8,6 @@ const serviceRoutes = require("./service");
 
 // Mount health and monitoring routes
 router.use("/", healthRoutes);
-router.use("/service", serviceRoutes);
+router.use("/services", serviceRoutes);
 
 module.exports = router;

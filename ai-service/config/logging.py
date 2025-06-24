@@ -4,12 +4,17 @@ Logging configuration for FastAPI service
 
 import logging
 import logging.config
+from pathlib import Path
 from typing import Dict, Any
 
 
 def get_logging_config(debug: bool = False) -> Dict[str, Any]:
     """Get logging configuration dictionary"""
     log_level = "DEBUG" if debug else "INFO"
+
+    # Ensure logs directory exists
+    logs_dir = Path(__file__).parent.parent / "logs"
+    logs_dir.mkdir(exist_ok=True)
 
     return {
         "version": 1,
@@ -26,6 +31,10 @@ def get_logging_config(debug: bool = False) -> Dict[str, Any]:
                     "ERROR": "red",
                     "CRITICAL": "bold_red,bg_white",
                 },
+            },
+            "file": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
             },
             "access": {
                 "()": "colorlog.ColoredFormatter",
@@ -46,6 +55,21 @@ def get_logging_config(debug: bool = False) -> Dict[str, Any]:
                 "formatter": "default",
                 "stream": "ext://sys.stdout",
             },
+            "file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "file",
+                "filename": str(logs_dir / "ai-service.log"),
+                "maxBytes": 5242880,  # 5MB
+                "backupCount": 3,
+            },
+            "error_file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "file",
+                "filename": str(logs_dir / "error.log"),
+                "maxBytes": 5242880,  # 5MB
+                "backupCount": 3,
+                "level": "ERROR",
+            },
             "access": {
                 "class": "logging.StreamHandler",
                 "formatter": "access",
@@ -56,55 +80,55 @@ def get_logging_config(debug: bool = False) -> Dict[str, Any]:
             # FastAPI app logger
             "fastapi": {
                 "level": log_level,
-                "handlers": ["default"],
+                "handlers": ["default", "file", "error_file"],
                 "propagate": False,
             },
             # Uvicorn loggers
             "uvicorn": {
                 "level": "INFO",
-                "handlers": ["default"],
+                "handlers": ["default", "file"],
                 "propagate": False,
             },
             "uvicorn.access": {
                 "level": "INFO",
-                "handlers": ["access"],
+                "handlers": ["access", "file"],
                 "propagate": False,
             },
             # Database loggers - silenced
             "pymongo": {
                 "level": "ERROR",
-                "handlers": ["default"],
+                "handlers": ["default", "error_file"],
                 "propagate": False,
             },
             "pymongo.topology": {
                 "level": "ERROR",
-                "handlers": ["default"],
+                "handlers": ["default", "error_file"],
                 "propagate": False,
             },
             "pymongo.connection": {
                 "level": "ERROR",
-                "handlers": ["default"],
+                "handlers": ["default", "error_file"],
                 "propagate": False,
             },
             "pymongo.serverSelection": {
                 "level": "ERROR",
-                "handlers": ["default"],
+                "handlers": ["default", "error_file"],
                 "propagate": False,
             },
             "pymongo.command": {
                 "level": "ERROR",
-                "handlers": ["default"],
+                "handlers": ["default", "error_file"],
                 "propagate": False,
             },
             "motor": {
                 "level": "ERROR",
-                "handlers": ["default"],
+                "handlers": ["default", "error_file"],
                 "propagate": False,
             },
         },
         "root": {
             "level": log_level,
-            "handlers": ["default"],
+            "handlers": ["default", "file", "error_file"],
         },
     }
 

@@ -40,14 +40,14 @@ const transports = [
 if (process.env.NODE_ENV === "production") {
   transports.push(
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "app-error.log"),
+      filename: path.join(__dirname, "..", "logs", "error.log"),
       level: "error",
       format: combine(timestamp(), json()), // Store errors in JSON format
       maxsize: 5242880, // 5MB
       maxFiles: 5,
     }),
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "app-combined.log"),
+      filename: path.join(__dirname, "..", "logs", "combined.log"),
       level: "info", // Log info and above to this file in production
       format: combine(timestamp(), json()), // Store combined logs in JSON format
       maxsize: 5242880, // 5MB
@@ -55,12 +55,18 @@ if (process.env.NODE_ENV === "production") {
     })
   );
 } else {
-  // For development, more detailed file logging can be added if needed
-  // For example, a debug log file
+  // For development, create the same log files as production but with more verbose logging
   transports.push(
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "app-dev-debug.log"),
-      level: "debug", // Log everything to a debug file in dev
+      filename: path.join(__dirname, "..", "logs", "error.log"),
+      level: "error",
+      format: combine(timestamp(), json()),
+      maxsize: 5242880, // 5MB
+      maxFiles: 3,
+    }),
+    new winston.transports.File({
+      filename: path.join(__dirname, "..", "logs", "combined.log"),
+      level: "debug", // Log everything in development
       format: combine(timestamp(), json()),
       maxsize: 5242880, // 5MB
       maxFiles: 3,

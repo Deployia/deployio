@@ -21,98 +21,113 @@ class LogStreamHandlers {
    * @param {Object} webSocketManager - WebSocket manager instance
    */
   register(webSocketManager) {
-    // Register namespace for log streaming with admin-only authentication
-    webSocketManager.registerNamespace("/logs", {
-      middleware: [
-        // Use the same authentication middleware as Express backend
-        async (socket, next) => {
-          try {
-            let token;
+    // Create a namespace with proper middleware and handler structure
+    const namespace = "/logs";
 
-            // Extract token from cookies first (same as Express middleware)
-            if (socket.handshake.headers.cookie) {
-              const cookies = this.parseCookies(
-                socket.handshake.headers.cookie
-              );
-              token = cookies.token;
-            }
+    // First register the namespace with the handlers
+    webSocketManager.registerNamespace(namespace, {
+      connection: (socket) => this.handleConnection(socket),
+      disconnect: (socket) => this.handleDisconnection(socket),
+      "stream:start": (socket, data) => this.startLogStream(socket, data),
+      "stream:stop": (socket, data) => this.stopLogStream(socket, data),
+      "stream:list": (socket) => this.listAvailableStreams(socket),
+    });
 
-            // Fallback to other methods
-            if (!token) {
-              token =
-                socket.handshake.auth.token ||
-                socket.handshake.query.token ||
-                socket.handshake.headers.authorization?.replace("Bearer ", "");
-            }
+    // Get the actual namespace object to add middleware
+    const logsNamespace = webSocketManager.getIO().of(namespace);
 
-            if (!token) {
-              return next(
-                new Error("Authentication token required for log streaming")
-              );
-            }
+    // Add authentication middleware specifically for this namespace
+    logsNamespace.use(async (socket, next) => {
+      try {
+        let token;
 
-            // Verify JWT token using the same secret and logic as Express
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            const { id, sessionId } = decoded;
+        // Extract token from cookies first (same as Express middleware)
+        if (socket.handshake.headers.cookie) {
+          const cookies = this.parseCookies(socket.handshake.headers.cookie);
+          token = cookies.token;
+        }
 
-            if (!id) {
-              return next(new Error("Invalid token format"));
-            }
+        // Fallback to other methods
+        if (!token) {
+          token =
+            socket.handshake.auth.token ||
+            socket.handshake.query.token ||
+            socket.handshake.headers.authorization?.replace("Bearer ", "");
+        }
 
-            const user = await User.findById(id);
+        if (!token) {
+          return next(
+            new Error("Authentication token required for log streaming")
+          );
+        }
 
-            if (!user) {
-              return next(new Error("User not found"));
-            }
+        // Verify JWT token using the same secret and logic as Express
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const { id, sessionId } = decoded;
 
-            // Same user validation as Express middleware
-            if (!user.isVerified) {
-              return next(new Error("Account not verified"));
-            }
+        if (!id) {
+          return next(new Error("Invalid token format"));
+        }
 
-            if (user.status !== "active") {
-              return next(new Error("Account is not active"));
-            }
+        const user = await User.findById(id);
 
-            // Admin check for log streaming access
-            if (user.role !== "admin") {
-              return next(
-                new Error("Admin privileges required for log streaming")
-              );
-            }
+        if (!user) {
+          return next(new Error("User not found"));
+        }
 
-            // Set socket user info (consistent with Express req.user)
-            socket.userId = user._id.toString();
-            socket.userRole = user.role;
-            socket.userEmail = user.email;
-            socket.user = {
-              id: user._id.toString(),
-              email: user.email,
-              role: user.role,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              isVerified: user.isVerified,
-              status: user.status,
-            };
-            socket.sessionId = sessionId;
+        // Same user validation as Express middleware
+        if (!user.isVerified) {
+          return next(new Error("Account not verified"));
+        }
 
-            next();
-          } catch (error) {
-            const errorMessage =
-              error.name === "JsonWebTokenError"
-                ? "Invalid authentication token"
-                : error.message;
-            next(new Error(errorMessage));
-          }
-        },
-      ],
-      handlers: {
-        connection: (socket) => this.handleConnection(socket),
-        disconnect: (socket) => this.handleDisconnection(socket),
-        "stream:start": (socket, data) => this.startLogStream(socket, data),
-        "stream:stop": (socket, data) => this.stopLogStream(socket, data),
-        "stream:list": (socket) => this.listAvailableStreams(socket),
-      },
+        if (user.status !== "active") {
+          return next(new Error("Account is not active"));
+        }
+
+        // Admin check for log streaming access
+        if (user.role !== "admin") {
+          return next(new Error("Admin privileges required for log streaming"));
+        }
+
+        // Set socket user info (consistent with Express req.user)
+        socket.userId = user._id.toString();
+        socket.userRole = user.role;
+        socket.userEmail = user.email;
+        socket.user = {
+          id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isVerified: user.isVerified,
+          status: user.status,
+        };
+        socket.sessionId = sessionId;
+
+        logger.debug("WebSocket log streaming user authenticated", {
+          userId: user._id.toString(),
+          email: user.email,
+          role: user.role,
+          sessionId: sessionId,
+        });
+
+        next();
+      } catch (error) {
+        logger.error("WebSocket log streaming authentication failed", {
+          error: error.message,
+          socketId: socket.id,
+        });
+        const errorMessage =
+          error.name === "JsonWebTokenError"
+            ? "Invalid authentication token"
+            : error.message;
+        next(new Error(errorMessage));
+      }
+    });
+
+    logger.info("Log streaming WebSocket namespace registered successfully", {
+      namespace,
+      features: ["real-time streaming", "historical logs", "admin-only access"],
     });
   }
   /**
@@ -297,31 +312,75 @@ class LogStreamHandlers {
 
     socket.emit("stream:available", { streams: availableStreams });
   }
-
   /**
-   * Send recent lines from log file
+   * Send recent lines from log file with platform-agnostic reading
    */
   async sendRecentLines(socket, streamId, logPath, lines) {
     try {
+      const fs = require("fs");
       const execPromise = util.promisify(exec);
 
-      // Use tail command to get recent lines
-      const command =
-        process.platform === "win32"
-          ? `powershell "Get-Content -Path '${logPath}' -Tail ${lines}"`
-          : `tail -n ${lines} "${logPath}"`;
+      // Check if file exists
+      if (!fs.existsSync(logPath)) {
+        socket.emit("stream:error", {
+          streamId,
+          error: `Log file not found: ${logPath}`,
+        });
+        return;
+      }
 
-      const { stdout } = await execPromise(command);
+      // Platform-agnostic log reading
+      const readRecentLines = async (filePath, numLines) => {
+        let command;
+        let useNodeFallback = false;
+
+        // Try platform-specific commands first
+        if (process.platform === "win32") {
+          // Windows PowerShell with error handling
+          command = `powershell -Command "try { Get-Content -Path '${filePath.replace(
+            /'/g,
+            "''"
+          )}' -Tail ${numLines} -ErrorAction Stop } catch { exit 1 }"`;
+        } else {
+          // Unix-like systems (Linux, macOS)
+          command = `tail -n ${numLines} "${filePath}"`;
+        }
+
+        try {
+          const { stdout, stderr } = await execPromise(command);
+          if (stderr && stderr.trim()) {
+            logger.warn(`Command stderr for ${streamId}: ${stderr}`);
+          }
+          return stdout;
+        } catch (cmdError) {
+          logger.warn(
+            `Platform command failed for ${streamId}, using Node.js fallback: ${cmdError.message}`
+          );
+          useNodeFallback = true;
+        }
+
+        if (useNodeFallback) {
+          // Node.js fallback for cross-platform compatibility
+          const fileContent = await fs.promises.readFile(filePath, "utf8");
+          const allLines = fileContent.split(/\r?\n/);
+          const recentLines = allLines.slice(-numLines);
+          return recentLines.join("\n");
+        }
+
+        throw new Error("All log reading methods failed");
+      };
+
+      const stdout = await readRecentLines(logPath, lines);
       const recentLines = stdout
         .trim()
-        .split("\n")
+        .split(/\r?\n/)
         .filter((line) => line.trim());
 
       // Send recent lines
       recentLines.forEach((line, index) => {
         const parsedLine = this.parseLogLine(
           line,
-          this.getLogConfig(streamId.split(":")[0])?.format || "text"
+          this.getLogConfig(streamId.split("-")[0])?.format || "text"
         );
 
         socket.emit("stream:data", {
@@ -337,12 +396,14 @@ class LogStreamHandlers {
       socket.emit("stream:history-complete", {
         streamId,
         count: recentLines.length,
+        method: "platform-agnostic",
       });
     } catch (error) {
       logger.error(`Error reading recent lines for ${streamId}:`, error);
       socket.emit("stream:error", {
         streamId,
         error: `Failed to read recent log lines: ${error.message}`,
+        logPath,
       });
     }
   }
@@ -405,50 +466,127 @@ class LogStreamHandlers {
       parsed: false,
     };
   }
-
   /**
-   * Get log configuration for a specific log type
-   */ getLogConfig(logType) {
+   * Get log configuration for a specific log type with platform-agnostic paths
+   */
+  getLogConfig(logType) {
+    const fs = require("fs");
+
+    // Platform-agnostic path detection
+    const findLogFile = (possiblePaths) => {
+      for (const logPath of possiblePaths) {
+        if (fs.existsSync(logPath)) {
+          return logPath;
+        }
+      }
+      return possiblePaths[0]; // Return first path as fallback
+    };
+
     const logConfigs = {
       backend: {
         name: "Express Server",
         description: "Main Express.js server logs",
-        path: path.join(process.cwd(), "logs", "combined.log"),
+        paths: [
+          // Development paths
+          path.join(process.cwd(), "logs", "combined.log"),
+          path.join(process.cwd(), "server", "logs", "combined.log"),
+          // Docker paths
+          "/app/logs/combined.log",
+          "/usr/src/app/logs/combined.log",
+          // EC2 Ubuntu paths
+          "/home/ubuntu/deployio/server/logs/combined.log",
+          "/opt/deployio/server/logs/combined.log",
+        ],
         format: "winston",
       },
       "backend-error": {
         name: "Express Server Errors",
         description: "Express.js server error logs",
-        path: path.join(process.cwd(), "logs", "error.log"),
+        paths: [
+          // Development paths
+          path.join(process.cwd(), "logs", "error.log"),
+          path.join(process.cwd(), "server", "logs", "error.log"),
+          // Docker paths
+          "/app/logs/error.log",
+          "/usr/src/app/logs/error.log",
+          // EC2 Ubuntu paths
+          "/home/ubuntu/deployio/server/logs/error.log",
+          "/opt/deployio/server/logs/error.log",
+        ],
         format: "winston",
       },
       agent: {
         name: "DeployIO Agent",
         description: "FastAPI agent service logs",
-        path: path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
+        paths: [
+          // Development paths
+          path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
+          path.join(process.cwd(), "agent", "logs", "agent.log"),
+          // Docker paths
+          "/app/logs/agent.log",
+          "/usr/src/app/logs/agent.log",
+          // EC2 Ubuntu paths (may be on different instance)
+          "/home/ubuntu/deployio/agent/logs/agent.log",
+          "/opt/deployio/agent/logs/agent.log",
+        ],
         format: "uvicorn",
       },
       "ai-service": {
         name: "AI Service",
         description: "FastAPI AI service logs",
-        path: path.join(
-          process.cwd(),
-          "..",
-          "ai-service",
-          "logs",
-          "ai-service.log"
-        ),
+        paths: [
+          // Development paths
+          path.join(
+            process.cwd(),
+            "..",
+            "ai-service",
+            "logs",
+            "ai-service.log"
+          ),
+          path.join(process.cwd(), "ai-service", "logs", "ai-service.log"),
+          // Docker paths
+          "/app/logs/ai-service.log",
+          "/usr/src/app/logs/ai-service.log",
+          // EC2 Ubuntu paths
+          "/home/ubuntu/deployio/ai-service/logs/ai-service.log",
+          "/opt/deployio/ai-service/logs/ai-service.log",
+        ],
         format: "uvicorn",
       },
       access: {
         name: "Access Logs",
         description: "HTTP access logs",
-        path: path.join(process.cwd(), "logs", "access.log"),
+        paths: [
+          // Development paths
+          path.join(process.cwd(), "logs", "access.log"),
+          path.join(process.cwd(), "server", "logs", "access.log"),
+          // Docker paths
+          "/app/logs/access.log",
+          "/usr/src/app/logs/access.log",
+          // EC2 Ubuntu paths
+          "/home/ubuntu/deployio/server/logs/access.log",
+          "/opt/deployio/server/logs/access.log",
+        ],
         format: "text",
       },
     };
 
-    return logConfigs[logType] || null;
+    const config = logConfigs[logType];
+    if (!config) {
+      return null;
+    }
+
+    // Find the actual log file path
+    const actualPath = findLogFile(config.paths);
+
+    return {
+      name: config.name,
+      description: config.description,
+      path: actualPath,
+      format: config.format,
+      availablePaths: config.paths,
+      exists: fs.existsSync(actualPath),
+    };
   }
 
   /**

@@ -65,12 +65,12 @@ const ServiceDetailPage = () => {
       setError(null);
 
       // Fetch service details
-      const serviceResponse = await backend.get(`/services/${serviceName}`);
+      const serviceResponse = await backend.get(`/health/services/${serviceName}`);
       setServiceData(serviceResponse.data.data);
 
       // Fetch metrics
       const metricsResponse = await backend.get(
-        `/services/${serviceName}/metrics`,
+        `/health/services/${serviceName}/metrics`,
         {
           withCredentials: true,
         }
@@ -79,7 +79,7 @@ const ServiceDetailPage = () => {
 
       // Fetch recent logs
       const logsResponse = await backend.get(
-        `/services/${serviceName}/logs?lines=50`,
+        `/health/services/${serviceName}/logs?lines=50`,
         {
           withCredentials: true,
         }
