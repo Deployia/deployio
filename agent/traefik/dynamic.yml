@@ -28,28 +28,12 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # Smart landing page - Handles both regular and reserved subdomains
-    smart-landing:
-      rule: "HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.deployio.tech`) && !Host(`agent.deployio.tech`) && !Host(`app.deployio.tech`) && !Host(`traefik.deployio.tech`)"
-      service: landing-service
-      priority: 5
-      tls:
-        certResolver: letsencrypt
-      middlewares:
-        - landing-cors
-
   services:
     # DeployIO Agent service
     agent-service:
       loadBalancer:
         servers:
           - url: "http://deployio-agent:8000"
-
-    # Smart landing page service (handles both regular and reserved subdomains)
-    landing-service:
-      loadBalancer:
-        servers:
-          - url: "http://landing-page:80"
 
   middlewares:
     agent-cors:

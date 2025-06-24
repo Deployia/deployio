@@ -25,8 +25,6 @@ services:
 
   # DeployIO Agent API
   deployio-agent:
-    # For local development, use: docker-compose up --build
-    # For production, use: ECR_IMAGE=your-account.dkr.ecr.region.amazonaws.com/deployio-agent:latest docker-compose up
     image: ${ECR_IMAGE:-deployio-agent:local}
     build:
       context: .
