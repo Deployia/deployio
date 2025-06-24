@@ -5,6 +5,8 @@ export { default as analyticsReducer } from "./slices/analyticsSlice";
 export { default as authReducer } from "./slices/authSlice";
 export { default as userReducer } from "./slices/userSlice";
 export { default as twoFactorReducer } from "./slices/twoFactorSlice";
+export { default as apiKeyReducer } from "./slices/apiKeySlice";
+export { default as notificationReducer } from "./slices/notificationSlice";
 
 // Project slice exports
 export {
@@ -84,12 +86,8 @@ export {
 // User slice exports
 export {
   fetchNotificationPreferences,
-  updateNotificationPreferences,
   fetchUserActivity,
   logUserActivity,
-  fetchApiKeys,
-  createApiKey,
-  deleteApiKey,
   fetchDashboardStats as fetchUserDashboardStats,
   reset as resetUserState,
   clearError as clearUserError,
@@ -110,3 +108,56 @@ export {
   clearBackupCodes,
   reset2FAState,
 } from "./slices/twoFactorSlice";
+
+// API Key slice actions and selectors
+export {
+  fetchApiKeys,
+  createApiKey,
+  updateApiKey,
+  deleteApiKey,
+  regenerateApiKey,
+  fetchApiKeyUsage,
+  reset as resetApiKeys,
+  clearError as clearApiKeyError,
+  clearSuccess as clearApiKeySuccess,
+  setCurrentApiKey,
+  clearCurrentApiKey,
+  clearNewlyCreatedKey,
+  updateApiKeyLocal,
+  selectApiKeys,
+  selectCurrentApiKey,
+  selectNewlyCreatedKey,
+  selectApiKeyLoading,
+  selectApiKeyError,
+  selectApiKeySuccess,
+  selectApiKeyUsage,
+} from "./slices/apiKeySlice";
+
+// Notification slice actions and selectors
+export {
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  fetchUnreadCount,
+  reset as resetNotifications,
+  clearError as clearNotificationError,
+  clearSuccess as clearNotificationSuccess,
+  updateFilters as updateNotificationFilters,
+  notificationReceived,
+  setConnectionStatus,
+  markAsReadLocal,
+  incrementUnreadCount,
+  setLastFetch,
+  selectNotifications,
+  selectUnreadCount,
+  selectNotificationLoading,
+  selectNotificationError,
+  selectNotificationSuccess,
+  selectNotificationPagination,
+  selectNotificationFilters,
+  selectIsConnected,
+  selectLastFetch,
+  selectUnreadNotifications,
+  selectNotificationsByType,
+  selectRecentNotifications,
+} from "./slices/notificationSlice";

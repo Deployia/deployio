@@ -18,8 +18,8 @@ import {
   selectUnreadCount,
   selectNotificationLoading,
   selectNotificationError,
-  clearError,
-} from "@redux/slices/notificationSlice";
+  clearNotificationError,
+} from "@redux";
 import LoadingState from "@components/profile/LoadingState";
 
 const NotificationCenter = ({ isOpen, onClose }) => {
@@ -187,7 +187,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
           <div className="px-4 py-2 bg-red-500/10 border-l-4 border-red-500 text-red-400 text-sm">
             {error.fetch}
             <button
-              onClick={() => dispatch(clearError("fetch"))}
+              onClick={() => dispatch(clearNotificationError("fetch"))}
               className="ml-2 text-red-300 hover:text-red-200"
             >
               <FaTimes className="w-3 h-3 inline" />

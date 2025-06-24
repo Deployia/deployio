@@ -6,7 +6,7 @@ import {
   fetchUnreadCount,
   selectUnreadCount,
   selectNotificationLoading,
-} from "@redux/slices/notificationSlice";
+} from "@redux";
 import NotificationCenter from "./NotificationCenter";
 
 const NotificationBell = () => {
