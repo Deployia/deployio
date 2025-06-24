@@ -106,9 +106,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
-    depends_on:
-      backend:
-        condition: service_healthy
 
 volumes:
   redis_data:
