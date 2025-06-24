@@ -32,6 +32,7 @@
     "rehype-highlight": "^7.0.2",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+    "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.7",
     "zxcvbn": "^4.4.2"
   },

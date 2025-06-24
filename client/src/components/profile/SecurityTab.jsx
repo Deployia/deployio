@@ -29,6 +29,7 @@ import { fetchProviders } from "@redux/slices/authSlice";
 import { get2FAStatus } from "@redux/slices/twoFactorSlice";
 import { useModal } from "@context/ModalContext";
 import activityLogger from "@/utils/activityLogger";
+import notificationService from "@services/notificationService";
 import {
   calculateSecurityScore,
   getSecurityScoreColor,
@@ -100,13 +101,28 @@ const SecurityTab = () => {
       if (createApiKey.fulfilled.match(result)) {
         setNewApiKeyName("");
         setShowCreateApiKey(false);
-        toast.success("API key generated successfully");
 
-        // Log activity with the key name for better details
-        await activityLogger.apiKeyGenerated(newApiKeyName);
+        // Dual-track approach: Log activity AND send notification
+        try {
+          // 1. Log to audit trail (always)
+          await activityLogger.apiKeyGenerated(newApiKeyName);
+
+          // 2. Send notification (for user awareness)
+          await notificationService.apiKeyCreated(newApiKeyName);
+        } catch (loggingError) {
+          console.warn(
+            "Failed to log activity or send notification:",
+            loggingError
+          );
+          // Don't break the flow if logging fails
+        }
+
+        // Show success feedback
+        toast.success("API key generated successfully");
       }
-    } catch {
+    } catch (error) {
       toast.error("Failed to generate API key");
+      console.error("API key generation error:", error);
     }
   };
   const handleDeleteApiKey = (keyId, keyName) => {
@@ -118,13 +134,24 @@ const SecurityTab = () => {
         onConfirm={async () => {
           try {
             await dispatch(deleteApiKey(keyId));
-            toast.success("API key deleted successfully");
 
-            // Log activity with key name for better details
-            await activityLogger.apiKeyRevoked(keyId, keyName);
+            // Dual-track approach: Log activity AND send notification
+            try {
+              // 1. Log to audit trail (always)
+              await activityLogger.apiKeyRevoked(keyId, keyName);
+
+              // 2. Send notification (for security awareness)
+              // Note: For API key deletion, we might want a less prominent notification
+              // This demonstrates selective notification strategy
+            } catch (loggingError) {
+              console.warn("Failed to log activity:", loggingError);
+            }
+
+            toast.success("API key deleted successfully");
             closeModal();
-          } catch {
+          } catch (error) {
             toast.error("Failed to delete API key");
+            console.error("API key deletion error:", error);
           }
         }}
         onCancel={closeModal}

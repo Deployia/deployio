@@ -10,6 +10,9 @@ import ProtectedRoute from "@components/ProtectedRoute";
 import Modal from "@components/Modal";
 import ScrollToTop from "@components/ScrollToTop";
 
+// Services
+import notificationService from "@services/notificationService";
+
 // Lazy loaded components for performance optimization
 // Authentication Pages
 const Login = lazy(() => import("@auth/Login"));
@@ -99,13 +102,27 @@ const ProductsLayout = lazy(() => import("@components/layouts/ProductsLayout"));
  * Handles routing, authentication, and lazy loading
  */
 function App() {
-  const { loading } = useSelector((state) => state.auth);
+  const { loading, user: authUser } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
   // Initialize authentication state on app load
   useEffect(() => {
     dispatch(getMe());
   }, [dispatch]);
+
+  // Initialize notification service when user is authenticated
+  useEffect(() => {
+    if (authUser && !loading.me) {
+      notificationService.initialize();
+    }
+
+    // Cleanup on logout
+    return () => {
+      if (!authUser) {
+        notificationService.disconnect();
+      }
+    };
+  }, [authUser, loading.me]);
 
   // Show loading spinner while checking authentication
   if (loading.me) {
@@ -144,11 +161,11 @@ function App() {
             {/* Public Pages */}
             <Route index element={<Home />} />
             <Route path="health" element={<Health />} />
-
             {/* Legal Pages */}
             <Route path="privacy-policy" element={<PrivacyPolicy />} />
             <Route path="terms-of-service" element={<TermsOfService />} />
-            <Route path="cookie-policy" element={<CookiePolicy />} />            {/* Product Pages */}
+            <Route path="cookie-policy" element={<CookiePolicy />} />{" "}
+            {/* Product Pages */}
             <Route path="products" element={<ProductsLayout />}>
               <Route index element={<Navigate to="ai-deployment" replace />} />
               <Route path="ai-deployment" element={<AIDeployment />} />
@@ -158,7 +175,6 @@ function App() {
               <Route path="devops-automation" element={<DevOpsAutomation />} />
               <Route path="security-shield" element={<SecurityShield />} />
             </Route>
-
             {/* Resources */}
             <Route path="resources" element={<ResourcesLayout />}>
               {/* Documentation */}
@@ -182,14 +198,12 @@ function App() {
               <Route path="support" element={<SupportCenter />} />
               <Route path="community" element={<Community />} />
             </Route>
-
             {/* Downloads */}
             <Route path="downloads" element={<DownloadsLayout />}>
               <Route index element={<Navigate to="cli" replace />} />
               <Route path="cli" element={<CLITool />} />
               <Route path="sdk" element={<SDK />} />
             </Route>
-
             {/* Protected Dashboard Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<DashboardLayout />}>
@@ -211,7 +225,6 @@ function App() {
                 <Route path="profile" element={<Profile />} />
               </Route>
             </Route>
-
             {/* 404 Page */}
             <Route path="*" element={<NotFound />} />
           </Route>

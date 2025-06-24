@@ -6,6 +6,7 @@ import { useState, memo, useCallback, useRef, useEffect, useMemo } from "react";
 import { FaBars, FaChevronDown } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileAvatar from "./ProfileAvatar";
+import NotificationBell from "./notifications/NotificationBell";
 import MobileSidebar from "./MobileSidebar";
 import { useScrollToSection as useScrollHook } from "@hooks/useScrollToSection";
 import {
@@ -336,18 +337,24 @@ const Navbar = memo(() => {
                 </li>{" "}
                 {/* Authentication Links */}
                 {isAuthenticated ? (
-                  <li>
-                    <ProfileAvatar
-                      user={user}
-                      isOpen={openDropdown === "profile"}
-                      toggleDropdown={() => toggleDropdown("profile")}
-                      closeDropdown={closeDropdown}
-                      openDropdownOnHover={openDropdownOnHover}
-                      keepDropdownOpen={keepDropdownOpen}
-                      onLogout={onLogout}
-                      isLoggingOut={isLoggingOut}
-                    />
-                  </li>
+                  <>
+                    {/* Notification Bell for authenticated users */}
+                    <li>
+                      <NotificationBell />
+                    </li>
+                    <li>
+                      <ProfileAvatar
+                        user={user}
+                        isOpen={openDropdown === "profile"}
+                        toggleDropdown={() => toggleDropdown("profile")}
+                        closeDropdown={closeDropdown}
+                        openDropdownOnHover={openDropdownOnHover}
+                        keepDropdownOpen={keepDropdownOpen}
+                        onLogout={onLogout}
+                        isLoggingOut={isLoggingOut}
+                      />
+                    </li>
+                  </>
                 ) : (
                   <>
                     <li>
