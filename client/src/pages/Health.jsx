@@ -19,11 +19,10 @@ import {
   FaUser,
   FaKey,
   FaSync,
-  FaCopy,
   FaEye,
   FaArrowRight,
+  FaDocker,
 } from "react-icons/fa";
-import axios from "axios";
 import { backend } from "../utils/api";
 
 function Health() {
@@ -33,16 +32,9 @@ function Health() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  // Copy feedback state
-  const [copyFeedback, setCopyFeedback] = useState({
-    show: false,
-    message: "",
-    type: "success",
-  });
 
   // Check if user is admin
   const isAdmin = user?.role === "admin";
-
   // Organized service states
   const [services, setServices] = useState({
     backend: {
@@ -54,8 +46,6 @@ function Health() {
       message: "",
       mongodb_status: "unknown",
       redis_status: "unknown",
-      protectedData: null,
-      protectedError: null,
     },
     fastapi: {
       name: "FastAPI AI Service",
@@ -74,40 +64,13 @@ function Health() {
       uptime: 0,
       message: "",
       docker_status: "unknown",
+      mongodb_status: "unknown",
       version: "unknown",
       purpose: "unknown",
     },
   });
 
   const envInfo = useEnvironmentInfo();
-  // Copy to clipboard function
-  const copyToClipboard = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopyFeedback({
-        show: true,
-        message: "JSON copied to clipboard!",
-        type: "success",
-      });
-
-      // Hide feedback after 3 seconds
-      setTimeout(() => {
-        setCopyFeedback({ show: false, message: "", type: "success" });
-      }, 3000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-      setCopyFeedback({
-        show: true,
-        message: "Failed to copy JSON",
-        type: "error",
-      });
-
-      // Hide error feedback after 5 seconds
-      setTimeout(() => {
-        setCopyFeedback({ show: false, message: "", type: "success" });
-      }, 5000);
-    }
-  };
 
   // Utility function to format uptime
   const formatUptime = (seconds) => {
@@ -128,7 +91,9 @@ function Health() {
     if (type === "service") {
       isHealthy = status === "ok" || status === "healthy";
     } else {
-      isHealthy = status === "connected" || status === "ok";
+      // For subservices (mongodb, redis, docker)
+      isHealthy =
+        status === "connected" || status === "ok" || status === "healthy";
     }
 
     return (
@@ -209,8 +174,9 @@ function Health() {
 
         {/* Service-specific status indicators */}
         <div className="space-y-3">
-          {/* Database Status - Only show for backend */}
-          {serviceKey === "backend" && (
+          {" "}
+          {/* Database Status - Backend and Agent */}
+          {(serviceKey === "backend" || serviceKey === "agent") && (
             <div className="flex items-center justify-between">
               <div className="flex items-center text-sm text-neutral-400">
                 <FaDatabase className="mr-2 text-neutral-500 flex-shrink-0" />
@@ -219,7 +185,6 @@ function Health() {
               <StatusIndicator status={service.mongodb_status} />
             </div>
           )}
-
           {/* Redis Status - Backend and FastAPI */}
           {(serviceKey === "backend" || serviceKey === "fastapi") && (
             <div className="flex items-center justify-between">
@@ -230,18 +195,16 @@ function Health() {
               <StatusIndicator status={service.redis_status} />
             </div>
           )}
-
           {/* Docker Status - Agent only */}
           {serviceKey === "agent" && (
             <div className="flex items-center justify-between">
               <div className="flex items-center text-sm text-neutral-400">
-                <FaServer className="mr-2 text-neutral-500 flex-shrink-0" />
+                <FaDocker className="mr-2 text-neutral-500 flex-shrink-0" />
                 <span>Docker Engine</span>
               </div>
               <StatusIndicator status={service.docker_status} />
             </div>
           )}
-
           {/* Agent Version - Agent only */}
           {serviceKey === "agent" && service.version !== "unknown" && (
             <div className="flex items-center justify-between">
@@ -256,7 +219,6 @@ function Health() {
               </div>
             </div>
           )}
-
           {/* Uptime */}
           <div className="flex items-center justify-between">
             <div className="flex items-center text-sm text-neutral-400">
@@ -269,7 +231,6 @@ function Health() {
               </span>
             </div>
           </div>
-
           {/* Response Message or Purpose */}
           <div className="flex items-start justify-between">
             <div className="flex items-center text-sm text-neutral-400">
@@ -292,11 +253,17 @@ function Health() {
   };
   const fetchStatuses = useCallback(async () => {
     try {
-      const response = await backend.get("/health");
+      const response = await backend.get("/health"); // Backend DB/Redis (from top-level response)
+      const backendMongo = response.data.mongodb;
+      const backendRedis = response.data.redis;
 
-      // Update backend service state
+      // FastAPI
+      const aiServiceData = response.data.services?.aiService;
+
+      // Agent
+      const agentServiceData = response.data.services?.deploymentAgent;
+
       setServices((prev) => ({
-        ...prev,
         backend: {
           ...prev.backend,
           status: response.data.status || "unknown",
@@ -304,139 +271,35 @@ function Health() {
           message: `${response.data.service || "Backend"} v${
             response.data.version || "unknown"
           } (${response.data.environment || "unknown"})`,
-          mongodb_status: response.data.services?.database?.status || "unknown",
-          redis_status: response.data.services?.redis?.status || "unknown",
-          memory: response.data.memory || {},
-          version: response.data.version || "unknown",
-          responseTime: response.data.responseTime || 0,
+          mongodb_status: backendMongo?.status || "unknown",
+          redis_status: backendRedis?.status || "unknown",
+        },
+        fastapi: {
+          ...prev.fastapi,
+          status: aiServiceData?.status || "unknown",
+          uptime: aiServiceData?.uptime || 0,
+          message: `${aiServiceData?.service || "AI Service"} v${
+            aiServiceData?.version || "unknown"
+          }`,
+          redis_status: aiServiceData?.services?.redis?.status || "unknown",
+        },
+        agent: {
+          ...prev.agent,
+          status: agentServiceData?.status || "unknown",
+          uptime: agentServiceData?.uptime || 0,
+          message: `${agentServiceData?.service || "Agent"} v${
+            agentServiceData?.version || "unknown"
+          }`,
+          docker_status:
+            agentServiceData?.services?.docker?.status || "unknown",
+          mongodb_status:
+            agentServiceData?.services?.mongodb?.status || "unknown",
+          version: agentServiceData?.version || "unknown",
+          purpose:
+            agentServiceData?.purpose ||
+            "Container management and deployment automation",
         },
       }));
-
-      // Update FastAPI AI Service from backend health response
-      const aiServiceData = response.data.services?.aiService;
-      if (aiServiceData) {
-        setServices((prev) => ({
-          ...prev,
-          fastapi: {
-            ...prev.fastapi,
-            status: aiServiceData.status || "unknown",
-            uptime: aiServiceData.uptime || 0,
-            message: `AI Service v${aiServiceData.version || "unknown"}`,
-            redis_status: "unknown", // AI service redis status not reported
-            memory: {},
-            responseTime: aiServiceData.responseTime || 0,
-          },
-        }));
-      } else {
-        setServices((prev) => ({
-          ...prev,
-          fastapi: {
-            ...prev.fastapi,
-            status: "unhealthy",
-            message: "Service not detected by backend",
-            redis_status: "unknown",
-          },
-        }));
-      } // Update DeployIO Agent from backend health response first
-      const agentServiceData = response.data.services?.deploymentAgent;
-      if (agentServiceData) {
-        setServices((prev) => ({
-          ...prev,
-          agent: {
-            ...prev.agent,
-            status: agentServiceData.status || "unknown",
-            uptime: agentServiceData.uptime || 0,
-            message: `Agent v${
-              agentServiceData.version || "unknown"
-            } (via backend)`,
-            docker_status:
-              agentServiceData.services?.docker?.status || "unknown",
-            version: agentServiceData.version || "unknown",
-            purpose: "Container management and deployment automation",
-            memory: {},
-            responseTime: agentServiceData.responseTime || 0,
-            services: agentServiceData.services || {},
-          },
-        }));
-      } else {
-        // Try direct connection to agent if backend doesn't have info
-        try {
-          const agentUrl = "https://agent.deployio.tech";
-          const agentResponse = await fetch(`${agentUrl}/agent/v1/health`, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              "User-Agent": "DeployIO-Frontend-HealthCheck/1.0",
-            },
-            signal: AbortSignal.timeout(10000), // 10 second timeout
-          });
-
-          if (agentResponse.ok) {
-            const agentHealth = await agentResponse.json();
-            setServices((prev) => ({
-              ...prev,
-              agent: {
-                ...prev.agent,
-                status: agentHealth.status || "unknown",
-                uptime: agentHealth.uptime || 0,
-                message: `Agent v${agentHealth.version || "unknown"} (direct)`,
-                docker_status:
-                  agentHealth.services?.docker?.status || "unknown",
-                version: agentHealth.version || "unknown",
-                purpose:
-                  agentHealth.purpose ||
-                  "Container management and deployment automation",
-                memory: agentHealth.memory || {},
-                responseTime: agentHealth.responseTime || 0,
-                services: agentHealth.services || {},
-              },
-            }));
-          } else {
-            throw new Error(
-              `Agent responded with status ${agentResponse.status}`
-            );
-          }
-        } catch (agentError) {
-          console.warn("Agent health check failed:", agentError);
-          setServices((prev) => ({
-            ...prev,
-            agent: {
-              ...prev.agent,
-              status: "unhealthy",
-              message: agentError.message || "Service unavailable",
-              docker_status: "unknown",
-              purpose: "Container management and deployment automation",
-            },
-          }));
-        }
-      } // Test protected endpoints if authenticated
-      if (isAuthenticated) {
-        // Test Backend protected endpoint
-        try {
-          const backendProtectedResponse = await axios.get(
-            "http://localhost:3000/protected/data"
-          );
-          setServices((prev) => ({
-            ...prev,
-            backend: {
-              ...prev.backend,
-              protectedData: backendProtectedResponse.data,
-              protectedError: null,
-            },
-          }));
-        } catch (backendProtectedErr) {
-          setServices((prev) => ({
-            ...prev,
-            backend: {
-              ...prev.backend,
-              protectedData: null,
-              protectedError:
-                backendProtectedErr.response?.data?.message ||
-                backendProtectedErr.message,
-            },
-          }));
-        }
-      }
 
       setLastUpdated(new Date());
     } catch (err) {
@@ -445,7 +308,7 @@ function Health() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isAuthenticated]);
+  }, []);
 
   useEffect(() => {
     fetchStatuses();
@@ -505,27 +368,6 @@ function Health() {
               )}
             </div>{" "}
           </div>
-          {/* Copy Feedback Notification */}
-          {copyFeedback.show && (
-            <div
-              className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 ${
-                copyFeedback.type === "success"
-                  ? "bg-green-900/90 border border-green-700/50 text-green-300"
-                  : "bg-red-900/90 border border-red-700/50 text-red-300"
-              }`}
-            >
-              <div className="flex items-center">
-                {copyFeedback.type === "success" ? (
-                  <FaCheckCircle className="mr-2 text-green-400" />
-                ) : (
-                  <FaExclamationTriangle className="mr-2 text-red-400" />
-                )}
-                <span className="text-sm font-medium">
-                  {copyFeedback.message}
-                </span>
-              </div>
-            </div>
-          )}
           {/* Admin Features Banner */}
           {isAdmin && (
             <div className="mb-6 p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/30 rounded-lg">
@@ -639,118 +481,6 @@ function Health() {
               </div>
             )}
           </div>{" "}
-          {/* Protected Endpoint Testing Section */}
-          {isAuthenticated && (
-            <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-6 bg-neutral-900/70">
-              <div className="flex items-center mb-4">
-                <div className="h-10 w-10 rounded-lg flex items-center justify-center mr-3 bg-orange-600/20 text-orange-400">
-                  <FaShieldAlt className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white heading">
-                    Protected Endpoint Testing
-                  </h3>{" "}
-                  <p className="text-xs text-neutral-400">
-                    Testing authenticated API access to the Express backend
-                    service
-                  </p>
-                </div>
-              </div>{" "}
-              {/* Backend Protected Endpoint */}
-              <div className="p-4 bg-neutral-800/50 rounded-lg border border-neutral-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <FaServer className="mr-2 text-green-500" />
-                    <div>
-                      <h4 className="text-md font-medium text-white">
-                        Backend Service
-                      </h4>
-                      <p className="text-xs text-neutral-400">
-                        /protected/data
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    {services.backend.protectedError ? (
-                      <span className="px-2 py-1 text-xs bg-red-900/30 text-red-400 rounded">
-                        ✗ Failed
-                      </span>
-                    ) : services.backend.protectedData ? (
-                      <span className="px-2 py-1 text-xs bg-green-900/30 text-green-400 rounded">
-                        ✓ Success
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs bg-neutral-700 text-neutral-400 rounded">
-                        Not tested
-                      </span>
-                    )}
-                  </div>
-                </div>{" "}
-                {services.backend.protectedData && (
-                  <div className="space-y-3">
-                    {/* JSON Response Display */}
-                    <div className="p-3 bg-neutral-900/70 rounded border border-neutral-600">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs text-green-400 flex items-center">
-                          <FaCode className="mr-1" /> JSON Response
-                        </p>
-                        <div className="flex items-center space-x-2">
-                          {" "}
-                          <button
-                            onClick={() =>
-                              copyToClipboard(
-                                JSON.stringify(
-                                  services.backend.protectedData,
-                                  null,
-                                  2
-                                )
-                              )
-                            }
-                            className="text-xs text-neutral-400 hover:text-green-400 hover:bg-green-900/20 px-2 py-1 rounded transition-all duration-200 flex items-center"
-                            title="Copy JSON to clipboard"
-                          >
-                            <FaCopy className="mr-1" /> Copy
-                          </button>
-                        </div>
-                      </div>
-                      <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-x-auto bg-black/30 p-3 rounded border">
-                        {JSON.stringify(
-                          services.backend.protectedData,
-                          null,
-                          2
-                        )}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-                {services.backend.protectedError && (
-                  <div className="p-3 bg-red-900/30 rounded border border-red-700/30">
-                    <p className="text-xs text-red-400 mb-1 flex items-center">
-                      <FaExclamationTriangle className="mr-1" /> Error Details
-                    </p>
-                    <p className="text-xs text-red-300 font-mono">
-                      {services.backend.protectedError}
-                    </p>
-                  </div>
-                )}
-              </div>{" "}
-              {/* Note about FastAPI being internal */}
-              <div className="mt-4 p-3 bg-blue-900/20 rounded-lg border border-blue-700/30">
-                <div className="flex items-center mb-2">
-                  <FaCog className="mr-2 text-blue-400" />
-                  <p className="text-sm text-blue-300 font-medium">
-                    FastAPI AI Service
-                  </p>
-                </div>
-                <p className="text-xs text-blue-200">
-                  The FastAPI AI service is now an internal-only microservice
-                  and does not expose protected endpoints to the frontend. All
-                  AI functionality is accessed through the Express backend with
-                  proper internal service authentication.
-                </p>
-              </div>
-            </div>
-          )}
           {/* Environment Information */}
           <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body bg-neutral-900/70">
             <h3 className="text-lg font-semibold text-white mb-4 heading flex items-center">

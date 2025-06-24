@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
     };
 
     // Check database connection
-    health.services.database = {
+    health.mongodb = {
       status: mongoose.connection.readyState === 1 ? "healthy" : "unhealthy",
       readyState: mongoose.connection.readyState,
       name: mongoose.connection.name,
@@ -35,7 +35,7 @@ router.get("/", async (req, res) => {
 
     // Check Redis connection
     const redisClient = getRedisClient();
-    health.services.redis = {
+    health.redis = {
       status: redisClient && redisClient.isReady ? "healthy" : "unhealthy",
       connected: redisClient ? redisClient.isReady : false,
     };
@@ -110,8 +110,7 @@ async function checkAiServiceHealth() {
     return {
       status: "healthy",
       responseTime,
-      version: response.data.version || "unknown",
-      uptime: response.data.uptime || 0,
+      ...response.data,
     };
   } catch (error) {
     return {
@@ -140,9 +139,7 @@ async function checkDeploymentAgentHealth() {
     return {
       status: "healthy",
       responseTime,
-      version: response.data.version || "unknown",
-      uptime: response.data.uptime || 0,
-      services: response.data.services || {},
+      ...response.data,
     };
   } catch (error) {
     return {

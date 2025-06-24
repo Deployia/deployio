@@ -4,6 +4,7 @@ Health and utility routes for FastAPI service
 
 import time
 import logging
+import asyncio
 from fastapi import APIRouter, HTTPException
 from models.response import HealthResponse, HelloResponse
 from config.redis_client import get_redis_client
@@ -23,16 +24,23 @@ async def health_check():
 
         # Check Redis connection
         redis_client = get_redis_client()
+        if asyncio.iscoroutine(redis_client):
+            redis_client = await redis_client
         redis_health = {"status": "disconnected", "responseTime": None, "error": None}
 
         try:
             redis_start = time.time()
-            if redis_client and redis_client.ping():
-                redis_health = {
-                    "status": "connected",
-                    "responseTime": round((time.time() - redis_start) * 1000, 2),
-                    "error": None,
-                }
+            if redis_client:
+                # Await ping if redis_client is async
+                ping_result = await redis_client.ping()
+                if ping_result:
+                    redis_health = {
+                        "status": "connected",
+                        "responseTime": round((time.time() - redis_start) * 1000, 2),
+                        "error": None,
+                    }
+                else:
+                    redis_health["error"] = "Redis ping failed"
             else:
                 redis_health["error"] = "Redis client unavailable"
         except Exception as redis_error:
