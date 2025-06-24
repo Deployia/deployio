@@ -100,39 +100,39 @@ echo "✅ All specified images pushed successfully!"
 
 # --- Deploy on EC2 via SSH ---
 
-# Deploy platform services
-if [[ " ${services_to_build[*]} " =~ " frontend " || " ${services_to_build[*]} " =~ " backend " || " ${services_to_build[*]} " =~ " ai-service " ]]; then
-    echo "🚀 Deploying platform services to EC2..."
-    ssh deployio "set -e; \
-      cd ~/deployio; \
-      echo '🔄 Pulling latest changes from git...'; \
-      git pull origin main; \
-      echo '🛑 Stopping current services...'; \
-      docker-compose down --remove-orphans; \
-      echo '🔐 Authenticating with ECR on EC2...'; \
-      aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
-      echo '📥 Pulling latest Docker images...'; \
-      docker-compose pull; \
-      echo '🚀 Restarting application...'; \
-      docker-compose up -d; \
-      echo '✅ Platform deployment successful!'"
-fi
+# # Deploy platform services
+# if [[ " ${services_to_build[*]} " =~ " frontend " || " ${services_to_build[*]} " =~ " backend " || " ${services_to_build[*]} " =~ " ai-service " ]]; then
+#     echo "🚀 Deploying platform services to EC2..."
+#     ssh deployio "set -e; \
+#       cd ~/deployio; \
+#       echo '🔄 Pulling latest changes from git...'; \
+#       git pull origin main; \
+#       echo '🛑 Stopping current services...'; \
+#       docker-compose down --remove-orphans; \
+#       echo '🔐 Authenticating with ECR on EC2...'; \
+#       aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
+#       echo '📥 Pulling latest Docker images...'; \
+#       docker-compose pull; \
+#       echo '🚀 Restarting application...'; \
+#       docker-compose up -d; \
+#       echo '✅ Platform deployment successful!'"
+# fi
 
-# Deploy agent service
-if [[ " ${services_to_build[*]} " =~ " agent " ]]; then
-    echo "🚀 Deploying agent service to EC2..." ssh deployio-agent "set -e; \
-        cd ~/deployio/agent; \
-        echo '🔄 Pulling latest changes from git...'; \
-        git pull origin main; \
-        echo '🔐 Authenticating with ECR on EC2...'; \
-        aws ecr get-login-password --region $AWS_REGION  | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
-        echo '🛑 Stopping and removing old containers...'; \
-        docker compose down --remove-orphans; \
-        echo '📥 Pulling latest Docker image...'; \
-        docker compose pull; \
-        echo '🚀 Starting new containers...'; \
-        docker compose up -d; \
-        echo '🧹 Cleaning up unused Docker images...'; \
-        docker image prune -f; \
-        echo '✅ Agent deployment successful!'"
-fi
+# # Deploy agent service
+# if [[ " ${services_to_build[*]} " =~ " agent " ]]; then
+#     echo "🚀 Deploying agent service to EC2..." ssh deployio-agent "set -e; \
+#         cd ~/deployio/agent; \
+#         echo '🔄 Pulling latest changes from git...'; \
+#         git pull origin main; \
+#         echo '🔐 Authenticating with ECR on EC2...'; \
+#         aws ecr get-login-password --region $AWS_REGION  | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
+#         echo '🛑 Stopping and removing old containers...'; \
+#         docker compose down --remove-orphans; \
+#         echo '📥 Pulling latest Docker image...'; \
+#         docker compose pull; \
+#         echo '🚀 Starting new containers...'; \
+#         docker compose up -d; \
+#         echo '🧹 Cleaning up unused Docker images...'; \
+#         docker image prune -f; \
+#         echo '✅ Agent deployment successful!'"
+# fi
