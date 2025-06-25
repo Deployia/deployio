@@ -10,6 +10,7 @@ import documentationReducer from "./slices/documentationSlice";
 import blogReducer from "./slices/blogSlice";
 import apiKeyReducer from "./slices/apiKeySlice";
 import notificationReducer from "./slices/notificationSlice";
+import gitProviderReducer from "./slices/gitProviderSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -22,6 +23,7 @@ const rootReducer = combineReducers({
   blog: blogReducer,
   apiKeys: apiKeyReducer,
   notifications: notificationReducer,
+  gitProvider: gitProviderReducer,
 });
 
 export const store = configureStore({
