@@ -413,21 +413,20 @@ const AnalysisDemo = () => {
               transition={{ delay: 0.2 }}
               className="max-w-4xl mx-auto mb-8"
             >
-              {" "}
               {/* Hero-style Input Section */}
-              <div className="bg-blue-900/20 backdrop-blur-lg border border-blue-700/20 rounded-xl p-4 sm:p-6">
+              <div className="bg-neutral-900/80 backdrop-blur-lg border border-neutral-700/50 rounded-xl p-4 sm:p-6">
                 <div className="flex items-center mb-4">
-                  <FaGithub className="w-5 h-5 text-blue-400 mr-2" />
-                  <span className="text-blue-200 font-medium text-sm">
+                  <FaGithub className="w-5 h-5 text-gray-400 mr-2" />
+                  <span className="text-gray-300 font-medium text-sm">
                     Analyze GitHub Repository
                   </span>
                 </div>
 
                 {/* GitHub URL Input with Hero Design */}
-                <div className="bg-blue-900/30 rounded-lg p-3 sm:p-4 border border-blue-600/30 mb-4">
+                <div className="bg-neutral-800/50 rounded-lg p-3 sm:p-4 border border-neutral-600/30 mb-4">
                   {/* URL Input with Protocol Display */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center bg-blue-900/40 rounded-lg p-2 sm:p-3 border border-blue-600/20 mb-3 gap-2 sm:gap-0">
-                    <span className="text-blue-300 font-mono text-xs sm:text-sm mr-0 sm:mr-2 flex-shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center bg-neutral-800/70 rounded-lg p-2 sm:p-3 border border-neutral-600/20 mb-3">
+                    <span className="text-gray-500 font-mono text-xs sm:text-sm mr-1 flex-shrink-0">
                       https://github.com/
                     </span>
                     <input
@@ -442,7 +441,7 @@ const AnalysisDemo = () => {
                         }
                       }}
                       placeholder="username/repository"
-                      className="flex-1 w-full sm:w-auto bg-transparent text-white placeholder-blue-300 focus:outline-none text-xs sm:text-sm font-mono"
+                      className="flex-1 bg-transparent text-white placeholder-gray-400 focus:outline-none text-xs sm:text-sm font-mono"
                       disabled={isAnalyzing}
                       onKeyPress={(e) => {
                         if (e.key === "Enter" && !isAnalyzing) {
@@ -453,10 +452,9 @@ const AnalysisDemo = () => {
                   </div>
 
                   {/* Branch Input */}
-                  <div className="flex items-center bg-blue-900/40 rounded-lg p-2 sm:p-3 border border-blue-600/20">
-                    {" "}
-                    <FaCodeBranch className="w-3 h-3 text-blue-400 mr-2 flex-shrink-0" />
-                    <span className="text-blue-300 text-xs mr-2 flex-shrink-0">
+                  <div className="flex items-center bg-neutral-800/70 rounded-lg p-2 sm:p-3 border border-neutral-600/20">
+                    <FaCodeBranch className="w-3 h-3 text-gray-400 mr-2 flex-shrink-0" />
+                    <span className="text-gray-400 text-xs mr-2 flex-shrink-0">
                       Branch:
                     </span>
                     <input
@@ -464,7 +462,7 @@ const AnalysisDemo = () => {
                       value={branch}
                       onChange={(e) => setBranch(e.target.value)}
                       placeholder="main"
-                      className="flex-1 bg-transparent text-white placeholder-blue-300 focus:outline-none text-xs font-mono"
+                      className="flex-1 bg-transparent text-white placeholder-gray-400 focus:outline-none text-xs font-mono"
                       disabled={isAnalyzing}
                     />
                   </div>
@@ -496,8 +494,8 @@ const AnalysisDemo = () => {
                 <div className="text-center">
                   <span className="text-gray-400 text-xs mb-2 block">
                     Try these samples:
-                  </span>{" "}
-                  <div className="flex flex-wrap gap-2 justify-center">
+                  </span>
+                  <div className="flex flex-wrap gap-1 justify-center">
                     {sampleRepos.map((repo, index) => (
                       <button
                         key={index}
@@ -505,14 +503,14 @@ const AnalysisDemo = () => {
                           setRepositoryUrl(repo.name);
                           setBranch(repo.branch);
                         }}
-                        className="px-2 py-1 text-xs bg-blue-700/50 text-blue-200 rounded hover:bg-blue-600/50 transition-colors border border-blue-600/30 hover:border-blue-500/50"
+                        className="px-2 py-1 text-xs bg-gray-700/50 text-gray-300 rounded hover:bg-gray-600/50 transition-colors border border-gray-600/30 hover:border-gray-500/50"
                         disabled={isAnalyzing}
                       >
-                        <div className="flex flex-col sm:flex-row items-center">
-                          <span className="font-mono text-center sm:text-left">
+                        <div className="flex items-center">
+                          <span className="font-mono">
                             {repo.name.split("/")[1]}
                           </span>
-                          <span className="text-blue-400 text-xs sm:ml-1">
+                          <span className="text-gray-500 text-xs ml-1">
                             ({repo.branch})
                           </span>
                         </div>
@@ -522,7 +520,6 @@ const AnalysisDemo = () => {
                 </div>
               </div>
             </motion.div>
-
             {/* Analysis Progress */}
             <AnimatePresence>
               {isAnalyzing && (
