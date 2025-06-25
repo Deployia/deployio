@@ -168,6 +168,37 @@ class GitProviderService {
   }
 
   /**
+   * Get specific repository details
+   */
+  static async getRepository(userId, provider, repoFullName) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (!user.hasValidGitProviderToken(provider)) {
+        throw new Error("No valid token for provider");
+      }
+
+      const providerInstance = GitProviderFactory.createProvider(provider);
+      const token = await user.getGitProviderToken(provider);
+
+      const repository = await providerInstance.getRepository(
+        token,
+        repoFullName
+      );
+
+      // Update last used timestamp
+      await user.updateLastUsed(provider);
+
+      return repository;
+    } catch (error) {
+      throw new Error(`Failed to get repository: ${error.message}`);
+    }
+  }
+
+  /**
    * Get branches for a repository
    */
   static async getBranches(userId, provider, repoFullName) {
