@@ -53,27 +53,73 @@ const Integrations = () => {
     disconnectProvider: handleDisconnectProvider,
   } = useGitProviders();
 
-  // Handle OAuth callback
+  // Handle OAuth callback with enhanced error handling
   useEffect(() => {
     const connected = searchParams.get("connected");
     const status = searchParams.get("status");
     const error = searchParams.get("error");
 
     if (connected && status) {
+      // Map provider names for display
+      const providerDisplayNames = {
+        github: "GitHub",
+        gitlab: "GitLab",
+        azuredevops: "Azure DevOps",
+        bitbucket: "Bitbucket",
+      };
+
+      const displayName = providerDisplayNames[connected] || connected;
+
       if (status === "success") {
-        toast.success(`Successfully connected to ${connected}!`);
-        // Refresh provider data
+        toast.success(`🎉 Successfully connected to ${displayName}!`, {
+          duration: 5000,
+          icon: "🔗",
+        });
+
+        // Refresh provider data to show new connection
         dispatch(fetchConnectedProviders());
         dispatch(fetchDetailedConnectionStatus());
+
+        // Optional: Trigger repository fetch for newly connected provider
+        if (
+          connected === "github" ||
+          connected === "gitlab" ||
+          connected === "azuredevops"
+        ) {
+          // Future: dispatch(fetchRepositories(connected));
+        }
       } else if (status === "error") {
-        const errorMessage = error
-          ? decodeURIComponent(error)
-          : "Connection failed";
-        toast.error(`Failed to connect to ${connected}: ${errorMessage}`);
+        // Enhanced error message mapping
+        const errorMessages = {
+          missing_state: "Security validation failed. Please try again.",
+          auth_failed: "Authentication failed. Please check your credentials.",
+          access_denied:
+            "Access was denied. Please try again and authorize the application.",
+          invalid_state: "Security token expired. Please try again.",
+          provider_error: "Provider service is temporarily unavailable.",
+        };
+
+        const errorMessage =
+          error && errorMessages[error]
+            ? errorMessages[error]
+            : error
+            ? decodeURIComponent(error)
+            : "Connection failed due to an unknown error";
+
+        toast.error(`❌ Failed to connect to ${displayName}: ${errorMessage}`, {
+          duration: 8000,
+        });
+
+        // Log error for debugging
+        console.error(`OAuth connection failed for ${connected}:`, {
+          error,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+        });
       }
 
-      // Clean up URL parameters
-      setSearchParams({});
+      // Clean up URL parameters after handling
+      setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams, dispatch]);
 
