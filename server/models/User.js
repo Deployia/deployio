@@ -396,7 +396,7 @@ const userSchema = new mongoose.Schema(
       ],
     },
 
-    // Security & Session Management
+    // Security & Authentication
     loginAttempts: {
       type: Number,
       default: 0,
@@ -482,22 +482,16 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // User Sessions for tracking active sessions
-    sessions: [
-      {
-        ip: String,
-        userAgent: String,
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
-        rememberedUntil: Date, // For "Remember this device" functionality
-        location: {
-          country: String,
-          city: String,
-        },
-      },
-    ],
+    // Authentication & Security
+    lastLogin: {
+      type: Date,
+      default: Date.now,
+    },
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: Date,
   },
   {
     timestamps: true,
@@ -533,8 +527,9 @@ const userSchema = new mongoose.Schema(
 // Note: email, username, githubId, googleId have unique: true so don't need explicit indexes
 userSchema.index({ "github.username": 1 });
 userSchema.index({ "refreshTokens.token": 1 });
-userSchema.index({ "sessions.ip": 1, "sessions.userAgent": 1 });
 userSchema.index({ status: 1, role: 1 });
+userSchema.index({ lastLogin: 1 });
+userSchema.index({ email: 1, isEmailVerified: 1 });
 
 // Virtual for account lock status
 userSchema.virtual("isLocked").get(function () {

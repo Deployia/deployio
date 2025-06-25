@@ -8,8 +8,10 @@ const {
   githubBasicStrategy,
   githubIntegrationStrategy,
 } = require("./strategies/githubStrategy");
-const gitlabStrategy = require("./strategies/gitlabStrategy");
-const azureDevOpsStrategy = require("./strategies/azureDevOpsStrategy");
+const { gitlabIntegrationStrategy } = require("./strategies/gitlabStrategy");
+const {
+  azureDevOpsIntegrationStrategy,
+} = require("./strategies/azureDevOpsStrategy");
 
 function sanitizeUsername(username) {
   if (!username) return undefined;
@@ -80,8 +82,8 @@ passport.use(
 // Enhanced Git Provider OAuth Strategies
 passport.use("github-basic", githubBasicStrategy); // For basic login
 passport.use("github-integration", githubIntegrationStrategy); // For full Git integration
-passport.use("gitlab", gitlabStrategy);
-passport.use("azuredevops", azureDevOpsStrategy);
+passport.use("gitlab-integration", gitlabIntegrationStrategy); // For repository access only
+passport.use("azuredevops-integration", azureDevOpsIntegrationStrategy); // For repository access only
 
 passport.serializeUser((user, done) => {
   done(null, user.id);

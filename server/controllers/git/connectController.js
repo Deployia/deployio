@@ -1,9 +1,10 @@
-// Git Connect Controller
+// Git Connect Controller - Clean State-Based OAuth Implementation
 // Handles ONLY Git provider connection and disconnection
 
 const GitProviderService = require("@services/gitProvider/GitProviderService");
 const GitProviderFactory = require("@services/gitProviders/ProviderFactory");
 const crypto = require("crypto");
+const logger = require("../config/logger");
 
 /**
  * Generate secure OAuth state parameter
@@ -15,10 +16,10 @@ const generateOAuthState = (userId, provider) => {
   const stateData = {
     userId: userId.toString(),
     timestamp: Date.now(),
-    nonce: crypto.randomBytes(16).toString("hex"),
-    provider,
+    nonce: crypto.randomBytes(16).toString('hex'),
+    provider
   };
-  return Buffer.from(JSON.stringify(stateData)).toString("base64url");
+  return Buffer.from(JSON.stringify(stateData)).toString('base64url');
 };
 
 /**
@@ -29,43 +30,36 @@ const generateOAuthState = (userId, provider) => {
 const validateOAuthState = async (stateString) => {
   try {
     if (!stateString) {
-      throw new Error("OAuth state parameter is required");
+      throw new Error('OAuth state parameter is required');
     }
 
-    const stateData = JSON.parse(
-      Buffer.from(stateString, "base64url").toString()
-    );
-
+    const stateData = JSON.parse(Buffer.from(stateString, 'base64url').toString());
+    
     // Validate required fields
-    if (
-      !stateData.userId ||
-      !stateData.timestamp ||
-      !stateData.nonce ||
-      !stateData.provider
-    ) {
-      throw new Error("Invalid OAuth state format");
+    if (!stateData.userId || !stateData.timestamp || !stateData.nonce || !stateData.provider) {
+      throw new Error('Invalid OAuth state format');
     }
-
+    
     // Validate timestamp (10 minutes max)
     const maxAge = 10 * 60 * 1000; // 10 minutes
     if (Date.now() - stateData.timestamp > maxAge) {
-      throw new Error("OAuth state expired. Please try connecting again.");
+      throw new Error('OAuth state expired. Please try connecting again.');
     }
-
+    
     // Validate user exists
     const User = require("@models/User");
     const user = await User.findById(stateData.userId);
     if (!user) {
-      throw new Error("User not found. Please log in and try again.");
+      throw new Error('User not found. Please log in and try again.');
     }
-
-    return {
-      user,
-      provider: stateData.provider,
-      nonce: stateData.nonce,
+    
+    return { 
+      user, 
+      provider: stateData.provider, 
+      nonce: stateData.nonce 
     };
   } catch (error) {
-    console.error("OAuth state validation error:", error);
+    logger.error('OAuth state validation error:', error);
     throw new Error(`Invalid OAuth state: ${error.message}`);
   }
 };
@@ -98,6 +92,7 @@ const getProviders = async (req, res) => {
       },
     });
   } catch (error) {
+    logger.error('Get providers error:', error);
     res.status(500).json({
       success: false,
       message: "Failed to get provider configurations",
@@ -120,6 +115,7 @@ const getConnectedProviders = async (req, res) => {
       data: connectedProviders,
     });
   } catch (error) {
+    logger.error('Get connected providers error:', error);
     res.status(500).json({
       success: false,
       message: "Failed to get connected providers",
@@ -129,25 +125,25 @@ const getConnectedProviders = async (req, res) => {
 };
 
 /**
- * Initiate provider connection
+ * Initiate OAuth connection for a provider
  */
 const initiateConnection = (provider) => {
   return (req, res, next) => {
     try {
       // Generate secure state parameter
       const state = generateOAuthState(req.user._id, provider);
-
-      // Store state in session for additional validation if needed
-      // (optional - the state parameter itself is sufficient for security)
-      req.session = req.session || {};
-      req.session.oauthState = state;
-
-      // Set state in passport options
-      req.authInfo = { state };
-
+      
+      // Pass state to passport
+      req.oauthState = state;
+      
+      logger.info(`Initiating OAuth connection for ${provider}`, {
+        userId: req.user._id,
+        provider
+      });
+      
       next();
     } catch (error) {
-      console.error(`${provider} connection initiation error:`, error);
+      logger.error(`${provider} connection initiation error:`, error);
       res.status(500).json({
         success: false,
         message: `Failed to initiate ${provider} connection`,
@@ -158,19 +154,24 @@ const initiateConnection = (provider) => {
 };
 
 /**
- * Connect provider callback handlers
+ * GitHub OAuth callback handler
  */
 const connectGitHub = async (req, res) => {
   try {
     const { accessToken, refreshToken, state } = req.authInfo;
     const githubProfile = req.user; // This is the GitHub profile from Passport
 
+    logger.info('GitHub OAuth callback received', {
+      profileId: githubProfile.id,
+      hasState: !!state
+    });
+
     // Validate OAuth state
     const { user, provider } = await validateOAuthState(state);
-
+    
     // Verify provider matches
-    if (provider !== "github") {
-      throw new Error("Provider mismatch in OAuth state");
+    if (provider !== 'github') {
+      throw new Error('Provider mismatch in OAuth state');
     }
 
     // Extract user info from GitHub profile
@@ -182,6 +183,7 @@ const connectGitHub = async (req, res) => {
       avatar: githubProfile.photos?.[0]?.value,
     };
 
+    // Connect the provider
     await GitProviderService.connectProvider(
       user._id,
       "github",
@@ -189,20 +191,25 @@ const connectGitHub = async (req, res) => {
       userInfo
     );
 
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+    logger.info('GitHub provider connected successfully', {
+      userId: user._id,
+      githubUsername: userInfo.username
+    });
+
+    // Redirect to frontend with success
+    const frontUrl = process.env.NODE_ENV === "development"
+      ? process.env.FRONTEND_URL_DEV
+      : process.env.FRONTEND_URL_PROD;
 
     res.redirect(
       `${frontUrl}/dashboard/integrations?connected=github&status=success`
     );
   } catch (error) {
-    console.error("GitHub connection error:", error);
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+    logger.error("GitHub connection error:", error);
+    
+    const frontUrl = process.env.NODE_ENV === "development"
+      ? process.env.FRONTEND_URL_DEV
+      : process.env.FRONTEND_URL_PROD;
 
     res.redirect(
       `${frontUrl}/dashboard/integrations?connected=github&status=error&error=${encodeURIComponent(
@@ -212,31 +219,37 @@ const connectGitHub = async (req, res) => {
   }
 };
 
+/**
+ * GitLab OAuth callback handler
+ */
 const connectGitLab = async (req, res) => {
   try {
     const { accessToken, refreshToken, state } = req.authInfo;
-    const gitlabProfile = req.user; // This is the GitLab profile from Passport
+    const gitlabProfile = req.user;
+
+    logger.info('GitLab OAuth callback received', {
+      profileId: gitlabProfile.id,
+      hasState: !!state
+    });
 
     // Validate OAuth state
     const { user, provider } = await validateOAuthState(state);
-
+    
     // Verify provider matches
-    if (provider !== "gitlab") {
-      throw new Error("Provider mismatch in OAuth state");
+    if (provider !== 'gitlab') {
+      throw new Error('Provider mismatch in OAuth state');
     }
 
     // Extract user info from GitLab profile
     const userInfo = {
       id: gitlabProfile.id,
       username: gitlabProfile.username,
-      email: gitlabProfile.emails?.[0]?.value || gitlabProfile.email,
-      name:
-        gitlabProfile.displayName ||
-        gitlabProfile.name ||
-        gitlabProfile.username,
-      avatar: gitlabProfile.photos?.[0]?.value || gitlabProfile.avatar_url,
+      email: gitlabProfile.emails?.[0]?.value,
+      name: gitlabProfile.displayName || gitlabProfile.username,
+      avatar: gitlabProfile.photos?.[0]?.value,
     };
 
+    // Connect the provider
     await GitProviderService.connectProvider(
       user._id,
       "gitlab",
@@ -244,20 +257,24 @@ const connectGitLab = async (req, res) => {
       userInfo
     );
 
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+    logger.info('GitLab provider connected successfully', {
+      userId: user._id,
+      gitlabUsername: userInfo.username
+    });
+
+    const frontUrl = process.env.NODE_ENV === "development"
+      ? process.env.FRONTEND_URL_DEV
+      : process.env.FRONTEND_URL_PROD;
 
     res.redirect(
       `${frontUrl}/dashboard/integrations?connected=gitlab&status=success`
     );
   } catch (error) {
-    console.error("GitLab connection error:", error);
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+    logger.error("GitLab connection error:", error);
+    
+    const frontUrl = process.env.NODE_ENV === "development"
+      ? process.env.FRONTEND_URL_DEV
+      : process.env.FRONTEND_URL_PROD;
 
     res.redirect(
       `${frontUrl}/dashboard/integrations?connected=gitlab&status=error&error=${encodeURIComponent(
@@ -267,28 +284,37 @@ const connectGitLab = async (req, res) => {
   }
 };
 
+/**
+ * Azure DevOps OAuth callback handler
+ */
 const connectAzureDevOps = async (req, res) => {
   try {
     const { accessToken, refreshToken, state } = req.authInfo;
-    const azureProfile = req.user; // This is the Azure DevOps profile from Passport
+    const azureProfile = req.user;
+
+    logger.info('Azure DevOps OAuth callback received', {
+      profileId: azureProfile.id,
+      hasState: !!state
+    });
 
     // Validate OAuth state
     const { user, provider } = await validateOAuthState(state);
-
+    
     // Verify provider matches
-    if (provider !== "azuredevops") {
-      throw new Error("Provider mismatch in OAuth state");
+    if (provider !== 'azuredevops') {
+      throw new Error('Provider mismatch in OAuth state');
     }
 
-    // Extract user info from Azure DevOps profile
+    // Extract user info from Azure profile
     const userInfo = {
       id: azureProfile.id,
       username: azureProfile.username || azureProfile.displayName,
-      email: azureProfile.emails?.[0]?.value || azureProfile.email,
-      name: azureProfile.displayName || azureProfile.username,
-      avatar: azureProfile.photos?.[0]?.value || azureProfile.avatar,
+      email: azureProfile.emails?.[0]?.value,
+      name: azureProfile.displayName,
+      avatar: azureProfile.photos?.[0]?.value,
     };
 
+    // Connect the provider
     await GitProviderService.connectProvider(
       user._id,
       "azuredevops",
@@ -296,20 +322,24 @@ const connectAzureDevOps = async (req, res) => {
       userInfo
     );
 
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+    logger.info('Azure DevOps provider connected successfully', {
+      userId: user._id,
+      azureUsername: userInfo.username
+    });
+
+    const frontUrl = process.env.NODE_ENV === "development"
+      ? process.env.FRONTEND_URL_DEV
+      : process.env.FRONTEND_URL_PROD;
 
     res.redirect(
       `${frontUrl}/dashboard/integrations?connected=azuredevops&status=success`
     );
   } catch (error) {
-    console.error("Azure DevOps connection error:", error);
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+    logger.error("Azure DevOps connection error:", error);
+    
+    const frontUrl = process.env.NODE_ENV === "development"
+      ? process.env.FRONTEND_URL_DEV
+      : process.env.FRONTEND_URL_PROD;
 
     res.redirect(
       `${frontUrl}/dashboard/integrations?connected=azuredevops&status=error&error=${encodeURIComponent(
@@ -326,6 +356,11 @@ const disconnectProvider = async (req, res) => {
   try {
     const { provider } = req.params;
 
+    logger.info('Disconnecting provider', {
+      userId: req.user._id,
+      provider
+    });
+
     const result = await GitProviderService.disconnectProvider(
       req.user._id,
       provider
@@ -337,6 +372,7 @@ const disconnectProvider = async (req, res) => {
       data: result,
     });
   } catch (error) {
+    logger.error('Disconnect provider error:', error);
     res.status(400).json({
       success: false,
       message: error.message,
@@ -364,6 +400,7 @@ const testConnection = async (req, res) => {
       data: result,
     });
   } catch (error) {
+    logger.error('Test connection error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -384,7 +421,7 @@ module.exports = {
   // Management
   disconnectProvider,
   testConnection,
-  // Utilities
+  // Utilities (for testing)
   generateOAuthState,
   validateOAuthState,
 };

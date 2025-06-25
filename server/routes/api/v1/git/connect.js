@@ -1,4 +1,5 @@
-// Git Connect Routes - /api/v1/git/connect/*
+// Git Connect Routes - Clean State-Based OAuth Implementation
+// /api/v1/git/connect/*
 // ONLY handles Git provider connection/disconnection (OAuth flows)
 
 const express = require("express");
@@ -10,114 +11,152 @@ const { git } = require("@controllers");
 const router = express.Router();
 
 // =============================================================================
-// PROVIDER CONNECTION ENDPOINTS
+// PROVIDER INFORMATION ENDPOINTS
 // =============================================================================
 
-// Get available git providers
+// Get available git providers (public endpoint)
 router.get("/providers", git.connect.getProviders);
 
-// Get user's connected providers
+// Get user's connected providers (protected)
 router.get("/connected", protect, git.connect.getConnectedProviders);
 
 // =============================================================================
-// PROVIDER-SPECIFIC CONNECTION ROUTES
+// OAUTH INITIATION ENDPOINTS (Protected - require user login)
 // =============================================================================
 
-// GitHub Integration
+// GitHub OAuth initiation
 router.get(
   "/github",
   protect,
-  git.connect.initiateConnection("github"),
+  getRateLimiters().oauthInit,
+  git.connect.initiateConnection('github'),
   (req, res, next) => {
-    // Passport will use the state from authInfo
     passport.authenticate("github-integration", {
       scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"],
-      state: req.authInfo.state,
+      state: req.oauthState
     })(req, res, next);
   }
 );
 
-router.get(
-  "/github/callback",
-  passport.authenticate("github-integration", {
-    session: false,
-    failureRedirect:
-      "/dashboard/integrations?connected=github&status=error&error=oauth_failed",
-  }),
-  git.connect.connectGitHub
-);
-
-// GitLab Integration
+// GitLab OAuth initiation
 router.get(
   "/gitlab",
   protect,
-  git.connect.initiateConnection("gitlab"),
+  getRateLimiters().oauthInit,
+  git.connect.initiateConnection('gitlab'),
   (req, res, next) => {
-    passport.authenticate("gitlab", {
-      scope: ["read_user", "read_repository", "api", "read_api"],
-      state: req.authInfo.state,
+    passport.authenticate("gitlab-integration", {
+      scope: ["read_user", "read_repository", "api"],
+      state: req.oauthState
     })(req, res, next);
   }
 );
 
-router.get(
-  "/gitlab/callback",
-  passport.authenticate("gitlab", {
-    session: false,
-    failureRedirect:
-      "/dashboard/integrations?connected=gitlab&status=error&error=oauth_failed",
-  }),
-  git.connect.connectGitLab
-);
-
-// Azure DevOps Integration
+// Azure DevOps OAuth initiation
 router.get(
   "/azuredevops",
   protect,
-  git.connect.initiateConnection("azuredevops"),
+  getRateLimiters().oauthInit,
+  git.connect.initiateConnection('azuredevops'),
   (req, res, next) => {
-    passport.authenticate("azuredevops", {
-      scope: ["vso.code", "vso.identity", "vso.project", "vso.build"],
-      state: req.authInfo.state,
+    passport.authenticate("azuredevops-integration", {
+      scope: ["vso.code", "vso.identity", "vso.project"],
+      state: req.oauthState
     })(req, res, next);
   }
 );
 
+// =============================================================================
+// OAUTH CALLBACK ENDPOINTS (Public - no auth required, state validation instead)
+// =============================================================================
+
+// GitHub OAuth callback
+router.get(
+  "/github/callback",
+  getRateLimiters().oauthCallback,
+  (req, res, next) => {
+    // Validate state parameter exists
+    if (!req.query.state) {
+      const frontUrl = process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+      return res.redirect(
+        `${frontUrl}/dashboard/integrations?connected=github&status=error&error=missing_state`
+      );
+    }
+    
+    passport.authenticate("github-integration", {
+      failureRedirect: `${process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD}/dashboard/integrations?connected=github&status=error&error=auth_failed`
+    })(req, res, next);
+  },
+  git.connect.connectGitHub
+);
+
+// GitLab OAuth callback
+router.get(
+  "/gitlab/callback",
+  getRateLimiters().oauthCallback,
+  (req, res, next) => {
+    if (!req.query.state) {
+      const frontUrl = process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+      return res.redirect(
+        `${frontUrl}/dashboard/integrations?connected=gitlab&status=error&error=missing_state`
+      );
+    }
+    
+    passport.authenticate("gitlab-integration", {
+      failureRedirect: `${process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD}/dashboard/integrations?connected=gitlab&status=error&error=auth_failed`
+    })(req, res, next);
+  },
+  git.connect.connectGitLab
+);
+
+// Azure DevOps OAuth callback
 router.get(
   "/azuredevops/callback",
-  passport.authenticate("azuredevops", {
-    session: false,
-    failureRedirect:
-      "/dashboard/integrations?connected=azuredevops&status=error&error=oauth_failed",
-  }),
+  getRateLimiters().oauthCallback,
+  (req, res, next) => {
+    if (!req.query.state) {
+      const frontUrl = process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+      return res.redirect(
+        `${frontUrl}/dashboard/integrations?connected=azuredevops&status=error&error=missing_state`
+      );
+    }
+    
+    passport.authenticate("azuredevops-integration", {
+      failureRedirect: `${process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD}/dashboard/integrations?connected=azuredevops&status=error&error=auth_failed`
+    })(req, res, next);
+  },
   git.connect.connectAzureDevOps
 );
 
-// Bitbucket Integration (placeholder for future implementation)
-router.get("/bitbucket", protect, (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: "Bitbucket integration coming soon",
-  });
-});
-
 // =============================================================================
-// PROVIDER MANAGEMENT ENDPOINTS
+// PROVIDER MANAGEMENT ENDPOINTS (Protected)
 // =============================================================================
 
 // Disconnect a provider
 router.delete(
   "/:provider",
   protect,
-  getRateLimiters().gitProviders.disconnect,
+  getRateLimiters().apiStrict,
   git.connect.disconnectProvider
 );
 
 // Test provider connection
-router.get(
+router.post(
   "/:provider/test",
   protect,
-  getRateLimiters().gitProviders.test,
+  getRateLimiters().apiModerate,
   git.connect.testConnection
 );
 

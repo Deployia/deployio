@@ -4,6 +4,7 @@ const logger = require("../config/logger"); // Import logger
 
 /**
  * Middleware to protect routes and verify authentication
+ * Pure JWT-based authentication without session tracking
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
@@ -28,7 +29,7 @@ const protect = async (req, res, next) => {
     try {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const { id, sessionId } = decoded;
+      const { id } = decoded;
 
       if (!id) {
         return res.status(401).json({
@@ -47,10 +48,12 @@ const protect = async (req, res, next) => {
           message:
             "User account not found. Please register or contact support.",
         });
-      } // Check if user account is still verified/active
+      }
+
+      // Check if user account is active
       if (!user.isVerified) {
         // Auto-verify OAuth users who might have been created before the fix
-        if (user.googleId || user.githubId) {
+        if (user.googleId || user.githubId || user.gitlabId) {
           user.isVerified = true;
           await user.save();
           logger.info(`Auto-verified OAuth user: ${user.email}`);
@@ -60,37 +63,18 @@ const protect = async (req, res, next) => {
             message: "Account not verified. Please verify your email.",
           });
         }
-      } // Check that sessionId exists in user's sessions (if sessionId is provided)
-      if (sessionId) {
-        const sessionExists = user.sessions.some(
-          (s) => s._id.toString() === sessionId
-        );
-        if (!sessionExists) {
-          // If the specific session doesn't exist, but user has other valid sessions,
-          // allow the request but log it for monitoring
-          if (user.sessions && user.sessions.length > 0) {
-            logger.warn("Session mismatch but user has valid sessions", {
-              userId: user._id,
-              requestedSessionId: sessionId,
-              availableSessions: user.sessions.length,
-            });
-            // Use the most recent session as fallback
-            const latestSession = user.sessions.sort(
-              (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-            )[0];
-            req.sessionId = latestSession._id.toString();
-          } else {
-            return res.status(401).json({
-              success: false,
-              message: "Session expired or invalid. Please log in again.",
-            });
-          }
-        } else {
-          req.sessionId = sessionId;
-        }
-      } // Attach user to request object
+      }
+
+      // Check if account is locked
+      if (user.isLocked) {
+        return res.status(423).json({
+          success: false,
+          message: "Account temporarily locked. Please try again later.",
+        });
+      }
+
+      // Attach user to request object
       req.user = user;
-      // sessionId is already set above based on validation logic
       next();
     } catch (tokenError) {
       let message = "Authentication failed. Please log in again.";
@@ -194,20 +178,25 @@ const moderatorOrAdmin = (req, res, next) => {
 
 /**
  * Shared authentication logic for both Express and WebSocket
+ * Pure JWT-based authentication without session tracking
  * @param {string} token - JWT token
- * @returns {Promise<{user: object, sessionId: string}>}
+ * @returns {Promise<{user: object}>}
  * @throws {Error} - Throws error if authentication fails
  */
 async function authenticateUser(token) {
   if (!token) throw new Error("Authentication token required");
+
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  const { id, sessionId } = decoded;
+  const { id } = decoded;
+
   if (!id) throw new Error("Invalid token format");
+
   const user = await User.findById(id);
   if (!user) throw new Error("User not found");
+
   if (!user.isVerified) {
     // Auto-verify OAuth users who might have been created before the fix
-    if (user.googleId || user.githubId) {
+    if (user.googleId || user.githubId || user.gitlabId) {
       user.isVerified = true;
       await user.save();
       logger.info(`Auto-verified OAuth user: ${user.email}`);
@@ -216,8 +205,11 @@ async function authenticateUser(token) {
     }
   }
 
-  // Optionally: sessionId validation can be added here if needed
-  return { user, sessionId };
+  if (user.isLocked) {
+    throw new Error("Account temporarily locked");
+  }
+
+  return { user };
 }
 
 module.exports = {

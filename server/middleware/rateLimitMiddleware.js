@@ -301,6 +301,36 @@ const createRateLimiters = () => {
           "Too many repository analysis requests, please try again later.",
       }),
     },
+
+    // OAuth specific rate limiters
+    oauthInit: createRateLimiter({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 20, // 20 OAuth initiations per hour
+      prefix: "oauth_init_rl:",
+      message: "Too many OAuth connection attempts, please try again later.",
+    }),
+
+    oauthCallback: createRateLimiter({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 50, // 50 OAuth callbacks per 15 minutes (allows for retries)
+      prefix: "oauth_callback_rl:",
+      message: "Too many OAuth callback requests, please try again later.",
+    }),
+
+    // Alias methods for backwards compatibility
+    apiStrict: createRateLimiter({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 50, // 50 requests per 15 minutes
+      prefix: "api_strict_rl:",
+      message: "Too many requests for this operation, please try again later.",
+    }),
+
+    apiModerate: createRateLimiter({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // 100 requests per 15 minutes
+      prefix: "api_moderate_rl:",
+      message: "Too many requests, please try again later.",
+    }),
   };
 };
 
