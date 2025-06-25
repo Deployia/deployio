@@ -1,8 +1,12 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const GitHubStrategy = require("passport-github2").Strategy;
 const User = require("../models/User");
 const crypto = require("crypto");
+
+// Import enhanced Git provider strategies
+const githubStrategy = require("./strategies/githubStrategy");
+const gitlabStrategy = require("./strategies/gitlabStrategy");
+const azureDevOpsStrategy = require("./strategies/azureDevOpsStrategy");
 
 function sanitizeUsername(username) {
   if (!username) return undefined;
@@ -70,69 +74,10 @@ passport.use(
   )
 );
 
-// GitHub OAuth Strategy
-passport.use(
-  new GitHubStrategy(
-    {
-      clientID: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: process.env.GITHUB_CALLBACK_URL,
-      scope: ["user:email"],
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        let user = await User.findOne({ githubId: profile.id });
-        // Try to find by email for account linking
-        if (!user && profile.emails && profile.emails[0]) {
-          user = await User.findOne({ email: profile.emails[0].value });
-          if (user) {
-            user.githubId = profile.id;
-            user.isVerified = true; // Verify existing user when linking OAuth account
-            if (profile.photos && profile.photos[0]) {
-              user.profileImage = profile.photos[0].value;
-            }
-            await user.save();
-          }
-        }
-        if (!user) {
-          user = await User.create({
-            username: sanitizeUsername(
-              profile.displayName ||
-                profile.username ||
-                profile.emails?.[0]?.value?.split("@")[0]
-            ),
-            email:
-              (profile.emails &&
-                profile.emails[0] &&
-                profile.emails[0].value) ||
-              undefined,
-            githubId: profile.id,
-            password: crypto.randomBytes
-              ? crypto.randomBytes(20).toString("hex")
-              : Math.random().toString(36).slice(-20),
-            profileImage:
-              profile.photos && profile.photos[0]
-                ? profile.photos[0].value
-                : "",
-            isVerified: true, // OAuth users are automatically verified
-          });
-        } else {
-          if (
-            profile.photos &&
-            profile.photos[0] &&
-            user.profileImage !== profile.photos[0].value
-          ) {
-            user.profileImage = profile.photos[0].value;
-            await user.save();
-          }
-        }
-        return done(null, user);
-      } catch (err) {
-        return done(err, null);
-      }
-    }
-  )
-);
+// Enhanced Git Provider OAuth Strategies
+passport.use("github", githubStrategy);
+passport.use("gitlab", gitlabStrategy);
+passport.use("azuredevops", azureDevOpsStrategy);
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
