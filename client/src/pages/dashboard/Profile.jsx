@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   FaUser,
-  FaDesktop,
   FaBell,
   FaHistory,
   FaEdit,
@@ -15,7 +14,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LoadingGrid } from "@components/LoadingSpinner";
 import {
   ProfileTab,
-  SessionsTab,
   ActivityTab,
   ProfileErrorBoundary,
   OverviewTab,
@@ -38,7 +36,6 @@ function Profile() {
       { id: "overview", label: "Overview", icon: FaUser },
       { id: "profile", label: "Profile", icon: FaEdit },
       { id: "security", label: "Security", icon: FaShieldAlt },
-      { id: "sessions", label: "Sessions", icon: FaDesktop },
       { id: "notifications", label: "Notifications", icon: FaBell },
       { id: "activity", label: "Activity", icon: FaHistory },
       { id: "analytics", label: "Analytics", icon: FaChartLine },
@@ -103,8 +100,6 @@ function Profile() {
           return <ProfileTab />;
         case "security":
           return <SecurityTab />;
-        case "sessions":
-          return <SessionsTab />;
         case "notifications":
           return <NotificationsTab />;
         case "activity":

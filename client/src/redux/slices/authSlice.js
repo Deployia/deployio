@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api, { invalidateCacheEntry } from "@utils/api"; // Import invalidateCacheEntry
+import api from "@utils/api";
 import { verify2FALogin, enable2FA, disable2FA } from "./twoFactorSlice"; // Added fetch2FAStatus for completeness if needed later
 
 // Initial State - Focus only on authentication
@@ -11,7 +11,6 @@ const initialState = {
   pending2FAUserId: null,
   needsVerification: false,
   pendingVerificationEmail: null,
-  currentSessionId: null,
 
   // Loading states
   loading: {
@@ -25,10 +24,6 @@ const initialState = {
     updatePassword: false,
     updateProfile: false,
     refreshToken: false,
-    providers: false,
-    sessions: false,
-    unlinkProvider: false,
-    deleteSession: false,
   },
 
   // Error states
@@ -43,10 +38,6 @@ const initialState = {
     updatePassword: null,
     updateProfile: null,
     refreshToken: null,
-    providers: null,
-    sessions: null,
-    unlinkProvider: null,
-    deleteSession: null,
   },
 
   // Success states
@@ -55,13 +46,7 @@ const initialState = {
     resetPassword: false,
     updatePassword: false,
     updateProfile: false,
-    unlinkProvider: false,
-    deleteSession: false,
   },
-
-  // OAuth providers and session management state
-  providers: {},
-  sessions: [],
 };
 
 // Register user
@@ -70,7 +55,7 @@ export const registerUser = createAsyncThunk(
   async (userData, thunkAPI) => {
     try {
       const response = await api.post("/users/auth/register", userData);
-      return response.data;
+      return response.data.data;
     } catch (error) {
       const message =
         (error.response &&
@@ -92,14 +77,23 @@ export const loginUser = createAsyncThunk(
       const response = await api.post("/users/auth/login", userData);
 
       // Check if 2FA is required from the response
-      if (response.data.requires2FA) {
+      if (response.data.data?.requires2FA) {
         return {
           requires2FA: true,
-          userId: response.data.userId,
+          userId: response.data.data.userId,
         };
       }
 
-      return response.data;
+      // Check if account needs verification
+      if (response.data.data?.needsVerification) {
+        return {
+          needsVerification: true,
+          email: response.data.data.email,
+        };
+      }
+
+      // Return the successful login data
+      return response.data.data;
     } catch (error) {
       const message =
         (error.response &&
@@ -177,7 +171,10 @@ export const updatePassword = createAsyncThunk(
   "auth/updatePassword",
   async (passwordData, thunkAPI) => {
     try {
-      const response = await api.put("/users/auth/update-password", passwordData);
+      const response = await api.put(
+        "/users/auth/update-password",
+        passwordData
+      );
       return response.data;
     } catch (error) {
       const message =
@@ -200,7 +197,7 @@ export const updateProfile = createAsyncThunk(
       const response = await api.put("/users/profile", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      return response.data.user;
+      return response.data.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message
@@ -212,8 +209,9 @@ export const updateProfile = createAsyncThunk(
 // Get current user
 export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
   try {
-    const response = await api.get("/users/auth/me"); // Removed _cb
-    return response.data;
+    const response = await api.get("/users/auth/me");
+    // Extract user from the data object returned by backend
+    return response.data.data.user;
   } catch (error) {
     const message =
       (error.response && error.response.data && error.response.data.message) ||
@@ -251,7 +249,7 @@ export const verifyOtp = createAsyncThunk(
         email,
         otp,
       });
-      return response.data;
+      return response.data.data;
     } catch (error) {
       const message =
         (error.response &&
@@ -260,74 +258,6 @@ export const verifyOtp = createAsyncThunk(
         error.message ||
         error.toString();
       return thunkAPI.rejectWithValue(message);
-    }
-  }
-);
-
-// Fetch linked OAuth providers
-export const fetchProviders = createAsyncThunk(
-  "auth/fetchProviders",
-  async (_, thunkAPI) => {
-    // Removed options
-    try {
-      const response = await api.get("/users/auth/providers"); // Removed _cb
-      return response.data.providers;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
-
-// Fetch user sessions
-export const fetchSessions = createAsyncThunk(
-  "auth/fetchSessions",
-  async (_, thunkAPI) => {
-    // Removed options
-    try {
-      const response = await api.get("/users/auth/sessions"); // Removed _cb
-      return response.data.sessions;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
-
-// Unlink provider
-export const unlinkProvider = createAsyncThunk(
-  "auth/unlinkProvider",
-  async (provider, thunkAPI) => {
-    try {
-      await api.delete(`/users/auth/unlink/${provider}`);
-      // Invalidate cache and re-fetch providers
-      invalidateCacheEntry("/users/auth/providers");
-      thunkAPI.dispatch(fetchProviders());
-      return provider;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
-    }
-  }
-);
-
-// Delete session
-export const deleteSession = createAsyncThunk(
-  "auth/deleteSession",
-  async (sessionId, thunkAPI) => {
-    try {
-      await api.delete(`/users/auth/sessions/${sessionId}`);
-      // Invalidate cache and re-fetch sessions
-      invalidateCacheEntry("/users/auth/sessions");
-      thunkAPI.dispatch(fetchSessions());
-      return sessionId;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message
-      );
     }
   }
 );
@@ -373,9 +303,6 @@ const authSlice = createSlice({
       state.pending2FAUserId = null;
       state.needsVerification = false;
       state.pendingVerificationEmail = null;
-      state.currentSessionId = null;
-      state.providers = {};
-      state.sessions = [];
 
       Object.keys(state.loading).forEach((key) => {
         if (key !== "me") {
@@ -453,8 +380,6 @@ const authSlice = createSlice({
           state.pending2FAUserId = null;
           state.needsVerification = false;
           state.pendingVerificationEmail = null;
-          // Store current session ID
-          state.currentSessionId = action.payload.sessionId;
         }
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -475,14 +400,11 @@ const authSlice = createSlice({
       })
       .addCase(logout.fulfilled, (state) => {
         state.loading.logout = false;
-        // Use the complete reset for logout
+        // Complete reset for logout (no more session management)
         state.user = null;
         state.isAuthenticated = false;
         state.requires2FA = false;
         state.pending2FAUserId = null;
-        state.currentSessionId = null;
-        state.providers = {};
-        state.sessions = [];
       })
       .addCase(logout.rejected, (state, action) => {
         state.loading.logout = false;
@@ -568,9 +490,9 @@ const authSlice = createSlice({
       })
       .addCase(getMe.fulfilled, (state, action) => {
         state.loading.me = false;
-        state.user = action.payload.user;
+        // action.payload is now the user object directly
+        state.user = action.payload;
         state.isAuthenticated = true;
-        state.currentSessionId = action.payload.sessionId;
       })
       .addCase(getMe.rejected, (state, action) => {
         state.loading.me = false;
@@ -625,9 +547,6 @@ const authSlice = createSlice({
         if (action.payload.user) {
           state.user = action.payload.user;
         }
-        if (action.payload.sessionId) {
-          state.currentSessionId = action.payload.sessionId;
-        }
         state.isAuthenticated = true;
       })
       // Handle pending states for verify2FALogin
@@ -655,78 +574,13 @@ const authSlice = createSlice({
         if (state.user) {
           state.user.twoFactorEnabled = false;
         }
-      })
-      // Potentially handle get2FAStatus.fulfilled if needed to sync on initial load or refresh
-      // .addCase(fetch2FAStatus.fulfilled, (state, action) => {
-      //   if (state.user && action.payload.twoFactorEnabled !== undefined) {
-      //    state.user.twoFactorEnabled = action.payload.twoFactorEnabled;
-      //   }
-      // })
-
-      // OAuth providers cases
-      .addCase(fetchProviders.pending, (state) => {
-        state.loading.providers = true;
-        state.error.providers = null;
-      })
-      .addCase(fetchProviders.fulfilled, (state, action) => {
-        state.loading.providers = false;
-        state.providers = action.payload;
-      })
-      .addCase(fetchProviders.rejected, (state, action) => {
-        state.loading.providers = false;
-        state.error.providers = action.payload;
-      })
-
-      // Sessions cases
-      .addCase(fetchSessions.pending, (state) => {
-        state.loading.sessions = true;
-        state.error.sessions = null;
-      })
-      .addCase(fetchSessions.fulfilled, (state, action) => {
-        state.loading.sessions = false;
-        state.sessions = action.payload;
-      })
-      .addCase(fetchSessions.rejected, (state, action) => {
-        state.loading.sessions = false;
-        state.error.sessions = action.payload;
-      })
-
-      // Unlink provider cases
-      .addCase(unlinkProvider.pending, (state) => {
-        state.loading.unlinkProvider = true;
-        state.error.unlinkProvider = null;
-        state.success.unlinkProvider = false;
-      })
-      .addCase(unlinkProvider.fulfilled, (state, action) => {
-        state.loading.unlinkProvider = false;
-        state.success.unlinkProvider = true;
-        state.error.unlinkProvider = null;
-        const prov = action.payload;
-        state.providers[prov] = false;
-      })
-      .addCase(unlinkProvider.rejected, (state, action) => {
-        state.loading.unlinkProvider = false;
-        state.error.unlinkProvider = action.payload;
-        state.success.unlinkProvider = false;
-      })
-
-      // Delete session cases
-      .addCase(deleteSession.pending, (state) => {
-        state.loading.deleteSession = true;
-        state.error.deleteSession = null;
-        state.success.deleteSession = false;
-      })
-      .addCase(deleteSession.fulfilled, (state, action) => {
-        state.loading.deleteSession = false;
-        state.success.deleteSession = true;
-        state.error.deleteSession = null;
-        state.sessions = state.sessions.filter((s) => s._id !== action.payload);
-      })
-      .addCase(deleteSession.rejected, (state, action) => {
-        state.loading.deleteSession = false;
-        state.error.deleteSession = action.payload;
-        state.success.deleteSession = false;
-      }); // Ensures the builder chain is correctly terminated if the duplicates were the absolute last items.
+      });
+    // Potentially handle get2FAStatus.fulfilled if needed to sync on initial load or refresh
+    // .addCase(fetch2FAStatus.fulfilled, (state, action) => {
+    //   if (state.user && action.payload.twoFactorEnabled !== undefined) {
+    //    state.user.twoFactorEnabled = action.payload.twoFactorEnabled;
+    //   }
+    // }); // Ensures the builder chain is correctly terminated
   },
 });
 

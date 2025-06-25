@@ -16,7 +16,7 @@ import {
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
-const OAuthAccountsSection = () => {
+const OAuthAccountsSection = ({ linkedProviders = {} }) => {
   const { user: authUser } = useSelector((state) => state.auth);
   const [localLoading, setLocalLoading] = useState({});
 

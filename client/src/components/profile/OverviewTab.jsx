@@ -15,7 +15,6 @@ import {
   FaBell,
 } from "react-icons/fa";
 import { fetchDashboardStats } from "@redux/slices/userSlice";
-import { fetchProviders } from "@redux/slices/authSlice";
 import { fetchApiKeys, selectApiKeys } from "@redux/slices/apiKeySlice";
 import { fetchNotifications, selectNotifications } from "@redux";
 import { ProfileCardSkeleton, StatsGridSkeleton } from "./LoadingState";
@@ -26,15 +25,37 @@ const OverviewTab = () => {
   const dispatch = useDispatch();
 
   // Get data from Redux state
-  const { user: authUser, providers: linkedProviders } = useSelector(
-    (state) => state.auth
-  );
+  const { user: authUser } = useSelector((state) => state.auth);
   const { dashboardStats } = useSelector((state) => state.userProfile);
   const notifications = useSelector(selectNotifications);
   const apiKeys = useSelector(selectApiKeys);
   const { twoFactorEnabled } = useSelector((state) => state.twoFactor);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Extract OAuth providers from user data (new structure)
+  const linkedProviders = useMemo(() => {
+    if (!authUser) return {};
+
+    const providers = {};
+
+    // Check git providers
+    if (authUser.gitProviders) {
+      providers.github = authUser.gitProviders.github?.isConnected || false;
+      providers.gitlab = authUser.gitProviders.gitlab?.isConnected || false;
+      providers.azureDevOps =
+        authUser.gitProviders.azureDevOps?.isConnected || false;
+      providers.bitbucket =
+        authUser.gitProviders.bitbucket?.isConnected || false;
+    }
+
+    // Check Google OAuth
+    if (authUser.google?.email) {
+      providers.google = true;
+    }
+
+    return providers;
+  }, [authUser]);
 
   // Load overview data on mount
   useEffect(() => {
@@ -45,7 +66,6 @@ const OverviewTab = () => {
           dispatch(fetchNotifications({ page: 1, limit: 5 })),
           dispatch(fetchDashboardStats()),
           dispatch(fetchApiKeys()),
-          dispatch(fetchProviders()),
         ]);
       } catch (error) {
         console.error("Error loading overview data:", error);
@@ -66,7 +86,7 @@ const OverviewTab = () => {
     });
   }, [authUser, apiKeys, linkedProviders, twoFactorEnabled]);
 
-  // Calculate profile completion dynamically
+  // Calculate profile completion dynamically based on new structure
   const profileComplete = useMemo(() => {
     if (!authUser) return false;
 
@@ -75,8 +95,14 @@ const OverviewTab = () => {
       (field) => authUser[field] && authUser[field].trim() !== ""
     );
 
-    // Profile is complete if at least 75% of required fields are filled
-    return completedFields.length >= Math.ceil(requiredFields.length * 0.75);
+    // Check if profile image exists
+    const hasProfileImage = authUser.profileImage;
+
+    // Calculate completion percentage
+    const fieldCompletion = completedFields.length / requiredFields.length;
+    const imageBonus = hasProfileImage ? 0.1 : 0;
+
+    return fieldCompletion + imageBonus >= 0.8; // 80% completion threshold
   }, [authUser]);
   // Calculate activity metrics from notifications
   const activityMetrics = useMemo(() => {
@@ -130,10 +156,10 @@ const OverviewTab = () => {
         href: "/dashboard/profile?tab=analytics",
       },
       {
-        label: "Manage Sessions",
-        icon: FaServer,
+        label: "Notifications",
+        icon: FaBell,
         color: "bg-orange-500/20 text-orange-400",
-        href: "/dashboard/profile?tab=sessions",
+        href: "/dashboard/profile?tab=notifications",
       },
     ];
 
@@ -428,7 +454,7 @@ const OverviewTab = () => {
           <h3 className="text-lg font-semibold text-white mb-4">
             Quick Actions
           </h3>{" "}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action) => (
               <Link
                 key={action.label}

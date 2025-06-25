@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
   FaShieldAlt,
@@ -25,7 +25,6 @@ import {
   selectNewlyCreatedKey,
   clearNewlyCreatedKey,
 } from "@redux/slices/apiKeySlice";
-import { fetchProviders } from "@redux/slices/authSlice";
 import { get2FAStatus } from "@redux/slices/twoFactorSlice";
 import { useModal } from "@context/ModalContext";
 import {
@@ -38,9 +37,7 @@ import {
 const SecurityTab = () => {
   const dispatch = useDispatch();
   const { openModal, closeModal } = useModal(); // Get all required data from Redux state
-  const { user: authUser, providers: linkedProviders } = useSelector(
-    (state) => state.auth
-  );
+  const { user: authUser } = useSelector((state) => state.auth);
   const apiKeys = useSelector(selectApiKeys);
   const apiKeyLoading = useSelector(selectApiKeyLoading);
   const newlyCreatedKey = useSelector(selectNewlyCreatedKey);
@@ -51,6 +48,30 @@ const SecurityTab = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   // Compute loading states
   const isCreatingKey = apiKeyLoading.create;
+
+  // Extract OAuth providers from user data (new structure)
+  const linkedProviders = useMemo(() => {
+    if (!authUser) return {};
+
+    const providers = {};
+
+    // Check git providers
+    if (authUser.gitProviders) {
+      providers.github = authUser.gitProviders.github?.isConnected || false;
+      providers.gitlab = authUser.gitProviders.gitlab?.isConnected || false;
+      providers.azureDevOps =
+        authUser.gitProviders.azureDevOps?.isConnected || false;
+      providers.bitbucket =
+        authUser.gitProviders.bitbucket?.isConnected || false;
+    }
+
+    // Check Google OAuth
+    if (authUser.google?.email) {
+      providers.google = true;
+    }
+
+    return providers;
+  }, [authUser]);
 
   // Calculate security score using utility
   const securityScore = calculateSecurityScore({
@@ -66,7 +87,6 @@ const SecurityTab = () => {
       try {
         await Promise.allSettled([
           dispatch(fetchApiKeys()),
-          dispatch(fetchProviders()),
           dispatch(get2FAStatus()),
         ]);
       } catch (error) {
