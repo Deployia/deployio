@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   FaGithub,
   FaGitlab,
   FaBitbucket,
   FaMicrosoft,
   FaPlus,
-  FaCog,
   FaTrash,
   FaClock,
   FaCheckCircle,
@@ -20,9 +20,10 @@ const ProviderCard = ({
   connection,
   onConnect,
   onDisconnect,
-  onManage,
+  onManage: _onManage, // Keep for backward compatibility but unused
   isRefreshing,
 }) => {
+  const navigate = useNavigate();
   const getProviderIcon = () => {
     switch (provider.id) {
       case "github":
@@ -81,7 +82,8 @@ const ProviderCard = ({
     }
 
     if (isConnected) {
-      onManage(provider);
+      // Navigate to detailed integration page for connected providers
+      navigate(`/dashboard/integrations/${provider.id}`);
     } else {
       onConnect(provider);
     }
@@ -255,10 +257,8 @@ const ProviderCard = ({
               disabled={isRefreshing}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
             >
-              <FaCog
-                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              <span>Manage</span>
+              <FaEye className="w-4 h-4" />
+              <span>View Details</span>
             </button>
 
             <button

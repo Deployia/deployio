@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaGithub,
@@ -18,8 +19,15 @@ import {
   clearRepositorySearch,
 } from "@redux/slices/gitProviderSlice";
 
-const RepositorySection = ({ connectedProviders, repositories }) => {
+const RepositorySection = ({
+  connectedProviders,
+  repositories,
+  maxHeight = "400px",
+  showViewAllButton = true,
+  className = "",
+}) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [expandedProvider, setExpandedProvider] = useState(null);
   const [searchQueries, setSearchQueries] = useState({});
 
@@ -100,12 +108,16 @@ const RepositorySection = ({ connectedProviders, repositories }) => {
     }
   };
 
+  // Remove unused function warning by keeping it for potential future use
+  // eslint-disable-next-line no-unused-vars
+  const _handleLoadMore = handleLoadMore;
+
   if (connectedProviders.length === 0) {
     return null;
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${className}`}>
       <div className="flex items-center gap-3">
         <div className="p-2 bg-green-500/20 rounded-lg">
           <FaFolder className="w-5 h-5 text-green-400" />
@@ -120,7 +132,7 @@ const RepositorySection = ({ connectedProviders, repositories }) => {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4" style={{ maxHeight, overflowY: "auto" }}>
         {connectedProviders.map((connection) => {
           const { provider } = connection;
           const repoData = repositories[provider];
@@ -159,20 +171,16 @@ const RepositorySection = ({ connectedProviders, repositories }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <FaSyncAlt
+                    className={`w-4 h-4 text-gray-400 hover:text-blue-400 transition-colors cursor-pointer ${
+                      repoData?.loading ? "animate-spin" : ""
+                    }`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRefresh(provider);
                     }}
-                    className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
                     title="Refresh repositories"
-                  >
-                    <FaSyncAlt
-                      className={`w-4 h-4 ${
-                        repoData?.loading ? "animate-spin" : ""
-                      }`}
-                    />
-                  </button>
+                  />
                   <FaChevronDown
                     className={`w-4 h-4 text-gray-400 transition-transform ${
                       isExpanded ? "rotate-180" : ""
@@ -223,7 +231,8 @@ const RepositorySection = ({ connectedProviders, repositories }) => {
                       </div>
                     ) : repoData?.data?.length > 0 ? (
                       <div className="space-y-3">
-                        {repoData.data.map((repo) => (
+                        {/* Show only first 3 repositories for preview */}
+                        {repoData.data.slice(0, 3).map((repo) => (
                           <RepositoryCard
                             key={repo.id}
                             repository={repo}
@@ -231,20 +240,17 @@ const RepositorySection = ({ connectedProviders, repositories }) => {
                           />
                         ))}
 
-                        {/* Load More Button */}
-                        {repoData?.pagination?.hasMore && (
+                        {/* View All Button */}
+                        {showViewAllButton && (
                           <div className="pt-4 border-t border-neutral-800/50">
                             <button
-                              onClick={() => handleLoadMore(provider)}
-                              disabled={repoData.loading}
-                              className="w-full py-2 px-4 bg-neutral-800 text-gray-300 rounded-lg hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() =>
+                                navigate(`/dashboard/integrations/${provider}`)
+                              }
+                              className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                             >
-                              {repoData.loading
-                                ? "Loading..."
-                                : `Load More (${
-                                    repoData.pagination.totalCount -
-                                    repoData.data.length
-                                  } remaining)`}
+                              View All {repoData.data.length} {provider}{" "}
+                              Repositories
                             </button>
                           </div>
                         )}

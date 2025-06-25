@@ -34,6 +34,7 @@ const Analytics = lazy(() => import("@dashboard/Analytics"));
 const Activity = lazy(() => import("@dashboard/Activity"));
 const Monitoring = lazy(() => import("@dashboard/Monitoring"));
 const Integrations = lazy(() => import("@dashboard/Integrations"));
+const IntegrationsDetail = lazy(() => import("@dashboard/IntegrationsDetail"));
 const Profile = lazy(() => import("@dashboard/Profile"));
 
 // Support Pages
@@ -215,6 +216,10 @@ function App() {
                 <Route path="api-tester" element={<APITester />} />
                 <Route path="monitoring" element={<Monitoring />} />
                 <Route path="integrations" element={<Integrations />} />
+                <Route
+                  path="integrations/:provider"
+                  element={<IntegrationsDetail />}
+                />
                 <Route path="profile" element={<Profile />} />
               </Route>
             </Route>

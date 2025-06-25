@@ -30,7 +30,6 @@ import {
   CategoryTabs,
   ConnectedProvidersSummary,
   IntegrationsGrid,
-  RepositorySection,
 } from "@components/integrations";
 import { useGitProviders } from "@hooks/useGitProviders";
 import {
@@ -554,16 +553,6 @@ const Integrations = () => {
             refreshingProvider={ui.refreshingProvider}
           />
         </motion.div>
-
-        {/* Repository Section for Connected Providers */}
-        {connectedProviders.length > 0 && (
-          <motion.div variants={itemVariants}>
-            <RepositorySection
-              connectedProviders={connectedProviders}
-              repositories={repositories}
-            />
-          </motion.div>
-        )}
       </motion.div>
     </div>
   );
