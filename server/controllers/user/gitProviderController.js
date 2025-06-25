@@ -198,7 +198,7 @@ const getRepositories = async (req, res) => {
       search,
     };
 
-    const repositories = await GitProviderService.getRepositories(
+    const result = await GitProviderService.getRepositories(
       req.user._id,
       provider,
       options
@@ -206,7 +206,19 @@ const getRepositories = async (req, res) => {
 
     res.json({
       success: true,
-      data: repositories,
+      data: {
+        provider,
+        repositories: result.repositories,
+        pagination: {
+          page: result.pagination.page,
+          totalPages: result.pagination.has_more
+            ? result.pagination.page + 1
+            : result.pagination.page,
+          totalCount: result.pagination.total_count,
+          hasMore: result.pagination.has_more,
+          perPage: result.pagination.per_page,
+        },
+      },
     });
   } catch (error) {
     res.status(500).json({

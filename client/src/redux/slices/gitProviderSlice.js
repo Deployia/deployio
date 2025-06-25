@@ -318,20 +318,32 @@ const gitProviderSlice = createSlice({
       .addCase(fetchConnectedProviders.fulfilled, (state, action) => {
         state.ui.connectionsLoading = false;
 
-        // Update connection status for each provider
-        if (action.payload.connections) {
-          Object.entries(action.payload.connections).forEach(
-            ([provider, data]) => {
-              if (state.connections[provider]) {
-                updateConnectionState(state, provider, {
-                  connected: data.connected || false,
-                  username: data.username || null,
-                  avatar: data.avatar || null,
-                  lastSync: data.lastSync || null,
-                });
-              }
+        // Reset all connections to disconnected first
+        Object.keys(state.connections).forEach((provider) => {
+          state.connections[provider].connected = false;
+          state.connections[provider].username = null;
+          state.connections[provider].avatar = null;
+          state.connections[provider].lastSync = null;
+        });
+
+        // Update connection status from the array of connected providers
+        if (action.payload.data && Array.isArray(action.payload.data)) {
+          action.payload.data.forEach((providerData) => {
+            const provider = providerData.provider;
+            if (state.connections[provider]) {
+              updateConnectionState(state, provider, {
+                connected: true,
+                username:
+                  providerData.username || providerData.displayName || null,
+                avatar: providerData.avatar || null,
+                lastSync:
+                  providerData.lastUsed || providerData.connectedAt || null,
+                email: providerData.email || null,
+                scopes: providerData.scopes || [],
+                connectedAt: providerData.connectedAt || null,
+              });
             }
-          );
+          });
         }
       })
       .addCase(fetchConnectedProviders.rejected, (state, action) => {
@@ -347,25 +359,37 @@ const gitProviderSlice = createSlice({
       .addCase(fetchDetailedConnectionStatus.fulfilled, (state, action) => {
         state.ui.connectionsLoading = false;
 
-        // Update detailed connection information
-        if (action.payload.providers) {
-          Object.entries(action.payload.providers).forEach(
-            ([provider, data]) => {
-              if (state.connections[provider]) {
-                updateConnectionState(state, provider, {
-                  connected: data.connected || false,
-                  username: data.username || null,
-                  avatar: data.avatar || null,
-                  lastSync: data.lastSync || null,
-                  repositories: data.repositories || {
-                    count: 0,
-                    private: 0,
-                    public: 0,
-                  },
-                });
-              }
+        // Reset all connections to disconnected first
+        Object.keys(state.connections).forEach((provider) => {
+          state.connections[provider].connected = false;
+          state.connections[provider].username = null;
+          state.connections[provider].avatar = null;
+          state.connections[provider].lastSync = null;
+        });
+
+        // Update detailed connection information from the array
+        if (action.payload.data && Array.isArray(action.payload.data)) {
+          action.payload.data.forEach((providerData) => {
+            const provider = providerData.provider;
+            if (state.connections[provider]) {
+              updateConnectionState(state, provider, {
+                connected: true,
+                username:
+                  providerData.username || providerData.displayName || null,
+                avatar: providerData.avatar || null,
+                lastSync:
+                  providerData.lastUsed || providerData.connectedAt || null,
+                email: providerData.email || null,
+                scopes: providerData.scopes || [],
+                connectedAt: providerData.connectedAt || null,
+                repositories: {
+                  count: 0,
+                  private: 0,
+                  public: 0,
+                },
+              });
             }
-          );
+          });
         }
       })
       .addCase(fetchDetailedConnectionStatus.rejected, (state, action) => {

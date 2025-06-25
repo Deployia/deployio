@@ -85,17 +85,7 @@ passport.use("github-integration", githubIntegrationStrategy); // For full Git i
 passport.use("gitlab-integration", gitlabIntegrationStrategy); // For repository access only
 passport.use("azuredevops-integration", azureDevOpsIntegrationStrategy); // For repository access only
 
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (err) {
-    done(err, null);
-  }
-});
+// Note: No serializeUser/deserializeUser for stateless JWT authentication
+// These are only needed for session-based authentication
 
 module.exports = passport;

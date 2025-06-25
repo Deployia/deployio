@@ -22,27 +22,38 @@ class GitHubProvider extends BaseGitProvider {
 
   async getRepositories(options = {}) {
     const {
-      type = "owner", // owner, member, public, private
       sort = "updated",
       direction = "desc",
       visibility = "all", // all, public, private
       affiliation = "owner,collaborator", // owner, collaborator, organization_member
-      perPage = 30,
-      maxPages = 5,
+      page = 1,
+      per_page = 30,
     } = options;
 
     const endpoint = "/user/repos";
     const params = {
-      type,
       sort,
       direction,
       visibility,
       affiliation,
-      per_page: perPage,
+      page,
+      per_page,
     };
 
-    const repos = await this.getAllPages(endpoint, { params, maxPages });
-    return repos.map((repo) => this.normalizeRepository(repo));
+    const response = await this.makeRequest(endpoint, { params });
+
+    // GitHub API returns an array of repositories
+    const repositories = Array.isArray(response) ? response : [];
+
+    return {
+      repositories: repositories.map((repo) => this.normalizeRepository(repo)),
+      pagination: {
+        page: parseInt(page),
+        per_page: parseInt(per_page),
+        total_count: repositories.length,
+        has_more: repositories.length === parseInt(per_page),
+      },
+    };
   }
 
   async getRepository(owner, repo) {

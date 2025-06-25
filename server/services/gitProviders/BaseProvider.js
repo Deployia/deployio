@@ -101,7 +101,7 @@ class BaseGitProvider {
     };
   }
 
-  // HTTP request helper
+  // HTTP request helper with retry logic for network issues
   async makeRequest(endpoint, options = {}) {
     const axios = require("axios");
 
@@ -114,19 +114,71 @@ class BaseGitProvider {
       },
       params: options.params,
       data: options.data,
+      timeout: 30000, // 30 second timeout
     };
 
-    try {
-      const response = await axios(config);
-      return response.data;
-    } catch (error) {
-      console.error(`${this.constructor.name} API Error:`, {
-        endpoint,
-        status: error.response?.status,
-        message: error.response?.data?.message || error.message,
-      });
-      throw error;
+    const maxRetries = 3;
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `${this.constructor.name} API Request (attempt ${attempt}):`,
+          {
+            endpoint,
+            url: config.url,
+            method: config.method,
+          }
+        );
+
+        const response = await axios(config);
+
+        if (attempt > 1) {
+          console.log(
+            `${this.constructor.name} API Success on retry attempt ${attempt}`
+          );
+        }
+
+        return response.data;
+      } catch (error) {
+        lastError = error;
+
+        const isNetworkError =
+          error.code === "ENOTFOUND" ||
+          error.code === "ECONNREFUSED" ||
+          error.code === "ETIMEDOUT" ||
+          error.message.includes("getaddrinfo");
+
+        console.error(
+          `${this.constructor.name} API Error (attempt ${attempt}):`,
+          {
+            endpoint,
+            status: error.response?.status,
+            code: error.code,
+            message: error.response?.data?.message || error.message,
+            isNetworkError,
+            willRetry: isNetworkError && attempt < maxRetries,
+          }
+        );
+
+        // Only retry on network errors, not on API errors (4xx, 5xx responses)
+        if (!isNetworkError || attempt === maxRetries) {
+          break;
+        }
+
+        // Wait before retrying (exponential backoff)
+        const delay = Math.pow(2, attempt - 1) * 1000;
+        console.log(`${this.constructor.name} Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
+
+    console.error(`${this.constructor.name} API Error (final):`, {
+      endpoint,
+      status: lastError.response?.status,
+      message: lastError.response?.data?.message || lastError.message,
+    });
+    throw lastError;
   }
 
   // Pagination helper

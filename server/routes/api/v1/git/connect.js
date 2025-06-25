@@ -29,11 +29,12 @@ router.get(
   "/github",
   protect,
   getRateLimiters().oauthInit,
-  git.connect.initiateConnection('github'),
+  git.connect.initiateConnection("github"),
   (req, res, next) => {
     passport.authenticate("github-integration", {
+      session: false, // Disable session usage
       scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"],
-      state: req.oauthState
+      state: req.oauthState,
     })(req, res, next);
   }
 );
@@ -43,11 +44,12 @@ router.get(
   "/gitlab",
   protect,
   getRateLimiters().oauthInit,
-  git.connect.initiateConnection('gitlab'),
+  git.connect.initiateConnection("gitlab"),
   (req, res, next) => {
     passport.authenticate("gitlab-integration", {
+      session: false, // Disable session usage
       scope: ["read_user", "read_repository", "api"],
-      state: req.oauthState
+      state: req.oauthState,
     })(req, res, next);
   }
 );
@@ -57,11 +59,12 @@ router.get(
   "/azuredevops",
   protect,
   getRateLimiters().oauthInit,
-  git.connect.initiateConnection('azuredevops'),
+  git.connect.initiateConnection("azuredevops"),
   (req, res, next) => {
     passport.authenticate("azuredevops-integration", {
+      session: false, // Disable session usage
       scope: ["vso.code", "vso.identity", "vso.project"],
-      state: req.oauthState
+      state: req.oauthState,
     })(req, res, next);
   }
 );
@@ -77,18 +80,22 @@ router.get(
   (req, res, next) => {
     // Validate state parameter exists
     if (!req.query.state) {
-      const frontUrl = process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+      const frontUrl =
+        process.env.NODE_ENV === "development"
+          ? process.env.FRONTEND_URL_DEV
+          : process.env.FRONTEND_URL_PROD;
       return res.redirect(
         `${frontUrl}/dashboard/integrations?connected=github&status=error&error=missing_state`
       );
     }
-    
+
     passport.authenticate("github-integration", {
-      failureRedirect: `${process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD}/dashboard/integrations?connected=github&status=error&error=auth_failed`
+      session: false, // Disable session usage
+      failureRedirect: `${
+        process.env.NODE_ENV === "development"
+          ? process.env.FRONTEND_URL_DEV
+          : process.env.FRONTEND_URL_PROD
+      }/dashboard/integrations?connected=github&status=error&error=auth_failed`,
     })(req, res, next);
   },
   git.connect.connectGitHub
@@ -100,18 +107,22 @@ router.get(
   getRateLimiters().oauthCallback,
   (req, res, next) => {
     if (!req.query.state) {
-      const frontUrl = process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+      const frontUrl =
+        process.env.NODE_ENV === "development"
+          ? process.env.FRONTEND_URL_DEV
+          : process.env.FRONTEND_URL_PROD;
       return res.redirect(
         `${frontUrl}/dashboard/integrations?connected=gitlab&status=error&error=missing_state`
       );
     }
-    
+
     passport.authenticate("gitlab-integration", {
-      failureRedirect: `${process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD}/dashboard/integrations?connected=gitlab&status=error&error=auth_failed`
+      session: false, // Disable session usage
+      failureRedirect: `${
+        process.env.NODE_ENV === "development"
+          ? process.env.FRONTEND_URL_DEV
+          : process.env.FRONTEND_URL_PROD
+      }/dashboard/integrations?connected=gitlab&status=error&error=auth_failed`,
     })(req, res, next);
   },
   git.connect.connectGitLab
@@ -123,18 +134,22 @@ router.get(
   getRateLimiters().oauthCallback,
   (req, res, next) => {
     if (!req.query.state) {
-      const frontUrl = process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
+      const frontUrl =
+        process.env.NODE_ENV === "development"
+          ? process.env.FRONTEND_URL_DEV
+          : process.env.FRONTEND_URL_PROD;
       return res.redirect(
         `${frontUrl}/dashboard/integrations?connected=azuredevops&status=error&error=missing_state`
       );
     }
-    
+
     passport.authenticate("azuredevops-integration", {
-      failureRedirect: `${process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD}/dashboard/integrations?connected=azuredevops&status=error&error=auth_failed`
+      session: false, // Disable session usage
+      failureRedirect: `${
+        process.env.NODE_ENV === "development"
+          ? process.env.FRONTEND_URL_DEV
+          : process.env.FRONTEND_URL_PROD
+      }/dashboard/integrations?connected=azuredevops&status=error&error=auth_failed`,
     })(req, res, next);
   },
   git.connect.connectAzureDevOps

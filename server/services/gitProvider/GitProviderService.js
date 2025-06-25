@@ -6,6 +6,56 @@ const GitProviderFactory = require("@services/gitProviders/ProviderFactory");
 
 class GitProviderService {
   /**
+   * Helper method to check if user has valid token for provider
+   */
+  static _hasValidGitProviderToken(user, provider) {
+    console.log(`Checking token validity for ${provider}:`, {
+      hasGitProviders: !!user.gitProviders,
+      hasProvider: !!(user.gitProviders && user.gitProviders[provider]),
+      providerData:
+        user.gitProviders && user.gitProviders[provider]
+          ? {
+              isConnected: user.gitProviders[provider].isConnected,
+              hasAccessToken: !!user.gitProviders[provider].accessToken,
+              tokenExpiry: user.gitProviders[provider].tokenExpiry,
+              isTokenExpired: user.gitProviders[provider].tokenExpiry
+                ? user.gitProviders[provider].tokenExpiry <= new Date()
+                : false,
+            }
+          : null,
+    });
+
+    if (!user.gitProviders || !user.gitProviders[provider]) {
+      return false;
+    }
+    const providerData = user.gitProviders[provider];
+    return (
+      providerData.isConnected &&
+      providerData.accessToken &&
+      (!providerData.tokenExpiry || providerData.tokenExpiry > new Date())
+    );
+  }
+
+  /**
+   * Helper method to get git provider token
+   */
+  static _getGitProviderToken(user, provider) {
+    if (!user.gitProviders || !user.gitProviders[provider]) {
+      throw new Error(`No ${provider} provider connected`);
+    }
+    return user.gitProviders[provider].accessToken;
+  }
+
+  /**
+   * Helper method to update provider last used timestamp
+   */
+  static _updateProviderLastUsed(user, provider) {
+    if (user.gitProviders && user.gitProviders[provider]) {
+      user.gitProviders[provider].lastUsed = new Date();
+    }
+  }
+
+  /**
    * Get user's connected Git providers
    */
   static async getConnectedProviders(userId) {
@@ -27,7 +77,7 @@ class GitProviderService {
           avatar: providerData.avatarUrl,
           connectedAt: providerData.connectedAt,
           lastUsed: providerData.lastUsed,
-          hasValidToken: user.hasValidGitProviderToken(providerName),
+          hasValidToken: this._hasValidGitProviderToken(user, providerName),
           scopes: providerData.scopes || [],
         };
       });
@@ -51,13 +101,54 @@ class GitProviderService {
         throw new Error(`Unsupported provider: ${provider}`);
       }
 
-      // Store provider connection
-      await user.setGitProviderToken(
-        provider,
-        tokenData.accessToken,
-        tokenData.refreshToken
-      );
-      await user.updateGitProviderInfo(provider, userInfo);
+      // Initialize gitProviders object if it doesn't exist
+      if (!user.gitProviders) {
+        user.gitProviders = {};
+      }
+
+      // Initialize provider object if it doesn't exist
+      if (!user.gitProviders[provider]) {
+        user.gitProviders[provider] = {};
+      } // Store provider connection data
+      const providerData = user.gitProviders[provider];
+
+      console.log(`Storing token data for ${provider}:`, {
+        hasAccessToken: !!tokenData.accessToken,
+        hasRefreshToken: !!tokenData.refreshToken,
+        tokenExpiry: tokenData.tokenExpiry,
+        scopes: tokenData.scopes,
+      });
+
+      // Update token data
+      providerData.accessToken = tokenData.accessToken;
+      if (tokenData.refreshToken) {
+        providerData.refreshToken = tokenData.refreshToken;
+      }
+      if (tokenData.tokenExpiry) {
+        providerData.tokenExpiry = tokenData.tokenExpiry;
+      }
+      if (tokenData.scopes) {
+        providerData.scopes = tokenData.scopes;
+      }
+
+      // Update user info
+      if (userInfo) {
+        if (userInfo.id) providerData.id = userInfo.id;
+        if (userInfo.username) providerData.username = userInfo.username;
+        if (userInfo.email) providerData.email = userInfo.email;
+        if (userInfo.name || userInfo.displayName) {
+          providerData.name = userInfo.name || userInfo.displayName;
+        }
+        if (userInfo.avatarUrl) providerData.avatarUrl = userInfo.avatarUrl;
+        if (userInfo.profileUrl) providerData.profileUrl = userInfo.profileUrl;
+      }
+
+      // Mark as connected
+      providerData.isConnected = true;
+      providerData.connectedAt = new Date();
+
+      // Save the user
+      await user.save();
 
       return {
         success: true,
@@ -102,23 +193,30 @@ class GitProviderService {
    */
   static async testConnection(userId, provider) {
     try {
-      const user = await User.findById(userId);
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
       if (!user) {
         throw new Error("User not found");
       }
 
-      if (!user.hasValidGitProviderToken(provider)) {
+      if (!this._hasValidGitProviderToken(user, provider)) {
         throw new Error("No valid token for provider");
       }
 
-      const providerInstance = GitProviderFactory.createProvider(provider);
-      const token = await user.getGitProviderToken(provider);
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
+      );
 
       // Test connection by fetching user info
-      const userInfo = await providerInstance.getCurrentUser(token);
+      const userInfo = await providerInstance.getCurrentUser();
 
       // Update last used timestamp
-      await user.updateLastUsed(provider);
+      this._updateProviderLastUsed(user, provider);
+      await user.save();
 
       return {
         success: true,
@@ -141,25 +239,47 @@ class GitProviderService {
    */
   static async getRepositories(userId, provider, options = {}) {
     try {
-      const user = await User.findById(userId);
+      // Make sure to select the access tokens since they have select: false in schema
+      // For nested fields with select: false, we need to explicitly include them
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
       if (!user) {
         throw new Error("User not found");
       }
 
-      if (!user.hasValidGitProviderToken(provider)) {
+      console.log(`Getting repositories for ${provider}:`, {
+        userId,
+        hasGitProviders: !!user.gitProviders,
+        hasProvider: !!(user.gitProviders && user.gitProviders[provider]),
+        providerKeys: user.gitProviders ? Object.keys(user.gitProviders) : [],
+        providerData:
+          user.gitProviders && user.gitProviders[provider]
+            ? {
+                isConnected: user.gitProviders[provider].isConnected,
+                hasAccessToken: !!user.gitProviders[provider].accessToken,
+                accessTokenLength: user.gitProviders[provider].accessToken
+                  ? user.gitProviders[provider].accessToken.length
+                  : 0,
+              }
+            : null,
+      });
+
+      if (!this._hasValidGitProviderToken(user, provider)) {
         throw new Error("No valid token for provider");
       }
 
-      const providerInstance = GitProviderFactory.createProvider(provider);
-      const token = await user.getGitProviderToken(provider);
-
-      const repositories = await providerInstance.getRepositories(
-        token,
-        options
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
       );
 
+      const repositories = await providerInstance.getRepositories(options);
+
       // Update last used timestamp
-      await user.updateLastUsed(provider);
+      this._updateProviderLastUsed(user, provider);
+      await user.save();
 
       return repositories;
     } catch (error) {
@@ -172,25 +292,29 @@ class GitProviderService {
    */
   static async getRepository(userId, provider, repoFullName) {
     try {
-      const user = await User.findById(userId);
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
       if (!user) {
         throw new Error("User not found");
       }
 
-      if (!user.hasValidGitProviderToken(provider)) {
+      if (!this._hasValidGitProviderToken(user, provider)) {
         throw new Error("No valid token for provider");
       }
 
-      const providerInstance = GitProviderFactory.createProvider(provider);
-      const token = await user.getGitProviderToken(provider);
-
-      const repository = await providerInstance.getRepository(
-        token,
-        repoFullName
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
       );
 
+      const repository = await providerInstance.getRepository(repoFullName);
+
       // Update last used timestamp
-      await user.updateLastUsed(provider);
+      this._updateProviderLastUsed(user, provider);
+      await user.save();
 
       return repository;
     } catch (error) {
@@ -203,22 +327,29 @@ class GitProviderService {
    */
   static async getBranches(userId, provider, repoFullName) {
     try {
-      const user = await User.findById(userId);
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
       if (!user) {
         throw new Error("User not found");
       }
 
-      if (!user.hasValidGitProviderToken(provider)) {
+      if (!this._hasValidGitProviderToken(user, provider)) {
         throw new Error("No valid token for provider");
       }
 
-      const providerInstance = GitProviderFactory.createProvider(provider);
-      const token = await user.getGitProviderToken(provider);
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
+      );
 
-      const branches = await providerInstance.getBranches(token, repoFullName);
+      const branches = await providerInstance.getBranches(repoFullName);
 
       // Update last used timestamp
-      await user.updateLastUsed(provider);
+      this._updateProviderLastUsed(user, provider);
+      await user.save();
 
       return branches;
     } catch (error) {
@@ -236,26 +367,32 @@ class GitProviderService {
     branch = "main"
   ) {
     try {
-      const user = await User.findById(userId);
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
       if (!user) {
         throw new Error("User not found");
       }
 
-      if (!user.hasValidGitProviderToken(provider)) {
+      if (!this._hasValidGitProviderToken(user, provider)) {
         throw new Error("No valid token for provider");
       }
 
-      const providerInstance = GitProviderFactory.createProvider(provider);
-      const token = await user.getGitProviderToken(provider);
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
+      );
 
       const analysis = await providerInstance.analyzeRepository(
-        token,
         repoFullName,
         branch
       );
 
       // Update last used timestamp
-      await user.updateLastUsed(provider);
+      this._updateProviderLastUsed(user, provider);
+      await user.save();
 
       return analysis;
     } catch (error) {
@@ -268,25 +405,42 @@ class GitProviderService {
    */
   static async refreshToken(userId, provider) {
     try {
-      const user = await User.findById(userId);
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
       if (!user) {
         throw new Error("User not found");
       }
 
-      const refreshToken = await user.getGitProviderRefreshToken(provider);
+      const refreshToken = user.gitProviders[provider]?.refreshToken;
       if (!refreshToken) {
         throw new Error("No refresh token available");
       }
 
-      const providerInstance = GitProviderFactory.createProvider(provider);
-      const newTokens = await providerInstance.refreshToken(refreshToken);
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        refreshToken
+      );
+      const newTokens = await providerInstance.refreshToken();
 
       // Update stored tokens
-      await user.setGitProviderToken(
-        provider,
-        newTokens.accessToken,
-        newTokens.refreshToken
-      );
+      if (!user.gitProviders) {
+        user.gitProviders = {};
+      }
+      if (!user.gitProviders[provider]) {
+        user.gitProviders[provider] = {};
+      }
+
+      user.gitProviders[provider].accessToken = newTokens.accessToken;
+      if (newTokens.refreshToken) {
+        user.gitProviders[provider].refreshToken = newTokens.refreshToken;
+      }
+      if (newTokens.tokenExpiry) {
+        user.gitProviders[provider].tokenExpiry = newTokens.tokenExpiry;
+      }
+
+      await user.save();
 
       return {
         success: true,
@@ -319,7 +473,7 @@ class GitProviderService {
         lastUsed: providerData.lastUsed,
         totalRepositories: providerData.repositoryCount || 0,
         organizationCount: providerData.organizationCount || 0,
-        hasValidToken: user.hasValidGitProviderToken(provider),
+        hasValidToken: this._hasValidGitProviderToken(user, provider),
       };
     } catch (error) {
       throw new Error(`Failed to get provider stats: ${error.message}`);
@@ -331,20 +485,45 @@ class GitProviderService {
    */
   static async updateProviderInfo(userId, provider) {
     try {
-      const user = await User.findById(userId);
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
       if (!user) {
         throw new Error("User not found");
       }
 
-      if (!user.hasValidGitProviderToken(provider)) {
+      if (!this._hasValidGitProviderToken(user, provider)) {
         throw new Error("No valid token for provider");
       }
 
-      const providerInstance = GitProviderFactory.createProvider(provider);
-      const token = await user.getGitProviderToken(provider);
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
+      );
 
-      const userInfo = await providerInstance.getCurrentUser(token);
-      await user.updateGitProviderInfo(provider, userInfo);
+      const userInfo = await providerInstance.getCurrentUser();
+
+      // Update provider info directly
+      if (!user.gitProviders) {
+        user.gitProviders = {};
+      }
+      if (!user.gitProviders[provider]) {
+        user.gitProviders[provider] = {};
+      }
+
+      const providerData = user.gitProviders[provider];
+      if (userInfo.id) providerData.id = userInfo.id;
+      if (userInfo.username) providerData.username = userInfo.username;
+      if (userInfo.email) providerData.email = userInfo.email;
+      if (userInfo.name || userInfo.displayName) {
+        providerData.name = userInfo.name || userInfo.displayName;
+      }
+      if (userInfo.avatarUrl) providerData.avatarUrl = userInfo.avatarUrl;
+      if (userInfo.profileUrl) providerData.profileUrl = userInfo.profileUrl;
+
+      await user.save();
 
       return {
         success: true,
