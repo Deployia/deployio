@@ -4,7 +4,10 @@ const User = require("../models/User");
 const crypto = require("crypto");
 
 // Import enhanced Git provider strategies
-const githubStrategy = require("./strategies/githubStrategy");
+const {
+  githubBasicStrategy,
+  githubIntegrationStrategy,
+} = require("./strategies/githubStrategy");
 const gitlabStrategy = require("./strategies/gitlabStrategy");
 const azureDevOpsStrategy = require("./strategies/azureDevOpsStrategy");
 
@@ -75,7 +78,8 @@ passport.use(
 );
 
 // Enhanced Git Provider OAuth Strategies
-passport.use("github", githubStrategy);
+passport.use("github-basic", githubBasicStrategy); // For basic login
+passport.use("github-integration", githubIntegrationStrategy); // For full Git integration
 passport.use("gitlab", gitlabStrategy);
 passport.use("azuredevops", azureDevOpsStrategy);
 

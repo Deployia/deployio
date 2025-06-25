@@ -8,18 +8,19 @@ function sanitizeUsername(username) {
   return username.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
 }
 
-const githubStrategy = new GitHubStrategy(
+// Basic Login Strategy (limited scopes)
+const githubBasicStrategy = new GitHubStrategy(
   {
     clientID: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
     callbackURL:
       process.env.GITHUB_CALLBACK_URL ||
-      `${process.env.BASE_URL}/auth/github/callback`,
-    scope: ["user:email", "repo", "workflow", "admin:repo_hook"],
+      `${process.env.BASE_URL}/api/v1/users/auth/github/callback`,
+    scope: ["user:email"], // Limited scope for basic login
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      console.log("GitHub OAuth Profile:", {
+      console.log("GitHub Basic OAuth Profile:", {
         id: profile.id,
         username: profile.username,
         email: profile.emails?.[0]?.value,
@@ -34,123 +35,76 @@ const githubStrategy = new GitHubStrategy(
           // Link GitHub to existing account
           user.githubId = profile.id;
           user.isEmailVerified = true;
-
-          // Initialize gitProviders if not exists
-          if (!user.gitProviders) {
-            user.gitProviders = {};
-          }
-
-          // Set GitHub provider data
-          user.gitProviders.github = {
-            id: profile.id,
-            username: profile.username,
-            email: profile.emails[0].value,
-            avatarUrl: profile.photos?.[0]?.value,
-            profileUrl: profile.profileUrl,
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-            tokenExpiry: refreshToken
-              ? new Date(Date.now() + 8 * 60 * 60 * 1000)
-              : null, // 8 hours
-            scopes: ["user:email", "repo", "workflow", "admin:repo_hook"],
-            repoAccess: {
-              public: true,
-              private: true, // GitHub scope 'repo' includes private repos
-            },
-            isConnected: true,
-            connectedAt: new Date(),
-            lastUsed: new Date(),
-          };
-
-          // Update profile image if changed
-          if (
-            profile.photos &&
-            profile.photos[0] &&
-            user.profileImage !== profile.photos[0].value
-          ) {
-            user.profileImage = profile.photos[0].value;
-          }
-
-          await user.save();
         }
       }
 
-      if (!user) {
-        // Create new user with GitHub account
-        const userData = {
-          username: sanitizeUsername(
-            profile.username ||
-              profile.displayName ||
-              profile.emails?.[0]?.value?.split("@")[0]
-          ),
-          email: profile.emails?.[0]?.value,
-          githubId: profile.id,
-          password: crypto.randomBytes(20).toString("hex"),
-          profileImage: profile.photos?.[0]?.value || "",
-          isEmailVerified: true,
-          status: "active",
-          gitProviders: {
-            github: {
-              id: profile.id,
-              username: profile.username,
-              email: profile.emails?.[0]?.value,
-              avatarUrl: profile.photos?.[0]?.value,
-              profileUrl: profile.profileUrl,
-              accessToken: accessToken,
-              refreshToken: refreshToken,
-              tokenExpiry: refreshToken
-                ? new Date(Date.now() + 8 * 60 * 60 * 1000)
-                : null,
-              scopes: ["user:email", "repo", "workflow", "admin:repo_hook"],
-              repoAccess: {
-                public: true,
-                private: true,
-              },
-              isConnected: true,
-              connectedAt: new Date(),
-              lastUsed: new Date(),
-            },
-          },
-        };
-
-        user = await User.create(userData);
-      } else {
-        // Update existing GitHub connection
-        if (!user.gitProviders) {
-          user.gitProviders = {};
+      if (user) {
+        // Update basic profile info
+        user.lastLogin = new Date();
+        if (!user.profilePicture && profile.photos?.[0]?.value) {
+          user.profilePicture = profile.photos[0].value;
         }
-
-        // Update GitHub provider data
-        user.gitProviders.github = {
-          ...user.gitProviders.github,
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-          tokenExpiry: refreshToken
-            ? new Date(Date.now() + 8 * 60 * 60 * 1000)
-            : null,
-          avatarUrl: profile.photos?.[0]?.value,
-          isConnected: true,
-          lastUsed: new Date(),
-        };
-
-        // Update profile image if changed
-        if (
-          profile.photos &&
-          profile.photos[0] &&
-          user.profileImage !== profile.photos[0].value
-        ) {
-          user.profileImage = profile.photos[0].value;
-        }
-
         await user.save();
-      }
+        return done(null, user, { accessToken, refreshToken });
+      } else {
+        // Create new user with basic GitHub info
+        const emailForUser = profile.emails?.[0]?.value;
+        if (!emailForUser) {
+          return done(
+            new Error("GitHub account must have a public email"),
+            null
+          );
+        }
 
-      return done(null, user);
-    } catch (err) {
-      console.error("GitHub OAuth Error:", err);
-      return done(err, null);
+        const newUser = new User({
+          githubId: profile.id,
+          email: emailForUser,
+          username:
+            sanitizeUsername(profile.username) || `github_${profile.id}`,
+          fullName: profile.displayName || profile.username || "GitHub User",
+          profilePicture: profile.photos?.[0]?.value,
+          isEmailVerified: true,
+          lastLogin: new Date(),
+        });
+
+        await newUser.save();
+        console.log("New user created via GitHub basic auth:", newUser.email);
+        return done(null, newUser, { accessToken, refreshToken });
+      }
+    } catch (error) {
+      console.error("GitHub basic strategy error:", error);
+      return done(error, null);
     }
   }
 );
 
-module.exports = githubStrategy;
+// Full Integration Strategy (comprehensive scopes)
+const githubIntegrationStrategy = new GitHubStrategy(
+  {
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: `${process.env.BASE_URL}/api/v1/git/connect/github/callback`,
+    scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"], // Full scopes
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      console.log("GitHub Integration OAuth Profile:", {
+        id: profile.id,
+        username: profile.username,
+        email: profile.emails?.[0]?.value,
+      });
+
+      // This should only be used for existing authenticated users
+      // The user should be passed via req.user in the route
+      return done(null, profile, { accessToken, refreshToken });
+    } catch (error) {
+      console.error("GitHub integration strategy error:", error);
+      return done(error, null);
+    }
+  }
+);
+
+module.exports = {
+  githubBasicStrategy,
+  githubIntegrationStrategy,
+};
