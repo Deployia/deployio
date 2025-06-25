@@ -1,0 +1,20 @@
+{{> brand}}
+<div class="badge">❌ Deployment Failed</div>
+<div class="main-title">Deployment Failed</div>
+<div class="subtitle">Unfortunately, your deployment for {{projectName}} has failed.</div>
+<div class="card">
+  <h3 style="color:#ef4444;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;font-size:1.2rem;">Deployment Details</h3>
+  <ul style="color:#a3a3a3;font-size:1rem;">
+    <li>Project: {{projectName}}</li>
+    <li>Environment: {{environment}}</li>
+    <li>Failed: {{timestamp}}</li>
+    {{#if errorMessage}}
+      <li style="color:#ef4444;">Error: {{errorMessage}}</li>
+    {{/if}}
+  </ul>
+</div>
+<p>Please check the deployment logs for more details and try again.</p>
+{{#if logsUrl}}
+  {{> button url=logsUrl label="View Logs"}}
+{{/if}}
+{{> button url=(concat appUrl "/projects/" projectName) label="Go to Project"}}

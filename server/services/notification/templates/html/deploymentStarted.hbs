@@ -1,0 +1,16 @@
+{{> brand}}
+<div class="badge">🚀 Deployment Started</div>
+<div class="main-title">Deployment Started</div>
+<div class="subtitle">Your deployment for {{projectName}} has started successfully.</div>
+<div class="card">
+  <h3 style="color:#60a5fa;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;font-size:1.2rem;">Deployment Details</h3>
+  <ul style="color:#a3a3a3;font-size:1rem;">
+    <li>Project: {{projectName}}</li>
+    <li>Environment: {{environment}}</li>
+    <li>Started: {{timestamp}}</li>
+  </ul>
+</div>
+<p>You'll receive another notification once the deployment is complete.</p>
+{{#if deploymentUrl}}
+  {{> button url=deploymentUrl label="View Deployment"}}
+{{/if}}
