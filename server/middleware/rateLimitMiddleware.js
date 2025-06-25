@@ -240,6 +240,67 @@ const createRateLimiters = () => {
         message: "Too many write operations, please try again later.",
       }),
     },
+
+    // Git provider operations
+    gitProviders: {
+      connect: createRateLimiter({
+        windowMs: 60 * 60 * 1000, // 1 hour
+        max: 10, // 10 connection attempts per hour
+        prefix: "git_connect_rl:",
+        message:
+          "Too many Git provider connection attempts, please try again later.",
+      }),
+
+      disconnect: createRateLimiter({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 5, // 5 disconnection attempts per 15 minutes
+        prefix: "git_disconnect_rl:",
+        message: "Too many disconnection attempts, please try again later.",
+      }),
+
+      test: createRateLimiter({
+        windowMs: 5 * 60 * 1000, // 5 minutes
+        max: 10, // 10 connection tests per 5 minutes
+        prefix: "git_test_rl:",
+        message: "Too many connection tests, please try again later.",
+      }),
+
+      refresh: createRateLimiter({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 20, // 20 token refresh attempts per 15 minutes
+        prefix: "git_refresh_rl:",
+        message: "Too many token refresh requests, please try again later.",
+      }),
+
+      update: createRateLimiter({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 10, // 10 provider info updates per 15 minutes
+        prefix: "git_update_rl:",
+        message: "Too many provider update requests, please try again later.",
+      }),
+
+      repositories: createRateLimiter({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 100, // 100 repository requests per 15 minutes
+        prefix: "git_repos_rl:",
+        message: "Too many repository requests, please try again later.",
+      }),
+
+      branches: createRateLimiter({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 200, // 200 branch requests per 15 minutes
+        prefix: "git_branches_rl:",
+        message: "Too many branch requests, please try again later.",
+      }),
+
+      analyze: createRateLimiter({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 20, // 20 repository analyses per 15 minutes
+        prefix: "git_analyze_rl:",
+        message:
+          "Too many repository analysis requests, please try again later.",
+      }),
+    },
   };
 };
 
