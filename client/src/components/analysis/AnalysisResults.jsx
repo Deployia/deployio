@@ -19,7 +19,17 @@ import {
 } from "react-icons/fa";
 
 const AnalysisResults = ({ results }) => {
+  // Debug: Log the results structure
+  console.log("AnalysisResults received:", results);
+
+  if (!results) {
+    return <div className="text-white">No results to display</div>;
+  }
+
+  // Handle potential nested data structure
+  const data = results.data || results;
   const getConfidenceColor = (confidence) => {
+    if (confidence == null) return "text-gray-400";
     if (confidence >= 0.9) return "text-green-400";
     if (confidence >= 0.7) return "text-yellow-400";
     return "text-red-400";
@@ -75,41 +85,43 @@ const AnalysisResults = ({ results }) => {
                 </h2>
                 <p className="text-gray-400">AI-powered repository insights</p>
               </div>
-            </div>
+            </div>{" "}
             <p className="text-gray-300 font-mono text-sm break-all bg-gray-900/50 px-4 py-2 rounded-lg">
-              {results.repository_url}
+              {data.repository_url}
             </p>
-          </div>
-
+          </div>{" "}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="text-center bg-gray-900/50 rounded-xl p-4">
               <div
                 className={`text-2xl font-bold ${getConfidenceColor(
-                  results.confidence_score
+                  data.confidence_score
                 )}`}
               >
-                {Math.round(results.confidence_score * 100)}%
+                {data.confidence_score != null
+                  ? `${Math.round(data.confidence_score * 100)}%`
+                  : "N/A"}
               </div>
               <div className="text-gray-400 text-sm">Confidence</div>
             </div>
             <div className="text-center bg-gray-900/50 rounded-xl p-4">
               <div className="text-2xl font-bold text-blue-400">
-                {Math.round(results.processing_time)}s
+                {data.processing_time != null
+                  ? `${Math.round(data.processing_time)}s`
+                  : "N/A"}
               </div>
               <div className="text-gray-400 text-sm">Processing Time</div>
             </div>
             <div className="text-center bg-gray-900/50 rounded-xl p-4">
               <div className="text-2xl font-bold text-purple-400">
-                {results.llm_used ? "Enhanced" : "Standard"}
+                {data.llm_used ? "Enhanced" : "Standard"}
               </div>
               <div className="text-gray-400 text-sm">Analysis Type</div>
             </div>
           </div>
         </div>
-      </motion.div>
-
+      </motion.div>{" "}
       {/* Technology Stack */}
-      {results.technology_stack && (
+      {data.technology_stack && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -119,11 +131,10 @@ const AnalysisResults = ({ results }) => {
           <div className="flex items-center mb-6">
             <FaLayerGroup className="w-6 h-6 text-blue-400 mr-3" />
             <h3 className="text-2xl font-bold text-white">Technology Stack</h3>
-          </div>
-
+          </div>{" "}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {" "}
-            {Object.entries(results.technology_stack)
+            {Object.entries(data.technology_stack)
               .filter(
                 ([_key, value]) => value && value !== "null" && value !== null
               )
@@ -154,10 +165,9 @@ const AnalysisResults = ({ results }) => {
               })}
           </div>
         </motion.div>
-      )}
-
+      )}{" "}
       {/* Dependencies Overview */}
-      {results.dependency_analysis && (
+      {data.dependency_analysis && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -169,43 +179,41 @@ const AnalysisResults = ({ results }) => {
             <h3 className="text-2xl font-bold text-white">
               Dependencies Analysis
             </h3>
-          </div>
-
+          </div>{" "}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-gray-700/50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-blue-400">
-                {results.dependency_analysis.total_dependencies}
+                {data.dependency_analysis.total_dependencies}
               </div>
               <div className="text-gray-400 text-sm">Total Dependencies</div>
             </div>
             <div className="bg-gray-700/50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-green-400">
-                {results.dependency_analysis.direct_dependencies}
+                {data.dependency_analysis.direct_dependencies}
               </div>
               <div className="text-gray-400 text-sm">Direct</div>
             </div>
             <div className="bg-gray-700/50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-yellow-400">
-                {results.dependency_analysis.outdated_dependencies}
+                {data.dependency_analysis.outdated_dependencies}
               </div>
               <div className="text-gray-400 text-sm">Outdated</div>
             </div>
             <div className="bg-gray-700/50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-red-400">
-                {results.dependency_analysis.security_vulnerabilities}
+                {data.dependency_analysis.security_vulnerabilities}
               </div>
               <div className="text-gray-400 text-sm">Vulnerabilities</div>
             </div>
           </div>
-
-          {results.dependency_analysis.dependencies &&
-            results.dependency_analysis.dependencies.length > 0 && (
+          {data.dependency_analysis.dependencies &&
+            data.dependency_analysis.dependencies.length > 0 && (
               <div>
                 <h4 className="text-lg font-semibold text-white mb-4">
                   Key Dependencies
-                </h4>
+                </h4>{" "}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {results.dependency_analysis.dependencies
+                  {data.dependency_analysis.dependencies
                     .slice(0, 9)
                     .map((dep, index) => (
                       <div
@@ -231,10 +239,9 @@ const AnalysisResults = ({ results }) => {
               </div>
             )}
         </motion.div>
-      )}
-
+      )}{" "}
       {/* Recommendations */}
-      {results.recommendations && results.recommendations.length > 0 && (
+      {data.recommendations && data.recommendations.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -244,10 +251,9 @@ const AnalysisResults = ({ results }) => {
           <div className="flex items-center mb-6">
             <FaChartLine className="w-6 h-6 text-purple-400 mr-3" />
             <h3 className="text-2xl font-bold text-white">Recommendations</h3>
-          </div>
-
+          </div>{" "}
           <div className="space-y-4">
-            {results.recommendations.map((rec, index) => {
+            {data.recommendations.map((rec, index) => {
               const Icon = getTypeIcon(rec.type);
               return (
                 <div
@@ -278,10 +284,9 @@ const AnalysisResults = ({ results }) => {
             })}
           </div>
         </motion.div>
-      )}
-
+      )}{" "}
       {/* AI Insights */}
-      {results.insights && results.insights.length > 0 && (
+      {data.insights && data.insights.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -291,10 +296,9 @@ const AnalysisResults = ({ results }) => {
           <div className="flex items-center mb-6">
             <FaBrain className="w-6 h-6 text-yellow-400 mr-3" />
             <h3 className="text-2xl font-bold text-white">AI Insights</h3>
-          </div>
-
+          </div>{" "}
           <div className="space-y-6">
-            {results.insights.map((insight, index) => (
+            {data.insights.map((insight, index) => (
               <div
                 key={index}
                 className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-6"
@@ -306,11 +310,13 @@ const AnalysisResults = ({ results }) => {
                   <div className="flex items-center">
                     <span className="text-yellow-400 text-sm capitalize mr-3">
                       {insight.category}
-                    </span>
+                    </span>{" "}
                     <div className="flex items-center">
                       <FaStar className="w-4 h-4 text-yellow-400 mr-1" />
                       <span className="text-yellow-400 text-sm">
-                        {Math.round(insight.confidence * 100)}%
+                        {insight.confidence != null
+                          ? `${Math.round(insight.confidence * 100)}%`
+                          : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -333,10 +339,9 @@ const AnalysisResults = ({ results }) => {
             ))}
           </div>
         </motion.div>
-      )}
-
+      )}{" "}
       {/* Detected Files */}
-      {results.detected_files && results.detected_files.length > 0 && (
+      {data.detected_files && data.detected_files.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -346,10 +351,9 @@ const AnalysisResults = ({ results }) => {
           <div className="flex items-center mb-6">
             <FaFileCode className="w-6 h-6 text-indigo-400 mr-3" />
             <h3 className="text-2xl font-bold text-white">Detected Files</h3>
-          </div>
-
+          </div>{" "}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {results.detected_files.map((file, index) => (
+            {data.detected_files.map((file, index) => (
               <div
                 key={index}
                 className="bg-gray-700/30 rounded-lg px-3 py-2 border border-gray-600/20"
@@ -360,7 +364,6 @@ const AnalysisResults = ({ results }) => {
           </div>
         </motion.div>
       )}
-
       {/* Action Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

@@ -54,24 +54,38 @@ const analyzeRepository = async (repositoryUrl, options = {}) => {
         },
       }
     );
-
-    const result = response.data;
+    const result = response.data.data; // Extract the actual data from the response
 
     // Cache for appropriate duration based on user type
     const cacheTime = options.user ? 3600 : 1800; // 1 hour for users, 30 min for demo
     await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
-
     logger.info(`AI repository analysis completed for ${repositoryUrl}`);
     return result;
   } catch (error) {
-    console.log(error);
     logger.error(
       `AI repository analysis failed for ${repositoryUrl}:`,
       error.response?.data?.detail || error.message
     );
 
-    // Return fallback analysis
-    return generateFallbackRepositoryAnalysis(repositoryUrl, error);
+    // Create a clean error object to avoid circular structure issues
+    const cleanError = new Error(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message
+    );
+    cleanError.status = error.response?.status || 500;
+    cleanError.code = error.code;
+
+    // Add response data without circular references
+    if (error.response?.data) {
+      cleanError.responseData = {
+        detail: error.response.data.detail,
+        message: error.response.data.message,
+        status: error.response.status,
+      };
+    }
+
+    throw cleanError;
   }
 };
 
@@ -116,7 +130,6 @@ const detectTechnologyStack = async (repositoryUrl, options = {}) => {
     const result = response.data.data; // Cache for appropriate duration
     const cacheTime = options.user ? 3600 : 1800;
     await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
-
     logger.info(`AI stack detection completed for ${repositoryUrl}`);
     return result;
   } catch (error) {
@@ -125,8 +138,24 @@ const detectTechnologyStack = async (repositoryUrl, options = {}) => {
       error.response?.data?.detail || error.message
     );
 
-    // Return fallback analysis
-    return generateFallbackStackAnalysis(repositoryUrl, error);
+    // Create a clean error object to avoid circular structure issues
+    const cleanError = new Error(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message
+    );
+    cleanError.status = error.response?.status || 500;
+    cleanError.code = error.code;
+
+    if (error.response?.data) {
+      cleanError.responseData = {
+        detail: error.response.data.detail,
+        message: error.response.data.message,
+        status: error.response.status,
+      };
+    }
+
+    throw cleanError;
   }
 };
 
@@ -171,7 +200,6 @@ const analyzeCodeQuality = async (repositoryUrl, options = {}) => {
     const result = response.data.data; // Cache for appropriate duration
     const cacheTime = options.user ? 7200 : 3600; // 2 hours for users, 1 hour for demo
     await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
-
     logger.info(`AI code quality analysis completed for ${repositoryUrl}`);
     return result;
   } catch (error) {
@@ -180,8 +208,24 @@ const analyzeCodeQuality = async (repositoryUrl, options = {}) => {
       error.response?.data?.detail || error.message
     );
 
-    // Return fallback analysis
-    return generateFallbackCodeQualityAnalysis(repositoryUrl, error);
+    // Create a clean error object to avoid circular structure issues
+    const cleanError = new Error(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message
+    );
+    cleanError.status = error.response?.status || 500;
+    cleanError.code = error.code;
+
+    if (error.response?.data) {
+      cleanError.responseData = {
+        detail: error.response.data.detail,
+        message: error.response.data.message,
+        status: error.response.status,
+      };
+    }
+
+    throw cleanError;
   }
 };
 
@@ -235,8 +279,24 @@ const analyzeDependencies = async (repositoryUrl, options = {}) => {
       error.response?.data?.detail || error.message
     );
 
-    // Return fallback analysis
-    return generateFallbackDependencyAnalysis(repositoryUrl, error);
+    // Create a clean error object to avoid circular structure issues
+    const cleanError = new Error(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message
+    );
+    cleanError.status = error.response?.status || 500;
+    cleanError.code = error.code;
+
+    if (error.response?.data) {
+      cleanError.responseData = {
+        detail: error.response.data.detail,
+        message: error.response.data.message,
+        status: error.response.status,
+      };
+    }
+
+    throw cleanError;
   }
 };
 
@@ -342,162 +402,6 @@ const analyzeProjectStack = (
   user
 ) => {
   return detectTechnologyStack(repositoryUrl, { branch, user, projectId });
-};
-
-// Fallback functions with better error context
-const generateFallbackRepositoryAnalysis = (repositoryUrl, error) => {
-  return {
-    repository_url: repositoryUrl,
-    branch: "main",
-    analysis_approach: "fallback",
-    processing_time: 0,
-    confidence_score: 0.1,
-    confidence_level: "very_low",
-    technology_stack: {
-      primary_language: "Unknown",
-      framework: "Unknown",
-      runtime_version: null,
-      package_manager: null,
-      build_tool: null,
-    },
-    detected_files: [],
-    recommendations: [
-      "Analysis service is currently unavailable",
-      "Please verify repository URL and accessibility",
-      "Consider manual configuration or try again later",
-    ],
-    suggestions: [
-      {
-        type: "infrastructure",
-        priority: "high",
-        suggestion: "Verify AI service connectivity",
-        reason: "Analysis service could not be reached",
-      },
-    ],
-    insights: [],
-    reasoning: `Analysis failed: ${error?.message || "Unknown error"}`,
-    null_field_explanations: {
-      technology_stack:
-        "Unable to detect technology stack due to service unavailability",
-    },
-    llm_used: false,
-    fallback: true,
-    error_details: {
-      type: error?.response?.status ? "api_error" : "network_error",
-      status: error?.response?.status,
-      message: error?.message,
-    },
-  };
-};
-
-const generateFallbackStackAnalysis = (repositoryUrl, error) => {
-  return {
-    repository_url: repositoryUrl,
-    branch: "main",
-    analysis_approach: "fallback",
-    processing_time: 0,
-    confidence_score: 0.1,
-    confidence_level: "very_low",
-    technology_stack: {
-      primary_language: "Unknown",
-      framework: "Unknown",
-      runtime_version: null,
-      package_manager: null,
-      build_tool: null,
-    },
-    detected_files: [],
-    insights: [],
-    reasoning: `Stack detection failed: ${error?.message || "Unknown error"}`,
-    null_field_explanations: {
-      technology_stack:
-        "Unable to detect technology stack due to service unavailability",
-    },
-    fallback: true,
-  };
-};
-
-const generateFallbackCodeQualityAnalysis = (repositoryUrl, error) => {
-  return {
-    repository_url: repositoryUrl,
-    branch: "main",
-    analysis_approach: "fallback",
-    processing_time: 0,
-    confidence_score: 0.1,
-    confidence_level: "very_low",
-    quality_metrics: {
-      overall_score: 50,
-      maintainability: 50,
-      reliability: 50,
-      security: 30,
-      performance: 50,
-      test_coverage: 0,
-    },
-    recommendations: [
-      "Code quality analysis service unavailable",
-      "Run local linting tools",
-      "Implement automated testing",
-      "Set up code quality gates",
-    ],
-    suggestions: [
-      {
-        type: "quality",
-        priority: "high",
-        suggestion: "Set up local code quality tools",
-        reason: "Remote analysis service unavailable",
-      },
-    ],
-    insights: [],
-    reasoning: `Code quality analysis failed: ${
-      error?.message || "Unknown error"
-    }`,
-    null_field_explanations: {
-      quality_metrics:
-        "Unable to analyze code quality due to service unavailability",
-    },
-    fallback: true,
-  };
-};
-
-const generateFallbackDependencyAnalysis = (repositoryUrl, error) => {
-  return {
-    repository_url: repositoryUrl,
-    branch: "main",
-    analysis_approach: "fallback",
-    processing_time: 0,
-    confidence_score: 0.1,
-    confidence_level: "very_low",
-    dependency_analysis: {
-      total_dependencies: 0,
-      direct_dependencies: 0,
-      dev_dependencies: 0,
-      outdated_dependencies: 0,
-      vulnerable_dependencies: 0,
-      license_issues: 0,
-    },
-    recommendations: [
-      "Dependency analysis service unavailable",
-      "Run npm audit or equivalent for your package manager",
-      "Check for outdated packages manually",
-      "Review licenses of your dependencies",
-    ],
-    suggestions: [
-      {
-        type: "security",
-        priority: "high",
-        suggestion: "Run local dependency audit",
-        reason: "Remote dependency analysis unavailable",
-      },
-    ],
-    insights: [],
-    reasoning: `Dependency analysis failed: ${
-      error?.message || "Unknown error"
-    }`,
-    null_field_explanations: {
-      dependency_analysis:
-        "Unable to analyze dependencies due to service unavailability",
-    },
-    fallback: true,
-  };
 };
 
 module.exports = {

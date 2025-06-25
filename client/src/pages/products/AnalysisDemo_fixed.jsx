@@ -28,7 +28,7 @@ const AnalysisDemo = () => {
   const [serviceHealth, setServiceHealth] = useState(null);
   const [checkingHealth, setCheckingHealth] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
-  const [operationId, setOperationId] = useState(null); // eslint-disable-line no-unused-vars
+  const [operationId, setOperationId] = useState(null);
   const [realProgress, setRealProgress] = useState(null);
   const progressIntervalRef = useRef(null);
   const progressPollingRef = useRef(null);

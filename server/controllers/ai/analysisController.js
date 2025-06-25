@@ -45,10 +45,30 @@ const analyzeRepository = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error analyzing repository:", error);
-    res.status(500).json({
+
+    // Enhanced error handling to pass through AI service errors properly
+    let statusCode = 500;
+    let errorMessage = "Error analyzing repository";
+
+    if (error.response) {
+      // AI service returned an error response - forward it directly
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
+    } else if (error.code === "ECONNABORTED") {
+      statusCode = 408;
+      errorMessage = "Analysis request timed out";
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error analyzing repository",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -93,10 +113,30 @@ const detectTechnologyStack = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error detecting technology stack:", error);
-    res.status(500).json({
+
+    // Enhanced error handling to pass through AI service errors properly
+    let statusCode = 500;
+    let errorMessage = "Error detecting technology stack";
+
+    if (error.response) {
+      // AI service returned an error response - forward it directly
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
+    } else if (error.code === "ECONNABORTED") {
+      statusCode = 408;
+      errorMessage = "Analysis request timed out";
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error detecting technology stack",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -137,10 +177,30 @@ const analyzeCodeQuality = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error analyzing code quality:", error);
-    res.status(500).json({
+
+    // Enhanced error handling to pass through AI service errors properly
+    let statusCode = 500;
+    let errorMessage = "Error analyzing code quality";
+
+    if (error.response) {
+      // AI service returned an error response - forward it directly
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
+    } else if (error.code === "ECONNABORTED") {
+      statusCode = 408;
+      errorMessage = "Analysis request timed out";
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error analyzing code quality",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -182,10 +242,30 @@ const analyzeDependencies = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error analyzing dependencies:", error);
-    res.status(500).json({
+
+    // Enhanced error handling to pass through AI service errors properly
+    let statusCode = 500;
+    let errorMessage = "Error analyzing dependencies";
+
+    if (error.response) {
+      // AI service returned an error response - forward it directly
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
+    } else if (error.code === "ECONNABORTED") {
+      statusCode = 408;
+      errorMessage = "Analysis request timed out";
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error analyzing dependencies",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -209,17 +289,29 @@ const getAnalysisProgress = async (req, res) => {
   } catch (error) {
     logger.error("Error getting analysis progress:", error);
 
-    if (error.response?.status === 404) {
-      return res.status(404).json({
-        success: false,
-        message: "Operation not found",
-      });
+    // Enhanced error handling to pass through AI service errors properly
+    let statusCode = 500;
+    let errorMessage = "Error retrieving analysis progress";
+
+    if (error.response) {
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+
+      if (statusCode === 404) {
+        errorMessage = "Operation not found";
+      }
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
     }
 
-    res.status(500).json({
+    res.status(statusCode).json({
       success: false,
-      message: "Error retrieving analysis progress",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -245,17 +337,29 @@ const getDemoAnalysisProgress = async (req, res) => {
   } catch (error) {
     logger.error("Error getting demo analysis progress:", error);
 
-    if (error.response?.status === 404) {
-      return res.status(404).json({
-        success: false,
-        message: "Operation not found",
-      });
+    // Enhanced error handling to pass through AI service errors properly
+    let statusCode = 500;
+    let errorMessage = "Error retrieving analysis progress";
+
+    if (error.response) {
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+
+      if (statusCode === 404) {
+        errorMessage = "Operation not found";
+      }
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
     }
 
-    res.status(500).json({
+    res.status(statusCode).json({
       success: false,
-      message: "Error retrieving analysis progress",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -327,10 +431,42 @@ const demoAnalyzeRepository = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error in demo repository analysis:", error);
-    res.status(500).json({
+
+    // Enhanced error handling to pass through AI service errors properly
+    let statusCode = error.status || 500;
+    let errorMessage = error.message || "Error analyzing repository";
+
+    // Handle clean error objects from service layer
+    if (error.responseData) {
+      errorMessage =
+        error.responseData.detail || error.responseData.message || errorMessage;
+      statusCode = error.responseData.status || statusCode;
+    }
+
+    // Add specific context for common errors
+    if (statusCode === 404 && errorMessage.toLowerCase().includes("branch")) {
+      errorMessage = `Branch '${branch}' not found in repository`;
+    } else if (statusCode === 404) {
+      errorMessage = "Repository not found or not accessible";
+    } else if (statusCode === 403) {
+      errorMessage = "Repository is private or access is restricted";
+    } else if (statusCode === 422) {
+      errorMessage = "Invalid repository URL or unsupported repository format";
+    } else if (statusCode === 429) {
+      errorMessage = "Analysis rate limit exceeded. Please try again later";
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
+    } else if (error.code === "ECONNABORTED") {
+      statusCode = 408;
+      errorMessage =
+        "Analysis request timed out. Repository might be too large";
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error analyzing repository",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
