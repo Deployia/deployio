@@ -1,0 +1,15 @@
+{{> brand}}
+<div class="badge">⏹️ Deployment Stopped</div>
+<div class="main-title">Deployment Stopped</div>
+<div class="subtitle">Your deployment for {{projectName}} has been stopped.</div>
+<div class="card">
+  <h3 style="color:#fbbf24;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;font-size:1.2rem;">Deployment Details</h3>
+  <ul style="color:#a3a3a3;font-size:1rem;">
+    <li>Project: {{projectName}}</li>
+    <li>Environment: {{environment}}</li>
+    <li>Stopped: {{timestamp}}</li>
+    <li>Reason: {{reason}}</li>
+  </ul>
+</div>
+<p>You can restart the deployment from your project dashboard.</p>
+{{> button url=(concat appUrl "/projects/" projectName) label="Go to Project"}}

@@ -17,7 +17,7 @@ class EmailChannel {
     try {
       if (!notification.user || !notification.user.email) {
         throw new Error("User email not available");
-      } // Use our notification template system directly
+      }
       const templateName = this.getTemplateName(notification.type);
       const templateVariables = this.prepareTemplateVariables(notification);
       const subject = this.getEmailSubject(
@@ -26,12 +26,15 @@ class EmailChannel {
         notification.context
       );
 
-      // Send email using our notification template system
+      // Render the template with variables (fix: ensure all placeholders are replaced)
+      const rendered = this.templates.render(templateName, templateVariables);
+
+      // Send email using rendered content
       const result = await emailService.sendEmail({
         to: notification.user.email,
-        subject: subject,
-        template: templateName,
-        variables: templateVariables,
+        subject: rendered.subject || subject,
+        html: rendered.html,
+        text: rendered.text,
       });
 
       logger.info("Email notification sent successfully", {
