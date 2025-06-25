@@ -4,7 +4,7 @@
 const GitProviderService = require("@services/gitProvider/GitProviderService");
 const GitProviderFactory = require("@services/gitProviders/ProviderFactory");
 const crypto = require("crypto");
-const logger = require("../config/logger");
+const logger = require("@config/logger");
 
 /**
  * Generate secure OAuth state parameter
