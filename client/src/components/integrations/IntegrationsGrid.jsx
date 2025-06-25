@@ -7,17 +7,13 @@ const IntegrationsGrid = ({
   connections,
   loading,
   error,
-  activeCategory,
   refreshingProvider,
   onConnect,
   onDisconnect,
   onManage,
 }) => {
-  // Filter providers based on active category
-  const filteredProviders = providers.filter((provider) => {
-    if (activeCategory === "all") return true;
-    return provider.category === activeCategory;
-  });
+  // Use providers directly as they're already filtered by parent
+  const filteredProviders = providers || [];
 
   // Group providers by category for better organization
   const groupedProviders = filteredProviders.reduce((groups, provider) => {
@@ -118,8 +114,8 @@ const IntegrationsGrid = ({
   return (
     <div className="mb-8">
       <AnimatePresence mode="wait">
-        {activeCategory === "all" ? (
-          // Show grouped view when "All" is selected
+        {Object.keys(groupedProviders).length > 1 ? (
+          // Show grouped view when multiple categories are present
           <motion.div
             key="grouped"
             variants={containerVariants}
@@ -152,7 +148,7 @@ const IntegrationsGrid = ({
             )}
           </motion.div>
         ) : (
-          // Show flat grid view for specific categories
+          // Show flat grid view for single category or simple view
           <motion.div
             key="flat"
             variants={containerVariants}

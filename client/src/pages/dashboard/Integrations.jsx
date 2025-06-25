@@ -19,6 +19,8 @@ import {
   FaCloud,
   FaBell,
   FaRocket,
+  FaCheck,
+  FaClock,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid } from "@components/LoadingSpinner";
@@ -423,6 +425,41 @@ const Integrations = () => {
           />
         </motion.div>
 
+        {/* Welcome Section for New Users */}
+        {connectedProviders.length === 0 && (
+          <motion.div variants={itemVariants}>
+            <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-8 text-center">
+              <div className="flex items-center justify-center mb-4">
+                <div className="p-3 bg-blue-500/20 rounded-full">
+                  <FaRocket className="w-8 h-8 text-blue-400" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Welcome to Integrations
+              </h3>
+              <p className="text-gray-400 mb-6 max-w-2xl mx-auto">
+                Connect your development tools to streamline your deployment
+                workflow. Start with GitHub or GitLab to import your
+                repositories and begin deploying instantly.
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 rounded-full">
+                  <FaCheck className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-green-400">
+                    GitHub & GitLab Ready
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 rounded-full">
+                  <FaClock className="w-4 h-4 text-yellow-400" />
+                  <span className="text-sm text-yellow-400">
+                    More Coming Q3 2025
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Connected Providers Summary */}
         {connectedProviders.length > 0 && (
           <motion.div variants={itemVariants}>
@@ -434,7 +471,7 @@ const Integrations = () => {
           </motion.div>
         )}
 
-        {/* Integrations Grid */}
+        {/* Integrations Grid - Always Show */}
         <motion.div variants={itemVariants}>
           <IntegrationsGrid
             providers={filteredProviders}
