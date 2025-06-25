@@ -225,13 +225,59 @@ const getAnalysisProgress = async (req, res) => {
 };
 
 /**
- * @desc Demo analyze repository (public endpoint with heavy rate limiting)
- * @route POST /api/v1/ai/analysis/demo
+ * @desc Get analysis progress for demo operation (public endpoint)
+ * @route GET /api/v1/ai/analysis/demo/progress/:operationId
  * @access Public (Rate Limited)
+ */
+const getDemoAnalysisProgress = async (req, res) => {
+  try {
+    const { operationId } = req.params;
+
+    // For demo, we'll use a mock user object
+    const demoUser = { _id: "demo", email: "demo@demo.com" };
+    const result = await ai.getAnalysisProgress(operationId, demoUser);
+
+    res.status(200).json({
+      success: true,
+      message: "Demo analysis progress retrieved successfully",
+      data: result,
+    });
+  } catch (error) {
+    logger.error("Error getting demo analysis progress:", error);
+
+    if (error.response?.status === 404) {
+      return res.status(404).json({
+        success: false,
+        message: "Operation not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving analysis progress",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc Demo analyze repository (public endpoint with IP-based rate limiting)
+ * @route POST /api/v1/ai/analysis/demo
+ * @access Public (Rate Limited by IP)
  */
 const demoAnalyzeRepository = async (req, res) => {
   try {
-    const { repositoryUrl, branch = "main", analysisType = "stack" } = req.body;
+    const {
+      repositoryUrl,
+      branch = "main",
+      analysisTypes = ["stack", "dependencies", "quality"],
+      forceLlm = true,
+      includeReasoning = true,
+      includeRecommendations = true,
+      includeInsights = true,
+      explainNullFields = true,
+      trackProgress = true,
+    } = req.body;
 
     if (!repositoryUrl) {
       return res.status(400).json({
@@ -240,47 +286,38 @@ const demoAnalyzeRepository = async (req, res) => {
       });
     }
 
-    // Demo options with limited features
+    // Demo gets full access with enhanced features
     const analysisOptions = {
       branch,
-      analysisTypes: [analysisType], // Limited to single analysis type for demo
-      forceLlm: false, // No LLM enhancement for demo
-      includeReasoning: true,
-      includeRecommendations: false, // Limited recommendations for demo
-      includeInsights: true,
-      explainNullFields: true,
-      trackProgress: false,
+      analysisTypes,
+      forceLlm, // Enable LLM enhancement for demo
+      includeReasoning,
+      includeRecommendations, // Full recommendations for demo
+      includeInsights,
+      explainNullFields,
+      trackProgress,
+      // No user provided for demo - uses demo token
     };
 
-    let result;
+    const result = await ai.analyzeRepository(repositoryUrl, analysisOptions);
 
-    // Choose analysis based on type
-    switch (analysisType) {
-      case "stack":
-        result = await ai.detectTechnologyStack(repositoryUrl, analysisOptions);
-        break;
-      case "quality":
-        result = await ai.analyzeCodeQuality(repositoryUrl, analysisOptions);
-        break;
-      case "dependencies":
-        result = await ai.analyzeDependencies(repositoryUrl, analysisOptions);
-        break;
-      default:
-        result = await ai.detectTechnologyStack(repositoryUrl, analysisOptions);
-    }
-
-    // Add demo disclaimer
+    // Add demo branding
     result.demo_mode = true;
-    result.limitations = [
-      "Demo mode has limited analysis depth",
-      "Sign up for full features and detailed insights",
-      "Results are cached and may not reflect latest changes",
+    result.demo_features = [
+      "Full AI-powered analysis with LLM enhancement",
+      "Complete technology stack detection",
+      "Comprehensive dependency analysis",
+      "Code quality assessment with recommendations",
+      "Real-time progress tracking",
+      "Detailed reasoning and insights",
     ];
 
     logger.info("Demo repository analysis completed", {
       repositoryUrl,
-      analysisType,
+      analysisTypes,
       confidence: result.confidence_score,
+      llmUsed: result.llm_used,
+      clientIp: req.ip,
     });
 
     res.status(200).json({
@@ -510,6 +547,7 @@ module.exports = {
   analyzeCodeQuality,
   analyzeDependencies,
   getAnalysisProgress,
+  getDemoAnalysisProgress,
 
   // Public endpoints
   demoAnalyzeRepository,

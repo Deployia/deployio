@@ -2,6 +2,8 @@ const {
   aiServiceClient,
   generateAiServiceToken,
   generateDemoToken,
+  checkAiServiceHealth,
+  getDetailedAiServiceHealth,
 } = require("./aiServiceClient");
 const { getRedisClient } = require("@config/redisClient");
 const logger = require("@config/logger");
@@ -53,15 +55,16 @@ const analyzeRepository = async (repositoryUrl, options = {}) => {
       }
     );
 
-    const result = response.data.data;
+    const result = response.data;
 
     // Cache for appropriate duration based on user type
     const cacheTime = options.user ? 3600 : 1800; // 1 hour for users, 30 min for demo
-    await redisClient.setex(cacheKey, cacheTime, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
 
     logger.info(`AI repository analysis completed for ${repositoryUrl}`);
     return result;
   } catch (error) {
+    console.log(error);
     logger.error(
       `AI repository analysis failed for ${repositoryUrl}:`,
       error.response?.data?.detail || error.message
@@ -110,11 +113,9 @@ const detectTechnologyStack = async (repositoryUrl, options = {}) => {
       }
     );
 
-    const result = response.data.data;
-
-    // Cache for appropriate duration
+    const result = response.data.data; // Cache for appropriate duration
     const cacheTime = options.user ? 3600 : 1800;
-    await redisClient.setex(cacheKey, cacheTime, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
 
     logger.info(`AI stack detection completed for ${repositoryUrl}`);
     return result;
@@ -167,11 +168,9 @@ const analyzeCodeQuality = async (repositoryUrl, options = {}) => {
       }
     );
 
-    const result = response.data.data;
-
-    // Cache for appropriate duration
+    const result = response.data.data; // Cache for appropriate duration
     const cacheTime = options.user ? 7200 : 3600; // 2 hours for users, 1 hour for demo
-    await redisClient.setex(cacheKey, cacheTime, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
 
     logger.info(`AI code quality analysis completed for ${repositoryUrl}`);
     return result;
@@ -224,11 +223,9 @@ const analyzeDependencies = async (repositoryUrl, options = {}) => {
       }
     );
 
-    const result = response.data.data;
-
-    // Cache for appropriate duration
+    const result = response.data.data; // Cache for appropriate duration
     const cacheTime = options.user ? 14400 : 7200; // 4 hours for users, 2 hours for demo
-    await redisClient.setex(cacheKey, cacheTime, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
 
     logger.info(`AI dependency analysis completed for ${repositoryUrl}`);
     return result;
@@ -291,10 +288,8 @@ const getSupportedTechnologies = async () => {
         },
       }
     );
-    const result = response.data.data;
-
-    // Cache for 24 hours
-    await redisClient.setex(cacheKey, 86400, JSON.stringify(result));
+    const result = response.data.data; // Cache for 24 hours
+    await redisClient.setEx(cacheKey, 86400, JSON.stringify(result));
 
     return result;
   } catch (error) {
@@ -512,6 +507,8 @@ module.exports = {
   analyzeDependencies,
   getAnalysisProgress,
   getSupportedTechnologies,
+  checkAiServiceHealth,
+  getDetailedAiServiceHealth,
   // Legacy compatibility
   analyzeProjectStack,
 };

@@ -11,13 +11,15 @@ const router = express.Router();
 // Rate limiting configurations
 const demoRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per 15 minutes for demo
+  max: 10, // 3 requests per 15 minutes for demo (IP-based)
   message: {
     success: false,
-    message: "Too many demo requests. Please sign up for unlimited access.",
+    message:
+      "Demo rate limit exceeded. Please sign up for unlimited access or try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => req.ip, // Rate limit by IP address
 });
 
 const userRateLimit = createRateLimiter({
@@ -33,7 +35,13 @@ const userRateLimit = createRateLimiter({
 
 // PUBLIC ENDPOINTS (Heavy Rate Limited)
 router.post("/demo", demoRateLimit, ai.analysis.demoAnalyzeRepository);
+router.get(
+  "/demo/progress/:operationId",
+  demoRateLimit,
+  ai.analysis.getDemoAnalysisProgress
+);
 router.get("/technologies", ai.analysis.getSupportedTechnologies);
+router.get("/health", ai.analysis.checkServiceHealth); // Public health check for demo
 
 // AUTHENTICATED ENDPOINTS
 router.post(
@@ -63,21 +71,6 @@ router.post(
 router.get("/progress/:operationId", protect, ai.analysis.getAnalysisProgress);
 
 // HEALTH CHECK ENDPOINTS
-router.get("/health", protect, ai.analysis.checkServiceHealth);
 router.get("/health/detailed", protect, ai.analysis.getDetailedServiceHealth);
-
-// LEGACY ENDPOINTS (Deprecated but maintained for backward compatibility)
-router.post(
-  "/stack/:projectId",
-  protect,
-  userRateLimit,
-  ai.analysis.analyzeProjectStack
-);
-router.post(
-  "/full/:projectId",
-  protect,
-  userRateLimit,
-  ai.analysis.runFullAnalysis
-);
 
 module.exports = router;

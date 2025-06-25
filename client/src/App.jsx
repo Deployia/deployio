@@ -68,7 +68,7 @@ const CookiePolicy = lazy(() => import("@legal/CookiePolicy"));
 // Product Pages
 const AIDeployment = lazy(() => import("@products/AIDeployment"));
 const CodeAnalysis = lazy(() => import("@products/CodeAnalysis"));
-const CodeAnalysisDemo = lazy(() => import("@products/CodeAnalysisDemo"));
+const AnalysisDemo = lazy(() => import("@products/AnalysisDemo"));
 const CloudIntegration = lazy(() => import("@products/CloudIntegration"));
 const SecurityShield = lazy(() => import("@products/SecurityShield"));
 const DevOpsAutomation = lazy(() => import("@products/DevOpsAutomation"));
@@ -160,7 +160,10 @@ function App() {
               <Route index element={<Navigate to="ai-deployment" replace />} />
               <Route path="ai-deployment" element={<AIDeployment />} />
               <Route path="code-analysis" element={<CodeAnalysis />} />
-              <Route path="code-analysis/demo" element={<CodeAnalysisDemo />} />
+              <Route
+                path="code-analysis/live-demo"
+                element={<AnalysisDemo />}
+              />
               <Route path="cloud-integration" element={<CloudIntegration />} />
               <Route path="devops-automation" element={<DevOpsAutomation />} />
               <Route path="security-shield" element={<SecurityShield />} />

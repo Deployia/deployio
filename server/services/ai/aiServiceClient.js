@@ -8,7 +8,7 @@ const AI_SERVICE_TIMEOUT = 30000; // 30 seconds
 
 // Create axios instance for AI service
 const aiServiceClient = axios.create({
-  baseURL: AI_SERVICE_URL,
+  baseURL: AI_SERVICE_URL + "/service/v1",
   timeout: AI_SERVICE_TIMEOUT,
   headers: {
     "Content-Type": "application/json",

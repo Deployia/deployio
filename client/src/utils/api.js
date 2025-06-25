@@ -24,6 +24,18 @@ const backend = axios.create({
   timeout: 10000, // 10 second timeout
 });
 
+// Long timeout API for analysis operations
+const analysisApi = axios.create({
+  baseURL:
+    import.meta.env.VITE_APP_BACKEND_URL + "/api/v1" ||
+    "https://api.deployio.tech/api/v1",
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 60000, // 60 second timeout for analysis operations
+});
+
 // Cache interceptor for GET requests
 api.interceptors.request.use((config) => {
   // Only cache GET requests that don't contain sensitive data
@@ -118,6 +130,29 @@ api.interceptors.response.use(
   }
 );
 
+// Add same interceptors as main API
+analysisApi.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url.includes("/auth/refresh-token")
+    ) {
+      originalRequest._retry = true;
+      try {
+        await api.post("/users/auth/refresh-token", {});
+        return analysisApi(originalRequest);
+      } catch (refreshError) {
+        cache.clear();
+        return Promise.reject(refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Export cache clear function for manual cache management
 export const clearApiCache = () => cache.clear();
 
@@ -139,5 +174,5 @@ export const invalidateAllCacheEntriesForUrl = (url) => {
 };
 
 // Export both APIs
-export { backend };
+export { backend, analysisApi };
 export default api;

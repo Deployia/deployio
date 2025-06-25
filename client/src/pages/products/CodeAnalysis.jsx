@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -110,7 +110,8 @@ const CodeAnalysis = () => {
     title: "Analyze Code,",
     subtitle: "Deploy Smarter",
     description:
-      "Let AI understand your codebase automatically. Our intelligent analysis detects technology stacks, analyzes dependencies, and generates optimal deployment configurations.",    primaryCTA: {
+      "Let AI understand your codebase automatically. Our intelligent analysis detects technology stacks, analyzes dependencies, and generates optimal deployment configurations.",
+    primaryCTA: {
       text: "Analyze Repository",
       icon: FaGithub,
       onClick: () => {
@@ -118,10 +119,10 @@ const CodeAnalysis = () => {
       },
     },
     secondaryCTA: {
-      text: "Interactive Demo",
+      text: "Try Interactive Demo",
       icon: FaEye,
       onClick: () => {
-        navigate("/products/code-analysis/demo");
+        navigate("/products/code-analysis/live-demo");
       },
     },
     gradient: "from-blue-400 via-purple-400 to-indigo-400",
@@ -245,17 +246,18 @@ const CodeAnalysis = () => {
   const ctaProps = {
     title: "Ready to Analyze Your Code?",
     description:
-      "Get instant insights into your codebase and optimize your deployment strategy with AI",    primaryButton: {
+      "Get instant insights into your codebase and optimize your deployment strategy with AI",
+    primaryButton: {
       text: "Start Analysis",
       onClick: () => navigate("/dashboard/projects"),
     },
     secondaryButton: {
-      text: "View Documentation",
-      onClick: () =>
-        window.open("/resources/docs/products/code-analysis", "_blank"),
+      text: "Try Live Demo",
+      onClick: () => navigate("/products/code-analysis/live-demo"),
     },
     gradientClasses: "from-blue-600 to-purple-600",
-  };  return (
+  };
+  return (
     <>
       <SEO page="codeAnalysis" />
       <div className="min-h-screen">
