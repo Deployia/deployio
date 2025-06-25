@@ -73,27 +73,30 @@ const AnalysisResults = ({ results }) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 backdrop-blur-lg border border-gray-600/30 rounded-2xl p-8"
+        className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 backdrop-blur-lg border border-gray-600/30 rounded-2xl p-4 sm:p-6 lg:p-8"
       >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6">
           <div className="flex-1">
-            <div className="flex items-center mb-4">
-              <FaGithub className="w-8 h-8 text-blue-400 mr-3" />
+            <div className="flex flex-col sm:flex-row sm:items-center mb-4 gap-2 sm:gap-0">
+              <FaGithub className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 mr-0 sm:mr-3" />
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">
                   Analysis Complete
                 </h2>
-                <p className="text-gray-400">AI-powered repository insights</p>
+                <p className="text-gray-400 text-sm sm:text-base">
+                  AI-powered repository insights
+                </p>
               </div>
             </div>{" "}
-            <p className="text-gray-300 font-mono text-sm break-all bg-gray-900/50 px-4 py-2 rounded-lg">
+            <p className="text-gray-300 font-mono text-xs sm:text-sm break-all bg-gray-900/50 px-3 sm:px-4 py-2 rounded-lg overflow-hidden">
               {data.repository_url}
             </p>
           </div>{" "}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="text-center bg-gray-900/50 rounded-xl p-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            {" "}
+            <div className="text-center bg-gray-900/50 rounded-xl p-3 sm:p-4 min-w-0 flex-1 sm:flex-none">
               <div
-                className={`text-2xl font-bold ${getConfidenceColor(
+                className={`text-lg sm:text-2xl font-bold ${getConfidenceColor(
                   data.confidence_score
                 )}`}
               >
@@ -101,21 +104,25 @@ const AnalysisResults = ({ results }) => {
                   ? `${Math.round(data.confidence_score * 100)}%`
                   : "N/A"}
               </div>
-              <div className="text-gray-400 text-sm">Confidence</div>
+              <div className="text-gray-400 text-xs sm:text-sm">Confidence</div>
             </div>
-            <div className="text-center bg-gray-900/50 rounded-xl p-4">
-              <div className="text-2xl font-bold text-blue-400">
+            <div className="text-center bg-gray-900/50 rounded-xl p-3 sm:p-4 min-w-0 flex-1 sm:flex-none">
+              <div className="text-lg sm:text-2xl font-bold text-blue-400">
                 {data.processing_time != null
                   ? `${Math.round(data.processing_time)}s`
                   : "N/A"}
               </div>
-              <div className="text-gray-400 text-sm">Processing Time</div>
+              <div className="text-gray-400 text-xs sm:text-sm">
+                Processing Time
+              </div>
             </div>
-            <div className="text-center bg-gray-900/50 rounded-xl p-4">
-              <div className="text-2xl font-bold text-purple-400">
+            <div className="text-center bg-gray-900/50 rounded-xl p-3 sm:p-4 min-w-0 flex-1 sm:flex-none">
+              <div className="text-lg sm:text-2xl font-bold text-purple-400">
                 {data.llm_used ? "Enhanced" : "Standard"}
               </div>
-              <div className="text-gray-400 text-sm">Analysis Type</div>
+              <div className="text-gray-400 text-xs sm:text-sm">
+                Analysis Type
+              </div>
             </div>
           </div>
         </div>
@@ -126,13 +133,15 @@ const AnalysisResults = ({ results }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gray-800/30 backdrop-blur-lg border border-gray-600/30 rounded-2xl p-8"
+          className="bg-gray-800/30 backdrop-blur-lg border border-gray-600/30 rounded-2xl p-4 sm:p-6 lg:p-8"
         >
-          <div className="flex items-center mb-6">
-            <FaLayerGroup className="w-6 h-6 text-blue-400 mr-3" />
-            <h3 className="text-2xl font-bold text-white">Technology Stack</h3>
+          <div className="flex items-center mb-4 sm:mb-6">
+            <FaLayerGroup className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 mr-2 sm:mr-3" />
+            <h3 className="text-xl sm:text-2xl font-bold text-white">
+              Technology Stack
+            </h3>
           </div>{" "}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {" "}
             {Object.entries(data.technology_stack)
               .filter(
