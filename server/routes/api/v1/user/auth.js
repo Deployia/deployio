@@ -50,15 +50,15 @@ router.get(
   user.auth.googleAuthCallback
 );
 
-// GitHub OAuth
+// GitHub OAuth (Basic login with limited scope)
 router.get(
   "/github",
-  passport.authenticate("github", { scope: ["user:email"] })
+  passport.authenticate("github-basic", { scope: ["user:email"] })
 );
 
 router.get(
   "/github/callback",
-  passport.authenticate("github", {
+  passport.authenticate("github-basic", {
     session: false,
     failureRedirect: `${frontUrl}/auth/login`,
   }),
@@ -71,39 +71,6 @@ router.post(
   getRateLimiters().auth.refreshToken,
   user.auth.refreshToken
 );
-
-// Get linked OAuth providers
-router.get("/providers", protect, user.auth.getLinkedProviders);
-
-// Link OAuth providers (for existing users)
-router.get(
-  "/link/google",
-  protect,
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-router.get(
-  "/link/google/callback",
-  protect,
-  passport.authenticate("google", { session: false }),
-  user.auth.linkProviderCallback("google")
-);
-
-router.get(
-  "/link/github",
-  protect,
-  passport.authenticate("github", { scope: ["user:email"] })
-);
-
-router.get(
-  "/link/github/callback",
-  protect,
-  passport.authenticate("github", { session: false }),
-  user.auth.linkProviderCallback("github")
-);
-
-// Unlink OAuth providers
-router.delete("/providers/:provider", protect, user.auth.unlinkProvider);
 
 // Session management
 router.get("/sessions", protect, user.auth.getSessions);

@@ -9,11 +9,13 @@ const authRoutes = require("./auth");
 const profileRoutes = require("./profile");
 const userRoutes = require("./users");
 const apiKeyRoutes = require("./apiKeys");
+const gitProviderRoutes = require("./gitProviders");
 
 // Mount routes
 router.use("/auth", authRoutes);
 router.use("/profile", profileRoutes);
 router.use("/api-keys", apiKeyRoutes);
+router.use("/git-providers", gitProviderRoutes);
 router.use("/", userRoutes);
 
 module.exports = router;

@@ -9,6 +9,7 @@ const aiRoutes = require("./ai");
 const deploymentRoutes = require("./deployment");
 const projectRoutes = require("./project");
 const userRoutes = require("./user");
+const gitRoutes = require("./git");
 const adminRoutes = require("./admin");
 const externalRoutes = require("./external");
 
@@ -17,6 +18,7 @@ router.use("/ai", aiRoutes);
 router.use("/deployments", deploymentRoutes);
 router.use("/projects", projectRoutes);
 router.use("/users", userRoutes);
+router.use("/git", gitRoutes);
 router.use("/admin", adminRoutes);
 router.use("/external", externalRoutes);
 
