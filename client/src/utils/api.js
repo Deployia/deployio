@@ -5,9 +5,9 @@ const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_APP_BACKEND_URL + "/api/v1" ||
-    "https://api.deployio.tech/api/v1",
+  baseURL: import.meta.env.VITE_APP_BACKEND_URL
+    ? `${import.meta.env.VITE_APP_BACKEND_URL}/api/v1`
+    : "https://api.deployio.tech/api/v1",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -26,9 +26,9 @@ const backend = axios.create({
 
 // Long timeout API for analysis operations
 const analysisApi = axios.create({
-  baseURL:
-    import.meta.env.VITE_APP_BACKEND_URL + "/api/v1" ||
-    "https://api.deployio.tech/api/v1",
+  baseURL: import.meta.env.VITE_APP_BACKEND_URL
+    ? `${import.meta.env.VITE_APP_BACKEND_URL}/api/v1`
+    : "https://api.deployio.tech/api/v1",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

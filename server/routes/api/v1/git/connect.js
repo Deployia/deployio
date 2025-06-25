@@ -27,15 +27,23 @@ router.get("/connected", protect, git.connect.getConnectedProviders);
 router.get(
   "/github",
   protect,
-  passport.authenticate("github-integration", {
-    scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"],
-  })
+  git.connect.initiateConnection("github"),
+  (req, res, next) => {
+    // Passport will use the state from authInfo
+    passport.authenticate("github-integration", {
+      scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"],
+      state: req.authInfo.state,
+    })(req, res, next);
+  }
 );
 
 router.get(
   "/github/callback",
-  protect,
-  passport.authenticate("github-integration", { session: false }),
+  passport.authenticate("github-integration", {
+    session: false,
+    failureRedirect:
+      "/dashboard/integrations?connected=github&status=error&error=oauth_failed",
+  }),
   git.connect.connectGitHub
 );
 
@@ -43,15 +51,22 @@ router.get(
 router.get(
   "/gitlab",
   protect,
-  passport.authenticate("gitlab", {
-    scope: ["read_user", "read_repository", "api", "read_api"],
-  })
+  git.connect.initiateConnection("gitlab"),
+  (req, res, next) => {
+    passport.authenticate("gitlab", {
+      scope: ["read_user", "read_repository", "api", "read_api"],
+      state: req.authInfo.state,
+    })(req, res, next);
+  }
 );
 
 router.get(
   "/gitlab/callback",
-  protect,
-  passport.authenticate("gitlab", { session: false }),
+  passport.authenticate("gitlab", {
+    session: false,
+    failureRedirect:
+      "/dashboard/integrations?connected=gitlab&status=error&error=oauth_failed",
+  }),
   git.connect.connectGitLab
 );
 
@@ -59,15 +74,22 @@ router.get(
 router.get(
   "/azuredevops",
   protect,
-  passport.authenticate("azuredevops", {
-    scope: ["vso.code", "vso.identity", "vso.project", "vso.build"],
-  })
+  git.connect.initiateConnection("azuredevops"),
+  (req, res, next) => {
+    passport.authenticate("azuredevops", {
+      scope: ["vso.code", "vso.identity", "vso.project", "vso.build"],
+      state: req.authInfo.state,
+    })(req, res, next);
+  }
 );
 
 router.get(
   "/azuredevops/callback",
-  protect,
-  passport.authenticate("azuredevops", { session: false }),
+  passport.authenticate("azuredevops", {
+    session: false,
+    failureRedirect:
+      "/dashboard/integrations?connected=azuredevops&status=error&error=oauth_failed",
+  }),
   git.connect.connectAzureDevOps
 );
 

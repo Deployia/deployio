@@ -85,18 +85,23 @@ const githubIntegrationStrategy = new GitHubStrategy(
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
     callbackURL: `${process.env.BASE_URL}/api/v1/git/connect/github/callback`,
     scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"], // Full scopes
+    passReqToCallback: true, // Enable req parameter to access state
   },
-  async (accessToken, refreshToken, profile, done) => {
+  async (req, accessToken, refreshToken, profile, done) => {
     try {
       console.log("GitHub Integration OAuth Profile:", {
         id: profile.id,
         username: profile.username,
         email: profile.emails?.[0]?.value,
+        state: req.query.state,
       });
 
-      // This should only be used for existing authenticated users
-      // The user should be passed via req.user in the route
-      return done(null, profile, { accessToken, refreshToken });
+      // Return the GitHub profile, tokens, and state
+      return done(null, profile, {
+        accessToken,
+        refreshToken,
+        state: req.query.state,
+      });
     } catch (error) {
       console.error("GitHub integration strategy error:", error);
       return done(error, null);

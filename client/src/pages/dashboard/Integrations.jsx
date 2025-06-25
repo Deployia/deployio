@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useDispatch } from "react-redux";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
 import {
   FaGithub,
   FaGitlab,
@@ -39,6 +41,7 @@ import {
 
 const Integrations = () => {
   const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     connections,
     repositories,
@@ -49,6 +52,30 @@ const Integrations = () => {
     initiateConnection,
     disconnectProvider: handleDisconnectProvider,
   } = useGitProviders();
+
+  // Handle OAuth callback
+  useEffect(() => {
+    const connected = searchParams.get("connected");
+    const status = searchParams.get("status");
+    const error = searchParams.get("error");
+
+    if (connected && status) {
+      if (status === "success") {
+        toast.success(`Successfully connected to ${connected}!`);
+        // Refresh provider data
+        dispatch(fetchConnectedProviders());
+        dispatch(fetchDetailedConnectionStatus());
+      } else if (status === "error") {
+        const errorMessage = error
+          ? decodeURIComponent(error)
+          : "Connection failed";
+        toast.error(`Failed to connect to ${connected}: ${errorMessage}`);
+      }
+
+      // Clean up URL parameters
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams, dispatch]);
 
   // Integration categories
   const integrationCategories = useMemo(
