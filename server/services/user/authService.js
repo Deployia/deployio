@@ -9,6 +9,21 @@ const { getRedisClient } = require("@config/redisClient");
 const AuthNotifications = require("./authNotifications");
 
 /**
+ * Authentication Service - Pure JWT Implementation
+ *
+ * Handles all authentication business logic including:
+ * - User registration with email verification
+ * - Login with optional 2FA
+ * - Password reset flow
+ * - JWT token management (no sessions)
+ * - Two-factor authentication (2FA)
+ * - OAuth provider linking/unlinking
+ *
+ * This service is stateless and uses JWT tokens for authentication.
+ * No session management is performed - everything is token-based.
+ */
+
+/**
  * Generate JWT token for authentication
  * @param {Object} user - User document from MongoDB
  * @returns {String} JWT token
@@ -205,13 +220,9 @@ const loginUser = async (email, password, loginInfo = {}) => {
     // Store refresh token
     await storeRefreshToken(user._id, refreshToken);
 
-    // Add session information
-    if (loginInfo.ip && loginInfo.userAgent) {
-      await addSession(user._id, {
-        ip: loginInfo.ip,
-        userAgent: loginInfo.userAgent,
-        location: loginInfo.location || "Unknown",
-      });
+    // Log successful login (for audit trail)
+    if (loginInfo.ip) {
+      await logSuccessfulLogin(user._id, loginInfo);
     }
     return {
       user: {
@@ -428,14 +439,6 @@ const logoutUser = async (userId, refreshToken) => {
           const tokenKey = `refresh_token:${userId}:${refreshToken}`;
           await redisClient.del(tokenKey);
         }
-
-        // Clear user session from Redis
-        const sessionKey = `user_session:${userId}`;
-        await redisClient.del(sessionKey);
-
-        // Remove from active sessions
-        const activeSessionsKey = `active_sessions:${userId}`;
-        await redisClient.srem(activeSessionsKey, sessionKey);
       } catch (redisError) {
         logger.warn("Redis operations failed during logout", {
           error: redisError.message,
@@ -664,216 +667,6 @@ async function unlinkProvider(userId, provider) {
     throw new Error("Cannot unlink the only authentication method");
   user[`${provider}Id`] = undefined;
   await user.save();
-}
-
-/**
- * Add a session record for the user
- */
-async function addSession(userId, session) {
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Initialize sessions array if it doesn't exist (for existing users)
-    if (!user.sessions) {
-      user.sessions = [];
-    }
-
-    // Avoid duplicate sessions for the same device
-    const existing = user.sessions.find(
-      (s) => s.ip === session.ip && s.userAgent === session.userAgent
-    );
-
-    if (existing) {
-      // Update remember setting if provided
-      if (session.rememberedUntil) {
-        existing.rememberedUntil = session.rememberedUntil;
-      }
-      // Update last activity
-      existing.createdAt = new Date();
-      await user.save();
-      return existing;
-    }
-
-    // Clean up old sessions (keep only last 10 sessions per user)
-    if (user.sessions.length >= 10) {
-      user.sessions.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
-      user.sessions = user.sessions.slice(0, 9);
-    }
-
-    user.sessions.push({
-      ...session,
-      createdAt: new Date(),
-    });
-    await user.save();
-    return user.sessions[user.sessions.length - 1];
-  } catch (error) {
-    logger.error("Error adding session:", {
-      error: error.message,
-      stack: error.stack,
-      userId,
-      session,
-    }); // Replaced console.error
-    throw new Error("Failed to create session");
-  }
-}
-
-/**
- * Get all sessions for a user
- */
-async function getSessions(userId) {
-  try {
-    const user = await User.findById(userId).select("sessions");
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Initialize sessions array if it doesn't exist (for existing users)
-    if (!user.sessions) {
-      user.sessions = [];
-      await user.save();
-      return [];
-    }
-
-    // Clean up expired remembered sessions
-    const now = new Date();
-    const originalLength = user.sessions.length;
-    user.sessions = user.sessions.filter(
-      (s) => !s.rememberedUntil || s.rememberedUntil > now
-    );
-
-    // Save if we cleaned up any sessions
-    if (originalLength !== user.sessions.length) {
-      await user.save();
-    }
-
-    return user.sessions;
-  } catch (error) {
-    logger.error("Error getting sessions:", {
-      error: error.message,
-      stack: error.stack,
-      userId,
-    }); // Replaced console.error
-    throw new Error("Failed to retrieve sessions");
-  }
-}
-
-/**
- * Delete a user session with enhanced validation
- */
-async function deleteSession(userId, sessionId) {
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const sessionExists = user.sessions.some(
-      (s) => s._id.toString() === sessionId
-    );
-    if (!sessionExists) {
-      throw new Error("Session not found");
-    }
-
-    // Don't allow deletion of the last session if user has no other auth methods
-    if (user.sessions.length === 1 && !user.googleId && !user.githubId) {
-      throw new Error(
-        "Cannot delete the only active session. Please login from another device first."
-      );
-    }
-
-    user.sessions = user.sessions.filter((s) => s._id.toString() !== sessionId);
-    await user.save();
-
-    // Log security event
-    logger.info(`Session ${sessionId} deleted for user ${userId}`); // Replaced console.log
-
-    return true;
-  } catch (error) {
-    logger.error("Error deleting session:", {
-      error: error.message,
-      stack: error.stack,
-      userId,
-      sessionId,
-    }); // Replaced console.error
-    throw new Error(error.message || "Failed to delete session");
-  }
-}
-
-/**
- * Clean up expired sessions for all users (scheduled task)
- */
-async function cleanupExpiredSessions() {
-  try {
-    const now = new Date();
-    const result = await User.updateMany(
-      {},
-      {
-        $pull: {
-          sessions: {
-            rememberedUntil: { $lt: now },
-          },
-        },
-      }
-    );
-
-    logger.info(
-      `Cleaned up expired sessions for ${result.modifiedCount} users` // Replaced console.log
-    );
-    return result;
-  } catch (error) {
-    logger.error("Error cleaning up expired sessions:", {
-      error: error.message,
-      stack: error.stack,
-    }); // Replaced console.error
-    throw new Error("Failed to cleanup expired sessions");
-  }
-}
-
-/**
- * Get session analytics for a user
- */
-async function getSessionAnalytics(userId) {
-  try {
-    const user = await User.findById(userId).select("sessions");
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const sessions = user.sessions;
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const analytics = {
-      totalSessions: sessions.length,
-      activeSessions: sessions.filter(
-        (s) => !s.rememberedUntil || s.rememberedUntil > now
-      ).length,
-      recentSessions: sessions.filter(
-        (s) => new Date(s.createdAt) > thirtyDaysAgo
-      ).length,
-      uniqueIPs: [...new Set(sessions.map((s) => s.ip))].length,
-      devices: sessions.reduce((acc, session) => {
-        const deviceType = session.userAgent.includes("Mobile")
-          ? "mobile"
-          : "desktop";
-        acc[deviceType] = (acc[deviceType] || 0) + 1;
-        return acc;
-      }, {}),
-    };
-    return analytics;
-  } catch (error) {
-    logger.error("Error getting session analytics:", {
-      error: error.message,
-      stack: error.stack,
-      userId,
-    }); // Replaced console.error
-    throw new Error("Failed to get session analytics");
-  }
 }
 
 // =============================================================================
@@ -1159,10 +952,10 @@ const generateNewBackupCodes = async (userId, password) => {
 /**
  * Complete 2FA login after verification
  * @param {String} userId - User ID
- * @param {Object} sessionInfo - Session information (IP, userAgent, etc.)
+ * @param {Object} loginInfo - Login information (IP, userAgent, etc.)
  * @returns {Object} User data and tokens
  */
-const complete2FALogin = async (userId, sessionInfo = {}) => {
+const complete2FALogin = async (userId, loginInfo = {}) => {
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -1175,14 +968,9 @@ const complete2FALogin = async (userId, sessionInfo = {}) => {
     // Store refresh token
     await storeRefreshToken(userId, refreshToken);
 
-    // Create a session for the user
-    let session = null;
-    if (sessionInfo.ip && sessionInfo.userAgent) {
-      session = await addSession(userId, {
-        ip: sessionInfo.ip,
-        userAgent: sessionInfo.userAgent,
-        location: sessionInfo.location || "Unknown",
-      });
+    // Log successful login for audit trail
+    if (loginInfo.ip) {
+      await logSuccessfulLogin(userId, loginInfo);
     }
 
     return {
@@ -1197,14 +985,13 @@ const complete2FALogin = async (userId, sessionInfo = {}) => {
       },
       token,
       refreshToken,
-      sessionId: session?._id.toString(),
     };
   } catch (error) {
     logger.error("Error completing 2FA login:", {
       error: error.message,
       stack: error.stack,
       userId,
-    }); // Replaced console.error
+    });
     throw new Error("Failed to complete 2FA login");
   }
 };
@@ -1377,38 +1164,6 @@ async function clearLoginAttempts(email, ip) {
 }
 
 /**
- * Enhanced session cleanup with user activity tracking
- */
-async function cleanupInactiveSessions() {
-  try {
-    const inactivityThreshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days
-
-    const result = await User.updateMany(
-      {},
-      {
-        $pull: {
-          sessions: {
-            createdAt: { $lt: inactivityThreshold },
-            rememberedUntil: { $exists: false },
-          },
-        },
-      }
-    );
-
-    logger.info(
-      `Cleaned up inactive sessions for ${result.modifiedCount} users`
-    );
-    return result;
-  } catch (error) {
-    logger.error("Error cleaning up inactive sessions:", {
-      error: error.message,
-      stack: error.stack,
-    });
-    throw new Error("Failed to cleanup inactive sessions");
-  }
-}
-
-/**
  * Refresh access token using refresh token
  */
 async function refreshAccessToken(refreshToken) {
@@ -1480,16 +1235,10 @@ module.exports = {
   refreshAccessToken,
   verifyOtp,
   resendOtp,
-  // OAuth providers and session management
+  // OAuth providers management
   getLinkedProviders,
   linkProvider,
   unlinkProvider,
-  getSessions,
-  deleteSession,
-  cleanupExpiredSessions,
-  getSessionAnalytics,
-  cleanupInactiveSessions,
-  addSession,
   storeRefreshToken,
   // 2FA functions
   generate2FASecret,
@@ -1499,5 +1248,4 @@ module.exports = {
   get2FAStatus,
   generateNewBackupCodes,
   complete2FALogin,
-  refreshAccessToken,
 };

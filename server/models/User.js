@@ -39,6 +39,16 @@ const userSchema = new mongoose.Schema(
     emailVerificationToken: String,
     emailVerificationExpire: Date,
 
+    // OTP for email verification
+    otp: String,
+    otpExpire: Date,
+
+    // Email verification status
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
     // Password Reset
     resetPasswordToken: String,
     resetPasswordExpire: Date,
@@ -378,23 +388,23 @@ const userSchema = new mongoose.Schema(
     },
 
     // 2FA Security
-    twoFactorAuth: {
-      enabled: {
-        type: Boolean,
-        default: false,
-      },
-      secret: {
-        type: String,
-        select: false,
-      },
-      backupCodes: [
-        {
-          code: String,
-          used: { type: Boolean, default: false },
-          usedAt: Date,
-        },
-      ],
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
     },
+    twoFactorSecret: {
+      type: String,
+      select: false,
+    },
+    backupCodes: [
+      {
+        code: String,
+        used: { type: Boolean, default: false },
+        usedAt: Date,
+      },
+    ],
+    lastTOTPToken: String,
+    lastTOTPTimestamp: Date,
 
     // Security & Authentication
     loginAttempts: {
@@ -501,7 +511,11 @@ const userSchema = new mongoose.Schema(
         delete ret.resetPasswordToken;
         delete ret.resetPasswordExpire;
         delete ret.emailVerificationToken;
-        delete ret.twoFactorAuth?.secret;
+        delete ret.otp;
+        delete ret.otpExpire;
+        delete ret.twoFactorSecret;
+        delete ret.lastTOTPToken;
+        delete ret.lastTOTPTimestamp;
         // Enhanced security: remove all git provider tokens
         if (ret.gitProviders) {
           Object.keys(ret.gitProviders).forEach((provider) => {
@@ -565,6 +579,11 @@ userSchema.methods.getResetPasswordToken = function () {
     .digest("hex");
   this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
   return resetToken;
+};
+
+// Create password reset token (alias for compatibility)
+userSchema.methods.createPasswordResetToken = function () {
+  return this.getResetPasswordToken();
 };
 
 // Generate email verification token

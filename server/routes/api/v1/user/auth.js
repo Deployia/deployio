@@ -72,10 +72,6 @@ router.post(
   user.auth.refreshToken
 );
 
-// Session management
-router.get("/sessions", protect, user.auth.getSessions);
-router.delete("/sessions/:sessionId", protect, user.auth.deleteSession);
-
 // 2FA endpoints
 router.post("/2fa/generate-secret", protect, user.auth.generate2FASecret);
 router.post("/2fa/enable", protect, user.auth.enable2FA);

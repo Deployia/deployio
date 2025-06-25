@@ -8,12 +8,7 @@ const logger = require("@config/logger");
 const invalidateUserCache = async (userId) => {
   try {
     const redisClient = getRedisClient();
-    const patterns = [
-      `user:${userId}`,
-      `user_session:${userId}`,
-      `active_sessions:${userId}`,
-      `refresh_token:${userId}:*`,
-    ];
+    const patterns = [`user:${userId}`, `refresh_token:${userId}:*`];
 
     // Delete all user-related cache keys
     for (const pattern of patterns) {
@@ -395,8 +390,8 @@ const getDashboardStats = async (userId) => {
       joinDate: user.createdAt,
       lastLogin: user.lastLogin,
       profileComplete: !!(user.firstName && user.lastName && user.bio),
-      twoFactorEnabled: user.twoFactorAuth?.enabled || false,
-      emailVerified: user.isEmailVerified,
+      twoFactorEnabled: user.twoFactorEnabled || false,
+      emailVerified: user.isVerified,
     },
     activity: {
       totalThisMonth: recentActivities.length,

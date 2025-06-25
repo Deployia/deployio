@@ -1,10 +1,10 @@
 // Clean Auth Controller - Pure JWT Implementation
 // No session tracking, simplified authentication flow
 
-const user = require("@services/user");
+const authService = require("@services/user/authService");
+const userService = require("@services/user/userService");
 const jwt = require("jsonwebtoken");
 const logger = require("@config/logger");
-const { getSafeUserData } = require("@utils/userDataFilter");
 
 /**
  * Generate JWT tokens without session tracking
@@ -60,12 +60,6 @@ const clearAuthCookies = (res) => {
   res.clearCookie("refreshToken");
 };
 
-// Determine front-end URL for redirects
-const frontUrl =
-  process.env.NODE_ENV === "development"
-    ? process.env.FRONTEND_URL_DEV
-    : process.env.FRONTEND_URL_PROD;
-
 /**
  * Register a new user
  */
@@ -96,73 +90,23 @@ const register = async (req, res) => {
       });
     }
 
-    const result = await user.auth.registerUser({
+    const result = await authService.registerUser({
       username: username.trim(),
       email: email.toLowerCase().trim(),
       password,
     });
 
-    // No immediate token generation - require email verification
     res.status(201).json({
       success: true,
-      message: "Registration successful. Please verify your email.",
+      message:
+        "Registration successful. Please verify your email with the OTP sent to your inbox.",
       data: {
-        userId: result.user.id,
-        emailSent: result.emailSent,
-        requiresVerification: true,
+        user: result.user,
+        otpSent: result.otpSent,
       },
     });
   } catch (error) {
     logger.error("Registration error:", error);
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-/**
- * Verify email with OTP
- */
-const verifyEmail = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide email and OTP",
-      });
-    }
-
-    const result = await user.auth.verifyEmail({
-      email: email.toLowerCase().trim(),
-      otp,
-    });
-
-    if (!result.user) {
-      return res.status(400).json({
-        success: false,
-        message: "Email verification failed",
-      });
-    }
-
-    // Generate tokens and set cookies
-    const { accessToken, refreshToken } = generateTokens(result.user.id);
-    setAuthCookies(res, accessToken, refreshToken);
-
-    logger.info(`User email verified and logged in: ${result.user.email}`);
-
-    res.json({
-      success: true,
-      message: "Email verified successfully",
-      data: {
-        user: getSafeUserData(result.user),
-        requiresVerification: false,
-      },
-    });
-  } catch (error) {
-    logger.error("Email verification error:", error);
     res.status(400).json({
       success: false,
       message: error.message,
@@ -184,55 +128,52 @@ const login = async (req, res) => {
       });
     }
 
-    const result = await user.auth.loginUser({
-      email: email.toLowerCase().trim(),
+    const loginInfo = {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      location: "Unknown", // You can integrate with a geolocation service
+    };
+
+    const result = await authService.loginUser(
+      email.toLowerCase().trim(),
       password,
-    });
+      loginInfo
+    );
 
-    if (!result.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
-
-    // Check if user is verified
-    if (!result.user.isEmailVerified) {
+    // Handle different login scenarios
+    if (result.needsVerification) {
       return res.status(403).json({
         success: false,
-        message: "Please verify your email before logging in",
+        message: result.message,
         data: {
-          requiresVerification: true,
-          userId: result.user.id,
+          needsVerification: true,
+          email: result.email,
         },
       });
     }
 
-    // Check if account is locked
-    if (result.user.isLocked) {
-      return res.status(423).json({
-        success: false,
-        message: "Account temporarily locked. Please try again later.",
+    if (result.requires2FA) {
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: {
+          requires2FA: true,
+          userId: result.userId,
+        },
       });
     }
 
-    // Generate tokens and set cookies
-    const { accessToken, refreshToken } = generateTokens(result.user.id);
+    // Successful login
+    const { accessToken, refreshToken } = generateTokens(result.user._id);
     setAuthCookies(res, accessToken, refreshToken);
-
-    // Update last login
-    await user.auth.updateLastLogin(result.user.id, {
-      ip: req.ip,
-      userAgent: req.headers["user-agent"],
-    });
-
-    logger.info(`User logged in: ${result.user.email}`);
 
     res.json({
       success: true,
       message: "Login successful",
       data: {
-        user: getSafeUserData(result.user),
+        user: result.user,
+        token: accessToken,
+        refreshToken: refreshToken,
       },
     });
   } catch (error) {
@@ -245,17 +186,155 @@ const login = async (req, res) => {
 };
 
 /**
+ * Verify OTP for email verification
+ */
+const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide email and OTP",
+      });
+    }
+
+    const result = await authService.verifyOtp(email.toLowerCase().trim(), otp);
+
+    // Generate tokens and set cookies after successful verification
+    const { accessToken, refreshToken } = generateTokens(result.user.id);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    res.json({
+      success: true,
+      message: "Email verified successfully",
+      data: {
+        user: result.user,
+        token: result.token,
+        refreshToken: result.refreshToken,
+      },
+    });
+  } catch (error) {
+    logger.error("OTP verification error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Resend OTP for email verification
+ */
+const resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide email",
+      });
+    }
+
+    const message = await authService.resendOtp(email.toLowerCase().trim());
+
+    res.json({
+      success: true,
+      message: message,
+    });
+  } catch (error) {
+    logger.error("Resend OTP error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Forgot password - send reset email
+ */
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide email",
+      });
+    }
+
+    const resetUrl = `${req.protocol}://${req.get("host")}`;
+    const message = await authService.forgotPassword(
+      email.toLowerCase().trim(),
+      resetUrl
+    );
+
+    res.json({
+      success: true,
+      message: message,
+    });
+  } catch (error) {
+    logger.error("Forgot password error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Reset password with token
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide new password",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long",
+      });
+    }
+
+    const message = await authService.resetPassword(token, newPassword);
+
+    res.json({
+      success: true,
+      message: message,
+    });
+  } catch (error) {
+    logger.error("Reset password error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
  * Logout user
  */
 const logout = async (req, res) => {
   try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (refreshToken) {
+      await authService.logoutUser(req.user._id, refreshToken);
+    }
+
     // Clear authentication cookies
     clearAuthCookies(res);
-
-    // Optional: Add token to blacklist if using Redis
-    // await addTokenToBlacklist(req.cookies.token);
-
-    logger.info(`User logged out: ${req.user?.email || "Unknown"}`);
 
     res.json({
       success: true,
@@ -284,34 +363,19 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Verify refresh token
-    const decoded = jwt.verify(
-      clientRefreshToken,
-      process.env.JWT_REFRESH_SECRET
-    );
-
-    // Check if user still exists
-    const userRecord = await user.auth.getUserById(decoded.id);
-    if (!userRecord) {
-      return res.status(401).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+    const result = await authService.refreshAccessToken(clientRefreshToken);
 
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(
-      decoded.id
+      result.user._id
     );
     setAuthCookies(res, accessToken, newRefreshToken);
-
-    logger.info(`Token refreshed for user: ${userRecord.email}`);
 
     res.json({
       success: true,
       message: "Token refreshed successfully",
       data: {
-        user: getSafeUserData(userRecord),
+        user: result.user,
       },
     });
   } catch (error) {
@@ -330,12 +394,12 @@ const refreshToken = async (req, res) => {
 /**
  * Get current user profile
  */
-const getProfile = async (req, res) => {
+const getMe = async (req, res) => {
   try {
     res.json({
       success: true,
       data: {
-        user: getSafeUserData(req.user),
+        user: req.user,
       },
     });
   } catch (error) {
@@ -348,118 +412,52 @@ const getProfile = async (req, res) => {
 };
 
 /**
- * Google OAuth callback
+ * Generate 2FA secret
  */
-const googleCallback = async (req, res) => {
+const generate2FASecret = async (req, res) => {
   try {
-    const { accessToken, refreshToken } = req.authInfo;
-    const googleProfile = req.user;
+    const userId = req.user._id;
+    const result = await authService.generate2FASecret(userId);
 
-    // Generate our JWT tokens
-    const { accessToken: jwtAccessToken, refreshToken: jwtRefreshToken } =
-      generateTokens(googleProfile.id);
-    setAuthCookies(res, jwtAccessToken, jwtRefreshToken);
-
-    logger.info(`Google OAuth login: ${googleProfile.email}`);
-
-    res.redirect(`${frontUrl}/dashboard?auth=success`);
-  } catch (error) {
-    logger.error("Google OAuth callback error:", error);
-    res.redirect(`${frontUrl}/auth/login?error=oauth_failed`);
-  }
-};
-
-/**
- * GitHub OAuth callback (for authentication only)
- */
-const githubCallback = async (req, res) => {
-  try {
-    const { accessToken, refreshToken } = req.authInfo;
-    const githubProfile = req.user;
-
-    // Generate our JWT tokens
-    const { accessToken: jwtAccessToken, refreshToken: jwtRefreshToken } =
-      generateTokens(githubProfile.id);
-    setAuthCookies(res, jwtAccessToken, jwtRefreshToken);
-
-    logger.info(`GitHub OAuth login: ${githubProfile.email}`);
-
-    res.redirect(`${frontUrl}/dashboard?auth=success`);
-  } catch (error) {
-    logger.error("GitHub OAuth callback error:", error);
-    res.redirect(`${frontUrl}/auth/login?error=oauth_failed`);
-  }
-};
-
-/**
- * Forgot password
- */
-const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide email address",
-      });
-    }
-
-    const result = await user.auth.forgotPassword({
-      email: email.toLowerCase().trim(),
-    });
-
-    // Always return success for security (don't reveal if email exists)
     res.json({
       success: true,
-      message:
-        "If an account exists with this email, a reset link has been sent.",
-      data: {
-        emailSent: result.emailSent,
-      },
+      message: "2FA secret generated successfully",
+      data: result,
     });
   } catch (error) {
-    logger.error("Forgot password error:", error);
+    logger.error("Generate 2FA secret error:", error);
     res.status(500).json({
       success: false,
-      message: "An error occurred while processing your request",
+      message: "Failed to generate 2FA secret",
+      error: error.message,
     });
   }
 };
 
 /**
- * Reset password
+ * Enable 2FA
  */
-const resetPassword = async (req, res) => {
+const enable2FA = async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const userId = req.user._id;
+    const { token, secret } = req.body;
 
-    if (!token || !password) {
+    if (!token || !secret) {
       return res.status(400).json({
         success: false,
-        message: "Please provide reset token and new password",
+        message: "2FA token and secret are required",
       });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 6 characters long",
-      });
-    }
-
-    const result = await user.auth.resetPassword({
-      token,
-      password,
-    });
+    const result = await authService.enable2FA(userId, token, secret);
 
     res.json({
       success: true,
-      message:
-        "Password reset successful. You can now log in with your new password.",
+      message: "2FA enabled successfully",
+      data: result,
     });
   } catch (error) {
-    logger.error("Reset password error:", error);
+    logger.error("Enable 2FA error:", error);
     res.status(400).json({
       success: false,
       message: error.message,
@@ -468,53 +466,232 @@ const resetPassword = async (req, res) => {
 };
 
 /**
- * Resend verification email
+ * Verify 2FA during login
  */
-const resendVerification = async (req, res) => {
+const verify2FALogin = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { userId, token } = req.body;
 
-    if (!email) {
+    if (!userId || !token) {
       return res.status(400).json({
         success: false,
-        message: "Please provide email address",
+        message: "User ID and 2FA token are required",
       });
     }
 
-    const result = await user.auth.resendVerificationEmail({
-      email: email.toLowerCase().trim(),
-    });
+    const result = await authService.verify2FALogin(userId, token);
 
-    res.json({
-      success: true,
-      message: "Verification email sent successfully",
-      data: {
-        emailSent: result.emailSent,
-      },
-    });
+    if (result.verified) {
+      const loginInfo = {
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        location: "Unknown",
+      };
+
+      const loginResult = await authService.complete2FALogin(userId, loginInfo);
+
+      const { accessToken, refreshToken } = generateTokens(loginResult.user.id);
+      setAuthCookies(res, accessToken, refreshToken);
+
+      res.json({
+        success: true,
+        message: "2FA verification successful",
+        data: {
+          user: loginResult.user,
+          token: loginResult.token,
+          refreshToken: loginResult.refreshToken,
+        },
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error || "Invalid 2FA token",
+      });
+    }
   } catch (error) {
-    logger.error("Resend verification error:", error);
+    logger.error("Verify 2FA login error:", error);
     res.status(400).json({
       success: false,
       message: error.message,
     });
+  }
+};
+
+/**
+ * Disable 2FA
+ */
+const disable2FA = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required to disable 2FA",
+      });
+    }
+
+    const message = await authService.disable2FA(userId, password);
+
+    res.json({
+      success: true,
+      message: message,
+    });
+  } catch (error) {
+    logger.error("Disable 2FA error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get 2FA status
+ */
+const get2FAStatus = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const status = await authService.get2FAStatus(userId);
+
+    res.json({
+      success: true,
+      message: "2FA status retrieved successfully",
+      data: status,
+    });
+  } catch (error) {
+    logger.error("Get 2FA status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get 2FA status",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Generate new backup codes
+ */
+const generateNewBackupCodes = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required to generate new backup codes",
+      });
+    }
+
+    const result = await authService.generateNewBackupCodes(userId, password);
+
+    res.json({
+      success: true,
+      message: "New backup codes generated successfully",
+      data: result,
+    });
+  } catch (error) {
+    logger.error("Generate backup codes error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate backup codes",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Google OAuth callback
+ */
+const googleAuthCallback = async (req, res) => {
+  try {
+    // User is already authenticated by passport strategy
+    const user = req.user;
+
+    if (!user) {
+      return res.redirect(
+        `${
+          process.env.FRONTEND_URL_DEV || process.env.FRONTEND_URL_PROD
+        }/auth/login?error=oauth_failed`
+      );
+    }
+
+    // Generate tokens for OAuth user
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    // Redirect to frontend with success
+    const frontUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+
+    res.redirect(`${frontUrl}/dashboard?oauth=success`);
+  } catch (error) {
+    logger.error("Google OAuth callback error:", error);
+    const frontUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+    res.redirect(`${frontUrl}/auth/login?error=oauth_error`);
+  }
+};
+
+/**
+ * GitHub OAuth callback
+ */
+const githubAuthCallback = async (req, res) => {
+  try {
+    // User is already authenticated by passport strategy
+    const user = req.user;
+
+    if (!user) {
+      return res.redirect(
+        `${
+          process.env.FRONTEND_URL_DEV || process.env.FRONTEND_URL_PROD
+        }/auth/login?error=oauth_failed`
+      );
+    }
+
+    // Generate tokens for OAuth user
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    // Redirect to frontend with success
+    const frontUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+
+    res.redirect(`${frontUrl}/dashboard?oauth=success`);
+  } catch (error) {
+    logger.error("GitHub OAuth callback error:", error);
+    const frontUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+    res.redirect(`${frontUrl}/auth/login?error=oauth_error`);
   }
 };
 
 module.exports = {
   register,
-  verifyEmail,
   login,
-  logout,
-  refreshToken,
-  getProfile,
-  googleCallback,
-  githubCallback,
+  verifyOtp,
+  resendOtp,
   forgotPassword,
   resetPassword,
-  resendVerification,
-  // Utility functions
-  generateTokens,
-  setAuthCookies,
-  clearAuthCookies,
+  logout,
+  refreshToken,
+  getMe,
+  generate2FASecret,
+  enable2FA,
+  verify2FALogin,
+  disable2FA,
+  get2FAStatus,
+  generateNewBackupCodes,
+  googleAuthCallback,
+  githubAuthCallback,
 };
