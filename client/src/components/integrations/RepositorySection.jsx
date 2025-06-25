@@ -23,12 +23,21 @@ const RepositorySection = ({ connectedProviders, repositories }) => {
   const [expandedProvider, setExpandedProvider] = useState(null);
   const [searchQueries, setSearchQueries] = useState({});
 
-  // Auto-expand first connected provider
+  // Auto-expand first connected provider and fetch repositories
   useEffect(() => {
     if (connectedProviders.length > 0 && !expandedProvider) {
-      setExpandedProvider(connectedProviders[0].provider);
+      const firstProvider = connectedProviders[0].provider;
+      setExpandedProvider(firstProvider);
+
+      // Auto-fetch repositories for the first provider if no data exists
+      if (
+        !repositories[firstProvider]?.data?.length ||
+        repositories[firstProvider]?.lastFetch === null
+      ) {
+        dispatch(fetchRepositories({ provider: firstProvider, page: 1 }));
+      }
     }
-  }, [connectedProviders, expandedProvider]);
+  }, [connectedProviders, expandedProvider, repositories, dispatch]);
 
   const getProviderIcon = (provider) => {
     switch (provider) {

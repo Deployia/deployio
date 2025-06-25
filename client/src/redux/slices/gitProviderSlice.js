@@ -52,7 +52,7 @@ export const fetchRepositories = createAsyncThunk(
         page,
         limit,
       });
-      return { provider, ...response };
+      return response.data; // Return the data object directly
     } catch (error) {
       return rejectWithValue({
         provider,
@@ -73,7 +73,7 @@ export const searchRepositories = createAsyncThunk(
         query,
         { page, limit }
       );
-      return { provider, query, ...response };
+      return { query, ...response.data }; // Extract data and add query
     } catch (error) {
       return rejectWithValue({
         provider,
@@ -414,7 +414,7 @@ const gitProviderSlice = createSlice({
             page: pagination.page,
             totalPages: pagination.totalPages,
             totalCount: pagination.totalCount,
-            hasMore: pagination.page < pagination.totalPages,
+            hasMore: pagination.hasMore, // Use the hasMore from backend
           },
           lastFetch: new Date().toISOString(),
         });
