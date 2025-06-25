@@ -5,6 +5,7 @@ const ai = require("./ai");
 const deployment = require("./deployment");
 const user = require("./user");
 const project = require("./project");
+const git = require("./git");
 const admin = require("./admin");
 const external = require("./external");
 const api = require("./api");
@@ -15,6 +16,7 @@ module.exports = {
   deployment,
   user,
   project,
+  git,
   admin,
   external,
   api,
