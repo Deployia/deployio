@@ -8,7 +8,7 @@ router = APIRouter()
 @router.get(
     "/service/v1/dev/demo-token",
     tags=["Dev"],
-    include_in_schema=os.getenv("ENVIRONMENT", "development") != "production",
+    include_in_schema=True,  # Enable this route in production as well
 )
 async def get_demo_user_token(
     x_internal_service: str = Header(
@@ -18,15 +18,18 @@ async def get_demo_user_token(
 ):
     """
     Get a demo user auth bearer token from the backend for development/testing purposes only.
-    This route is disabled in production.
+    This route is now enabled in production but should be disabled when disabling the docs.
 
     Internal API usage:
     - Makes a POST request to /api/internal/auth/demo-token on the backend.
     - Requires the header: X-Internal-Service: deployio-ai-service
     - This is similar to how analysis routes require X-Internal-Service: deployio-backend
+
+    Note: To interact with Redis in the Docker Compose network, use the hostname 'redis' and the port '6379'.
+    Example: redis://redis:6379
     """
     if os.getenv("ENVIRONMENT", "development") == "production":
-        raise HTTPException(status_code=404, detail="Not found")
+        pass  # Route is now enabled in production
 
     backend_url = os.getenv("BACKEND_URL", "http://localhost:3000")
     try:

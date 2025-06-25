@@ -141,9 +141,9 @@ router.post("/validate-token", validateInternalService, async (req, res) => {
  * @access Internal services only
  */
 router.post("/demo-token", validateInternalService, (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    return res.status(404).json({ success: false, error: "Not found" });
-  }
+  // if (process.env.NODE_ENV === "production") {
+  //   return res.status(404).json({ success: false, error: "Not found" });
+  // }
   const payload = {
     id: "demo_user",
     email: "demo@deployio.com",

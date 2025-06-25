@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # CORE SERVICE CONFIGURATION
     # =============================================================================
     app_name: str = "DeployIO AI Service"
-    version: str = "2.0.0"
+    version: str = "1.0.0"
     description: str = "Multi-stack analysis and configuration generation service"
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     environment: str = os.getenv("ENVIRONMENT", "development")
