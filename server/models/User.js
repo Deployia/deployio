@@ -41,48 +41,207 @@ const userSchema = new mongoose.Schema(
 
     // Password Reset
     resetPasswordToken: String,
-    resetPasswordExpire: Date, // GitHub OAuth Integration (Primary for deployments)
+    resetPasswordExpire: Date,
+
+    // Multi-Provider Git Integration (Enhanced)
+    // GitHub OAuth Integration (Primary for deployments)
     githubId: {
       type: String,
       unique: true,
       sparse: true,
-    }, // Google OAuth Integration (Alternative auth method)
+    },
+
+    // GitLab OAuth Integration
+    gitlabId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    // Azure DevOps OAuth Integration
+    azureDevOpsId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    // Bitbucket OAuth Integration
+    bitbucketId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    // Google OAuth Integration (Alternative auth method)
     googleId: {
       type: String,
       unique: true,
       sparse: true,
-    }, // GitHub Integration Details (Primary for deployments)
-    github: {
-      username: {
-        type: String,
-      },
-      avatarUrl: String,
-      profileUrl: String,
-      accessToken: {
-        type: String,
-        select: false,
-      },
-      refreshToken: {
-        type: String,
-        select: false,
-      },
-      tokenExpiry: Date,
-      scopes: [
-        {
+    },
+
+    // Enhanced Git Provider Integrations
+    gitProviders: {
+      // GitHub Integration Details (Primary for deployments)
+      github: {
+        id: String,
+        username: String,
+        email: String,
+        avatarUrl: String,
+        profileUrl: String,
+        accessToken: {
           type: String,
-          enum: ["user:email", "repo", "workflow", "admin:repo_hook"],
+          select: false,
         },
-      ],
-      // Repository access level
-      repoAccess: {
-        public: {
-          type: Boolean,
-          default: true,
+        refreshToken: {
+          type: String,
+          select: false,
         },
-        private: {
+        tokenExpiry: Date,
+        scopes: [
+          {
+            type: String,
+            enum: ["user:email", "repo", "workflow", "admin:repo_hook"],
+          },
+        ],
+        // Repository access level
+        repoAccess: {
+          public: {
+            type: Boolean,
+            default: true,
+          },
+          private: {
+            type: Boolean,
+            default: false,
+          },
+        },
+        isConnected: {
           type: Boolean,
           default: false,
         },
+        connectedAt: Date,
+        lastUsed: Date,
+      },
+
+      // GitLab Integration Details
+      gitlab: {
+        id: String,
+        username: String,
+        email: String,
+        name: String,
+        avatarUrl: String,
+        profileUrl: String,
+        accessToken: {
+          type: String,
+          select: false,
+        },
+        refreshToken: {
+          type: String,
+          select: false,
+        },
+        tokenExpiry: Date,
+        scopes: [
+          {
+            type: String,
+            enum: ["read_user", "read_repository", "api", "read_registry"],
+          },
+        ],
+        repoAccess: {
+          public: {
+            type: Boolean,
+            default: true,
+          },
+          private: {
+            type: Boolean,
+            default: false,
+          },
+        },
+        isConnected: {
+          type: Boolean,
+          default: false,
+        },
+        connectedAt: Date,
+        lastUsed: Date,
+      },
+
+      // Azure DevOps Integration Details
+      azureDevOps: {
+        id: String,
+        displayName: String,
+        email: String,
+        avatarUrl: String,
+        profileUrl: String,
+        accessToken: {
+          type: String,
+          select: false,
+        },
+        refreshToken: {
+          type: String,
+          select: false,
+        },
+        tokenExpiry: Date,
+        scopes: [
+          {
+            type: String,
+            enum: ["vso.code", "vso.identity", "vso.project", "vso.build"],
+          },
+        ],
+        repoAccess: {
+          public: {
+            type: Boolean,
+            default: true,
+          },
+          private: {
+            type: Boolean,
+            default: false,
+          },
+        },
+        isConnected: {
+          type: Boolean,
+          default: false,
+        },
+        connectedAt: Date,
+        lastUsed: Date,
+      },
+
+      // Bitbucket Integration Details
+      bitbucket: {
+        id: String,
+        username: String,
+        displayName: String,
+        email: String,
+        avatarUrl: String,
+        profileUrl: String,
+        accessToken: {
+          type: String,
+          select: false,
+        },
+        refreshToken: {
+          type: String,
+          select: false,
+        },
+        tokenExpiry: Date,
+        scopes: [
+          {
+            type: String,
+            enum: ["account", "repository", "repository:write", "pullrequest"],
+          },
+        ],
+        repoAccess: {
+          public: {
+            type: Boolean,
+            default: true,
+          },
+          private: {
+            type: Boolean,
+            default: false,
+          },
+        },
+        isConnected: {
+          type: Boolean,
+          default: false,
+        },
+        connectedAt: Date,
+        lastUsed: Date,
       },
     },
 
@@ -349,6 +508,16 @@ const userSchema = new mongoose.Schema(
         delete ret.resetPasswordExpire;
         delete ret.emailVerificationToken;
         delete ret.twoFactorAuth?.secret;
+        // Enhanced security: remove all git provider tokens
+        if (ret.gitProviders) {
+          Object.keys(ret.gitProviders).forEach((provider) => {
+            if (ret.gitProviders[provider]) {
+              delete ret.gitProviders[provider].accessToken;
+              delete ret.gitProviders[provider].refreshToken;
+            }
+          });
+        }
+        // Legacy cleanup
         delete ret.github?.accessToken;
         delete ret.github?.refreshToken;
         delete ret.google?.accessToken;
@@ -485,16 +654,92 @@ userSchema.methods.updateResourceUsage = function (
   this.currentUsage.totalStorageUsed = storageUsed;
 };
 
-// GitHub token management
+// Enhanced Git Provider token management
 userSchema.methods.isGitHubTokenValid = function () {
   return (
-    this.github?.accessToken &&
-    (!this.github.tokenExpiry || this.github.tokenExpiry > new Date())
+    this.gitProviders?.github?.accessToken &&
+    (!this.gitProviders.github.tokenExpiry ||
+      this.gitProviders.github.tokenExpiry > new Date())
+  );
+};
+
+userSchema.methods.isGitLabTokenValid = function () {
+  return (
+    this.gitProviders?.gitlab?.accessToken &&
+    (!this.gitProviders.gitlab.tokenExpiry ||
+      this.gitProviders.gitlab.tokenExpiry > new Date())
+  );
+};
+
+userSchema.methods.isAzureDevOpsTokenValid = function () {
+  return (
+    this.gitProviders?.azureDevOps?.accessToken &&
+    (!this.gitProviders.azureDevOps.tokenExpiry ||
+      this.gitProviders.azureDevOps.tokenExpiry > new Date())
+  );
+};
+
+userSchema.methods.isBitbucketTokenValid = function () {
+  return (
+    this.gitProviders?.bitbucket?.accessToken &&
+    (!this.gitProviders.bitbucket.tokenExpiry ||
+      this.gitProviders.bitbucket.tokenExpiry > new Date())
   );
 };
 
 userSchema.methods.hasGitHubScope = function (scope) {
-  return this.github?.scopes && this.github.scopes.includes(scope);
+  return (
+    this.gitProviders?.github?.scopes &&
+    this.gitProviders.github.scopes.includes(scope)
+  );
+};
+
+userSchema.methods.hasGitLabScope = function (scope) {
+  return (
+    this.gitProviders?.gitlab?.scopes &&
+    this.gitProviders.gitlab.scopes.includes(scope)
+  );
+};
+
+userSchema.methods.hasAzureDevOpsScope = function (scope) {
+  return (
+    this.gitProviders?.azureDevOps?.scopes &&
+    this.gitProviders.azureDevOps.scopes.includes(scope)
+  );
+};
+
+userSchema.methods.hasBitbucketScope = function (scope) {
+  return (
+    this.gitProviders?.bitbucket?.scopes &&
+    this.gitProviders.bitbucket.scopes.includes(scope)
+  );
+};
+
+// Get connected git providers
+userSchema.methods.getConnectedGitProviders = function () {
+  const providers = [];
+  if (this.gitProviders?.github?.isConnected) providers.push("github");
+  if (this.gitProviders?.gitlab?.isConnected) providers.push("gitlab");
+  if (this.gitProviders?.azureDevOps?.isConnected)
+    providers.push("azureDevOps");
+  if (this.gitProviders?.bitbucket?.isConnected) providers.push("bitbucket");
+  return providers;
+};
+
+// Get primary git provider (first connected one, prioritizing GitHub)
+userSchema.methods.getPrimaryGitProvider = function () {
+  if (this.gitProviders?.github?.isConnected) return "github";
+  if (this.gitProviders?.gitlab?.isConnected) return "gitlab";
+  if (this.gitProviders?.azureDevOps?.isConnected) return "azureDevOps";
+  if (this.gitProviders?.bitbucket?.isConnected) return "bitbucket";
+  return null;
+};
+
+// Update provider last used timestamp
+userSchema.methods.updateProviderLastUsed = function (provider) {
+  if (this.gitProviders && this.gitProviders[provider]) {
+    this.gitProviders[provider].lastUsed = new Date();
+  }
 };
 
 // Google token management
