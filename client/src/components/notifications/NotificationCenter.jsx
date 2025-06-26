@@ -66,7 +66,8 @@ const NotificationCenter = ({ isOpen, onClose }) => {
   const handleNotificationClick = async (notification) => {
     if (notification.status === "unread") {
       try {
-        await dispatch(markNotificationRead(notification._id)).unwrap();
+        const notificationId = notification._id || notification.id;
+        await dispatch(markNotificationRead(notificationId)).unwrap();
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
       }
@@ -203,13 +204,13 @@ const NotificationCenter = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <div className="divide-y divide-neutral-800/30">
-              {filteredNotifications.map((notification) => {
+              {filteredNotifications.map((notification, idx) => {
                 const IconComponent = getNotificationIcon(notification.type);
                 const colorClass = getNotificationColor(notification);
 
                 return (
                   <motion.div
-                    key={notification._id}
+                    key={notification._id || notification.id || idx}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className={`notification-item p-3 hover:bg-neutral-800/30 cursor-pointer transition-colors ${

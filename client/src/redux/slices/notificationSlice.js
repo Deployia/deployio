@@ -167,7 +167,7 @@ const notificationSlice = createSlice({
     markAsReadLocal: (state, action) => {
       const notificationId = action.payload;
       const notification = state.notifications.find(
-        (n) => n._id === notificationId
+        (n) => n._id === notificationId || n.id === notificationId
       );
       if (notification && notification.status === "unread") {
         notification.status = "read";
@@ -182,11 +182,23 @@ const notificationSlice = createSlice({
     // Add new notification (WebSocket real-time)
     addNotification: (state, action) => {
       const newNotification = action.payload;
+
+      // Ensure test notifications have proper defaults
+      if (newNotification.isTest || newNotification.isWelcome) {
+        newNotification.status = newNotification.status || "read"; // Test notifications default to read
+      } else {
+        newNotification.status = newNotification.status || "unread"; // Regular notifications default to unread
+      }
+
       // Add to beginning of notifications array
       state.notifications.unshift(newNotification);
 
-      // Update unread count if notification is unread
-      if (newNotification.status === "unread") {
+      // Update unread count only for non-test, non-welcome notifications that are unread
+      if (
+        newNotification.status === "unread" &&
+        !newNotification.isTest &&
+        !newNotification.isWelcome
+      ) {
         state.unreadCount += 1;
       }
 
@@ -223,7 +235,26 @@ const notificationSlice = createSlice({
 
         // Handle pagination - append or replace based on page
         if (action.meta.arg?.page === 1) {
-          state.notifications = notifications;
+          // Preserve WebSocket-only notifications (test, welcome, etc.)
+          const webSocketOnlyNotifications = state.notifications.filter(
+            (notification) =>
+              notification.isTest ||
+              notification.isWelcome ||
+              notification.source === "connection_confirmation"
+          );
+
+          // Merge API notifications with WebSocket-only notifications
+          const apiNotifications = notifications.filter(
+            (apiNotification) =>
+              !webSocketOnlyNotifications.some(
+                (wsNotification) => wsNotification.id === apiNotification.id
+              )
+          );
+
+          state.notifications = [
+            ...webSocketOnlyNotifications,
+            ...apiNotifications,
+          ];
         } else {
           // Append for pagination
           state.notifications.push(...notifications);
@@ -261,7 +292,7 @@ const notificationSlice = createSlice({
 
         const { notificationId } = action.payload;
         const notification = state.notifications.find(
-          (n) => n._id === notificationId
+          (n) => n._id === notificationId || n.id === notificationId
         );
         if (notification && notification.status === "unread") {
           notification.status = "read";

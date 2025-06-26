@@ -47,6 +47,7 @@ const NotificationBell = () => {
 
     // Listen for new notifications
     const handleNewNotification = (notification) => {
+      console.log("NotificationBell received notification:", notification);
       dispatch(addNotification(notification));
 
       // Show browser notification if permission is granted
@@ -61,15 +62,16 @@ const NotificationBell = () => {
 
     // Listen for unread count updates
     const handleCountUpdate = (data) => {
+      console.log("NotificationBell received count update:", data);
       dispatch(updateNotificationCount(data.count));
     };
 
     addListener("new_notification", handleNewNotification);
-    addListener("notification_count", handleCountUpdate);
+    addListener("unread_count_changed", handleCountUpdate);
 
     return () => {
       removeListener("new_notification", handleNewNotification);
-      removeListener("notification_count", handleCountUpdate);
+      removeListener("unread_count_changed", handleCountUpdate);
     };
   }, [dispatch, wsConnected, addListener, removeListener]);
 
