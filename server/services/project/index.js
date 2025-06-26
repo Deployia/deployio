@@ -1,8 +1,12 @@
 // Project Services Module - New Modular Architecture
 // Organizes project-related services according to BACKEND_ARCHITECTURE_PLAN.md
 
-const projectService = require("./projectService");
+const projectCreationService = require('./projectCreationService');
 
 module.exports = {
-  project: projectService,
+  // Project creation service (intelligent flow)
+  creation: projectCreationService,
+
+  // Direct exports for convenience
+  ...projectCreationService,
 };
