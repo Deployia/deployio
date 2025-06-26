@@ -1,5 +1,6 @@
 // Redux slice exports for easy importing
 export { default as projectReducer } from "./slices/projectSlice";
+export { default as projectCreationReducer } from "./slices/projectCreationSlice";
 export { default as deploymentReducer } from "./slices/deploymentSlice";
 export { default as analyticsReducer } from "./slices/analyticsSlice";
 export { default as authReducer } from "./slices/authSlice";
@@ -24,6 +25,33 @@ export {
   setCurrentProject,
   clearCurrentProject,
 } from "./slices/projectSlice";
+
+// Project creation slice exports
+export {
+  createSession,
+  updateStepData,
+  analyzeRepository as analyzeRepositoryCreation,
+  createProjectFromSession,
+  fetchGitProviders,
+  fetchRepositories,
+  fetchBranches,
+  updateStep,
+  completeStep,
+  setStepData,
+  setSelectedProvider,
+  setSelectedRepository,
+  setRepositoryFilters,
+  setSelectedBranch,
+  setAnalysisSettings,
+  updateAnalysisProgress,
+  setProjectConfiguration,
+  resetWizard,
+  completeWizard,
+  clearError as clearProjectCreationError,
+  clearSuccess as clearProjectCreationSuccess,
+  startAnalysisPolling,
+  stopAnalysisPolling,
+} from "./slices/projectCreationSlice";
 
 // Deployment slice exports
 export {

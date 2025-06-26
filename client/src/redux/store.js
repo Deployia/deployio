@@ -4,6 +4,7 @@ import authReducer from "./slices/authSlice";
 import userProfileReducer from "./slices/userSlice";
 import twoFactorReducer from "./slices/twoFactorSlice";
 import projectReducer from "./slices/projectSlice";
+import projectCreationReducer from "./slices/projectCreationSlice";
 import deploymentReducer from "./slices/deploymentSlice";
 import analyticsReducer from "./slices/analyticsSlice";
 import documentationReducer from "./slices/documentationSlice";
@@ -17,6 +18,7 @@ const rootReducer = combineReducers({
   userProfile: userProfileReducer,
   twoFactor: twoFactorReducer,
   projects: projectReducer,
+  projectCreation: projectCreationReducer,
   deployments: deploymentReducer,
   analytics: analyticsReducer,
   documentation: documentationReducer,
