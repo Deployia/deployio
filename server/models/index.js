@@ -6,6 +6,7 @@
 // Core Models
 const User = require("./User");
 const Project = require("./Project");
+const ProjectCreationSession = require("./ProjectCreationSession");
 const Deployment = require("./Deployment");
 const BuildLog = require("./BuildLog");
 
@@ -16,7 +17,7 @@ const AuditLog = require("./AuditLog");
 // Communication
 const Notification = require("./Notification");
 
-// Content Models (if needed)
+// Content Models
 const Blog = require("./Blog");
 const Documentation = require("./Documentation");
 
@@ -24,6 +25,7 @@ module.exports = {
   // Core Models
   User,
   Project,
+  ProjectCreationSession,
   Deployment,
   BuildLog,
 
@@ -34,7 +36,7 @@ module.exports = {
   // Communication
   Notification,
 
-  // Content (Optional)
+  // Content Models
   Blog,
   Documentation,
 };

@@ -62,13 +62,13 @@ const projectSchema = new mongoose.Schema(
         type: String,
         trim: true,
         match: [
-          /^https:\/\/github\.com\/[^\/]+\/[^\/]+$/,
-          "Please provide a valid GitHub repository URL",
+          /^https:\/\/(github\.com|gitlab\.com|dev\.azure\.com)\/[^\/]+\/[^\/]+$/,
+          "Please provide a valid repository URL",
         ],
       },
       provider: {
         type: String,
-        enum: ["github", "gitlab", "bitbucket"],
+        enum: ["github", "gitlab", "azure-devops"],
         default: "github",
       },
       owner: String, // repo owner/org
@@ -87,6 +87,23 @@ const projectSchema = new mongoose.Schema(
         type: String,
         enum: ["read", "write", "admin"],
         default: "read",
+      },
+      // Enhanced repository metadata for AI analysis
+      metadata: {
+        size: Number,
+        language: String,
+        topics: [String],
+        license: String,
+        hasReadme: Boolean,
+        hasDockerfile: Boolean,
+        hasPackageJson: Boolean,
+        hasRequirementsTxt: Boolean,
+        lastCommit: {
+          sha: String,
+          message: String,
+          author: String,
+          date: Date,
+        },
       },
     },
 
@@ -180,8 +197,73 @@ const projectSchema = new mongoose.Schema(
       },
     },
 
-    // AI Analysis Results
+    // AI Analysis Results (Enhanced)
     analysis: {
+      // Basic analysis metadata
+      analysisId: String,
+      approach: {
+        type: String,
+        enum: ["ai-enhanced", "basic", "manual"],
+        default: "basic",
+      },
+      confidence: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+      
+      // AI-detected technology stack
+      technologyStack: {
+        primaryLanguage: String,
+        framework: String,
+        buildTool: String,
+        packageManager: String,
+        runtime: String,
+        version: String,
+        dependencies: [String],
+      },
+      
+      // AI-detected configuration
+      detectedConfig: {
+        buildCommand: String,
+        startCommand: String,
+        installCommand: String,
+        testCommand: String,
+        port: Number,
+        environmentVariables: [
+          {
+            key: String,
+            value: String,
+            isSecret: { type: Boolean, default: false },
+            confidence: { type: Number, min: 0, max: 1 },
+          },
+        ],
+        dockerConfig: {
+          hasDockerfile: Boolean,
+          baseImage: String,
+          workdir: String,
+          exposedPorts: [Number],
+        },
+      },
+
+      // AI insights and recommendations
+      insights: {
+        projectType: String,
+        complexity: {
+          type: String,
+          enum: ["low", "medium", "high"],
+        },
+        deploymentReadiness: {
+          type: String,
+          enum: ["ready", "needs-config", "needs-setup"],
+        },
+        recommendations: [String],
+        warnings: [String],
+        optimizations: [String],
+      },
+
+      // Legacy analysis fields (preserved for backward compatibility)
       structure: {
         hasValidStructure: {
           type: Boolean,
@@ -233,6 +315,9 @@ const projectSchema = new mongoose.Schema(
         optimization: [String],
         updates: [String],
       },
+      
+      // Raw analysis data for debugging and future use
+      rawAnalysis: mongoose.Schema.Types.Mixed,
       lastAnalyzed: Date,
     },
 
@@ -383,11 +468,11 @@ const projectSchema = new mongoose.Schema(
           },
         ],
       },
-    }, // Project Status & Analytics
+    },    // Project Status & Analytics
     status: {
       type: String,
-      enum: ["active", "archived", "deleted"],
-      default: "active",
+      enum: ["draft", "analyzing", "configured", "building", "deploying", "active", "archived", "deleted", "failed"],
+      default: "draft",
     },
     visibility: {
       type: String,
@@ -563,6 +648,51 @@ projectSchema.methods.updateAnalysis = function (analysisResults) {
     lastAnalyzed: new Date(),
   };
   return this.save();
+};
+
+// Update AI analysis results (enhanced)
+projectSchema.methods.updateAIAnalysis = function (aiAnalysisResults) {
+  const {
+    analysisId,
+    confidence,
+    technologyStack,
+    detectedConfig,
+    insights,
+    rawAnalysis
+  } = aiAnalysisResults;
+
+  this.analysis = {
+    ...this.analysis,
+    analysisId,
+    approach: 'ai-enhanced',
+    confidence,
+    technologyStack: technologyStack || {},
+    detectedConfig: detectedConfig || {},
+    insights: insights || {},
+    rawAnalysis,
+    lastAnalyzed: new Date(),
+  };
+
+  // Update status based on analysis results
+  if (insights?.deploymentReadiness === 'ready') {
+    this.status = 'configured';
+  }
+
+  return this.save();
+};
+
+// Check if project has AI analysis
+projectSchema.methods.hasAIAnalysis = function () {
+  return this.analysis?.approach === 'ai-enhanced' && this.analysis?.analysisId;
+};
+
+// Get AI analysis confidence level
+projectSchema.methods.getConfidenceLevel = function () {
+  const confidence = this.analysis?.confidence || 0;
+  if (confidence >= 0.8) return 'high';
+  if (confidence >= 0.6) return 'medium';
+  if (confidence >= 0.3) return 'low';
+  return 'none';
 };
 
 // Increment deployment count
