@@ -38,7 +38,10 @@ const AnalyticsTab = () => {
 
   // Calculate analytics data from audit logs
   const analyticsData = useMemo(() => {
-    if (!activities || activities.length === 0) return null;
+    // Add proper null checks for activities
+    if (!activities || !Array.isArray(activities) || activities.length === 0) {
+      return null;
+    }
 
     const now = new Date();
     const timeRanges = {
@@ -57,30 +60,21 @@ const AnalyticsTab = () => {
     if (filteredActivities.length === 0) return null;
 
     // Analyze activity patterns
-    const categoryDistribution = {};
-    const severityDistribution = {};
-    const actionDistribution = {};
-    const hourlyActivity = new Array(24).fill(0);
+    const actionTypeDistribution = {};
     const dailyActivity = {};
+    const hourlyActivity = new Array(24).fill(0);
 
     filteredActivities.forEach((activity) => {
       const date = new Date(activity.createdAt || activity.timestamp);
 
-      // Category analysis
-      const category = activity.category || "system";
-      categoryDistribution[category] =
-        (categoryDistribution[category] || 0) + 1;
-
-      // Severity analysis
-      const severity = activity.severity || "medium";
-      severityDistribution[severity] =
-        (severityDistribution[severity] || 0) + 1;
-
-      // Action analysis
-      const action = activity.action || activity.type;
-      if (action) {
-        actionDistribution[action] = (actionDistribution[action] || 0) + 1;
-      }
+      // Action type analysis (user, security, project, deployment, etc.)
+      // Add proper null checks for activity.action
+      const actionType =
+        activity.action && typeof activity.action === "string"
+          ? activity.action.split(".")[0]
+          : "unknown";
+      actionTypeDistribution[actionType] =
+        (actionTypeDistribution[actionType] || 0) + 1;
 
       // Hourly activity
       hourlyActivity[date.getHours()]++;
@@ -97,14 +91,35 @@ const AnalyticsTab = () => {
       count: hourlyActivity[peakHourIndex],
     };
 
-    // Calculate security score based on security events
-    const securityEvents =
-      severityDistribution.high || 0 + severityDistribution.critical || 0;
-    const totalEvents = filteredActivities.length;
-    const securityScore = Math.max(
-      0,
-      100 - (securityEvents / totalEvents) * 100
+    // Security score based on security-related activities
+    const securityActivities = filteredActivities.filter(
+      (activity) =>
+        activity.action &&
+        (activity.action.startsWith("security.") ||
+          activity.action.startsWith("user.login") ||
+          activity.action.startsWith("user.password") ||
+          activity.action.startsWith("user.2fa"))
     );
+
+    // Calculate severity distribution
+    const severityDistribution = {};
+    filteredActivities.forEach((activity) => {
+      // If activity.severity is not present, default to 'low'
+      const severity =
+        activity.severity && typeof activity.severity === "string"
+          ? activity.severity.toLowerCase()
+          : "low";
+      severityDistribution[severity] =
+        (severityDistribution[severity] || 0) + 1;
+    });
+
+    // Calculate security metrics
+    const securityEventCount = securityActivities.length;
+    const totalEvents = filteredActivities.length;
+    const securityScore =
+      totalEvents > 0
+        ? Math.max(0, 100 - (securityEventCount / totalEvents) * 50)
+        : 100;
 
     // Calculate average daily activity
     const uniqueDays = Object.keys(dailyActivity).length || 1;
@@ -114,14 +129,13 @@ const AnalyticsTab = () => {
       totalActivities: filteredActivities.length,
       uniqueDays,
       averageDaily,
-      securityEvents,
+      securityEvents: securityEventCount,
       securityScore: Math.round(securityScore),
       peakHour,
-      categoryDistribution,
-      severityDistribution,
-      actionDistribution,
+      actionTypeDistribution,
       hourlyActivity,
       dailyActivity,
+      severityDistribution, // <-- add this property
     };
   }, [activities, selectedTimeRange]);
 
@@ -156,8 +170,9 @@ const AnalyticsTab = () => {
     URL.revokeObjectURL(url);
   };
 
+  console.log(analyticsData);
   // Show loading state during initial load
-  if (loading && !analyticsData) {
+  if (loading.userActivity && !analyticsData) {
     return (
       <ProfileErrorBoundary fallbackMessage="Failed to load audit analytics">
         <div className="space-y-6">
@@ -348,7 +363,7 @@ const AnalyticsTab = () => {
               Activity by Category
             </h3>
             <div className="space-y-3">
-              {Object.entries(analyticsData.categoryDistribution).map(
+              {Object.entries(analyticsData.actionTypeDistribution).map(
                 ([category, count]) => {
                   const percentage =
                     (count / analyticsData.totalActivities) * 100;

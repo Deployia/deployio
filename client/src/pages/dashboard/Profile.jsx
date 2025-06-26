@@ -8,6 +8,7 @@ import {
   FaEdit,
   FaShieldAlt,
   FaChartLine,
+  FaDesktop,
 } from "react-icons/fa";
 import SEO from "@components/SEO.jsx";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +22,7 @@ import {
   NotificationsTab,
 } from "@components/profile";
 import AnalyticsTab from "@components/profile/AnalyticsTab";
+import SessionsTab from "@components/profile/SessionsTab";
 
 function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,6 +38,7 @@ function Profile() {
       { id: "overview", label: "Overview", icon: FaUser },
       { id: "profile", label: "Profile", icon: FaEdit },
       { id: "security", label: "Security", icon: FaShieldAlt },
+      { id: "sessions", label: "Sessions", icon: FaDesktop },
       { id: "notifications", label: "Notifications", icon: FaBell },
       { id: "activity", label: "Activity", icon: FaHistory },
       { id: "analytics", label: "Analytics", icon: FaChartLine },
@@ -100,6 +103,8 @@ function Profile() {
           return <ProfileTab />;
         case "security":
           return <SecurityTab />;
+        case "sessions":
+          return <SessionsTab />;
         case "notifications":
           return <NotificationsTab />;
         case "activity":

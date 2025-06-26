@@ -7,7 +7,7 @@ export const fetchApiKeys = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       const response = await api.get("/users/api-keys");
-      return response.data.apiKeys;
+      return response.data.data || response.data.apiKeys;
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message
@@ -22,7 +22,7 @@ export const createApiKey = createAsyncThunk(
   async (keyData, thunkAPI) => {
     try {
       const response = await api.post("/users/api-keys", keyData);
-      return response.data.apiKey;
+      return response.data.data || response.data.apiKey;
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message
@@ -195,7 +195,7 @@ const apiKeySlice = createSlice({
       })
       .addCase(fetchApiKeys.fulfilled, (state, action) => {
         state.loading.fetch = false;
-        state.apiKeys = action.payload;
+        state.apiKeys = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchApiKeys.rejected, (state, action) => {
         state.loading.fetch = false;

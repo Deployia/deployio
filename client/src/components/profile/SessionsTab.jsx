@@ -8,7 +8,9 @@ import ProfileErrorBoundary from "./ProfileErrorBoundary";
 
 const SessionsTab = () => {
   const dispatch = useDispatch();
-  const { currentSessionId, sessions } = useSelector((state) => state.auth);
+  const { currentSessionId, sessions, loading } = useSelector(
+    (state) => state.auth
+  );
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Load sessions data on mount
@@ -54,8 +56,14 @@ const SessionsTab = () => {
   };
 
   const formatLastActive = (createdAt) => {
+    if (!createdAt) return "Unknown";
+
     const now = new Date();
     const sessionDate = new Date(createdAt);
+
+    // Check if the date is valid
+    if (isNaN(sessionDate.getTime())) return "Unknown";
+
     const diffInMinutes = Math.floor((now - sessionDate) / (1000 * 60));
 
     if (diffInMinutes < 1) return "Active now";
@@ -122,9 +130,10 @@ const SessionsTab = () => {
                   {!isCurrentSession && (
                     <button
                       onClick={() => terminateSession(session._id)}
-                      className="px-4 py-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                      disabled={loading.deleteSession}
+                      className="px-4 py-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Terminate
+                      {loading.deleteSession ? "Terminating..." : "Terminate"}
                     </button>
                   )}
                 </div>

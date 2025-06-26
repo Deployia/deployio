@@ -8,7 +8,7 @@ export const fetchNotificationPreferences = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       const response = await api.get("/external/notifications/preferences");
-      return response.data.preferences;
+      return response.data.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message
@@ -27,8 +27,8 @@ export const updateNotificationPreferences = createAsyncThunk(
         preferences
       );
       invalidateCacheEntry("/external/notifications/preferences", undefined);
-      thunkAPI.dispatch(fetchNotificationPreferences());
-      return response.data.preferences;
+      // Don't auto-fetch - let the reducer handle the optimistic update
+      return response.data.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message

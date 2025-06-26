@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   FaBell,
@@ -27,20 +27,7 @@ const NotificationsTab = () => {
     (state) => state.userProfile
   );
   const isLoading = loading?.updateNotificationPreferences || false;
-
-  const [localPreferences, setLocalPreferences] = useState({});
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [quietHours, setQuietHours] = useState({
-    enabled: false,
-    startTime: "22:00",
-    endTime: "08:00",
-  });
-  const [digestSettings, setDigestSettings] = useState({
-    enabled: false,
-    frequency: "weekly",
-    day: "monday",
-    time: "09:00",
-  });
+  const isInitialLoading = loading?.notificationPreferences || false;
 
   // Load notification preferences on mount
   useEffect(() => {
@@ -49,80 +36,107 @@ const NotificationsTab = () => {
         await dispatch(fetchNotificationPreferences());
       } catch (error) {
         console.error("Error loading notification preferences:", error);
-      } finally {
-        setIsInitialLoading(false);
       }
     };
 
-    loadData();
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (notificationPreferences) {
-      setLocalPreferences(notificationPreferences);
-      // Load quiet hours and digest settings if they exist
-      if (notificationPreferences.quietHours) {
-        setQuietHours(notificationPreferences.quietHours);
-      }
-      if (notificationPreferences.digestSettings) {
-        setDigestSettings(notificationPreferences.digestSettings);
-      }
+    if (!notificationPreferences) {
+      loadData();
     }
-  }, [notificationPreferences]);
+  }, [dispatch, notificationPreferences]);
   const handleTogglePreference = async (key) => {
+    if (!notificationPreferences || isLoading) return;
+
     const updatedPreferences = {
-      ...localPreferences,
-      [key]: !localPreferences[key],
+      ...notificationPreferences,
+      [key]: !notificationPreferences[key],
     };
 
-    setLocalPreferences(updatedPreferences);
     try {
       await dispatch(
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
       toast.success("Notification settings updated");
     } catch {
-      // Revert local state on error
-      setLocalPreferences(localPreferences);
       toast.error("Failed to update notification settings");
     }
   };
 
   const handleQuietHoursChange = async (newQuietHours) => {
-    setQuietHours(newQuietHours);
+    if (!notificationPreferences || isLoading) return;
 
     const updatedPreferences = {
-      ...localPreferences,
+      ...notificationPreferences,
       quietHours: newQuietHours,
     };
+
     try {
       await dispatch(
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
       toast.success("Quiet hours updated");
     } catch {
-      setQuietHours(quietHours);
       toast.error("Failed to update quiet hours");
     }
   };
 
   const handleDigestSettingsChange = async (newDigestSettings) => {
-    setDigestSettings(newDigestSettings);
+    if (!notificationPreferences || isLoading) return;
 
     const updatedPreferences = {
-      ...localPreferences,
+      ...notificationPreferences,
       digestSettings: newDigestSettings,
     };
+
     try {
       await dispatch(
         updateNotificationPreferences(updatedPreferences)
       ).unwrap();
       toast.success("Digest settings updated");
     } catch {
-      setDigestSettings(digestSettings);
       toast.error("Failed to update digest settings");
     }
   };
+
+  // Helper functions to get current settings from Redux state
+  const getCurrentQuietHours = () => {
+    if (!notificationPreferences?.quietHours) {
+      return {
+        enabled: false,
+        start: "22:00",
+        end: "08:00",
+        timezone: "UTC",
+      };
+    }
+
+    return {
+      enabled: notificationPreferences.quietHours.enabled || false,
+      start:
+        notificationPreferences.quietHours.start ||
+        notificationPreferences.quietHours.startTime ||
+        "22:00",
+      end:
+        notificationPreferences.quietHours.end ||
+        notificationPreferences.quietHours.endTime ||
+        "08:00",
+      timezone: notificationPreferences.quietHours.timezone || "UTC",
+    };
+  };
+
+  const getCurrentDigestSettings = () => {
+    if (!notificationPreferences?.digestSettings) {
+      return {
+        enabled: false,
+        frequency: "daily",
+        time: "09:00",
+        timezone: "UTC",
+      };
+    }
+
+    return notificationPreferences.digestSettings;
+  };
+
+  const quietHours = getCurrentQuietHours();
+  const digestSettings = getCurrentDigestSettings();
 
   const testNotification = () => {
     if ("Notification" in window) {
@@ -177,6 +191,36 @@ const NotificationsTab = () => {
           icon: FaCog,
           description: "When new deployments begin",
         },
+        {
+          key: "deploymentStopped",
+          label: "Deployment Stopped",
+          icon: FaCog,
+          description: "When deployments are stopped or cancelled",
+        },
+      ],
+    },
+    {
+      title: "Project Notifications",
+      description: "Notifications related to your projects",
+      categories: [
+        {
+          key: "projectAnalysisComplete",
+          label: "Analysis Complete",
+          icon: FaBell,
+          description: "When project analysis completes",
+        },
+        {
+          key: "projectAnalysisFailed",
+          label: "Analysis Failed",
+          icon: FaShieldAlt,
+          description: "When project analysis fails",
+        },
+        {
+          key: "projectCollaboratorAdded",
+          label: "New Collaborator",
+          icon: FaCog,
+          description: "When collaborators are added to your projects",
+        },
       ],
     },
     {
@@ -187,7 +231,7 @@ const NotificationsTab = () => {
           key: "securityAlerts",
           label: "Security Alerts",
           icon: FaShieldAlt,
-          description: "Login attempts, password changes, etc.",
+          description: "Login attempts and security warnings",
         },
         {
           key: "accountChanges",
@@ -201,6 +245,60 @@ const NotificationsTab = () => {
           icon: FaDesktop,
           description: "When you log in from a new device",
         },
+        {
+          key: "passwordChanged",
+          label: "Password Changes",
+          icon: FaShieldAlt,
+          description: "When your password is changed",
+        },
+        {
+          key: "twoFactorEnabled",
+          label: "2FA Enabled",
+          icon: FaShieldAlt,
+          description: "When two-factor authentication is enabled",
+        },
+        {
+          key: "twoFactorDisabled",
+          label: "2FA Disabled",
+          icon: FaShieldAlt,
+          description: "When two-factor authentication is disabled",
+        },
+        {
+          key: "apiKeyCreated",
+          label: "API Key Created",
+          icon: FaCog,
+          description: "When new API keys are created",
+        },
+      ],
+    },
+    {
+      title: "System Notifications",
+      description: "System maintenance and quota notifications",
+      categories: [
+        {
+          key: "systemMaintenance",
+          label: "System Maintenance",
+          icon: FaCog,
+          description: "Scheduled maintenance and downtime alerts",
+        },
+        {
+          key: "systemUpdates",
+          label: "System Updates",
+          icon: FaBell,
+          description: "Platform updates and new features",
+        },
+        {
+          key: "quotaWarning",
+          label: "Quota Warning",
+          icon: FaShieldAlt,
+          description: "When approaching usage limits",
+        },
+        {
+          key: "quotaExceeded",
+          label: "Quota Exceeded",
+          icon: FaShieldAlt,
+          description: "When usage limits are exceeded",
+        },
       ],
     },
     {
@@ -208,16 +306,22 @@ const NotificationsTab = () => {
       description: "Marketing and product update notifications",
       categories: [
         {
+          key: "welcomeMessage",
+          label: "Welcome Messages",
+          icon: FaBell,
+          description: "Welcome and onboarding messages",
+        },
+        {
+          key: "announcements",
+          label: "Announcements",
+          icon: FaEnvelope,
+          description: "Important platform announcements",
+        },
+        {
           key: "productUpdates",
           label: "Product Updates",
           icon: FaBell,
           description: "New features and improvements",
-        },
-        {
-          key: "marketing",
-          label: "Marketing Communications",
-          icon: FaEnvelope,
-          description: "Promotional emails and newsletters",
         },
         {
           key: "tips",
@@ -290,12 +394,14 @@ const NotificationsTab = () => {
                     onClick={() => handleTogglePreference(key)}
                     disabled={isLoading}
                     className={`relative w-12 h-6 rounded-full transition-colors ${
-                      localPreferences[key] ? "bg-blue-500" : "bg-neutral-600"
+                      notificationPreferences?.[key]
+                        ? "bg-blue-500"
+                        : "bg-neutral-600"
                     }`}
                   >
                     <div
                       className={`absolute w-5 h-5 bg-white rounded-full top-0.5 transition-transform ${
-                        localPreferences[key]
+                        notificationPreferences?.[key]
                           ? "translate-x-6"
                           : "translate-x-0.5"
                       }`}
@@ -343,14 +449,14 @@ const NotificationsTab = () => {
                       onClick={() => handleTogglePreference(key)}
                       disabled={isLoading}
                       className={`relative w-12 h-6 rounded-full transition-colors ${
-                        localPreferences[key]
+                        notificationPreferences?.[key]
                           ? "bg-green-500"
                           : "bg-neutral-600"
                       }`}
                     >
                       <div
                         className={`absolute w-5 h-5 bg-white rounded-full top-0.5 transition-transform ${
-                          localPreferences[key]
+                          notificationPreferences?.[key]
                             ? "translate-x-6"
                             : "translate-x-0.5"
                         }`}
@@ -408,11 +514,11 @@ const NotificationsTab = () => {
                 </label>
                 <input
                   type="time"
-                  value={quietHours.startTime}
+                  value={quietHours.start}
                   onChange={(e) =>
                     handleQuietHoursChange({
                       ...quietHours,
-                      startTime: e.target.value,
+                      start: e.target.value,
                     })
                   }
                   className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -424,11 +530,11 @@ const NotificationsTab = () => {
                 </label>
                 <input
                   type="time"
-                  value={quietHours.endTime}
+                  value={quietHours.end}
                   onChange={(e) =>
                     handleQuietHoursChange({
                       ...quietHours,
-                      endTime: e.target.value,
+                      end: e.target.value,
                     })
                   }
                   className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -476,7 +582,7 @@ const NotificationsTab = () => {
           </div>
 
           {digestSettings.enabled && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Frequency
@@ -493,34 +599,8 @@ const NotificationsTab = () => {
                 >
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
                 </select>
               </div>
-              {digestSettings.frequency === "weekly" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Day of Week
-                  </label>
-                  <select
-                    value={digestSettings.day}
-                    onChange={(e) =>
-                      handleDigestSettingsChange({
-                        ...digestSettings,
-                        day: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-orange-500"
-                  >
-                    <option value="monday">Monday</option>
-                    <option value="tuesday">Tuesday</option>
-                    <option value="wednesday">Wednesday</option>
-                    <option value="thursday">Thursday</option>
-                    <option value="friday">Friday</option>
-                    <option value="saturday">Saturday</option>
-                    <option value="sunday">Sunday</option>
-                  </select>
-                </div>
-              )}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Time

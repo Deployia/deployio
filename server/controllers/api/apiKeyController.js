@@ -1,4 +1,5 @@
 const apiKeyService = require("../../services/api/apiKeyService");
+const userService = require("../../services/user/userService");
 const { validationResult } = require("express-validator");
 
 /**
@@ -39,6 +40,18 @@ const createApiKey = async (req, res) => {
       name,
       permissions,
     });
+
+    // Log API key creation activity
+    try {
+      await userService.logUserActivity(req.user.id, {
+        action: "security.api_key_created",
+        details: `Created API key: ${name}`,
+        ip: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+    } catch (logError) {
+      console.error("Failed to log API key creation activity:", logError);
+    }
 
     res.status(201).json({
       success: true,
@@ -96,6 +109,18 @@ const updateApiKey = async (req, res) => {
       });
     }
 
+    // Log API key update activity
+    try {
+      await userService.logUserActivity(req.user.id, {
+        action: "security.api_key_updated",
+        details: `Updated API key: ${name || apiKey.name}`,
+        ip: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+    } catch (logError) {
+      console.error("Failed to log API key update activity:", logError);
+    }
+
     res.json({
       success: true,
       data: apiKey,
@@ -116,6 +141,11 @@ const updateApiKey = async (req, res) => {
 const deleteApiKey = async (req, res) => {
   try {
     const { keyId } = req.params;
+
+    // Get the API key details before deletion for logging
+    const apiKeys = await apiKeyService.getUserApiKeys(req.user.id);
+    const apiKeyToDelete = apiKeys.find((key) => key._id.toString() === keyId);
+
     const deleted = await apiKeyService.deleteApiKey(keyId, req.user.id);
 
     if (!deleted) {
@@ -123,6 +153,18 @@ const deleteApiKey = async (req, res) => {
         success: false,
         message: "API key not found",
       });
+    }
+
+    // Log API key deletion activity
+    try {
+      await userService.logUserActivity(req.user.id, {
+        action: "security.api_key_deleted",
+        details: `Deleted API key: ${apiKeyToDelete?.name || "Unknown"}`,
+        ip: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+    } catch (logError) {
+      console.error("Failed to log API key deletion activity:", logError);
     }
 
     res.json({

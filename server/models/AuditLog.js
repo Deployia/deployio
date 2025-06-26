@@ -50,6 +50,17 @@ const auditLogSchema = new mongoose.Schema(
         "api.key_delete",
         "api.key_used",
 
+        // Security actions
+        "security.api_key_created",
+        "security.api_key_updated",
+        "security.api_key_deleted",
+        "security.login_attempt",
+        "security.password_changed",
+        "security.2fa_enabled",
+        "security.2fa_disabled",
+        "security.session_terminated",
+        "api.key_used",
+
         // Admin actions
         "admin.user_suspend",
         "admin.user_activate",

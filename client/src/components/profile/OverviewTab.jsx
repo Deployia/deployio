@@ -14,9 +14,11 @@ import {
   FaKey,
   FaBell,
 } from "react-icons/fa";
-import { fetchDashboardStats } from "@redux/slices/userSlice";
+import {
+  fetchDashboardStats,
+  fetchUserActivity,
+} from "@redux/slices/userSlice";
 import { fetchApiKeys, selectApiKeys } from "@redux/slices/apiKeySlice";
-import { fetchNotifications, selectNotifications } from "@redux";
 import { ProfileCardSkeleton, StatsGridSkeleton } from "./LoadingState";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
 import { calculateSecurityScore } from "@utils/securityScore";
@@ -26,8 +28,9 @@ const OverviewTab = () => {
 
   // Get data from Redux state
   const { user: authUser } = useSelector((state) => state.auth);
-  const { dashboardStats } = useSelector((state) => state.userProfile);
-  const notifications = useSelector(selectNotifications);
+  const { dashboardStats, activities } = useSelector(
+    (state) => state.userProfile
+  );
   const apiKeys = useSelector(selectApiKeys);
   const { twoFactorEnabled } = useSelector((state) => state.twoFactor);
 
@@ -62,8 +65,8 @@ const OverviewTab = () => {
     const loadData = async () => {
       try {
         await Promise.allSettled([
-          // Load recent notifications instead of activities
-          dispatch(fetchNotifications({ page: 1, limit: 5 })),
+          // Load recent activities instead of notifications
+          dispatch(fetchUserActivity({ page: 1, limit: 5 })),
           dispatch(fetchDashboardStats()),
           dispatch(fetchApiKeys()),
         ]);
@@ -104,32 +107,34 @@ const OverviewTab = () => {
 
     return fieldCompletion + imageBonus >= 0.8; // 80% completion threshold
   }, [authUser]);
-  // Calculate activity metrics from notifications
+  // Calculate activity metrics from recent activities
   const activityMetrics = useMemo(() => {
-    if (!notifications || notifications.length === 0) return null;
+    if (!activities || activities.length === 0) return null;
 
     const now = new Date();
-    const last7Days = notifications.filter(
-      (notification) =>
-        new Date(notification.createdAt) >=
+    const last7Days = activities.filter(
+      (activity) =>
+        new Date(activity.createdAt || activity.timestamp) >=
         new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     );
 
-    const typeDistribution = last7Days.reduce((acc, notification) => {
-      acc[notification.type] = (acc[notification.type] || 0) + 1;
+    const actionDistribution = last7Days.reduce((acc, activity) => {
+      const actionType = activity.action?.split(".")[0] || "unknown";
+      acc[actionType] = (acc[actionType] || 0) + 1;
       return acc;
     }, {});
 
     return {
       totalThisWeek: last7Days.length,
-      securityEvents: typeDistribution.security || 0,
+      securityEvents:
+        (actionDistribution.auth || 0) + (actionDistribution.security || 0),
       avgDaily: Math.round(last7Days.length / 7),
-      mostActiveType: Object.entries(typeDistribution).reduce(
+      mostActiveType: Object.entries(actionDistribution).reduce(
         (max, [type, count]) => (count > max.count ? { type, count } : max),
         { type: "none", count: 0 }
       ).type,
     };
-  }, [notifications]);
+  }, [activities]);
   const getSecurityScoreColorClasses = (score) => {
     if (score >= 80) return "text-green-400 bg-green-500/20";
     if (score >= 60) return "text-yellow-400 bg-yellow-500/20";
@@ -560,39 +565,45 @@ const OverviewTab = () => {
               </Link>
             </div>{" "}
             <div className="space-y-3">
-              {(notifications || []).length > 0 ? (
-                (notifications || []).slice(0, 5).map((notification, index) => (
+              {(activities || []).length > 0 ? (
+                (activities || []).slice(0, 5).map((activity, index) => (
                   <div
-                    key={notification._id || index}
+                    key={activity._id || index}
                     className="flex items-center gap-3 p-3 hover:bg-neutral-800/50 rounded-lg transition-colors"
                   >
                     <div
                       className={`p-2 rounded-full ${
-                        notification.type === "security"
+                        activity.action?.startsWith("security.") ||
+                        activity.action?.startsWith("auth.")
                           ? "bg-red-500/20 text-red-400"
-                          : notification.type === "auth"
+                          : activity.action?.startsWith("deployment.")
                           ? "bg-blue-500/20 text-blue-400"
-                          : notification.type === "profile"
+                          : activity.action?.startsWith("project.")
                           ? "bg-green-500/20 text-green-400"
-                          : notification.type === "system"
+                          : activity.action?.startsWith("apikey.")
                           ? "bg-orange-500/20 text-orange-400"
                           : "bg-purple-500/20 text-purple-400"
                       }`}
                     >
-                      {notification.type === "security" ? (
+                      {activity.action?.startsWith("security.") ||
+                      activity.action?.startsWith("auth.") ? (
                         <FaShieldAlt className="w-4 h-4" />
-                      ) : notification.type === "auth" ? (
-                        <FaUser className="w-4 h-4" />
-                      ) : notification.type === "system" ? (
-                        <FaBell className="w-4 h-4" />
+                      ) : activity.action?.startsWith("deployment.") ? (
+                        <FaRocket className="w-4 h-4" />
+                      ) : activity.action?.startsWith("apikey.") ? (
+                        <FaKey className="w-4 h-4" />
                       ) : (
                         <FaClock className="w-4 h-4" />
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="text-white text-sm">{notification.title}</p>
+                      <p className="text-white text-sm">
+                        {activity.description || activity.action}
+                      </p>
                       <p className="text-xs text-gray-400">
-                        {new Date(notification.createdAt).toLocaleString()}
+                        {new Date(
+                          activity.createdAt || activity.timestamp
+                        ).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -600,11 +611,9 @@ const OverviewTab = () => {
               ) : (
                 <div className="text-center py-8">
                   <FaBell className="w-8 h-8 text-gray-500 mx-auto mb-3" />
-                  <p className="text-gray-400 text-sm">
-                    No recent notifications
-                  </p>
+                  <p className="text-gray-400 text-sm">No recent activity</p>
                   <p className="text-gray-500 text-xs mt-1">
-                    Your notifications will appear here
+                    Your recent activities will appear here
                   </p>
                 </div>
               )}

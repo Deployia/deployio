@@ -12,6 +12,10 @@ const initialState = {
   needsVerification: false,
   pendingVerificationEmail: null,
 
+  // Session management
+  sessions: [],
+  currentSessionId: null,
+
   // Loading states
   loading: {
     me: true,
@@ -24,6 +28,9 @@ const initialState = {
     updatePassword: false,
     updateProfile: false,
     refreshToken: false,
+    fetchSessions: false,
+    deleteSession: false,
+    deleteAllOtherSessions: false,
   },
 
   // Error states
@@ -38,6 +45,9 @@ const initialState = {
     updatePassword: null,
     updateProfile: null,
     refreshToken: null,
+    fetchSessions: null,
+    deleteSession: null,
+    deleteAllOtherSessions: null,
   },
 
   // Success states
@@ -46,6 +56,7 @@ const initialState = {
     resetPassword: false,
     updatePassword: false,
     updateProfile: false,
+    deleteSession: false, // Added success state for deleteSession
   },
 };
 
@@ -250,6 +261,61 @@ export const verifyOtp = createAsyncThunk(
         otp,
       });
       return response.data.data;
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Session Management Actions
+export const fetchSessions = createAsyncThunk(
+  "auth/fetchSessions",
+  async (_, thunkAPI) => {
+    try {
+      const response = await api.get("/users/auth/sessions");
+      return response.data.data.sessions;
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+export const deleteSession = createAsyncThunk(
+  "auth/deleteSession",
+  async (sessionId, thunkAPI) => {
+    try {
+      const response = await api.delete(`/users/auth/sessions/${sessionId}`);
+      return { sessionId, message: response.data.message };
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+export const deleteAllOtherSessions = createAsyncThunk(
+  "auth/deleteAllOtherSessions",
+  async (_, thunkAPI) => {
+    try {
+      const response = await api.delete("/users/auth/sessions/others");
+      return response.data.message;
     } catch (error) {
       const message =
         (error.response &&
@@ -574,6 +640,59 @@ const authSlice = createSlice({
         if (state.user) {
           state.user.twoFactorEnabled = false;
         }
+      })
+
+      // Session Management Cases
+      .addCase(fetchSessions.pending, (state) => {
+        state.loading.fetchSessions = true;
+        state.error.fetchSessions = null;
+      })
+      .addCase(fetchSessions.fulfilled, (state, action) => {
+        state.loading.fetchSessions = false;
+        state.sessions = action.payload;
+        // Find current session based on device fingerprint or mark the most recent as current
+        if (action.payload.length > 0) {
+          const currentSession =
+            action.payload.find((session) => session.isCurrent) ||
+            action.payload[0];
+          state.currentSessionId = currentSession._id;
+        }
+      })
+      .addCase(fetchSessions.rejected, (state, action) => {
+        state.loading.fetchSessions = false;
+        state.error.fetchSessions = action.payload;
+      })
+
+      .addCase(deleteSession.pending, (state) => {
+        state.loading.deleteSession = true;
+        state.error.deleteSession = null;
+      })
+      .addCase(deleteSession.fulfilled, (state, action) => {
+        state.loading.deleteSession = false;
+        // Remove the deleted session from the sessions array
+        state.sessions = state.sessions.filter(
+          (session) => session._id !== action.payload.sessionId
+        );
+      })
+      .addCase(deleteSession.rejected, (state, action) => {
+        state.loading.deleteSession = false;
+        state.error.deleteSession = action.payload;
+      })
+
+      .addCase(deleteAllOtherSessions.pending, (state) => {
+        state.loading.deleteAllOtherSessions = true;
+        state.error.deleteAllOtherSessions = null;
+      })
+      .addCase(deleteAllOtherSessions.fulfilled, (state) => {
+        state.loading.deleteAllOtherSessions = false;
+        // Keep only the current session
+        state.sessions = state.sessions.filter(
+          (session) => session._id === state.currentSessionId
+        );
+      })
+      .addCase(deleteAllOtherSessions.rejected, (state, action) => {
+        state.loading.deleteAllOtherSessions = false;
+        state.error.deleteAllOtherSessions = action.payload;
       });
     // Potentially handle get2FAStatus.fulfilled if needed to sync on initial load or refresh
     // .addCase(fetch2FAStatus.fulfilled, (state, action) => {
