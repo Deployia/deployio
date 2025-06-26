@@ -140,18 +140,6 @@ export const dashboardItems = [
 // Tools navigation items
 export const toolsItems = [
   {
-    label: "CLI Generator",
-    href: "/dashboard/cli",
-    icon: FaCode,
-    description: "Generate CLI commands",
-  },
-  {
-    label: "API Tester",
-    href: "/dashboard/api-tester",
-    icon: FaCloud,
-    description: "Test your APIs",
-  },
-  {
     label: "Monitoring",
     href: "/dashboard/monitoring",
     icon: FaChartLine,
@@ -162,6 +150,20 @@ export const toolsItems = [
     href: "/dashboard/integrations",
     icon: FaGithub,
     description: "Third-party integrations",
+  },
+  {
+    label: "CLI Generator",
+    href: "/dashboard/cli",
+    icon: FaCode,
+    description: "Generate CLI commands",
+    comingSoon: "Coming Soon",
+  },
+  {
+    label: "API Tester",
+    href: "/dashboard/api-tester",
+    icon: FaCloud,
+    description: "Test your APIs",
+    comingSoon: "Coming Soon",
   },
 ];
 
@@ -215,13 +217,13 @@ export const adminItems = [
 export const dashboardResourcesItems = [
   {
     label: "Documentation",
-    href: "/docs",
+    href: "/resources/docs",
     icon: FaBook,
     description: "Complete guides and API docs",
   },
   {
     label: "API Reference",
-    href: "resources/docs/api",
+    href: "/resources/docs/api",
     icon: FaServer,
     description: "Complete API documentation",
   },
@@ -230,12 +232,14 @@ export const dashboardResourcesItems = [
     href: "/resources/support",
     icon: FaLifeRing,
     description: "24/7 developer support",
+    comingSoon: "Coming Soon",
   },
   {
     label: "Community",
     href: "/resources/community",
     icon: FaUsers,
     description: "Join our developer community",
+    comingSoon: "Coming Soon",
   },
 ];
 
