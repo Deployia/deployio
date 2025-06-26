@@ -135,11 +135,6 @@ api.interceptors.response.use(
         // Clear cache on auth failure to prevent serving stale data to a logged-out user
         cache.clear();
 
-        // Redirect to login page or handle global logout
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
-
         return Promise.reject(refreshError);
       }
     }
