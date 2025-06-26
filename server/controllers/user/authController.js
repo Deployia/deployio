@@ -1,28 +1,39 @@
-// Clean Auth Controller - Pure JWT Implementation
-// No session tracking, simplified authentication flow
+// Clean Auth Controller - Pure JWT Implementation with Cookies
+// Stateless JWT authentication using HTTP-only cookies
 
 const authService = require("@services/user/authService");
 const userService = require("@services/user/userService");
-const jwt = require("jsonwebtoken");
 const logger = require("@config/logger");
 
 /**
- * Generate JWT tokens without session tracking
- * @param {string} userId - User ID
- * @returns {object} - Access and refresh tokens
+ * Extract login info from request
+ * @param {object} req - Express request object
+ * @returns {object} - Login information with device fingerprint
  */
-const generateTokens = (userId) => {
-  const payload = { id: userId };
+const getLoginInfo = (req) => {
+  return {
+    ip: req.ip || req.connection.remoteAddress || "Unknown",
+    userAgent: req.headers["user-agent"] || "Unknown",
+    location: "Unknown", // Can be enhanced with geolocation service
+    deviceFingerprint: generateDeviceFingerprint(req),
+  };
+};
 
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "15m",
-  });
-
-  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-  });
-
-  return { accessToken, refreshToken };
+/**
+ * Generate a device fingerprint for login tracking
+ * @param {object} req - Express request object
+ * @returns {string} - Device fingerprint
+ */
+const generateDeviceFingerprint = (req) => {
+  const crypto = require("crypto");
+  const fingerprint = `${req.headers["user-agent"] || ""}|${
+    req.headers["accept-language"] || ""
+  }|${req.headers["accept-encoding"] || ""}`;
+  return crypto
+    .createHash("md5")
+    .update(fingerprint)
+    .digest("hex")
+    .substring(0, 8);
 };
 
 /**
@@ -128,11 +139,7 @@ const login = async (req, res) => {
       });
     }
 
-    const loginInfo = {
-      ip: req.ip,
-      userAgent: req.headers["user-agent"],
-      location: "Unknown", // You can integrate with a geolocation service
-    };
+    const loginInfo = getLoginInfo(req);
 
     const result = await authService.loginUser(
       email.toLowerCase().trim(),
@@ -163,17 +170,14 @@ const login = async (req, res) => {
       });
     }
 
-    // Successful login
-    const { accessToken, refreshToken } = generateTokens(result.user._id);
-    setAuthCookies(res, accessToken, refreshToken);
+    // Successful login - set cookies and return user data
+    setAuthCookies(res, result.token, result.refreshToken);
 
     res.json({
       success: true,
       message: "Login successful",
       data: {
         user: result.user,
-        token: accessToken,
-        refreshToken: refreshToken,
       },
     });
   } catch (error) {
@@ -201,17 +205,14 @@ const verifyOtp = async (req, res) => {
 
     const result = await authService.verifyOtp(email.toLowerCase().trim(), otp);
 
-    // Generate tokens and set cookies after successful verification
-    const { accessToken, refreshToken } = generateTokens(result.user.id);
-    setAuthCookies(res, accessToken, refreshToken);
+    // Set cookies using tokens from service
+    setAuthCookies(res, result.token, result.refreshToken);
 
     res.json({
       success: true,
       message: "Email verified successfully",
       data: {
         user: result.user,
-        token: result.token,
-        refreshToken: result.refreshToken,
       },
     });
   } catch (error) {
@@ -365,11 +366,8 @@ const refreshToken = async (req, res) => {
 
     const result = await authService.refreshAccessToken(clientRefreshToken);
 
-    // Generate new tokens
-    const { accessToken, refreshToken: newRefreshToken } = generateTokens(
-      result.user._id
-    );
-    setAuthCookies(res, accessToken, newRefreshToken);
+    // Use tokens from auth service (don't generate again)
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     res.json({
       success: true,
@@ -379,7 +377,7 @@ const refreshToken = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Token refresh error:", error);
+    logger.error("Token refresh error:", error.message);
 
     // Clear invalid cookies
     clearAuthCookies(res);
@@ -490,16 +488,14 @@ const verify2FALogin = async (req, res) => {
 
       const loginResult = await authService.complete2FALogin(userId, loginInfo);
 
-      const { accessToken, refreshToken } = generateTokens(loginResult.user.id);
-      setAuthCookies(res, accessToken, refreshToken);
+      // Use tokens from auth service
+      setAuthCookies(res, loginResult.token, loginResult.refreshToken);
 
       res.json({
         success: true,
         message: "2FA verification successful",
         data: {
           user: loginResult.user,
-          token: loginResult.token,
-          refreshToken: loginResult.refreshToken,
         },
       });
     } else {
@@ -618,9 +614,12 @@ const googleAuthCallback = async (req, res) => {
       );
     }
 
-    // Generate tokens for OAuth user
-    const { accessToken, refreshToken } = generateTokens(user._id);
-    setAuthCookies(res, accessToken, refreshToken);
+    // Complete OAuth login through service
+    const loginInfo = getLoginInfo(req);
+    const result = await authService.completeOAuthLogin(user._id, loginInfo);
+
+    // Set cookies using tokens from service
+    setAuthCookies(res, result.token, result.refreshToken);
 
     // Redirect to frontend with success
     const frontUrl =
@@ -655,9 +654,12 @@ const githubAuthCallback = async (req, res) => {
       );
     }
 
-    // Generate tokens for OAuth user
-    const { accessToken, refreshToken } = generateTokens(user._id);
-    setAuthCookies(res, accessToken, refreshToken);
+    // Complete OAuth login through service
+    const loginInfo = getLoginInfo(req);
+    const result = await authService.completeOAuthLogin(user._id, loginInfo);
+
+    // Set cookies using tokens from service
+    setAuthCookies(res, result.token, result.refreshToken);
 
     // Redirect to frontend with success
     const frontUrl =
@@ -673,6 +675,88 @@ const githubAuthCallback = async (req, res) => {
         ? process.env.FRONTEND_URL_DEV
         : process.env.FRONTEND_URL_PROD;
     res.redirect(`${frontUrl}/auth/login?error=oauth_error`);
+  }
+};
+
+/**
+ * Get active sessions
+ */
+const getActiveSessions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const sessions = await authService.getActiveSessions(userId);
+
+    res.json({
+      success: true,
+      message: "Active sessions retrieved successfully",
+      data: {
+        sessions,
+      },
+    });
+  } catch (error) {
+    logger.error("Get active sessions error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get active sessions",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Revoke a specific session
+ */
+const revokeSession = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Session ID is required",
+      });
+    }
+
+    const result = await authService.revokeSession(userId, sessionId);
+
+    res.json({
+      success: true,
+      message: result,
+    });
+  } catch (error) {
+    logger.error("Revoke session error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Revoke all other sessions except current
+ */
+const revokeAllOtherSessions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const loginInfo = getLoginInfo(req);
+
+    const result = await authService.revokeAllOtherSessions(
+      userId,
+      loginInfo.deviceFingerprint
+    );
+
+    res.json({
+      success: true,
+      message: result,
+    });
+  } catch (error) {
+    logger.error("Revoke all other sessions error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to revoke sessions",
+      error: error.message,
+    });
   }
 };
 
@@ -694,4 +778,7 @@ module.exports = {
   generateNewBackupCodes,
   googleAuthCallback,
   githubAuthCallback,
+  getActiveSessions,
+  revokeSession,
+  revokeAllOtherSessions,
 };

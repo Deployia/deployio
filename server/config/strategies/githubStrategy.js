@@ -41,8 +41,8 @@ const githubBasicStrategy = new GitHubStrategy(
       if (user) {
         // Update basic profile info
         user.lastLogin = new Date();
-        if (!user.profilePicture && profile.photos?.[0]?.value) {
-          user.profilePicture = profile.photos[0].value;
+        if (!user.profileImage && profile.photos?.[0]?.value) {
+          user.profileImage = profile.photos[0].value;
         }
         await user.save();
         return done(null, user, { accessToken, refreshToken });
@@ -62,7 +62,7 @@ const githubBasicStrategy = new GitHubStrategy(
           username:
             sanitizeUsername(profile.username) || `github_${profile.id}`,
           fullName: profile.displayName || profile.username || "GitHub User",
-          profilePicture: profile.photos?.[0]?.value,
+          profileImage: profile.photos?.[0]?.value,
           isEmailVerified: true,
           lastLogin: new Date(),
         });

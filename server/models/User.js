@@ -492,11 +492,30 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+    // Login Sessions Tracking
+    loginSessions: [
+      {
+        deviceFingerprint: String,
+        ip: String,
+        userAgent: String,
+        location: String,
+        lastActivity: {
+          type: Date,
+          default: Date.now,
+        },
+        isActive: {
+          type: Boolean,
+          default: true,
+        },
+      },
+    ],
+
     // Authentication & Security
     lastLogin: {
       type: Date,
       default: Date.now,
     },
+    lastLoginIP: String,
     loginAttempts: {
       type: Number,
       default: 0,

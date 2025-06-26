@@ -630,7 +630,7 @@ async function storeRefreshToken(userId, token) {
   }
 }
 
-// OAuth providers and session management functions
+// OAuth providers management functions
 /**
  * Get linked OAuth providers for a user
  */
@@ -996,6 +996,53 @@ const complete2FALogin = async (userId, loginInfo = {}) => {
   }
 };
 
+/**
+ * Complete OAuth login and generate tokens
+ * @param {String} userId - User ID
+ * @param {Object} loginInfo - Login information (IP, userAgent, etc.)
+ * @returns {Object} User data and tokens
+ */
+const completeOAuthLogin = async (userId, loginInfo = {}) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Store refresh token
+    await storeRefreshToken(userId, refreshToken);
+
+    // Log successful login for audit trail
+    if (loginInfo.ip) {
+      await logSuccessfulLogin(userId, loginInfo);
+    }
+
+    return {
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImage: user.profileImage,
+        role: user.role,
+      },
+      token,
+      refreshToken,
+    };
+  } catch (error) {
+    logger.error("Error completing OAuth login:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    });
+    throw new Error("Failed to complete OAuth login");
+  }
+};
+
 // =============================================================================
 // Security Helper Functions
 // =============================================================================
@@ -1088,46 +1135,64 @@ async function incrementFailedAttempts(user) {
  */
 async function logSuccessfulLogin(userId, loginInfo) {
   try {
-    const redisClient = getRedisClient();
-
     logger.info(
       `Successful login for user ${userId} from IP: ${
         loginInfo.ip
       } at ${new Date().toISOString()}`
     );
 
-    // Update user's last login info
-    await User.findByIdAndUpdate(userId, {
-      lastLogin: new Date(),
-      lastLoginIP: loginInfo.ip,
-    }); // Store session info in Redis for monitoring and security (only if Redis is available)
-    if (redisClient && redisClient.isReady) {
-      try {
-        const sessionKey = `user_session:${userId}`;
-        const sessionData = {
+    // Update user's last login info and manage login sessions
+    const user = await User.findById(userId);
+    if (user) {
+      // Update basic login info
+      user.lastLogin = new Date();
+      user.lastLoginIP = loginInfo.ip;
+
+      // Manage login sessions (keep track of where user is logged in)
+      const existingSession = user.loginSessions.find(
+        (session) => session.deviceFingerprint === loginInfo.deviceFingerprint
+      );
+
+      if (existingSession) {
+        // Update existing session
+        existingSession.lastActivity = new Date();
+        existingSession.ip = loginInfo.ip;
+        existingSession.userAgent = loginInfo.userAgent;
+        existingSession.location = loginInfo.location;
+        existingSession.isActive = true;
+      } else {
+        // Add new session (limit to 10 active sessions)
+        if (user.loginSessions.length >= 10) {
+          // Remove oldest inactive session or oldest session if all active
+          const inactiveSessions = user.loginSessions.filter(
+            (s) => !s.isActive
+          );
+          if (inactiveSessions.length > 0) {
+            // Remove oldest inactive session
+            const oldestInactive = inactiveSessions.sort(
+              (a, b) => a.lastActivity - b.lastActivity
+            )[0];
+            user.loginSessions = user.loginSessions.filter(
+              (s) => s._id.toString() !== oldestInactive._id.toString()
+            );
+          } else {
+            // Remove oldest session overall
+            user.loginSessions.sort((a, b) => a.lastActivity - b.lastActivity);
+            user.loginSessions.shift();
+          }
+        }
+
+        user.loginSessions.push({
+          deviceFingerprint: loginInfo.deviceFingerprint,
           ip: loginInfo.ip,
           userAgent: loginInfo.userAgent,
-          loginTime: new Date().toISOString(),
-          lastActivity: new Date().toISOString(),
-        };
-
-        // Store session with 7 day expiry (matches refresh token expiry)
-        await redisClient.setex(
-          sessionKey,
-          7 * 24 * 60 * 60,
-          JSON.stringify(sessionData)
-        );
-
-        // Keep track of user's active sessions
-        const activeSessionsKey = `active_sessions:${userId}`;
-        await redisClient.sadd(activeSessionsKey, sessionKey);
-        await redisClient.expire(activeSessionsKey, 7 * 24 * 60 * 60);
-      } catch (redisError) {
-        logger.warn("Redis operation failed in logSuccessfulLogin", {
-          error: redisError.message,
-          userId,
+          location: loginInfo.location,
+          lastActivity: new Date(),
+          isActive: true,
         });
       }
+
+      await user.save();
     }
   } catch (error) {
     logger.error("Error logging successful login:", {
@@ -1170,7 +1235,7 @@ async function refreshAccessToken(refreshToken) {
   try {
     // Verify the refresh token
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    const { id: userId, sessionId } = decoded;
+    const { id: userId } = decoded;
 
     if (!userId) {
       throw new Error("Invalid refresh token format");
@@ -1182,19 +1247,63 @@ async function refreshAccessToken(refreshToken) {
       throw new Error("User not found");
     }
 
-    // Check if the refresh token exists in user's refresh tokens
-    const tokenExists = user.refreshTokens.some(
+    // Clean up expired refresh tokens first
+    const currentTime = new Date();
+    const validTokens = user.refreshTokens.filter(
       (tokenObj) =>
-        tokenObj.token === refreshToken &&
-        new Date(tokenObj.expiresAt) > new Date()
+        new Date(tokenObj.expiresAt) > currentTime &&
+        tokenObj.isActive !== false
     );
 
+    // Update user if we removed any expired tokens
+    if (validTokens.length !== user.refreshTokens.length) {
+      await User.findByIdAndUpdate(userId, {
+        $set: { refreshTokens: validTokens },
+      });
+      user.refreshTokens = validTokens;
+      logger.info(
+        `Cleaned up ${
+          user.refreshTokens.length - validTokens.length
+        } expired refresh tokens for user ${userId}`
+      );
+    }
+
+    // Check if the refresh token exists in user's refresh tokens
+    const now = new Date();
+    const tokenExists = user.refreshTokens.some((tokenObj) => {
+      const isTokenMatch = tokenObj.token === refreshToken;
+      const isNotExpired = new Date(tokenObj.expiresAt) > now;
+      const isActive = tokenObj.isActive !== false;
+
+      // Debug logging for troubleshooting
+      if (isTokenMatch) {
+        logger.debug("Refresh token validation:", {
+          tokenMatch: isTokenMatch,
+          expiresAt: tokenObj.expiresAt,
+          currentTime: now,
+          isNotExpired,
+          isActive,
+          timeDiff: new Date(tokenObj.expiresAt) - now,
+        });
+      }
+
+      return isTokenMatch && isNotExpired && isActive;
+    });
+
     if (!tokenExists) {
+      // Log detailed information for debugging
+      logger.warn("Refresh token validation failed:", {
+        userId,
+        hasRefreshTokens: user.refreshTokens.length > 0,
+        tokenCount: user.refreshTokens.length,
+        currentTime: now.toISOString(),
+        tokenPreview: refreshToken.substring(0, 20) + "...",
+      });
       throw new Error("Invalid or expired refresh token");
     }
 
     // Generate new access token
-    const payload = { id: userId, sessionId };
+    const payload = { id: userId };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN,
     });
@@ -1225,6 +1334,120 @@ async function refreshAccessToken(refreshToken) {
   }
 }
 
+/**
+ * Get user's active login sessions
+ * @param {String} userId - User ID
+ * @returns {Array} Array of active login sessions
+ */
+const getActiveSessions = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Filter active sessions and sort by last activity
+    const activeSessions = user.loginSessions
+      .filter((session) => session.isActive)
+      .sort((a, b) => b.lastActivity - a.lastActivity)
+      .map((session) => ({
+        id: session._id,
+        deviceFingerprint: session.deviceFingerprint,
+        ip: session.ip,
+        userAgent: session.userAgent,
+        location: session.location,
+        lastActivity: session.lastActivity,
+        isCurrent: session.deviceFingerprint === user.currentDeviceFingerprint,
+      }));
+
+    return activeSessions;
+  } catch (error) {
+    logger.error("Error getting active sessions:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    });
+    throw new Error("Failed to get active sessions");
+  }
+};
+
+/**
+ * Revoke a specific login session
+ * @param {String} userId - User ID
+ * @param {String} sessionId - Session ID to revoke
+ * @returns {String} Success message
+ */
+const revokeSession = async (userId, sessionId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const session = user.loginSessions.id(sessionId);
+    if (!session) {
+      throw new Error("Session not found");
+    }
+
+    // Mark session as inactive
+    session.isActive = false;
+    await user.save();
+
+    logger.info(`Session revoked for user ${userId}`, {
+      sessionId,
+      ip: session.ip,
+      userAgent: session.userAgent,
+    });
+
+    return "Session revoked successfully";
+  } catch (error) {
+    logger.error("Error revoking session:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+      sessionId,
+    });
+    throw new Error("Failed to revoke session");
+  }
+};
+
+/**
+ * Revoke all sessions except current
+ * @param {String} userId - User ID
+ * @param {String} currentDeviceFingerprint - Current device fingerprint to keep
+ * @returns {String} Success message
+ */
+const revokeAllOtherSessions = async (userId, currentDeviceFingerprint) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Mark all other sessions as inactive
+    user.loginSessions.forEach((session) => {
+      if (session.deviceFingerprint !== currentDeviceFingerprint) {
+        session.isActive = false;
+      }
+    });
+
+    await user.save();
+
+    logger.info(`All other sessions revoked for user ${userId}`, {
+      currentDeviceFingerprint,
+    });
+
+    return "All other sessions revoked successfully";
+  } catch (error) {
+    logger.error("Error revoking all other sessions:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+    });
+    throw new Error("Failed to revoke all other sessions");
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1248,4 +1471,9 @@ module.exports = {
   get2FAStatus,
   generateNewBackupCodes,
   complete2FALogin,
+  completeOAuthLogin,
+  // Session management functions
+  getActiveSessions,
+  revokeSession,
+  revokeAllOtherSessions,
 };

@@ -80,4 +80,9 @@ router.post("/2fa/disable", protect, user.auth.disable2FA);
 router.get("/2fa/status", protect, user.auth.get2FAStatus);
 router.post("/2fa/backup-codes", protect, user.auth.generateNewBackupCodes);
 
+// Session management endpoints
+router.get("/sessions", protect, user.auth.getActiveSessions);
+router.delete("/sessions/:sessionId", protect, user.auth.revokeSession);
+router.delete("/sessions/others", protect, user.auth.revokeAllOtherSessions);
+
 module.exports = router;

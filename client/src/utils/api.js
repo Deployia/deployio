@@ -106,23 +106,40 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // Only attempt refresh once per request and avoid infinite loops
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
+      !originalRequest.url.includes("/users/auth/refresh-token") &&
       !originalRequest.url.includes("/auth/refresh-token")
     ) {
       originalRequest._retry = true;
+
       try {
-        await api.post("/users/auth/refresh-token", {});
-        // After successful refresh, retry the original request.
-        // If the original request was a GET, we might want to bypass cache for this retry
-        // to ensure we get fresh data after re-authentication, though this depends on the specific needs.
-        // For now, it will use the default caching behavior.
-        return api(originalRequest);
+        console.log("Attempting token refresh...");
+        const refreshResponse = await api.post("/users/auth/refresh-token", {});
+
+        if (refreshResponse.data.success) {
+          console.log("Token refresh successful, retrying original request");
+          // After successful refresh, retry the original request
+          return api(originalRequest);
+        } else {
+          throw new Error("Refresh failed");
+        }
       } catch (refreshError) {
+        console.error(
+          "Token refresh failed:",
+          refreshError.response?.data || refreshError.message
+        );
         // Clear cache on auth failure to prevent serving stale data to a logged-out user
         cache.clear();
-        // Potentially redirect to login or handle global logout state here
+
+        // Redirect to login page or handle global logout
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+
         return Promise.reject(refreshError);
       }
     }
