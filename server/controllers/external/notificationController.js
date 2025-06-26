@@ -1,6 +1,7 @@
 const notificationService = require("@services/notification/notificationService");
 const logger = require("@config/logger");
 const { validationResult } = require("express-validator");
+const { getWebSocketManager } = require("@websockets");
 
 /**
  * Get user notifications with pagination and filtering
@@ -78,6 +79,30 @@ const markAsRead = async (req, res) => {
       notificationIds
     );
 
+    // Send real-time update via WebSocket
+    try {
+      const webSocketManager = getWebSocketManager();
+      if (webSocketManager) {
+        // Send notification marked as read event
+        webSocketManager.emitToUser(userId, "notification_marked_read", {
+          notificationIds,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Send updated unread count
+        const unreadCount = await notificationService.getUnreadCount(userId);
+        webSocketManager.emitToUser(userId, "unread_count", {
+          count: unreadCount,
+        });
+      }
+    } catch (wsError) {
+      logger.error("Failed to send real-time notification update", {
+        userId,
+        error: wsError.message,
+      });
+      // Don't fail the request if WebSocket fails
+    }
+
     res.json({
       success: true,
       message: "Notifications marked as read",
@@ -107,6 +132,26 @@ const markAllAsRead = async (req, res) => {
     const userId = req.user.id;
 
     const result = await notificationService.markAllAsRead(userId);
+
+    // Send real-time update via WebSocket
+    try {
+      const webSocketManager = getWebSocketManager();
+      if (webSocketManager) {
+        // Send all notifications marked as read event
+        webSocketManager.emitToUser(userId, "all_notifications_marked_read", {
+          timestamp: new Date().toISOString(),
+        });
+
+        // Send updated unread count (should be 0)
+        webSocketManager.emitToUser(userId, "unread_count", { count: 0 });
+      }
+    } catch (wsError) {
+      logger.error("Failed to send real-time notification update", {
+        userId,
+        error: wsError.message,
+      });
+      // Don't fail the request if WebSocket fails
+    }
 
     res.json({
       success: true,

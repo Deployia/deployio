@@ -95,22 +95,22 @@ class InAppChannel {
    */
   async sendViaWebSocket(userId, notificationData) {
     try {
-      // Get WebSocket instance (assuming it's available globally or via dependency injection)
-      const io = global.io || require("../../../app").io;
+      // Use the new WebSocket architecture
+      const { getWebSocketManager } = require("../../../websockets");
+      const webSocketManager = getWebSocketManager();
 
-      if (io) {
-        // Send to user's room
-        io.to(`user_${userId}`).emit("notification", {
-          event: "new_notification",
-          data: notificationData,
-          timestamp: new Date().toISOString(),
-        });
+      if (webSocketManager) {
+        // Send notification to user via WebSocket
+        webSocketManager.emitToUser(
+          userId,
+          "new_notification",
+          notificationData
+        );
 
         // Send notification count update
         const notificationCount = await this.getUnreadCount(userId);
-        io.to(`user_${userId}`).emit("notification_count", {
+        webSocketManager.emitToUser(userId, "unread_count", {
           count: notificationCount,
-          timestamp: new Date().toISOString(),
         });
 
         logger.debug("WebSocket notification sent", {
