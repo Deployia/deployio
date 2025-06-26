@@ -28,7 +28,7 @@ const ProjectDetails = lazy(() => import("@dashboard/ProjectDetails"));
 const ProjectDeployments = lazy(() => import("@dashboard/ProjectDeployments"));
 const ProjectAnalytics = lazy(() => import("@dashboard/ProjectAnalytics"));
 const ProjectSettings = lazy(() => import("@dashboard/ProjectSettings"));
-const CreateProject = lazy(() => import("@dashboard/CreateProject"));
+const CreateProject = lazy(() => import("@pages/projects/CreateProject"));
 const Deployments = lazy(() => import("@dashboard/Deployments"));
 const Analytics = lazy(() => import("@dashboard/Analytics"));
 const Activity = lazy(() => import("@dashboard/Activity"));
