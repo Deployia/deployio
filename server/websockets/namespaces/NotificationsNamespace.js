@@ -53,6 +53,34 @@ class NotificationsNamespace {
     // Subscribe to user-specific notification updates
     socket.join(`notifications_${socket.userId}`);
 
+    // Send connection confirmation notification
+    setTimeout(() => {
+      const welcomeNotification = {
+        id: `welcome_${Date.now()}`,
+        type: "success",
+        title: "WebSocket Connected",
+        message:
+          "🎉 Real-time notifications are now active! You'll receive instant updates for deployments, system events, and alerts.",
+        timestamp: new Date().toISOString(),
+        source: "connection_confirmation",
+        isTest: true,
+        isWelcome: true,
+        persistent: false,
+        data: {
+          environment: process.env.NODE_ENV || "development",
+          connectionTime: new Date().toISOString(),
+        },
+      };
+
+      socket.emit("notification", welcomeNotification);
+
+      logger.debug("Connection confirmation notification sent", {
+        userId: socket.userId,
+        email: socket.userEmail,
+        environment: process.env.NODE_ENV,
+      });
+    }, 1000); // Send after 1 second to ensure client is ready
+
     logger.debug("User subscribed to notifications", {
       userId: socket.userId,
       email: socket.userEmail,

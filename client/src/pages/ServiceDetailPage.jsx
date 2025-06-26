@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import logStreamWebSocket from "@services/logStreamWebSocket";
+import { useLogStream } from "@hooks/useLogStream";
 import SEO from "@components/SEO";
 import { LoadingState, InlineSpinner } from "@components/ui/Spinner";
 import {
@@ -31,10 +31,13 @@ const ServiceDetailPage = () => {
   const { serviceName } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+
+  // Log streaming hook
+  const { startStream, stopStream, getStreamLogs } = useLogStream();
+
   // Service data state
   const [serviceData, setServiceData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [serviceLoading, setServiceLoading] = useState(true);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,6 +45,7 @@ const ServiceDetailPage = () => {
   // Logs state
   const [logs, setLogs] = useState([]);
   const [isLogStreamActive, setIsLogStreamActive] = useState(false);
+  const [actualStreamId, setActualStreamId] = useState(null);
   const [logFilter, setLogFilter] = useState("");
   const [logLevel, setLogLevel] = useState("all");
   // Metrics state
@@ -102,11 +106,9 @@ const ServiceDetailPage = () => {
           .get(`/health/services/${serviceName}`)
           .then((response) => {
             setServiceData(response.data.data);
-            setServiceLoading(false);
             return response;
           })
           .catch((err) => {
-            setServiceLoading(false);
             throw err;
           }),
 
@@ -159,12 +161,13 @@ const ServiceDetailPage = () => {
   }, [serviceName]);
 
   const stopLogStream = () => {
-    if (isLogStreamActive) {
-      const streamId = `${serviceName}-live`;
-      logStreamWebSocket.stopStream(streamId);
+    if (isLogStreamActive && actualStreamId) {
+      stopStream(actualStreamId);
       setIsLogStreamActive(false);
+      setActualStreamId(null);
     }
   };
+
   useEffect(() => {
     if (!validServices.includes(serviceName)) {
       navigate("/health");
@@ -177,45 +180,84 @@ const ServiceDetailPage = () => {
   // Setup WebSocket for real-time logs cleanup
   useEffect(() => {
     return () => {
-      if (isLogStreamActive) {
-        const streamId = `${serviceName}-live`;
-        logStreamWebSocket.stopStream(streamId);
+      if (isLogStreamActive && actualStreamId) {
+        stopStream(actualStreamId);
       }
     };
-  }, [isLogStreamActive, serviceName]);
+  }, [isLogStreamActive, actualStreamId, stopStream]);
+
   const startLogStream = async () => {
     try {
-      if (!logStreamWebSocket.getStatus().isConnected) {
-        await logStreamWebSocket.connect();
-      }
       const streamId = `${serviceName}-live`;
-      logStreamWebSocket.startStream(streamId, serviceName, 0);
 
-      // Listen for real-time logs
-      logStreamWebSocket.on("stream_data", (data) => {
-        if (data.streamId === streamId) {
-          setLogs((prev) =>
-            [
-              ...prev,
-              {
-                id: Date.now() + Math.random(),
-                timestamp: data.timestamp,
-                level: data.data.level || "INFO",
-                message: data.data.message || data.raw,
-                raw: data.raw,
-                source: "realtime",
-              },
-            ].slice(-1000)
-          ); // Keep last 1000 logs
-        }
+      // Map service names to log types
+      const logTypeMap = {
+        backend: "application",
+        "ai-service": "application",
+        agent: "application",
+      };
+
+      const logType = logTypeMap[serviceName] || "application";
+
+      // Use the hook's startStream method with proper configuration
+      const generatedStreamId = startStream({
+        streamId: streamId,
+        logType: logType,
+        options: {},
       });
 
-      setIsLogStreamActive(true);
+      if (generatedStreamId) {
+        setIsLogStreamActive(true);
+        setActualStreamId(generatedStreamId);
+      }
+
+      // The useLogStream hook will handle the real-time updates
+      // We can get logs using getStreamLogs(streamId)
     } catch (error) {
       console.error("Failed to start log stream:", error);
       setError("Failed to start real-time log streaming");
     }
   };
+
+  // Update logs from stream - using a more efficient approach
+  useEffect(() => {
+    if (isLogStreamActive && actualStreamId) {
+      // Set up interval to periodically fetch logs from the stream
+      const interval = setInterval(() => {
+        const streamLogs = getStreamLogs(actualStreamId);
+
+        if (streamLogs && streamLogs.length > 0) {
+          setLogs((prevLogs) => {
+            const formattedLogs = streamLogs.map((log, index) => ({
+              id: log.id || `stream_${Date.now()}_${index}`,
+              timestamp: log.timestamp || new Date().toISOString(),
+              level: log.data?.level || "INFO",
+              message:
+                log.data?.message ||
+                log.content ||
+                log.raw ||
+                "Unknown log message",
+              raw: log.raw || log.content || log.data?.message || "",
+              source: "realtime",
+            }));
+
+            // Only update if we have new logs
+            const currentIds = new Set(prevLogs.map((log) => log.id));
+            const newLogs = formattedLogs.filter(
+              (log) => !currentIds.has(log.id)
+            );
+
+            if (newLogs.length > 0) {
+              return [...prevLogs, ...newLogs].slice(-1000); // Keep last 1000 logs
+            }
+            return prevLogs;
+          });
+        }
+      }, 1000); // Check for new logs every second
+
+      return () => clearInterval(interval);
+    }
+  }, [isLogStreamActive, actualStreamId]); // Removed getStreamLogs from dependencies
 
   const clearLogs = () => {
     setLogs([]);

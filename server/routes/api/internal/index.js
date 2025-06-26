@@ -6,6 +6,7 @@
 const express = require("express");
 const authRoutes = require("./auth");
 const logRoutes = require("./logs");
+const notificationRoutes = require("./notifications");
 
 const router = express.Router();
 
@@ -14,5 +15,8 @@ router.use("/auth", authRoutes);
 
 // Log streaming routes
 router.use("/logs", logRoutes);
+
+// Notification testing routes
+router.use("/notifications", notificationRoutes);
 
 module.exports = router;

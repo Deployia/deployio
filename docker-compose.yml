@@ -51,6 +51,8 @@ services:
     image: 533266971626.dkr.ecr.ap-south-1.amazonaws.com/deployio-backend:latest
     env_file:
       - ./server/.env.production
+    volumes:
+      - ./server/logs:/app/logs
     security_opt:
       - no-new-privileges:true
     read_only: true

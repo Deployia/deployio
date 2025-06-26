@@ -168,12 +168,17 @@ export function useLogStream() {
       return null;
     }
 
-    const streamId = `stream_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    // Use provided streamId or generate one
+    const streamId =
+      streamConfig.streamId ||
+      `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    console.log("Starting stream with config:", { streamId, ...streamConfig });
+
     socketRef.current.emit("stream:start", {
       streamId,
-      ...streamConfig,
+      logType: streamConfig.logType,
+      options: streamConfig.options || {},
     });
 
     return streamId;

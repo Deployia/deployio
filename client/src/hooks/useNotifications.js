@@ -79,18 +79,39 @@ export function useNotifications() {
           }
         });
 
-        socket.on("new_notification", (notification) => {
+        socket.on("notification", (notification) => {
           if (mounted) {
             setNotifications((prev) => [notification, ...prev]);
-            setUnreadCount((prev) => prev + 1);
+            if (!notification.isTest && !notification.isWelcome) {
+              setUnreadCount((prev) => prev + 1);
+            }
             emitToListeners("new_notification", notification);
 
             // Show browser notification if permission granted
-            if (Notification.permission === "granted") {
-              new Notification(notification.title, {
+            if (Notification.permission === "granted" && !notification.isTest) {
+              new Notification(notification.title || "DeployIO Notification", {
                 body: notification.message,
                 icon: "/favicon.ico",
-                tag: notification._id,
+                tag: notification.id,
+              });
+            }
+          }
+        });
+
+        socket.on("new_notification", (notification) => {
+          if (mounted) {
+            setNotifications((prev) => [notification, ...prev]);
+            if (!notification.isTest && !notification.isWelcome) {
+              setUnreadCount((prev) => prev + 1);
+            }
+            emitToListeners("new_notification", notification);
+
+            // Show browser notification if permission granted
+            if (Notification.permission === "granted" && !notification.isTest) {
+              new Notification(notification.title || "DeployIO Notification", {
+                body: notification.message,
+                icon: "/favicon.ico",
+                tag: notification.id,
               });
             }
           }

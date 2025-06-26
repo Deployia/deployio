@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import useEnvironmentInfo from "@utils/useEnvironmentInfo";
+import { useNotifications } from "@hooks/useNotifications";
 import Spinner from "@components/Spinner";
 import SEO from "@components/SEO.jsx";
 import {
@@ -22,6 +23,8 @@ import {
   FaEye,
   FaArrowRight,
   FaDocker,
+  FaBell,
+  FaInfoCircle,
 } from "react-icons/fa";
 import { backend } from "../utils/api";
 
@@ -313,6 +316,39 @@ function Health() {
   useEffect(() => {
     fetchStatuses();
   }, [fetchStatuses]);
+
+  // Initialize WebSocket for notifications only
+  const {
+    isConnected: notificationsConnected,
+    notifications,
+    sendTestNotification,
+    error: notificationsError,
+  } = useNotifications();
+
+  // Test notification
+  const handleTestNotification = async () => {
+    try {
+      const response = await backend.post("/api/internal/notifications/test", {
+        message:
+          "🚀 Test notification from Health Dashboard! WebSocket notifications are working correctly.",
+        type: "success",
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message);
+      }
+    } catch (error) {
+      console.error("Failed to send test notification:", error);
+      // Fallback to direct WebSocket test
+      if (sendTestNotification) {
+        sendTestNotification({
+          type: "info",
+          message: "Test notification from Health Dashboard (fallback mode)",
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+  };
 
   if (loading)
     return (
@@ -624,6 +660,99 @@ function Health() {
               </div>
             </div>
           </div>
+          {/* WebSocket & Notifications Testing Section */}
+          {isAdmin && (
+            <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body bg-neutral-900/70">
+              <h3 className="text-lg font-semibold text-white mb-4 heading flex items-center">
+                <FaBell className="mr-2 text-blue-400" />
+                WebSocket & Notifications Testing
+              </h3>
+
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-neutral-400 text-sm mb-2">
+                    Test the WebSocket notification system. A test notification
+                    will be sent to all connected clients.
+                  </p>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span
+                      className={`flex items-center gap-1 ${
+                        notificationsConnected
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          notificationsConnected ? "bg-green-400" : "bg-red-400"
+                        }`}
+                      ></div>
+                      WebSocket{" "}
+                      {notificationsConnected ? "Connected" : "Disconnected"}
+                    </span>
+                    {notificationsError && (
+                      <span className="text-red-400">
+                        Error: {notificationsError}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={handleTestNotification}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 text-sm"
+                  title="Send Test Notification"
+                >
+                  <FaBell className="h-4 w-4" />
+                  Send Test Notification
+                </button>
+              </div>
+
+              {/* Recent Notifications Display */}
+              {notifications && notifications.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-white mb-2">
+                    Recent Notifications:
+                  </h4>
+                  <div className="max-h-40 overflow-auto space-y-2">
+                    {notifications.slice(-5).map((notification, index) => (
+                      <div
+                        key={index}
+                        className={`p-3 rounded-lg border flex items-start gap-3 ${
+                          notification.type === "success"
+                            ? "bg-green-900/30 border-green-700/30"
+                            : notification.type === "error"
+                            ? "bg-red-900/30 border-red-700/30"
+                            : notification.type === "warning"
+                            ? "bg-yellow-900/30 border-yellow-700/30"
+                            : "bg-blue-900/30 border-blue-700/30"
+                        }`}
+                      >
+                        <FaInfoCircle
+                          className={`mt-0.5 ${
+                            notification.type === "success"
+                              ? "text-green-400"
+                              : notification.type === "error"
+                              ? "text-red-400"
+                              : notification.type === "warning"
+                              ? "text-yellow-400"
+                              : "text-blue-400"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm break-words">
+                            {notification.message}
+                          </p>
+                          <p className="text-neutral-400 text-xs mt-1">
+                            {new Date(notification.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
