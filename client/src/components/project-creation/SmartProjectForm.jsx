@@ -396,7 +396,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               </label>
               <input
                 type="text"
-                value={formData.deploymentSettings.resources.cpu}
+                value={formData.deploymentSettings.resources?.cpu}
                 onChange={(e) => handleResourceChange('cpu', e.target.value)}
                 className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="100m"
@@ -409,7 +409,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               </label>
               <input
                 type="text"
-                value={formData.deploymentSettings.resources.memory}
+                value={formData.deploymentSettings.resources?.memory}
                 onChange={(e) => handleResourceChange('memory', e.target.value)}
                 className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="128Mi"
@@ -422,7 +422,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               </label>
               <input
                 type="number"
-                value={formData.deploymentSettings.replicas}
+                value={formData.deploymentSettings?.replicas}
                 onChange={(e) => handleDeploymentSettingChange('replicas', parseInt(e.target.value))}
                 className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="1"

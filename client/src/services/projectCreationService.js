@@ -1,24 +1,27 @@
-import api from './api';
+import api from '../utils/api';
 
 class ProjectCreationService {
-  // Session management
+  // Session management - Updated to match backend routes
   async createSession(sessionData = {}) {
-    return await api.post('/projects/creation/session', {
+    const response = await api.post('/projects/creation/session', {
       userAgent: navigator.userAgent,
       ipAddress: null, // Will be detected by backend
       ...sessionData,
     });
+    return response.data?.data || response.data;
   }
 
   async getSession(sessionId) {
-    return await api.get(`/projects/creation/session/${sessionId}`);
+    const response = await api.get(`/projects/creation/session/${sessionId}`);
+    return response.data?.data || response.data;
   }
 
   async updateStep(sessionId, step, stepData) {
-    return await api.put(`/projects/creation/session/${sessionId}/step`, {
+    const response = await api.put(`/projects/creation/session/${sessionId}/step`, {
       step,
       stepData,
     });
+    return response.data?.data || response.data;
   }
 
   async getUserSessions(filters = {}) {
@@ -28,30 +31,36 @@ class ProjectCreationService {
     if (filters.limit) params.append('limit', filters.limit);
     if (filters.page) params.append('page', filters.page);
 
-    return await api.get(`/projects/creation/sessions?${params.toString()}`);
+    const response = await api.get(`/projects/creation/sessions?${params.toString()}`);
+    return response.data?.data || response.data;
   }
 
   async deleteSession(sessionId) {
-    return await api.delete(`/projects/creation/session/${sessionId}`);
+    const response = await api.delete(`/projects/creation/session/${sessionId}`);
+    return response.data?.data || response.data;
   }
 
   // Repository analysis
   async analyzeRepository(sessionId, repositoryData) {
-    return await api.post(`/projects/creation/session/${sessionId}/analyze`, repositoryData);
+    const response = await api.post(`/projects/creation/session/${sessionId}/analyze`, repositoryData);
+    return response.data?.data || response.data;
   }
 
-  // Complete project creation
+  // Complete project creation - Updated endpoint name
   async completeSession(sessionId) {
-    return await api.post(`/projects/creation/session/${sessionId}/complete`);
+    const response = await api.post(`/projects/creation/session/${sessionId}/complete`);
+    return response.data?.data || response.data;
   }
 
-  // Git provider integration (using existing git service)
+  // Git provider integration - Updated to use proper endpoints
   async getGitProviders() {
-    return await api.get('/users/git-providers');
+    const response = await api.get('/users/git-providers');
+    return response.data?.data || response.data;
   }
 
   async connectGitProvider(provider, authData) {
-    return await api.post(`/git/connect/${provider}`, authData);
+    const response = await api.post(`/git/connect/${provider}`, authData);
+    return response.data?.data || response.data;
   }
 
   async getRepositories(provider, options = {}) {
@@ -62,15 +71,18 @@ class ProjectCreationService {
     if (options.per_page) params.append('per_page', options.per_page);
     if (options.type) params.append('type', options.type);
 
-    return await api.get(`/git/${provider}/repositories?${params.toString()}`);
+    const response = await api.get(`/git/${provider}/repositories?${params.toString()}`);
+    return response.data?.data || response.data;
   }
 
   async getBranches(provider, owner, repo) {
-    return await api.get(`/git/${provider}/repositories/${owner}/${repo}/branches`);
+    const response = await api.get(`/git/${provider}/repositories/${owner}/${repo}/branches`);
+    return response.data?.data || response.data;
   }
 
   async getRepositoryDetails(provider, owner, repo) {
-    return await api.get(`/git/${provider}/repositories/${owner}/${repo}`);
+    const response = await api.get(`/git/${provider}/repositories/${owner}/${repo}`);
+    return response.data?.data || response.data;
   }
 
   // Utility methods
