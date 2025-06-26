@@ -11,7 +11,7 @@ import Modal from "@components/Modal";
 import ScrollToTop from "@components/ScrollToTop";
 
 // Hooks
-import { useNotifications } from "@hooks/useNotifications";
+import useNotifications from "@hooks/useNotifications";
 
 // Lazy loaded components for performance optimization
 // Authentication Pages

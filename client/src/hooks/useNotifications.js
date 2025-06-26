@@ -5,7 +5,7 @@ import webSocketService from "../services/websocketService";
  * React hook for WebSocket notifications
  * Provides real-time notification functionality with the new architecture
  */
-export function useNotifications() {
+function useNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);

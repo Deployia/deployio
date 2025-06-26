@@ -46,15 +46,43 @@ router.get("/", async (req, res) => {
     // Check deployment agent connection
     health.services.deploymentAgent = await checkDeploymentAgentHealth();
 
-    // Determine overall health
-    const unhealthyServices = Object.values(health.services).filter(
-      (service) => service.status !== "healthy"
+    // Determine overall health with more nuanced logic
+    const coreServices = ["mongodb", "redis"];
+    const optionalServices = ["aiService", "deploymentAgent"];
+
+    // Check core services (MongoDB, Redis)
+    const coreServicesHealthy = [
+      health.mongodb.status,
+      health.redis.status,
+    ].every((status) => status === "healthy");
+
+    // Check optional services
+    const unhealthyOptionalServices = Object.entries(health.services).filter(
+      ([key, service]) =>
+        optionalServices.includes(key) && service.status !== "healthy"
     );
 
-    if (unhealthyServices.length > 0) {
-      health.status = "degraded";
+    // Determine status based on core vs optional services
+    if (!coreServicesHealthy) {
+      // Core services down = unhealthy
+      health.status = "unhealthy";
       res.status(503);
+    } else if (unhealthyOptionalServices.length > 0) {
+      // Core services up, but some optional services down = degraded
+      health.status = "degraded";
+      res.status(200); // Still return 200 since core system works
+    } else {
+      // All services healthy
+      health.status = "healthy";
+      res.status(200);
     }
+
+    // Add detailed health summary
+    health.summary = {
+      coreServicesHealthy,
+      optionalServicesDown: unhealthyOptionalServices.length,
+      totalServices: Object.keys(health.services).length + 2, // +2 for mongodb, redis
+    };
 
     // Add response time
     health.responseTime = Date.now() - startTime;

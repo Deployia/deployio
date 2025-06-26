@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import useEnvironmentInfo from "@utils/useEnvironmentInfo";
-import { useNotifications } from "@hooks/useNotifications";
+import useNotifications from "@hooks/useNotifications";
 import Spinner from "@components/Spinner";
 import SEO from "@components/SEO.jsx";
 import {
@@ -27,6 +27,195 @@ import {
   FaInfoCircle,
 } from "react-icons/fa";
 import { backend } from "../utils/api";
+
+// Component for individual service card
+const ServiceCard = ({
+  serviceKey,
+  service,
+  isAdmin,
+  navigate,
+  StatusIndicator,
+}) => {
+  const IconComponent = service.icon;
+  const colorClasses = {
+    green: "bg-green-600/20 text-green-400",
+    blue: "bg-blue-600/20 text-blue-400",
+    purple: "bg-purple-600/20 text-purple-400",
+  };
+
+  const serviceNameMap = {
+    backend: "backend",
+    fastapi: "ai-service",
+    agent: "agent",
+  };
+
+  const handleDetailClick = () => {
+    if (isAdmin && serviceNameMap[serviceKey]) {
+      navigate(`/health/${serviceNameMap[serviceKey]}`);
+    }
+  };
+
+  return (
+    <div className="p-4 md:p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body shadow-lg bg-neutral-900/70 hover:bg-neutral-900 transition-all duration-300">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+        <div className="flex items-center">
+          <div
+            className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
+              colorClasses[service.color]
+            }`}
+          >
+            <IconComponent className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold text-white heading truncate">
+              {service.name}
+            </h3>
+            <p className="text-xs text-neutral-400">
+              {serviceKey === "backend"
+                ? "Express.js API"
+                : serviceKey === "fastapi"
+                ? "AI Processing Service"
+                : "Container Management"}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusIndicator status={service.status} type="service" />
+          {isAdmin && (
+            <button
+              onClick={handleDetailClick}
+              className="ml-2 px-3 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 hover:text-blue-300 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm"
+              title="View detailed monitoring"
+            >
+              <FaEye className="h-3 w-3" />
+              Details
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Service-specific status indicators */}
+      <div className="space-y-3">
+        {/* Database Status - Backend and Agent */}
+        {(serviceKey === "backend" || serviceKey === "agent") && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm text-neutral-400">
+              <FaDatabase className="mr-2 text-neutral-500 flex-shrink-0" />
+              <span>Database</span>
+            </div>
+            <StatusIndicator status={service.mongodb_status} />
+          </div>
+        )}
+        {/* Redis Status - Backend and FastAPI */}
+        {(serviceKey === "backend" || serviceKey === "fastapi") && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm text-neutral-400">
+              <FaMemory className="mr-2 text-neutral-500 flex-shrink-0" />
+              <span>Redis Cache</span>
+            </div>
+            <StatusIndicator status={service.redis_status} />
+          </div>
+        )}
+        {/* Docker Status - Agent only */}
+        {serviceKey === "agent" && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm text-neutral-400">
+              <FaDocker className="mr-2 text-neutral-500 flex-shrink-0" />
+              <span>Docker Engine</span>
+            </div>
+            <StatusIndicator status={service.docker_status} />
+          </div>
+        )}
+        {/* Agent Version - Agent only */}
+        {serviceKey === "agent" && service.version !== "unknown" && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm text-neutral-400">
+              <FaCode className="mr-2 text-neutral-500 flex-shrink-0" />
+              <span>Version</span>
+            </div>
+            <div>
+              <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
+                v{service.version}
+              </span>
+            </div>
+          </div>
+        )}
+        {/* Uptime */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center text-sm text-neutral-400">
+            <FaClock className="mr-2 text-neutral-500 flex-shrink-0" />
+            <span>Uptime</span>
+          </div>
+          <div>
+            <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
+              {formatUptime(service.uptime)}
+            </span>
+          </div>
+        </div>
+        {/* Response Message or Purpose */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center text-sm text-neutral-400">
+            <FaCode className="mr-2 text-neutral-500 flex-shrink-0 mt-0.5" />
+            <span>{serviceKey === "agent" ? "Purpose" : "Response"}</span>
+          </div>
+          <div className="text-right max-w-xs">
+            <span className="text-white text-sm italic break-words">
+              &quot;
+              {serviceKey === "agent" && service.purpose !== "unknown"
+                ? service.purpose
+                : service.message}
+              &quot;
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Utility function to format uptime
+const formatUptime = (seconds) => {
+  if (!seconds) return "0s";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+};
+
+// Status indicator component
+const StatusIndicator = ({ status, type = "default" }) => {
+  let isHealthy = false;
+
+  if (type === "service") {
+    isHealthy = status === "ok" || status === "healthy";
+  } else {
+    // For subservices (mongodb, redis, docker)
+    isHealthy =
+      status === "connected" || status === "ok" || status === "healthy";
+  }
+
+  return (
+    <div className="flex items-center">
+      {isHealthy ? (
+        <FaCheckCircle className="text-green-400 mr-2" />
+      ) : (
+        <FaTimesCircle className="text-red-400 mr-2" />
+      )}
+      <span
+        className={`capitalize ${
+          isHealthy ? "text-green-400" : "text-red-400"
+        }`}
+      >
+        {status || "Unknown"}
+      </span>
+    </div>
+  );
+};
 
 function Health() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -75,188 +264,15 @@ function Health() {
 
   const envInfo = useEnvironmentInfo();
 
-  // Utility function to format uptime
-  const formatUptime = (seconds) => {
-    if (!seconds) return "0s";
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-
-    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-    if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
-    if (minutes > 0) return `${minutes}m ${secs}s`;
-    return `${secs}s`;
-  }; // Get status indicator component
-  const StatusIndicator = ({ status, type = "default" }) => {
-    let isHealthy = false;
-
-    if (type === "service") {
-      isHealthy = status === "ok" || status === "healthy";
-    } else {
-      // For subservices (mongodb, redis, docker)
-      isHealthy =
-        status === "connected" || status === "ok" || status === "healthy";
-    }
-
-    return (
-      <div className="flex items-center">
-        {isHealthy ? (
-          <FaCheckCircle className="text-green-400 mr-2" />
-        ) : (
-          <FaTimesCircle className="text-red-400 mr-2" />
-        )}
-        <span
-          className={`capitalize ${
-            isHealthy ? "text-green-400" : "text-red-400"
-          }`}
-        >
-          {status || "Unknown"}
-        </span>
-      </div>
-    );
-  }; // Component for individual service card
-  const ServiceCard = ({ serviceKey, service }) => {
-    const IconComponent = service.icon;
-    const colorClasses = {
-      green: "bg-green-600/20 text-green-400",
-      blue: "bg-blue-600/20 text-blue-400",
-      purple: "bg-purple-600/20 text-purple-400",
-    };
-
-    const serviceNameMap = {
-      backend: "backend",
-      fastapi: "ai-service",
-      agent: "agent",
-    };
-
-    const handleDetailClick = () => {
-      if (isAdmin && serviceNameMap[serviceKey]) {
-        navigate(`/health/${serviceNameMap[serviceKey]}`);
-      }
-    };
-
-    return (
-      <div className="p-4 md:p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body shadow-lg bg-neutral-900/70 hover:bg-neutral-900 transition-all duration-300">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-          <div className="flex items-center">
-            <div
-              className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
-                colorClasses[service.color]
-              }`}
-            >
-              <IconComponent className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-lg font-semibold text-white heading truncate">
-                {service.name}
-              </h3>
-              <p className="text-xs text-neutral-400">
-                {serviceKey === "backend"
-                  ? "Express.js API"
-                  : serviceKey === "fastapi"
-                  ? "AI Processing Service"
-                  : "Container Management"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <StatusIndicator status={service.status} type="service" />
-            {isAdmin && (
-              <button
-                onClick={handleDetailClick}
-                className="ml-2 px-3 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 hover:text-blue-300 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm"
-                title="View detailed monitoring"
-              >
-                <FaEye className="h-3 w-3" />
-                Details
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Service-specific status indicators */}
-        <div className="space-y-3">
-          {" "}
-          {/* Database Status - Backend and Agent */}
-          {(serviceKey === "backend" || serviceKey === "agent") && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-neutral-400">
-                <FaDatabase className="mr-2 text-neutral-500 flex-shrink-0" />
-                <span>Database</span>
-              </div>
-              <StatusIndicator status={service.mongodb_status} />
-            </div>
-          )}
-          {/* Redis Status - Backend and FastAPI */}
-          {(serviceKey === "backend" || serviceKey === "fastapi") && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-neutral-400">
-                <FaMemory className="mr-2 text-neutral-500 flex-shrink-0" />
-                <span>Redis Cache</span>
-              </div>
-              <StatusIndicator status={service.redis_status} />
-            </div>
-          )}
-          {/* Docker Status - Agent only */}
-          {serviceKey === "agent" && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-neutral-400">
-                <FaDocker className="mr-2 text-neutral-500 flex-shrink-0" />
-                <span>Docker Engine</span>
-              </div>
-              <StatusIndicator status={service.docker_status} />
-            </div>
-          )}
-          {/* Agent Version - Agent only */}
-          {serviceKey === "agent" && service.version !== "unknown" && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-neutral-400">
-                <FaCode className="mr-2 text-neutral-500 flex-shrink-0" />
-                <span>Version</span>
-              </div>
-              <div>
-                <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
-                  v{service.version}
-                </span>
-              </div>
-            </div>
-          )}
-          {/* Uptime */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center text-sm text-neutral-400">
-              <FaClock className="mr-2 text-neutral-500 flex-shrink-0" />
-              <span>Uptime</span>
-            </div>
-            <div>
-              <span className="text-white text-sm bg-neutral-800 px-2 py-1 rounded">
-                {formatUptime(service.uptime)}
-              </span>
-            </div>
-          </div>
-          {/* Response Message or Purpose */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-center text-sm text-neutral-400">
-              <FaCode className="mr-2 text-neutral-500 flex-shrink-0 mt-0.5" />
-              <span>{serviceKey === "agent" ? "Purpose" : "Response"}</span>
-            </div>
-            <div className="text-right max-w-xs">
-              <span className="text-white text-sm italic break-words">
-                &quot;
-                {serviceKey === "agent" && service.purpose !== "unknown"
-                  ? service.purpose
-                  : service.message}
-                &quot;
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
   const fetchStatuses = useCallback(async () => {
     try {
-      const response = await backend.get("/health"); // Backend DB/Redis (from top-level response)
+      const response = await backend.get("/health");
+
+      // Store the overall health status
+      const overallStatus = response.data.status;
+      const summary = response.data.summary;
+
+      // Backend DB/Redis (from top-level response)
       const backendMongo = response.data.mongodb;
       const backendRedis = response.data.redis;
 
@@ -269,7 +285,13 @@ function Health() {
       setServices((prev) => ({
         backend: {
           ...prev.backend,
-          status: response.data.status || "unknown",
+          status:
+            overallStatus === "healthy"
+              ? "healthy"
+              : backendMongo.status === "healthy" &&
+                backendRedis.status === "healthy"
+              ? "healthy"
+              : "unhealthy",
           uptime: response.data.uptime || 0,
           message: `${response.data.service || "Backend"} v${
             response.data.version || "unknown"
@@ -301,6 +323,17 @@ function Health() {
           purpose:
             agentServiceData?.purpose ||
             "Container management and deployment automation",
+        },
+      }));
+
+      // Store overall health info for display
+      setServices((prev) => ({
+        ...prev,
+        _healthSummary: {
+          overallStatus,
+          summary,
+          coreServicesHealthy: summary?.coreServicesHealthy ?? true,
+          optionalServicesDown: summary?.optionalServicesDown ?? 0,
         },
       }));
 
@@ -394,11 +427,38 @@ function Health() {
                   <FaExclamationTriangle className="text-red-400 mr-2" />
                   <span className="text-red-300 text-sm">{error}</span>
                 </div>
+              ) : services._healthSummary ? (
+                // Detailed health status based on backend response
+                services._healthSummary.overallStatus === "healthy" ? (
+                  <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center">
+                    <FaCheckCircle className="text-green-400 mr-2" />
+                    <span className="text-green-300 text-sm">
+                      All Systems Operational
+                    </span>
+                  </div>
+                ) : services._healthSummary.overallStatus === "degraded" ? (
+                  <div className="px-4 py-2 bg-yellow-900/30 border border-yellow-700/30 rounded-lg flex items-center">
+                    <FaExclamationTriangle className="text-yellow-400 mr-2" />
+                    <span className="text-yellow-300 text-sm">
+                      Core Systems Operational -{" "}
+                      {services._healthSummary.optionalServicesDown} Optional
+                      Service(s) Down
+                    </span>
+                  </div>
+                ) : (
+                  <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center">
+                    <FaTimesCircle className="text-red-400 mr-2" />
+                    <span className="text-red-300 text-sm">
+                      System Unhealthy - Core Services Down
+                    </span>
+                  </div>
+                )
               ) : (
+                // Fallback for when health summary is not available
                 <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center">
                   <FaCheckCircle className="text-green-400 mr-2" />
                   <span className="text-green-300 text-sm">
-                    All Systems Operational
+                    Backend Service Operational
                   </span>
                 </div>
               )}
@@ -430,9 +490,18 @@ function Health() {
           )}
           {/* Service Status Cards */}
           <div className="grid gap-6 mb-6 md:grid-cols-2">
-            {Object.entries(services).map(([key, service]) => (
-              <ServiceCard key={key} serviceKey={key} service={service} />
-            ))}
+            {Object.entries(services)
+              .filter(([,service]) => service.icon) // Only render cards for services with an icon
+              .map(([key, service]) => (
+                <ServiceCard
+                  key={key}
+                  serviceKey={key}
+                  service={service}
+                  isAdmin={isAdmin}
+                  navigate={navigate}
+                  StatusIndicator={StatusIndicator}
+                />
+              ))}
           </div>
           {/* Authentication Status Section */}
           <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body mb-6 bg-neutral-900/70">

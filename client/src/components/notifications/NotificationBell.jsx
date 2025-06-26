@@ -10,7 +10,7 @@ import {
   updateNotificationCount,
 } from "@redux";
 import NotificationCenter from "./NotificationCenter";
-import { useNotifications } from "@hooks/useNotifications";
+import useNotifications from "@hooks/useNotifications";
 
 const NotificationBell = () => {
   const dispatch = useDispatch();
