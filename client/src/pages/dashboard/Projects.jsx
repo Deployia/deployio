@@ -39,10 +39,8 @@ const Projects = () => {
   // Fetch projects on component mount
   useEffect(() => {
     // Only fetch if we don't have projects or if the list is empty
-    if (!projects || projects.length === 0) {
-      dispatch(fetchProjects());
-    }
-  }, [dispatch, projects]);
+    dispatch(fetchProjects());
+  }, [dispatch]);
 
   // Clear success/error messages after some time
   useEffect(() => {
