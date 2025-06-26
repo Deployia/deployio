@@ -54,7 +54,7 @@ class ProjectCreationService {
 
   // Git provider integration - Updated to use proper endpoints
   async getGitProviders() {
-    const response = await api.get('/users/git-providers');
+    const response = await api.get('/git/providers');
     return response.data?.data || response.data;
   }
 

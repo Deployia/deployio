@@ -8,6 +8,10 @@ import {
   FaBook,
   FaGithub,
   FaCog,
+  FaRocket,
+  FaExclamationCircle,
+  FaDownload,
+  FaSync,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { toast } from "react-hot-toast";
@@ -169,45 +173,51 @@ const CLI = () => {
         className="space-y-8"
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="text-center">
-          <h1 className="text-4xl font-bold text-white flex items-center justify-center gap-3">
-            <FaTerminal className="text-blue-400" />
-            CLI Tools
-          </h1>
-          <p className="text-gray-400 text-lg mt-2">
+        <motion.div variants={itemVariants} className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <h1 className="text-4xl font-bold text-white flex items-center gap-3">
+              <FaTerminal className="text-blue-400" />
+              CLI Generator
+            </h1>
+            <div className="px-3 py-1 bg-orange-500/20 text-orange-400 text-sm rounded-full border border-orange-500/30 flex items-center gap-2">
+              <FaExclamationCircle className="w-3 h-3" />
+              Coming Soon
+            </div>
+          </div>
+          <p className="text-gray-400 text-lg">
             Generate and manage CLI commands for your deployments
           </p>
         </motion.div>
 
         {/* Tab Navigation */}
         <motion.div variants={itemVariants} className="flex justify-center">
-          <div className="bg-white dark:bg-gray-800 p-1 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab("generator")}
-              className={`px-6 py-2 rounded-md transition-colors ${
+              className={`px-6 py-2 rounded-md transition-all duration-200 ${
                 activeTab === "generator"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  : "text-gray-400 hover:text-white hover:bg-neutral-800/50"
               }`}
             >
               Command Generator
             </button>
             <button
               onClick={() => setActiveTab("installation")}
-              className={`px-6 py-2 rounded-md transition-colors ${
+              className={`px-6 py-2 rounded-md transition-all duration-200 ${
                 activeTab === "installation"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  : "text-gray-400 hover:text-white hover:bg-neutral-800/50"
               }`}
             >
               Installation
             </button>
             <button
               onClick={() => setActiveTab("commands")}
-              className={`px-6 py-2 rounded-md transition-colors ${
+              className={`px-6 py-2 rounded-md transition-all duration-200 ${
                 activeTab === "commands"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  : "text-gray-400 hover:text-white hover:bg-neutral-800/50"
               }`}
             >
               Quick Commands
@@ -222,21 +232,23 @@ const CLI = () => {
             className="grid grid-cols-1 lg:grid-cols-2 gap-8"
           >
             {/* Configuration Form */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                <FaCog className="text-blue-600" />
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200">
+              <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <FaCog className="w-4 h-4 text-blue-400" />
+                </div>
                 Configuration
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Command Type
                   </label>
                   <select
                     value={selectedCommand}
                     onChange={(e) => setSelectedCommand(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   >
                     {Object.entries(commandTemplates).map(([key, cmd]) => (
                       <option key={key} value={key}>
@@ -244,13 +256,13 @@ const CLI = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-400 mt-1">
                     {commandTemplates[selectedCommand]?.description}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Project Name
                   </label>
                   <input
@@ -259,19 +271,19 @@ const CLI = () => {
                     value={formData.projectName}
                     onChange={handleFormChange}
                     placeholder="my-awesome-project"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Environment
                   </label>
                   <select
                     name="environment"
                     value={formData.environment}
                     onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   >
                     <option value="production">Production</option>
                     <option value="staging">Staging</option>
@@ -280,7 +292,7 @@ const CLI = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Branch
                   </label>
                   <input
@@ -289,14 +301,14 @@ const CLI = () => {
                     value={formData.branch}
                     onChange={handleFormChange}
                     placeholder="main"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   />
                 </div>
 
                 {selectedCommand === "build" && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         Build Command
                       </label>
                       <input
@@ -305,11 +317,11 @@ const CLI = () => {
                         value={formData.buildCommand}
                         onChange={handleFormChange}
                         placeholder="npm run build"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         Output Directory
                       </label>
                       <input
@@ -318,7 +330,7 @@ const CLI = () => {
                         value={formData.outputDir}
                         onChange={handleFormChange}
                         placeholder="dist"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       />
                     </div>
                   </>
@@ -326,7 +338,7 @@ const CLI = () => {
 
                 <button
                   onClick={generateCommand}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center gap-2 font-medium"
                 >
                   <FaPlay />
                   Generate Command
@@ -335,18 +347,20 @@ const CLI = () => {
             </div>
 
             {/* Generated Command */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                <FaCode className="text-green-600" />
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200">
+              <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <FaCode className="w-4 h-4 text-green-400" />
+                </div>
                 Generated Command
               </h3>
 
-              <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm">
+              <div className="bg-neutral-800/80 rounded-lg p-4 font-mono text-sm border border-neutral-700/50">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-green-400">$ </span>
                   <button
                     onClick={() => copyToClipboard(generatedCommand)}
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-neutral-700/50 rounded"
                     disabled={!generatedCommand}
                   >
                     <FaCopy />
@@ -359,11 +373,12 @@ const CLI = () => {
               </div>
 
               {generatedCommand && (
-                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
+                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <h4 className="font-medium text-blue-400 mb-2 flex items-center gap-2">
+                    <FaRocket className="w-4 h-4" />
                     Usage Instructions:
                   </h4>
-                  <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+                  <ol className="text-sm text-gray-300 space-y-1">
                     <li>1. Copy the command above</li>
                     <li>2. Open your terminal</li>
                     <li>3. Navigate to your project directory</li>
@@ -382,10 +397,10 @@ const CLI = () => {
             className="max-w-4xl mx-auto space-y-8"
           >
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Install Deployio CLI
+              <h2 className="text-2xl font-bold text-white mb-4">
+                Install DeployIO CLI
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-400">
                 Choose your preferred installation method
               </p>
             </div>
@@ -394,20 +409,20 @@ const CLI = () => {
               {installationSteps.map((step, index) => (
                 <div
                   key={index}
-                  className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+                  className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <span className="text-2xl">{step.icon}</span>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
+                    <h3 className="text-lg font-semibold text-white capitalize">
                       {step.platform}
                     </h3>
                   </div>
-                  <div className="bg-gray-900 rounded-lg p-3 font-mono text-sm">
+                  <div className="bg-neutral-800/80 rounded-lg p-3 font-mono text-sm border border-neutral-700/50">
                     <div className="flex items-center justify-between">
                       <code className="text-green-400">{step.command}</code>
                       <button
                         onClick={() => copyToClipboard(step.command)}
-                        className="text-gray-400 hover:text-white transition-colors ml-2"
+                        className="text-gray-400 hover:text-white transition-colors ml-2 p-1 hover:bg-neutral-700/50 rounded"
                       >
                         <FaCopy />
                       </button>

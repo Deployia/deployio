@@ -1,13 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api from '@utils/api';
+import projectCreationService from '@services/projectCreationService';
 
-// Async thunks for API calls
+// Async thunks for API calls using the proper service
 export const createSession = createAsyncThunk(
   'projectCreation/createSession',
-  async (sessionData, { rejectWithValue }) => {
+  async (sessionData = {}, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/v1/projects/creation/session', sessionData);
-      return response.data.data;
+      const response = await projectCreationService.createSession(sessionData);
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create session');
     }
@@ -16,10 +17,10 @@ export const createSession = createAsyncThunk(
 
 export const updateStepData = createAsyncThunk(
   'projectCreation/updateStepData',
-  async ({ sessionId, step, data }, { rejectWithValue }) => {
+  async ({ sessionId, step, stepData }, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`/api/v1/projects/creation/session/${sessionId}/step/${step}`, data);
-      return response.data.data;
+      const response = await projectCreationService.updateStep(sessionId, step, stepData);
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update step data');
     }
@@ -30,8 +31,8 @@ export const analyzeRepository = createAsyncThunk(
   'projectCreation/analyzeRepository',
   async ({ sessionId, repositoryData }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`/api/v1/projects/creation/session/${sessionId}/analyze`, repositoryData);
-      return response.data.data;
+      const response = await projectCreationService.analyzeRepository(sessionId, repositoryData);
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to analyze repository');
     }
@@ -42,8 +43,8 @@ export const createProjectFromSession = createAsyncThunk(
   'projectCreation/createProject',
   async (sessionId, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`/api/v1/projects/creation/session/${sessionId}/create`);
-      return response.data.data;
+      const response = await projectCreationService.completeSession(sessionId);
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create project');
     }
@@ -54,8 +55,8 @@ export const fetchGitProviders = createAsyncThunk(
   'projectCreation/fetchGitProviders',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/v1/user/git-providers');
-      return response.data.data;
+      const response = await projectCreationService.getGitProviders();
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch git providers');
     }
@@ -64,10 +65,10 @@ export const fetchGitProviders = createAsyncThunk(
 
 export const fetchRepositories = createAsyncThunk(
   'projectCreation/fetchRepositories',
-  async (params, { rejectWithValue }) => {
+  async ({ provider, options = {} }, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/v1/user/repositories', { params });
-      return response.data.data;
+      const response = await projectCreationService.getRepositories(provider, options);
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch repositories');
     }
@@ -78,8 +79,8 @@ export const fetchBranches = createAsyncThunk(
   'projectCreation/fetchBranches',
   async ({ provider, owner, repo }, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/api/v1/user/repositories/${provider}/${owner}/${repo}/branches`);
-      return response.data.data;
+      const response = await projectCreationService.getBranches(provider, owner, repo);
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch branches');
     }

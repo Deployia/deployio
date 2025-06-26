@@ -37,9 +37,9 @@ const Integrations = lazy(() => import("@dashboard/Integrations"));
 const IntegrationsDetail = lazy(() => import("@dashboard/IntegrationsDetail"));
 const Profile = lazy(() => import("@dashboard/Profile"));
 
-// Support Pages
-const CLI = lazy(() => import("@support/CLI"));
-const APITester = lazy(() => import("@support/APITester"));
+// Dashboard Tool Pages
+const CLI = lazy(() => import("@dashboard/CLI"));
+const APITester = lazy(() => import("@dashboard/APITester"));
 const DocsLayout = lazy(() => import("@pages/docs/DocsLayout"));
 const DocsOverview = lazy(() => import("@pages/docs/DocsOverview"));
 const DocumentPage = lazy(() => import("@pages/docs/DocumentPage"));

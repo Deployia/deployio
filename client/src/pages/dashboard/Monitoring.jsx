@@ -15,6 +15,10 @@ import {
   FaDownload,
   FaSyncAlt,
   FaMicrochip,
+  FaServer,
+  FaDatabase,
+  FaGlobe,
+  FaShieldAlt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 
@@ -50,6 +54,8 @@ const Monitoring = () => {
       requests: "2.3k/min",
       cpu: 45,
       memory: 62,
+      icon: FaServer,
+      color: "blue",
     },
     {
       id: "database",
@@ -60,6 +66,8 @@ const Monitoring = () => {
       requests: "890/min",
       cpu: 32,
       memory: 78,
+      icon: FaDatabase,
+      color: "green",
     },
     {
       id: "cache",
@@ -70,6 +78,8 @@ const Monitoring = () => {
       requests: "5.1k/min",
       cpu: 28,
       memory: 85,
+      icon: FaShieldAlt,
+      color: "orange",
     },
     {
       id: "cdn",
@@ -80,6 +90,8 @@ const Monitoring = () => {
       requests: "12.4k/min",
       cpu: 15,
       memory: 34,
+      icon: FaGlobe,
+      color: "purple",
     },
   ];
 
@@ -161,26 +173,26 @@ const Monitoring = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case "healthy":
-        return "text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-200";
+        return "px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30";
       case "warning":
-        return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-200";
+        return "px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full border border-yellow-500/30";
       case "critical":
-        return "text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-200";
+        return "px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full border border-red-500/30";
       default:
-        return "text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300";
+        return "px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full border border-gray-500/30";
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case "healthy":
-        return <FaCheckCircle className="text-green-600" />;
+        return <FaCheckCircle className="text-green-400" />;
       case "warning":
-        return <FaExclamationTriangle className="text-yellow-600" />;
+        return <FaExclamationTriangle className="text-yellow-400" />;
       case "critical":
-        return <FaTimesCircle className="text-red-600" />;
+        return <FaTimesCircle className="text-red-400" />;
       default:
-        return <FaClock className="text-gray-600" />;
+        return <FaClock className="text-gray-400" />;
     }
   };
 
@@ -218,14 +230,14 @@ const Monitoring = () => {
         {/* Header */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8"
         >
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3 heading">
               <FaChartLine className="text-blue-400" />
               System Monitoring
             </h1>
-            <p className="text-gray-400 mt-2">
+            <p className="text-gray-400 mt-2 body">
               Real-time monitoring and performance analytics
             </p>
           </div>
@@ -234,7 +246,7 @@ const Monitoring = () => {
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-neutral-600 rounded-lg bg-neutral-800 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="1h">Last 1 hour</option>
               <option value="6h">Last 6 hours</option>
@@ -242,7 +254,7 @@ const Monitoring = () => {
               <option value="7d">Last 7 days</option>
             </select>
 
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+            <button className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center gap-2">
               <FaSyncAlt />
               Refresh
             </button>
@@ -255,43 +267,44 @@ const Monitoring = () => {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
           {metrics.map((metric, index) => (
-            <div
+            <motion.div
               key={index}
-              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  {" "}
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    {metric.name}
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {metric.name === "Network I/O"
-                      ? `${metric.value.toFixed(1)}${metric.unit}`
-                      : `${metric.value}${metric.unit}`}
-                  </p>
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-2 bg-${metric.color}-500/20 rounded-lg`}>
+                  <metric.icon className={`text-xl text-${metric.color}-400`} />
                 </div>
-                <metric.icon className={`text-2xl text-${metric.color}-600`} />
-              </div>
-              <div className="mt-2 flex items-center">
                 <span
                   className={`text-sm ${
                     metric.trend.startsWith("+")
-                      ? "text-green-600"
-                      : "text-red-600"
+                      ? "text-green-400"
+                      : "text-red-400"
                   }`}
                 >
                   {metric.trend}
                 </span>
-                <span className="text-sm text-gray-500 ml-1">
-                  from last hour
-                </span>
-              </div>{" "}
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-gray-400 mb-1">
+                  {metric.name}
+                </p>
+                <p className="text-2xl font-bold text-white">
+                  {metric.name === "Network I/O"
+                    ? `${metric.value.toFixed(1)}${metric.unit}`
+                    : `${metric.value}${metric.unit}`}
+                </p>
+              </div>
+
               {/* Real-time indicator */}
-              <div className="mt-3">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div className="mt-4">
+                <div className="w-full bg-neutral-700 rounded-full h-2">
                   <div
-                    className={`bg-${metric.color}-600 h-2 rounded-full transition-all duration-1000`}
+                    className={`bg-${metric.color}-500 h-2 rounded-full transition-all duration-1000`}
                     style={{
                       width: `${Math.min(
                         (metric.value / metric.maxValue) * 100,
@@ -300,24 +313,31 @@ const Monitoring = () => {
                     }}
                   />
                 </div>
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>0</span>
+                  <span>{metric.maxValue}{metric.unit}</span>
+                </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </motion.div>
 
         {/* Services Status */}
         <motion.div
           variants={itemVariants}
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <FaServer className="w-4 h-4 text-green-400" />
+              </div>
               Services Status
             </h3>
             <select
               value={selectedService}
               onChange={(e) => setSelectedService(e.target.value)}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              className="px-3 py-1 border border-neutral-700 rounded bg-neutral-800/50 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
             >
               <option value="all">All Services</option>
               {services.map((service) => (

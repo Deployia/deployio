@@ -9,6 +9,9 @@ import {
   FaCloud,
   FaClock,
   FaDownload,
+  FaExclamationCircle,
+  FaCode,
+  FaHistory,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { toast } from "react-hot-toast";
@@ -228,12 +231,18 @@ const APITester = () => {
         className="space-y-8"
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="text-center">
-          <h1 className="text-4xl font-bold text-white flex items-center justify-center gap-3">
-            <FaCloud className="text-blue-400" />
-            API Tester
-          </h1>
-          <p className="mt-4 text-xl text-gray-400">
+        <motion.div variants={itemVariants} className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <h1 className="text-4xl font-bold text-white flex items-center gap-3">
+              <FaCode className="text-blue-400" />
+              API Tester
+            </h1>
+            <div className="px-3 py-1 bg-orange-500/20 text-orange-400 text-sm rounded-full border border-orange-500/30 flex items-center gap-2">
+              <FaExclamationCircle className="w-3 h-3" />
+              Coming Soon
+            </div>
+          </div>
+          <p className="text-gray-400 text-lg">
             Test and debug your APIs with our powerful testing tool
           </p>
         </motion.div>
@@ -241,14 +250,17 @@ const APITester = () => {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           {/* Saved Requests Sidebar */}
           <motion.div variants={itemVariants} className="xl:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <FaHistory className="w-4 h-4 text-purple-400" />
+                  </div>
                   Saved Requests
                 </h3>
                 <button
                   onClick={() => setShowSaveDialog(true)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  className="p-2 text-blue-400 hover:bg-blue-500/20 hover:border border-blue-500/30 rounded-lg transition-all duration-200"
                 >
                   <FaPlus />
                 </button>
@@ -294,22 +306,25 @@ const APITester = () => {
             className="xl:col-span-3 space-y-6"
           >
             {/* Request Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <FaCode className="w-4 h-4 text-blue-400" />
+                  </div>
                   Request
                 </h3>
                 <div className="flex gap-2">
                   <button
                     onClick={exportRequest}
-                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-400 hover:text-white hover:bg-neutral-800/50 rounded-lg transition-all duration-200 flex items-center gap-2"
                   >
                     <FaDownload />
                     Export
                   </button>
                   <button
                     onClick={() => setShowSaveDialog(true)}
-                    className="px-4 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-blue-400 hover:bg-blue-500/20 hover:border border-blue-500/30 rounded-lg transition-all duration-200 flex items-center gap-2"
                   >
                     <FaSave />
                     Save
@@ -322,7 +337,7 @@ const APITester = () => {
                 <select
                   value={request.method}
                   onChange={(e) => handleMethodChange(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 >
                   {httpMethods.map((method) => (
                     <option key={method} value={method}>
@@ -335,12 +350,12 @@ const APITester = () => {
                   value={request.url}
                   onChange={handleUrlChange}
                   placeholder="https://api.example.com/users"
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 px-3 py-2 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
                 <button
                   onClick={sendRequest}
                   disabled={loading || !request.url}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2 font-medium"
                 >
                   {loading ? (
                     <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
@@ -352,16 +367,16 @@ const APITester = () => {
               </div>
 
               {/* Request Configuration Tabs */}
-              <div className="border-b border-gray-200 dark:border-gray-700">
+              <div className="border-b border-neutral-700">
                 <nav className="flex space-x-8">
                   {["headers", "body", "auth"].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
                         activeTab === tab
-                          ? "border-blue-500 text-blue-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                          ? "border-blue-500 text-blue-400"
+                          : "border-transparent text-gray-400 hover:text-gray-300"
                       }`}
                     >
                       {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -375,12 +390,12 @@ const APITester = () => {
                 {activeTab === "headers" && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-gray-900 dark:text-white">
+                      <h4 className="font-medium text-white">
                         Headers
                       </h4>
                       <button
                         onClick={addHeader}
-                        className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
+                        className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 hover:bg-blue-500/20 px-2 py-1 rounded transition-all duration-200"
                       >
                         <FaPlus /> Add Header
                       </button>
