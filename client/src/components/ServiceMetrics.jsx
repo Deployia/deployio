@@ -150,24 +150,28 @@ const ServiceMetrics = ({
         <MetricsChart
           data={getMetricsData(serviceName).map((m) => ({
             timestamp: m.timestamp,
-            value: m.memory?.usage || m.memory?.used || 0,
+            value: (() => {
+              // Handle different memory formats across services
+              if (serviceName === "backend") {
+                // Backend uses absolute MB values
+                return m.memory?.used || 0;
+              } else {
+                // AI-service and agent use percentage
+                return m.memory?.usage || 0;
+              }
+            })(),
           }))}
           title="Memory Usage"
           dataKey="value"
           color="#10B981"
           type="area"
-          unit="%"
+          unit={serviceName === "backend" ? "MB" : "%"}
           height={250}
           compact={true}
-          formatValue={(value) =>
-            `${Math.round(value)}${
-              typeof value === "number" && value > 1
-                ? "%"
-                : value > 1
-                ? "%"
-                : "MB"
-            }`
-          }
+          formatValue={(value) => {
+            const unit = serviceName === "backend" ? "MB" : "%";
+            return `${Math.round(value)}${unit}`;
+          }}
           formatTime={(time) => new Date(time).toLocaleTimeString()}
         />
 
@@ -209,23 +213,35 @@ const ServiceMetrics = ({
           formatTime={(time) => new Date(time).toLocaleTimeString()}
         />
 
-        {/* Active Connections / Docker Containers */}
+        {/* Active Connections / Docker Containers / Response Time */}
         <MetricsChart
           data={getMetricsData(serviceName).map((m) => ({
             timestamp: m.timestamp,
             value:
-              m.activeRequests || m.activeHandles || m.docker?.containers || 0,
+              serviceName === "agent"
+                ? m.system?.docker?.containers || m.docker?.containers || 0
+                : serviceName === "ai-service"
+                ? m.system?.responseTime || m.responseTime || 0
+                : m.system?.activeRequests || m.activeHandles || 0,
           }))}
           title={
-            serviceName === "agent" ? "Docker Containers" : "Active Connections"
+            serviceName === "agent"
+              ? "Docker Containers"
+              : serviceName === "ai-service"
+              ? "Response Time"
+              : "Active Connections"
           }
           dataKey="value"
           color="#F59E0B"
           type="area"
-          unit=""
+          unit={serviceName === "ai-service" ? "ms" : ""}
           height={250}
           compact={true}
-          formatValue={(value) => `${Math.round(value)}`}
+          formatValue={(value) =>
+            serviceName === "ai-service"
+              ? `${Math.round(value)}ms`
+              : `${Math.round(value)}`
+          }
           formatTime={(time) => new Date(time).toLocaleTimeString()}
         />
       </div>
@@ -238,31 +254,67 @@ const ServiceMetrics = ({
             <div>
               <span className="text-neutral-400">Memory:</span>
               <span className="text-white ml-2">
-                {getLatestMetricsData(serviceName)?.memory?.usage ||
-                  getLatestMetricsData(serviceName)?.memory?.used ||
-                  "N/A"}
-                {typeof (
-                  getLatestMetricsData(serviceName)?.memory?.usage ||
-                  getLatestMetricsData(serviceName)?.memory?.used
-                ) === "number"
-                  ? "%"
-                  : ""}
+                {(() => {
+                  const memData = getLatestMetricsData(serviceName)?.memory;
+                  if (!memData) return "N/A";
+
+                  if (serviceName === "backend") {
+                    // Backend reports in MB
+                    return `${memData.used || 0} MB`;
+                  } else {
+                    // AI-service and agent report in percentage
+                    return `${memData.usage || 0}%`;
+                  }
+                })()}
               </span>
             </div>
             <div>
               <span className="text-neutral-400">CPU:</span>
               <span className="text-white ml-2">
-                {getLatestMetricsData(serviceName)?.cpu?.usage || "N/A"}
-                {typeof getLatestMetricsData(serviceName)?.cpu?.usage ===
-                "number"
-                  ? "%"
-                  : ""}
+                {(() => {
+                  const cpuData = getLatestMetricsData(serviceName)?.cpu;
+                  if (!cpuData) return "N/A";
+
+                  const usage = cpuData.usage || cpuData.process_usage;
+                  return usage !== undefined ? `${usage}%` : "N/A";
+                })()}
               </span>
             </div>
             <div>
               <span className="text-neutral-400">Uptime:</span>
               <span className="text-white ml-2">
                 {formatUptime(getLatestMetricsData(serviceName)?.uptime || 0)}
+              </span>
+            </div>
+            <div>
+              <span className="text-neutral-400">
+                {serviceName === "agent"
+                  ? "Containers:"
+                  : serviceName === "ai-service"
+                  ? "Response:"
+                  : "Active:"}
+              </span>
+              <span className="text-white ml-2">
+                {(() => {
+                  const latest = getLatestMetricsData(serviceName);
+                  if (!latest) return "N/A";
+
+                  if (serviceName === "agent") {
+                    return (
+                      latest.system?.docker?.containers ||
+                      latest.docker?.containers ||
+                      0
+                    );
+                  } else if (serviceName === "ai-service") {
+                    const responseTime =
+                      latest.system?.responseTime || latest.responseTime;
+                    return responseTime ? `${responseTime}ms` : "N/A";
+                  } else {
+                    return (
+                      latest.system?.activeRequests || latest.activeHandles || 0
+                    );
+                  }
+                })()}
               </span>
             </div>
           </div>

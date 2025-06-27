@@ -103,7 +103,16 @@ class LogStreamingNamespace {
 
       switch (logType) {
         case "application":
-          logPath = path.join(process.cwd(), "logs", "combined.log");
+          // Try multiple log file paths for backend service
+          const backendLogPaths = [
+            path.join(process.cwd(), "logs", "combined.log"),
+            path.join(process.cwd(), "logs", "backend.log"),
+            path.join(process.cwd(), "server", "logs", "combined.log"),
+          ];
+
+          logPath =
+            backendLogPaths.find((p) => fs.existsSync(p)) || backendLogPaths[0];
+
           streamConfig = {
             follow: true,
             fromBeginning: false,
@@ -138,6 +147,76 @@ class LogStreamingNamespace {
             },
           };
           break;
+        case "ai-service":
+          // Try multiple log file paths for ai-service
+          const aiServiceLogPaths = [
+            path.join(
+              process.cwd(),
+              "..",
+              "ai-service",
+              "logs",
+              "ai-service.log"
+            ),
+            path.join(process.cwd(), "ai-service", "logs", "ai-service.log"),
+            path.join(process.cwd(), "logs", "ai-service.log"),
+          ];
+
+          logPath =
+            aiServiceLogPaths.find((p) => fs.existsSync(p)) ||
+            aiServiceLogPaths[0];
+
+          streamConfig = {
+            follow: true,
+            fromBeginning: false,
+            logger: console,
+            useWatchFile: true,
+            fsWatchOptions: {
+              interval: 1000,
+            },
+          };
+          break;
+        case "agent":
+          // Try multiple log file paths for agent
+          const agentLogPaths = [
+            path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
+            path.join(process.cwd(), "agent", "logs", "agent.log"),
+            path.join(process.cwd(), "logs", "agent.log"),
+          ];
+
+          logPath =
+            agentLogPaths.find((p) => fs.existsSync(p)) || agentLogPaths[0];
+
+          streamConfig = {
+            follow: true,
+            fromBeginning: false,
+            logger: console,
+            useWatchFile: true,
+            fsWatchOptions: {
+              interval: 1000,
+            },
+          };
+          break;
+        case "server":
+          // Alias for backend/application logs
+          const serverLogPaths = [
+            path.join(process.cwd(), "logs", "combined.log"),
+            path.join(process.cwd(), "logs", "backend.log"),
+            path.join(process.cwd(), "server", "logs", "combined.log"),
+          ];
+
+          logPath =
+            serverLogPaths.find((p) => fs.existsSync(p)) || serverLogPaths[0];
+
+          streamConfig = {
+            follow: true,
+            fromBeginning: false,
+            logger: console,
+            useWatchFile: true,
+            fsWatchOptions: {
+              interval: 1000,
+            },
+          };
+          break;
         default:
           return socket.emit("error", {
             message: `Unsupported log type: ${logType}`,
@@ -145,12 +224,88 @@ class LogStreamingNamespace {
           });
       }
 
-      // Check if log file exists
+      // Check if log file exists, if not try to create it or find alternative
       if (!fs.existsSync(logPath)) {
-        return socket.emit("error", {
-          message: `Log file not found: ${logPath}`,
-          code: "LOG_FILE_NOT_FOUND",
-        });
+        // Try to create the log file directory if it doesn't exist
+        const logDir = path.dirname(logPath);
+        try {
+          if (!fs.existsSync(logDir)) {
+            fs.mkdirSync(logDir, { recursive: true });
+          }
+
+          // Create an empty log file if it doesn't exist
+          fs.writeFileSync(logPath, "", { flag: "a" });
+          console.log(`Created log file: ${logPath}`);
+        } catch (createError) {
+          console.warn(`Failed to create log file: ${logPath}`, createError);
+
+          // Find alternative log file paths for the service
+          const getAlternativeLogPaths = (logType) => {
+            switch (logType) {
+              case "application":
+              case "server":
+                return [
+                  path.join(process.cwd(), "logs", "backend.log"),
+                  path.join(process.cwd(), "server", "logs", "backend.log"),
+                  "/app/logs/backend.log",
+                  "/app/logs/combined.log",
+                ];
+              case "ai-service":
+                return [
+                  path.join(
+                    process.cwd(),
+                    "..",
+                    "ai-service",
+                    "logs",
+                    "ai-service.log"
+                  ),
+                  path.join(
+                    process.cwd(),
+                    "ai-service",
+                    "logs",
+                    "ai-service.log"
+                  ),
+                  "/app/logs/ai-service.log",
+                ];
+              case "agent":
+                return [
+                  path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
+                  path.join(process.cwd(), "agent", "logs", "agent.log"),
+                  "/app/logs/agent.log",
+                ];
+              default:
+                return [];
+            }
+          };
+
+          const alternativePaths = getAlternativeLogPaths(logType);
+          const foundPath = alternativePaths.find((p) => fs.existsSync(p));
+
+          if (foundPath) {
+            logPath = foundPath;
+            console.log(`Using alternative log file: ${logPath}`);
+          } else {
+            // If no log file exists, create a default one with some initial content
+            try {
+              fs.writeFileSync(
+                logPath,
+                `${new Date().toISOString()} [INFO]: Log file created for ${logType} service\n`,
+                { flag: "a" }
+              );
+              console.log(`Created default log file: ${logPath}`);
+            } catch (defaultCreateError) {
+              console.error(
+                `Failed to create default log file: ${logPath}`,
+                defaultCreateError
+              );
+              return socket.emit("error", {
+                message: `Log file not found and could not be created: ${logPath}`,
+                code: "LOG_FILE_NOT_FOUND",
+                attempts: alternativePaths,
+              });
+            }
+          }
+        }
       }
 
       // Create tail instance

@@ -234,17 +234,17 @@ async function getAgentServiceDetails() {
 
 async function getServiceLogs(serviceName, lines, level) {
   const fs = require("fs");
-  const path = require("path");
-
-  // Platform-agnostic log file detection
+  const path = require("path"); // Platform-agnostic log file detection with standardized paths
   const getLogPaths = (serviceName) => {
     const basePaths = {
       backend: [
         // Development paths
         path.join(process.cwd(), "logs", "combined.log"),
+        path.join(process.cwd(), "logs", "backend.log"),
         path.join(process.cwd(), "server", "logs", "combined.log"),
         // Docker paths
         "/app/logs/combined.log",
+        "/app/logs/backend.log",
         "/usr/src/app/logs/combined.log",
         // EC2 Ubuntu paths
         "/home/ubuntu/deployio/server/logs/combined.log",
@@ -254,6 +254,7 @@ async function getServiceLogs(serviceName, lines, level) {
         // Development paths
         path.join(process.cwd(), "..", "ai-service", "logs", "ai-service.log"),
         path.join(process.cwd(), "ai-service", "logs", "ai-service.log"),
+        path.join(process.cwd(), "logs", "ai-service.log"),
         // Docker paths
         "/app/logs/ai-service.log",
         "/usr/src/app/logs/ai-service.log",
@@ -265,6 +266,7 @@ async function getServiceLogs(serviceName, lines, level) {
         // Development paths
         path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
         path.join(process.cwd(), "agent", "logs", "agent.log"),
+        path.join(process.cwd(), "logs", "agent.log"),
         // Docker paths
         "/app/logs/agent.log",
         "/usr/src/app/logs/agent.log",
@@ -539,9 +541,18 @@ async function getBackendMetrics() {
   const memUsage = process.memoryUsage();
   const cpuUsage = process.cpuUsage();
 
+  // Check service health
+  const mongoHealth =
+    mongoose.connection.readyState === 1 ? "healthy" : "unhealthy";
+  const redisClient = getRedisClient();
+  const redisHealth =
+    redisClient && redisClient.isReady ? "healthy" : "unhealthy";
+
   return {
     service: "backend",
     timestamp: new Date().toISOString(),
+    status: "healthy",
+    uptime: Math.round(process.uptime()),
     memory: {
       used: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
       total: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
@@ -553,13 +564,25 @@ async function getBackendMetrics() {
       user: Math.round(cpuUsage.user / 1000), // microseconds to milliseconds
       system: Math.round(cpuUsage.system / 1000),
       usage: Math.round(((cpuUsage.user + cpuUsage.system) / 1000000) * 100), // rough CPU %
+      process_usage: Math.round(
+        ((cpuUsage.user + cpuUsage.system) / 1000000) * 100
+      ), // alias for compatibility
     },
-    uptime: Math.round(process.uptime()),
-    activeHandles: process._getActiveHandles().length,
-    activeRequests: process._getActiveRequests().length,
-    eventLoopDelay: process.hrtime(),
-    nodeVersion: process.version,
-    platform: process.platform,
+    system: {
+      activeHandles: process._getActiveHandles().length,
+      activeRequests: process._getActiveRequests().length,
+      eventLoopDelay: process.hrtime(),
+      nodeVersion: process.version,
+      platform: process.platform,
+      environment: process.env.NODE_ENV || "development",
+      responseTime: 0, // Will be set by request timing if available
+    },
+    services: {
+      mongodb: { status: mongoHealth },
+      redis: { status: redisHealth },
+    },
+    source: "internal",
+    url: `http://localhost:${process.env.PORT || 5000}`,
   };
 }
 
@@ -580,11 +603,17 @@ async function getAiServiceMetrics() {
       timestamp: new Date().toISOString(),
       status: healthData.status || "unknown",
       uptime: healthData.uptime || 0,
-      memory: healthData.memory || { usage: 0 },
-      cpu: healthData.cpu || { usage: 0 },
+      memory: healthData.memory || { usage: 0, used: 0, total: 0 },
+      cpu: healthData.cpu || { usage: 0, process_usage: 0 },
+      system: {
+        disk: healthData.disk || { usage: 0, free: 0, total: 0 },
+        python_version: healthData.python_version || "unknown",
+        responseTime: healthData.responseTime || 0,
+      },
+      services: {
+        redis: healthData.services?.redis || { status: "unknown" },
+      },
       requests: healthData.requests || { total: 0, active: 0 },
-      redis: healthData.services?.redis || { status: "unknown" },
-      python_version: healthData.python_version || "unknown",
       url: aiServiceUrl,
       source: "external",
     };
@@ -598,8 +627,16 @@ async function getAiServiceMetrics() {
       url: process.env.AI_SERVICE_URL || "http://localhost:8000",
       source: "external",
       uptime: 0,
-      memory: { usage: 0 },
-      cpu: { usage: 0 },
+      memory: { usage: 0, used: 0, total: 0 },
+      cpu: { usage: 0, process_usage: 0 },
+      system: {
+        disk: { usage: 0, free: 0, total: 0 },
+        python_version: "unknown",
+        responseTime: 0,
+      },
+      services: {
+        redis: { status: "unknown" },
+      },
     };
   }
 }
@@ -621,13 +658,21 @@ async function getAgentMetrics() {
       timestamp: new Date().toISOString(),
       status: healthData.status || "unknown",
       uptime: healthData.uptime || 0,
-      memory: healthData.memory || { usage: 0 },
-      cpu: healthData.cpu || { usage: 0 },
+      memory: healthData.memory || { usage: 0, used: 0, total: 0 },
+      cpu: healthData.cpu || { usage: 0, process_usage: 0 },
+      system: {
+        disk: healthData.disk || { usage: 0, free: 0, total: 0 },
+        python_version: healthData.python_version || "unknown",
+        environment: healthData.environment || "unknown",
+        base_domain: healthData.base_domain || "unknown",
+        docker: healthData.docker || { containers: 0 },
+        responseTime: healthData.responseTime || 0,
+      },
       services: {
         docker: healthData.services?.docker || { status: "unknown" },
         mongodb: healthData.services?.mongodb || { status: "unknown" },
+        traefik: healthData.services?.traefik || { status: "unknown" },
       },
-      python_version: healthData.python_version || "unknown",
       url: agentUrl,
       source: "external",
     };
@@ -641,11 +686,20 @@ async function getAgentMetrics() {
       url: process.env.AGENT_URL || "http://localhost:8001",
       source: "external",
       uptime: 0,
-      memory: { usage: 0 },
-      cpu: { usage: 0 },
+      memory: { usage: 0, used: 0, total: 0 },
+      cpu: { usage: 0, process_usage: 0 },
+      system: {
+        disk: { usage: 0, free: 0, total: 0 },
+        python_version: "unknown",
+        environment: "unknown",
+        base_domain: "unknown",
+        docker: { containers: 0 },
+        responseTime: 0,
+      },
       services: {
         docker: { status: "unknown" },
         mongodb: { status: "unknown" },
+        traefik: { status: "unknown" },
       },
     };
   }

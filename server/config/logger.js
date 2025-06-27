@@ -1,10 +1,29 @@
 const winston = require("winston");
 const path = require("path");
+const fs = require("fs");
 
 const { combine, timestamp, printf, colorize, align, json } = winston.format;
 
 // Determine log level based on environment
 const level = process.env.NODE_ENV === "production" ? "warn" : "info";
+
+// Ensure logs directory exists
+const logsDir = path.join(__dirname, "..", "logs");
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// For Docker environment, also try to create /app/logs
+const dockerLogsDir = "/app/logs";
+if (process.env.NODE_ENV === "production") {
+  try {
+    if (!fs.existsSync(dockerLogsDir)) {
+      fs.mkdirSync(dockerLogsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn("Could not create Docker logs directory:", err.message);
+  }
+}
 
 // Custom log format
 const logFormat = printf(
@@ -25,6 +44,16 @@ const logFormat = printf(
   }
 );
 
+// Determine log file paths based on environment
+const getLogPath = (filename) => {
+  // In Docker production, use /app/logs
+  if (process.env.NODE_ENV === "production" && fs.existsSync("/app/logs")) {
+    return path.join("/app/logs", filename);
+  }
+  // Default to relative logs directory
+  return path.join(__dirname, "..", "logs", filename);
+};
+
 const transports = [
   new winston.transports.Console({
     level: level,
@@ -40,16 +69,23 @@ const transports = [
 if (process.env.NODE_ENV === "production") {
   transports.push(
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "error.log"),
+      filename: getLogPath("error.log"),
       level: "error",
       format: combine(timestamp(), json()), // Store errors in JSON format
       maxsize: 5242880, // 5MB
       maxFiles: 5,
     }),
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "combined.log"),
+      filename: getLogPath("combined.log"),
       level: "info", // Log info and above to this file in production
       format: combine(timestamp(), json()), // Store combined logs in JSON format
+      maxsize: 5242880, // 5MB
+      maxFiles: 5,
+    }),
+    new winston.transports.File({
+      filename: getLogPath("backend.log"),
+      level: "info", // Alternative log file name for backend service
+      format: combine(timestamp(), json()),
       maxsize: 5242880, // 5MB
       maxFiles: 5,
     })
@@ -58,15 +94,22 @@ if (process.env.NODE_ENV === "production") {
   // For development, create the same log files as production but with more verbose logging
   transports.push(
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "error.log"),
+      filename: getLogPath("error.log"),
       level: "error",
       format: combine(timestamp(), json()),
       maxsize: 5242880, // 5MB
       maxFiles: 3,
     }),
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "combined.log"),
+      filename: getLogPath("combined.log"),
       level: "debug", // Log everything in development
+      format: combine(timestamp(), json()),
+      maxsize: 5242880, // 5MB
+      maxFiles: 3,
+    }),
+    new winston.transports.File({
+      filename: getLogPath("backend.log"),
+      level: "debug", // Alternative log file name for backend service
       format: combine(timestamp(), json()),
       maxsize: 5242880, // 5MB
       maxFiles: 3,
@@ -84,6 +127,17 @@ const logger = winston.createLogger({
   ),
   transports: transports,
   exitOnError: false, // Do not exit on handled exceptions
+});
+
+// Log that the logger has been initialized (helps verify logging is working)
+logger.info("Logger initialized", {
+  environment: process.env.NODE_ENV || "development",
+  logLevel: level,
+  transports: transports.map((t) => ({
+    type: t.constructor.name,
+    filename: t.filename || "console",
+    level: t.level,
+  })),
 });
 
 // Create a stream object with a 'write' function that will be used by morgan

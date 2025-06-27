@@ -361,6 +361,16 @@ const ServiceDetailPage = () => {
                       </div>
                     </div>
                     <div className="space-y-3">
+                      {typeof serviceData.memory.usage === "number" && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-neutral-400">
+                            Usage
+                          </span>
+                          <span className="text-sm text-white bg-neutral-800 px-2 py-1 rounded">
+                            {serviceData.memory.usage}%
+                          </span>
+                        </div>
+                      )}
                       {typeof serviceData.memory.used === "number" && (
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-neutral-400">Used</span>
@@ -396,6 +406,16 @@ const ServiceDetailPage = () => {
                           </span>
                           <span className="text-sm text-white bg-neutral-800 px-2 py-1 rounded">
                             {formatBytes(serviceData.memory.heapTotal)}
+                          </span>
+                        </div>
+                      )}
+                      {typeof serviceData.memory.available === "number" && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-neutral-400">
+                            Available
+                          </span>
+                          <span className="text-sm text-white bg-neutral-800 px-2 py-1 rounded">
+                            {serviceData.memory.available} MB
                           </span>
                         </div>
                       )}
