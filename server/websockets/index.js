@@ -8,6 +8,7 @@ const LogStreamingNamespace = require("./namespaces/LogStreamingNamespace");
 const MetricsNamespace = require("./namespaces/MetricsNamespace");
 const ChatNamespace = require("./namespaces/ChatNamespace");
 const BuildLogsNamespace = require("./namespaces/BuildLogsNamespace");
+const AgentBridgeNamespace = require("./namespaces/AgentBridgeNamespace");
 
 /**
  * WebSocket Initialization Module
@@ -37,6 +38,7 @@ function initializeWebSockets(server, options = {}) {
       notifications: true,
       logStreaming: true,
       metrics: true, // New metrics streaming
+      agentBridge: true, // NEW: Agent bridge for remote log streaming
       chat: false, // Future: Real-time chat
       buildLogs: false, // Future: Build log streaming
     },
@@ -145,6 +147,28 @@ function setupNamespaces(features) {
         error: error.message,
       });
     }
+  }
+
+  // Agent bridge namespace - Remote agent communication
+  if (features.agentBridge) {
+    try {
+      AgentBridgeNamespace.initialize();
+      logger.info("✓ Agent bridge namespace initialized", {
+        namespace: "/agent-bridge",
+        requireAuth: false,
+        customAuth: true,
+        features: ["remote-logs", "agent-status", "real-time-streaming"],
+      });
+    } catch (error) {
+      logger.error("✗ Failed to initialize agent bridge namespace", {
+        error: error.message,
+      });
+    }
+  } else {
+    logger.debug("Agent bridge namespace disabled", {
+      namespace: "/agent-bridge",
+      status: "available_for_remote_agents",
+    });
   }
 
   // Chat namespace - Future feature

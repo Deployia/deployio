@@ -33,10 +33,25 @@ const { connectRedis } = require("./config/redisClient");
       chat: false,
       logStreaming: true,
       metrics: true, // Enable metrics streaming
+      agentBridge: true, // Enable agent bridge
       deploymentLogs: false,
       systemMonitoring: false,
     },
   });
+
+  // Initialize Enhanced Remote Agent Log Bridge
+  const {
+    enhancedRemoteAgentLogBridge,
+  } = require("./services/logging/EnhancedRemoteAgentLogBridge");
+  try {
+    await enhancedRemoteAgentLogBridge.initialize();
+    console.log("✓ Enhanced Remote Agent Log Bridge initialized");
+  } catch (error) {
+    console.error(
+      "✗ Failed to initialize Enhanced Remote Agent Log Bridge:",
+      error.message
+    );
+  }
 
   // Graceful shutdown handling
   const { shutdownWebSockets } = require("./websockets");
