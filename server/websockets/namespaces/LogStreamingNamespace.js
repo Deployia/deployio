@@ -104,15 +104,39 @@ class LogStreamingNamespace {
       switch (logType) {
         case "application":
           logPath = path.join(process.cwd(), "logs", "combined.log");
-          streamConfig = { follow: true, fromBeginning: false };
+          streamConfig = {
+            follow: true,
+            fromBeginning: false,
+            logger: console, // Enable tail library logging
+            useWatchFile: true, // Use watchFile for better compatibility
+            fsWatchOptions: {
+              interval: 1000, // Check every second
+            },
+          };
           break;
         case "error":
           logPath = path.join(process.cwd(), "logs", "error.log");
-          streamConfig = { follow: true, fromBeginning: false };
+          streamConfig = {
+            follow: true,
+            fromBeginning: false,
+            logger: console,
+            useWatchFile: true,
+            fsWatchOptions: {
+              interval: 1000,
+            },
+          };
           break;
         case "access":
           logPath = path.join(process.cwd(), "logs", "access.log");
-          streamConfig = { follow: true, fromBeginning: false };
+          streamConfig = {
+            follow: true,
+            fromBeginning: false,
+            logger: console,
+            useWatchFile: true,
+            fsWatchOptions: {
+              interval: 1000,
+            },
+          };
           break;
         default:
           return socket.emit("error", {
@@ -130,19 +154,23 @@ class LogStreamingNamespace {
       }
 
       // Create tail instance
+      console.log(`Setting up tail for log file: ${logPath}`); // Debug log
       const tail = new Tail(logPath, streamConfig);
 
       // Set up stream handlers
       tail.on("line", (line) => {
+        console.log(`New log line for stream ${streamId}:`, line); // Debug log
         socket.emit("log:data", {
           streamId,
           logType,
           timestamp: new Date().toISOString(),
           data: line,
         });
+        console.log(`Emitted log:data for stream ${streamId}`); // Debug log
       });
 
       tail.on("error", (error) => {
+        console.error(`Tail error for stream ${streamId}:`, error); // Debug log
         logger.error("Log stream error", {
           error: error.message,
           streamId,
@@ -156,7 +184,44 @@ class LogStreamingNamespace {
         });
       });
 
-      // Store stream reference
+      // Add more tail event handlers for debugging
+      tail.on("start", () => {
+        console.log(`Tail started for stream ${streamId}`);
+      });
+
+      tail.on("stop", () => {
+        console.log(`Tail stopped for stream ${streamId}`);
+      });
+
+      socket.emit("log:started", {
+        streamId,
+        logType,
+        logPath,
+        startedAt: new Date().toISOString(),
+      });
+
+      // Generate test logs to verify streaming works
+      let testLogCounter = 0;
+      const testLogInterval = setInterval(() => {
+        testLogCounter++;
+        const testMessage = `Test log message #${testLogCounter} for stream ${streamId}`;
+        console.log(`Generating test log: ${testMessage}`);
+
+        socket.emit("log:data", {
+          streamId,
+          logType,
+          timestamp: new Date().toISOString(),
+          data: testMessage,
+        });
+
+        // Stop test logs after 5 messages
+        if (testLogCounter >= 5) {
+          clearInterval(testLogInterval);
+          console.log(`Test log generation completed for stream ${streamId}`);
+        }
+      }, 2000); // Send a test log every 2 seconds
+
+      // Store the interval reference so we can clean it up
       const streamKey = `${socket.id}_${streamId}`;
       this.activeStreams.set(streamKey, {
         tail,
@@ -165,13 +230,7 @@ class LogStreamingNamespace {
         socketId: socket.id,
         userId: socket.userId,
         startedAt: new Date(),
-      });
-
-      socket.emit("log:started", {
-        streamId,
-        logType,
-        logPath,
-        startedAt: new Date().toISOString(),
+        testLogInterval, // Store the interval for cleanup
       });
 
       logger.info("Log stream started", {
@@ -547,6 +606,9 @@ class LogStreamingNamespace {
         }
         if (stream.process) {
           stream.process.kill();
+        }
+        if (stream.testLogInterval) {
+          clearInterval(stream.testLogInterval);
         }
         this.activeStreams.delete(streamKey);
         return true;

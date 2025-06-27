@@ -18,6 +18,7 @@ export function useLogStream() {
   const activeStreamsRef = useRef(new Set());
 
   const handleLogData = useCallback((data) => {
+    console.log("Raw log data received:", data); // Debug log
     const { streamId, data: logLine, timestamp, isError } = data;
 
     if (!logBuffersRef.current.has(streamId)) {
@@ -35,12 +36,17 @@ export function useLogStream() {
       isError: isError || false,
     };
 
+    console.log("Processed log entry:", logEntry); // Debug log
     buffer.push(logEntry);
 
     // Keep only last 1000 lines per stream for performance
     if (buffer.length > 1000) {
       buffer.splice(0, buffer.length - 1000);
     }
+
+    console.log(
+      `Buffer now has ${buffer.length} entries for stream ${streamId}`
+    ); // Debug log
 
     // Trigger re-render
     setActiveStreams((prev) => new Map(prev));
