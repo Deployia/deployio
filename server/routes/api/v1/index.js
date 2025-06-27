@@ -12,6 +12,7 @@ const userRoutes = require("./user");
 const gitRoutes = require("./git");
 const adminRoutes = require("./admin");
 const externalRoutes = require("./external");
+const logsRoutes = require("./logs");
 const debugRoutes = require("../debug/tokens");
 
 // Mount route modules
@@ -22,6 +23,7 @@ router.use("/users", userRoutes);
 router.use("/git", gitRoutes);
 router.use("/admin", adminRoutes);
 router.use("/external", externalRoutes);
+router.use("/logs", logsRoutes);
 // Debug routes (only in development)
 if (process.env.NODE_ENV === "development") {
   router.use("/debug", debugRoutes);
