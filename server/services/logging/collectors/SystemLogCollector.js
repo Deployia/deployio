@@ -96,81 +96,8 @@ class SystemLogCollector extends BaseLogCollector {
       nodeEnv: process.env.NODE_ENV,
       isProduction: process.env.NODE_ENV === "production",
     });
-
-    if (process.env.NODE_ENV === "production") {
-      await this.startDockerLogStreaming();
-    } else {
-      await this.startFileWatching();
-    }
-  }
-
-  async startDockerLogStreaming() {
-    const dockerServices = {
-      "ai-service": "deployio-ai-service",
-      backend: "deployio-backend",
-    };
-
-    const serviceName = dockerServices[this.serviceId];
-    if (!serviceName) return;
-
-    try {
-      const command = `docker-compose logs -f --tail=10 ${this.serviceId}`;
-      const child = exec(command);
-
-      child.stdout.on("data", (data) => {
-        this.parseDockerLogs(data.toString());
-      });
-
-      child.stderr.on("data", (data) => {
-        logger.error(
-          `Docker logs error for ${this.serviceId}:`,
-          data.toString()
-        );
-      });
-
-      child.on("close", (code) => {
-        logger.info(
-          `Docker logs stream closed for ${this.serviceId} with code ${code}`
-        );
-      });
-
-      this.dockerProcess = child;
-    } catch (error) {
-      logger.error(
-        `Failed to start Docker log streaming for ${this.serviceId}:`,
-        error
-      );
-    }
-  }
-
-  parseDockerLogs(data) {
-    const lines = data.trim().split("\n");
-    for (const line of lines) {
-      if (!line.trim()) continue;
-
-      const match = line.match(/^[\w-]+\s*\|\s*(.+)$/);
-      const logContent = match ? match[1] : line;
-
-      try {
-        const logEntry = JSON.parse(logContent);
-        this.emitLog({
-          timestamp: logEntry.timestamp,
-          level: logEntry.level,
-          message: logEntry.message,
-          source: "docker-logs",
-          metadata: logEntry,
-          raw: line,
-        });
-      } catch {
-        this.emitLog({
-          timestamp: new Date().toISOString(),
-          level: "info",
-          message: logContent,
-          source: "docker-logs",
-          raw: line,
-        });
-      }
-    }
+    // Always use file watching for real-time logs, even in production
+    await this.startFileWatching();
   }
 
   async startFileWatching() {
@@ -258,57 +185,8 @@ class SystemLogCollector extends BaseLogCollector {
 
   async getRecentLogs(options = {}) {
     const { lines = 50, level = "all" } = options;
-
-    if (process.env.NODE_ENV === "production") {
-      return await this.getDockerLogs(lines, level);
-    } else {
-      return await this.getFileLogs(lines, level);
-    }
-  }
-
-  async getDockerLogs(lines, level) {
-    const dockerServices = {
-      "ai-service": "ai-service",
-      backend: "backend",
-    };
-
-    const serviceName = dockerServices[this.serviceId];
-    if (!serviceName) {
-      throw new Error(`Unknown Docker service: ${this.serviceId}`);
-    }
-
-    try {
-      const command = `docker-compose logs --tail=${lines} ${serviceName}`;
-      const { stdout } = await execPromise(command);
-
-      const logLines = stdout
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim());
-      const parsedLogs = logLines.map((line, index) => {
-        const match = line.match(/^[\w-]+\s*\|\s*(.+)$/);
-        const logContent = match ? match[1] : line;
-
-        return {
-          id: `${this.serviceId}_docker_${Date.now()}_${index}`,
-          timestamp: new Date().toISOString(),
-          level: "info",
-          message: logContent,
-          service: this.serviceId,
-          source: "docker-logs",
-          raw: line,
-        };
-      });
-
-      return {
-        logs: parsedLogs,
-        totalLines: parsedLogs.length,
-        source: "docker-logs",
-        path: "docker-compose",
-      };
-    } catch (error) {
-      throw new Error(`Failed to get Docker logs: ${error.message}`);
-    }
+    // Always use file logs, even in production
+    return await this.getFileLogs(lines, level);
   }
 
   async getFileLogs(lines, level) {
@@ -369,11 +247,6 @@ class SystemLogCollector extends BaseLogCollector {
 
   async stop() {
     await super.stop();
-
-    if (this.dockerProcess) {
-      this.dockerProcess.kill();
-      this.dockerProcess = null;
-    }
 
     for (const watcher of this.watchers) {
       watcher.unwatch();
