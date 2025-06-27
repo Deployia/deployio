@@ -6,12 +6,10 @@ Real-time log streaming from agent to central server
 import asyncio
 import json
 import logging
-import os
 import time
 from datetime import datetime
 from typing import Dict, Any
 from queue import Queue
-import threading
 
 import socketio
 import docker
@@ -88,22 +86,22 @@ class AgentLogBridge:
         self.sio = None
         self.connected = False
         self.reconnect_attempts = 0
-        self.max_reconnect_attempts = 10
-        self.reconnect_delay = 5
+        self.max_reconnect_attempts = settings.log_bridge_reconnect_attempts
+        self.reconnect_delay = settings.log_bridge_reconnect_delay
         self.last_heartbeat = None
 
         # Log sources
         self.docker_client = None
         self.active_streams = set()
         self.log_buffer = []
-        self.buffer_size = 1000
+        self.buffer_size = settings.log_bridge_buffer_size
 
         # Configuration
         self.server_url = settings.platform_url.replace("https://", "wss://").replace(
             "http://", "ws://"
         )
         self.agent_secret = settings.agent_secret
-        self.agent_id = os.getenv("AGENT_ID", "agent-ec2-2")
+        self.agent_id = settings.agent_id
 
         # Streaming configuration
         self.streaming_config = {
@@ -111,8 +109,8 @@ class AgentLogBridge:
             "system": True,
             "deployments": True,
             "traefik": True,
-            "batch_size": 50,
-            "flush_interval": 5,  # seconds
+            "batch_size": settings.log_bridge_batch_size,
+            "flush_interval": settings.log_bridge_flush_interval,
         }
 
     async def initialize(self):

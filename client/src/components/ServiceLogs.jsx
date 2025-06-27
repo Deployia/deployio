@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLogStream } from "@hooks/useLogStream";
 import { LoadingState } from "@components/ui/Spinner";
 import {
@@ -24,6 +24,8 @@ const ServiceLogs = ({
   // Refs for auto-scroll
   const logsEndRef = useRef(null);
   const logsContainerRef = useRef(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [userScrolled, setUserScrolled] = useState(false);
 
   // Logs state
   const [logs, setLogs] = useState(initialLogs);
@@ -32,6 +34,42 @@ const ServiceLogs = ({
   const [logFilter, setLogFilter] = useState("");
   const [logLevel, setLogLevel] = useState("all");
   const [logsLoading] = useState(false);
+
+  // Auto-scroll to bottom when new logs arrive (only if user hasn't manually scrolled up)
+  const scrollToBottom = useCallback(() => {
+    if (autoScroll && !userScrolled && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+        inline: "nearest",
+      });
+    }
+  }, [autoScroll, userScrolled]);
+
+  // Handle manual scrolling by user
+  const handleScroll = useCallback(() => {
+    if (logsContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        logsContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop <= clientHeight + 10; // 10px tolerance
+
+      setUserScrolled(!isAtBottom);
+      if (isAtBottom) {
+        setAutoScroll(true);
+      }
+    }
+  }, []);
+
+  // Scroll to bottom when logs change (new logs arrive)
+  useEffect(() => {
+    scrollToBottom();
+  }, [logs.length, scrollToBottom]);
+
+  // Reset scroll state when starting/stopping stream
+  useEffect(() => {
+    setUserScrolled(false);
+    setAutoScroll(true);
+  }, [isLogStreamActive]);
 
   // Update logs when initialLogs prop changes
   useEffect(() => {
@@ -334,7 +372,8 @@ const ServiceLogs = ({
 
       <div
         ref={logsContainerRef}
-        className="h-96 max-h-[60vh] min-h-[200px] overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm custom-scrollbar"
+        onScroll={handleScroll}
+        className="h-96 max-h-[60vh] min-h-[200px] overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm custom-scrollbar relative"
       >
         {logsLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -385,6 +424,21 @@ const ServiceLogs = ({
             ))}
             <div ref={logsEndRef} />
           </div>
+        )}
+
+        {/* Scroll to bottom button (appears when user scrolled up) */}
+        {userScrolled && (
+          <button
+            onClick={() => {
+              setUserScrolled(false);
+              setAutoScroll(true);
+              scrollToBottom();
+            }}
+            className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg transition-all duration-200 flex items-center gap-1"
+            title="Scroll to bottom"
+          >
+            <span className="text-xs">↓</span>
+          </button>
         )}
       </div>
     </div>

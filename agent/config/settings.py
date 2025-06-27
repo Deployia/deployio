@@ -51,6 +51,17 @@ class Settings:
     platform_url: str = os.getenv("PLATFORM_URL", "https://deployio.tech")
     platform_api_key: Optional[str] = os.getenv("PLATFORM_API_KEY")
 
+    # Log Bridge Configuration
+    agent_id: str = os.getenv("AGENT_ID", "agent-ec2-2")
+    log_bridge_enabled: bool = os.getenv("LOG_BRIDGE_ENABLED", "true").lower() == "true"
+    log_bridge_reconnect_attempts: int = int(
+        os.getenv("LOG_BRIDGE_RECONNECT_ATTEMPTS", "10")
+    )
+    log_bridge_reconnect_delay: int = int(os.getenv("LOG_BRIDGE_RECONNECT_DELAY", "5"))
+    log_bridge_buffer_size: int = int(os.getenv("LOG_BRIDGE_BUFFER_SIZE", "1000"))
+    log_bridge_batch_size: int = int(os.getenv("LOG_BRIDGE_BATCH_SIZE", "50"))
+    log_bridge_flush_interval: int = int(os.getenv("LOG_BRIDGE_FLUSH_INTERVAL", "5"))
+
     # AWS ECR settings
     aws_region: str = os.getenv("AWS_REGION", "us-east-1")
     aws_account_id: Optional[str] = os.getenv("AWS_ACCOUNT_ID")
