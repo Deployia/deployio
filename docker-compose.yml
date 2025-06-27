@@ -58,7 +58,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
-      - /app/logs:noexec,nosuid,size=200m
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`api.deployio.tech`)"
@@ -85,7 +84,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
-      - /app/logs:noexec,nosuid,size=200m
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ai-service.rule=Host(`service.deployio.tech`)"
