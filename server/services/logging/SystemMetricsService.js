@@ -6,12 +6,49 @@
 const logger = require("@config/logger");
 const mongoose = require("mongoose");
 const { getRedisClient } = require("@config/redisClient");
+const si = require("systeminformation");
 
 class SystemMetricsService {
   static async getBackendMetrics() {
-    const memUsage = process.memoryUsage();
-    const cpuUsage = process.cpuUsage();
     const os = require("os");
+    // Use systeminformation for accurate metrics
+    let mem = {},
+      cpu = {},
+      processedCpuPercentage = 0;
+    try {
+      const [memInfo, cpuInfo, currentLoad] = await Promise.all([
+        si.mem(),
+        si.cpu(),
+        si.currentLoad(),
+      ]);
+      mem = {
+        used: Math.round((memInfo.active || memInfo.used) / 1024 / 1024), // MB
+        total: Math.round(memInfo.total / 1024 / 1024), // MB
+        free: Math.round(memInfo.free / 1024 / 1024), // MB
+        usage: Math.round(
+          ((memInfo.active || memInfo.used) / memInfo.total) * 100
+        ), // %
+      };
+      cpu = {
+        usage: Math.round(currentLoad.currentload), // total system CPU usage %
+        process_usage: Math.round(process.cpuUsage().system / 1000 / 1000), // ms, rough process CPU usage
+        user: Math.round(currentLoad.currentload_user),
+        system: Math.round(currentLoad.currentload_system),
+        cores: cpuInfo.cores,
+        model: cpuInfo.brand || cpuInfo.manufacturer || "unknown",
+      };
+      processedCpuPercentage = Math.round(currentLoad.currentload);
+    } catch (err) {
+      // fallback to process values if systeminformation fails
+      const memUsage = process.memoryUsage();
+      mem = {
+        used: Math.round(memUsage.heapUsed / 1024 / 1024),
+        total: Math.round(memUsage.heapTotal / 1024 / 1024),
+        usage: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100),
+      };
+      cpu = { usage: 0, process_usage: 0 };
+      processedCpuPercentage = 0;
+    }
 
     // Check service health
     const mongoHealth =
@@ -20,39 +57,13 @@ class SystemMetricsService {
     const redisHealth =
       redisClient && redisClient.isReady ? "healthy" : "unhealthy";
 
-    // Get more accurate CPU usage using process.cpuUsage() with interval
-    let processedCpuPercentage = 0;
-    try {
-      // Simple CPU calculation based on system load
-      const loadAvg = os.loadavg()[0]; // 1-minute load average
-      const cpuCount = os.cpus().length;
-      processedCpuPercentage = Math.min(
-        100,
-        Math.round((loadAvg / cpuCount) * 100)
-      );
-    } catch (error) {
-      // Fallback to a more conservative calculation
-      processedCpuPercentage = Math.min(15, Math.round(Math.random() * 15 + 5)); // Conservative estimate
-    }
-
     return {
       service: "backend",
       timestamp: new Date().toISOString(),
       status: "healthy",
       uptime: Math.round(process.uptime()),
-      memory: {
-        used: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
-        total: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
-        external: Math.round(memUsage.external / 1024 / 1024), // MB
-        rss: Math.round(memUsage.rss / 1024 / 1024), // MB
-        usage: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100), // %
-      },
-      cpu: {
-        user: Math.round(cpuUsage.user / 1000), // microseconds to milliseconds
-        system: Math.round(cpuUsage.system / 1000),
-        usage: processedCpuPercentage, // More accurate CPU percentage
-        process_usage: processedCpuPercentage, // alias for compatibility
-      },
+      memory: mem,
+      cpu: cpu,
       system: {
         activeHandles: process._getActiveHandles().length,
         activeRequests: process._getActiveRequests().length,
@@ -61,6 +72,10 @@ class SystemMetricsService {
         platform: process.platform,
         environment: process.env.NODE_ENV || "development",
         responseTime: 0, // Will be set by request timing if available
+        architecture: process.arch,
+        cores: cpu.cores || (os.cpus && os.cpus().length) || undefined,
+        loadavg: os.loadavg(),
+        uptime: os.uptime(),
       },
       services: {
         mongodb: { status: mongoHealth },
