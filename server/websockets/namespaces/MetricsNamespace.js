@@ -106,26 +106,47 @@ class MetricsNamespace {
       // Stop existing stream for this service if any
       this.stopMetricsStreamForSocket(socket, serviceName);
 
-      // Get metrics function from the service module
-      const { getServiceMetrics } = require("../../routes/health/service");
+      // Get metrics from MetricsCollector
+      const {
+        metricsCollector,
+      } = require("../../services/logging/MetricsCollector");
 
       // Create streaming function
       const streamFunction = async () => {
         try {
-          const metrics = await getServiceMetrics(serviceName);
+          const allMetrics = await metricsCollector.getCurrentMetrics();
+          const serviceMetrics = allMetrics.services?.[serviceName];
 
-          socket.emit("metrics_update", {
-            service: serviceName,
-            timestamp: new Date().toISOString(),
-            data: metrics,
-            streamId,
-          });
+          if (serviceMetrics) {
+            socket.emit("metrics:data", {
+              type: "service",
+              service: serviceName,
+              timestamp: new Date().toISOString(),
+              data: serviceMetrics,
+              streamId,
+            });
+          } else {
+            // Fallback if service not found in collector
+            const SystemMetricsService = require("../../services/logging/SystemMetricsService");
+            const metrics = await SystemMetricsService.getServiceMetrics(
+              serviceName
+            );
+
+            socket.emit("metrics:data", {
+              type: "service",
+              service: serviceName,
+              timestamp: new Date().toISOString(),
+              data: metrics,
+              streamId,
+            });
+          }
         } catch (error) {
           logger.error(`Error streaming metrics for ${serviceName}:`, error);
-          socket.emit("error", {
+          socket.emit("metrics:error", {
             message: `Failed to get metrics for ${serviceName}`,
             code: "METRICS_ERROR",
             service: serviceName,
+            streamId,
           });
         }
       };

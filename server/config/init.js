@@ -17,6 +17,9 @@ const {
   addRateLimitHeaders,
 } = require("../middleware/rateLimitMiddleware");
 
+// Initialize metrics collection
+const { metricsCollector } = require("../services/logging/MetricsCollector");
+
 module.exports = (app) => {
   // Connect to the database and log the host
   connectDB().then((conn) => {
@@ -26,6 +29,14 @@ module.exports = (app) => {
       );
     }
   });
+
+  // Start metrics collection
+  try {
+    metricsCollector.startCollection();
+    logger.info("Metrics collection started successfully");
+  } catch (error) {
+    logger.error("Failed to start metrics collection:", error);
+  }
 
   // Trust proxy configuration - Critical for rate limiting behind reverse proxy
   // This must be configured BEFORE any rate limiting middleware
