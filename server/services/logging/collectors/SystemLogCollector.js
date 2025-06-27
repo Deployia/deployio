@@ -50,11 +50,13 @@ class SystemLogCollector extends BaseLogCollector {
     for (const filename of config.files) {
       let filePath;
 
-      // Try production path first
-      if (process.env.NODE_ENV === "production" && fs.existsSync("/app/logs")) {
-        filePath = path.join("/app/logs", filename);
+      // Always try shared volume or root logs dir first (for Docker)
+      const logsRoot = process.env.LOGS_ROOT || "/app/logs";
+      const sharedLogPath = path.join(logsRoot, filename);
+      if (fs.existsSync(sharedLogPath)) {
+        filePath = sharedLogPath;
       } else {
-        // Development path
+        // Fallback to local/dev path
         filePath = path.join(config.basePath, filename);
       }
 
