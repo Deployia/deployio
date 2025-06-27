@@ -59,7 +59,7 @@
       property="og:description"
       content="Transform your deployment process with Deployio's AI-powered automation. Submit a GitHub URL and get instant stack detection, Dockerfiles, CI/CD pipelines, and production deployments with real-time monitoring."
     />
-    <meta property="og:image" content="https://deployio.tech/og-image.jpg" />
+    <meta property="og:image" content="/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
@@ -80,10 +80,7 @@
       property="twitter:description"
       content="Transform your deployment process with Deployio's AI-powered automation. Submit a GitHub URL and get instant stack detection, Dockerfiles, CI/CD pipelines, and production deployments with real-time monitoring."
     />
-    <meta
-      property="twitter:image"
-      content="https://deployio.tech/og-image.jpg"
-    />
+    <meta property="twitter:image" content="/og-image.png" />
     <meta property="twitter:site" content="@deployio" />
     <meta property="twitter:creator" content="@deployio" />
 
@@ -92,10 +89,21 @@
     <meta name="linkedin:owner" content="" />
     <meta name="pinterest" content="nopin" />
     <!-- Icons and Favicons -->
-    <link rel="icon" type="image/png" href="/favicon-black.png" id="favicon" />
+    <link
+      rel="icon"
+      type="image/png"
+      href="/favicon.png"
+      media="(prefers-color-scheme: light)"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      href="/favicon-black.png"
+      media="(prefers-color-scheme: dark)"
+    />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="shortcut icon" href="/favicon-black.png" id="shortcut-icon" />
+    <link rel="shortcut icon" href="/favicon.png" />
 
     <!-- Canonical URL -->
     <link rel="canonical" href="https://deployio.tech/" />
@@ -161,51 +169,6 @@
         "datePublished": "2024-01-01",
         "dateModified": "2024-12-20"
       }
-    </script>
-    <!-- Dynamic Favicon Script -->
-    <script>
-      (function () {
-        function updateFavicon() {
-          const isDarkMode = window.matchMedia(
-            "(prefers-color-scheme: dark)"
-          ).matches;
-          const faviconPath = isDarkMode
-            ? "/favicon.png"
-            : "/favicon-black.png";
-
-          // Update main favicon
-          const favicon = document.getElementById("favicon");
-          if (favicon) {
-            favicon.href = faviconPath;
-          }
-
-          // Update shortcut icon
-          const shortcutIcon = document.getElementById("shortcut-icon");
-          if (shortcutIcon) {
-            shortcutIcon.href = faviconPath;
-          }
-        }
-
-        // Set initial favicon immediately
-        updateFavicon();
-
-        // Listen for theme changes
-        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-        // Use both methods for maximum compatibility
-        if (mediaQuery.addEventListener) {
-          mediaQuery.addEventListener("change", updateFavicon);
-        } else if (mediaQuery.addListener) {
-          mediaQuery.addListener(updateFavicon);
-        }
-
-        // Also listen for manual theme changes on the document
-        const observer = new MutationObserver(updateFavicon);
-        observer.observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ["class", "data-theme"],
-        });
-      })();
     </script>
   </head>
 
