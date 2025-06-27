@@ -18,8 +18,12 @@ export function useLogStream() {
   const activeStreamsRef = useRef(new Set());
 
   const handleLogData = useCallback((data) => {
-    console.log("Raw log data received:", data); // Debug log
     const { streamId, data: logLine, timestamp, isError } = data;
+
+    if (!streamId) {
+      console.warn("Received log data without streamId:", data);
+      return;
+    }
 
     if (!logBuffersRef.current.has(streamId)) {
       logBuffersRef.current.set(streamId, []);
@@ -36,7 +40,6 @@ export function useLogStream() {
       isError: isError || false,
     };
 
-    console.log("Processed log entry:", logEntry); // Debug log
     buffer.push(logEntry);
 
     // Keep only last 1000 lines per stream for performance
@@ -44,12 +47,16 @@ export function useLogStream() {
       buffer.splice(0, buffer.length - 1000);
     }
 
-    console.log(
-      `Buffer now has ${buffer.length} entries for stream ${streamId}`
-    ); // Debug log
-
-    // Trigger re-render
-    setActiveStreams((prev) => new Map(prev));
+    // Trigger re-render by updating the activeStreams map AND incrementing counter
+    setActiveStreams((prev) => {
+      const newMap = new Map(prev);
+      // Force update by setting the same value again
+      if (newMap.has(streamId)) {
+        const streamInfo = newMap.get(streamId);
+        newMap.set(streamId, { ...streamInfo, lastUpdate: Date.now() });
+      }
+      return newMap;
+    });
     setLogUpdateCounter((prev) => prev + 1); // Increment log update counter
   }, []); // Initialize WebSocket connection
   useEffect(() => {
@@ -180,8 +187,6 @@ export function useLogStream() {
     const streamId =
       streamConfig.streamId ||
       `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    console.log("Starting stream with config:", { streamId, ...streamConfig });
 
     socketRef.current.emit("stream:start", {
       streamId,
