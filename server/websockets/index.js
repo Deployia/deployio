@@ -114,14 +114,15 @@ function setupNamespaces(features) {
     }
   }
 
-  // Log streaming namespace - Admin only
+  // Log streaming namespace - Unified version
   if (features.logStreaming) {
     try {
+      // Use unified log streaming namespace
       LogStreamingNamespace.initialize();
       logger.info("✓ Log streaming namespace initialized", {
         namespace: "/logs",
         requireAuth: true,
-        requireAdmin: true,
+        features: ["system-logs", "user-logs", "metrics", "room-based"],
       });
     } catch (error) {
       logger.error("✗ Failed to initialize log streaming namespace", {

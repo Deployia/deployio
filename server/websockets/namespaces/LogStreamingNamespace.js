@@ -1,21 +1,20 @@
-const webSocketRegistry = require("../core/WebSocketRegistry");
-const logger = require("../../config/logger");
-const fs = require("fs");
-const path = require("path");
-const { Tail } = require("tail");
-const { exec } = require("child_process");
-const util = require("util");
-
 /**
- * Log Streaming WebSocket Namespace
- * Handles real-time log streaming for admin users
+ * Log Streaming Namespace
+ * Unified namespace for all logging with room-based organization
  */
+
+const webSocketRegistry = require("../core/WebSocketRegistry");
+const logger = require("@config/logger");
+const {
+  logCollectorService,
+} = require("@services/logging/LogCollectorService");
+
 class LogStreamingNamespace {
   constructor() {
     this.namespace = null;
-    this.logWatchers = new Map();
     this.activeStreams = new Map();
-    this.execAsync = util.promisify(exec);
+    this.userRooms = new Map(); // userId -> Set of rooms
+    this.roomUsers = new Map(); // roomId -> Set of userIds
   }
 
   /**
@@ -24,819 +23,874 @@ class LogStreamingNamespace {
   static initialize() {
     const instance = new LogStreamingNamespace();
 
-    // Register namespace with admin-only access
+    // Register namespace with proper authentication
     const namespace = webSocketRegistry.register("/logs", {
       requireAuth: true,
-      requireAdmin: true,
-      requireVerified: false, // OAuth users are auto-verified
+      requireAdmin: false, // Users can access their own logs
+      requireVerified: false,
     });
 
     // Register event handlers
     namespace
+      .on(
+        "system:subscribe",
+        instance.handleSystemLogSubscription.bind(instance)
+      )
+      .on("user:subscribe", instance.handleUserLogSubscription.bind(instance))
+      .on(
+        "deployment:subscribe",
+        instance.handleDeploymentLogSubscription.bind(instance)
+      )
+      .on(
+        "metrics:subscribe",
+        instance.handleMetricsSubscription.bind(instance)
+      )
       .on("stream:start", instance.startLogStream.bind(instance))
       .on("stream:stop", instance.stopLogStream.bind(instance))
-      .on("stream:list", instance.listAvailableStreams.bind(instance))
-      .on("stream:docker_logs", instance.startDockerLogStream.bind(instance))
-      .on("stream:system_logs", instance.startSystemLogStream.bind(instance));
+      .on("stream:list", instance.getAvailableServices.bind(instance))
+      .on("services:list", instance.getAvailableServices.bind(instance))
+      .on("room:join", instance.handleRoomJoin.bind(instance))
+      .on("room:leave", instance.handleRoomLeave.bind(instance));
 
-    // Add connection and disconnection handlers
+    // Connection and disconnection handlers
     namespace
       .onConnection(instance.handleConnection.bind(instance))
       .onDisconnection(instance.handleDisconnection.bind(instance));
 
     instance.namespace = namespace;
 
+    // Initialize log collector integration
+    instance.initializeLogCollectorIntegration();
+
     logger.info("Log streaming namespace initialized");
     return instance;
   }
 
   /**
-   * Handle new connection
-   * @param {Object} socket - Socket instance
+   * Initialize integration with log collector service
    */
-  handleConnection(socket) {
-    logger.info("Admin connected to log streaming", {
-      userId: socket.userId,
-      email: socket.userEmail,
+  initializeLogCollectorIntegration() {
+    // Listen for log events from the collector service
+    logCollectorService.on("log", (logEntry) => {
+      logger.debug("Received log entry from collector service", {
+        serviceId: logEntry.serviceId,
+        level: logEntry.level,
+        source: logEntry.source,
+        timestamp: logEntry.timestamp,
+      });
+      this.broadcastSystemLog(logEntry);
     });
 
-    // Send available log streams
-    this.sendAvailableStreams(socket);
+    logCollectorService.on("metrics", (metrics) => {
+      this.broadcastMetrics(metrics);
+    });
+
+    logCollectorService.on("error", (error) => {
+      logger.error("Error from log collector service", error);
+      this.broadcastError(error);
+    });
+
+    // Initialize the log collector service
+    logCollectorService.initialize();
   }
 
   /**
-   * Handle disconnection
-   * @param {Object} socket - Socket instance
-   * @param {String} reason - Disconnection reason
+   * Handle client connection
    */
-  handleDisconnection(socket, reason) {
-    // Stop all streams for this socket
-    this.stopAllStreamsForSocket(socket);
+  async handleConnection(socket) {
+    const user = socket.user;
 
-    logger.info("Admin disconnected from log streaming", {
-      userId: socket.userId,
-      reason,
+    logger.info(`User ${user.id} connected to logs namespace`);
+
+    // Initialize user rooms tracking
+    if (!this.userRooms.has(user.id)) {
+      this.userRooms.set(user.id, new Set());
+    }
+
+    // Send initial status
+    socket.emit("connection:status", {
+      type: "connected",
+      userId: user.id,
+      permissions: {
+        systemLogs: user.role === "admin",
+        userLogs: true,
+        metrics: user.role === "admin",
+      },
+      availableRooms: await this.getAvailableRooms(user),
+      timestamp: new Date().toISOString(),
     });
   }
 
   /**
-   * Start log streaming
-   * @param {Object} socket - Socket instance
-   * @param {Object} data - Stream configuration
+   * Handle client disconnection
    */
-  async startLogStream(socket, data) {
+  async handleDisconnection(socket, reason) {
+    const user = socket.user;
+
+    logger.info(`User ${user.id} disconnected from logs namespace`);
+
+    // Clean up user rooms
+    const userRooms = this.userRooms.get(user.id);
+    if (userRooms) {
+      for (const roomId of userRooms) {
+        await this.leaveRoom(user.id, roomId);
+      }
+      this.userRooms.delete(user.id);
+    }
+
+    // Stop any active streams for this user
+    for (const [streamId, stream] of this.activeStreams) {
+      if (stream.userId === user.id) {
+        await this.stopLogStream(socket, { streamId });
+      }
+    }
+  }
+
+  /**
+   * Handle system log subscription (admin only)
+   */
+  async handleSystemLogSubscription(socket, data) {
+    const user = socket.user;
+
+    if (user.role !== "admin") {
+      socket.emit("error", {
+        message: "Insufficient permissions for system logs",
+        code: "PERMISSION_DENIED",
+      });
+      return;
+    }
+
+    const { services = ["backend", "ai-service", "agent"], realtime = false } =
+      data;
+
     try {
-      const { streamId, logType, options = {} } = data;
+      // Join system logs room
+      await this.joinRoom(user.id, "system:all");
+      socket.join("system:all");
 
-      if (!streamId || !logType) {
-        return socket.emit("error", {
-          message: "Stream ID and log type are required",
-          code: "MISSING_STREAM_CONFIG",
-        });
-      }
-
-      // Stop existing stream if any
-      this.stopLogStreamForSocket(socket, streamId);
-
-      let logPath;
-      let streamConfig;
-
-      switch (logType) {
-        case "application":
-          // Try multiple log file paths for backend service
-          const backendLogPaths = [
-            path.join(process.cwd(), "logs", "combined.log"),
-            path.join(process.cwd(), "logs", "backend.log"),
-            path.join(process.cwd(), "server", "logs", "combined.log"),
-          ];
-
-          logPath =
-            backendLogPaths.find((p) => fs.existsSync(p)) || backendLogPaths[0];
-
-          streamConfig = {
-            follow: true,
-            fromBeginning: false,
-            logger: console, // Enable tail library logging
-            useWatchFile: true, // Use watchFile for better compatibility
-            fsWatchOptions: {
-              interval: 1000, // Check every second
-            },
-          };
-          break;
-        case "error":
-          logPath = path.join(process.cwd(), "logs", "error.log");
-          streamConfig = {
-            follow: true,
-            fromBeginning: false,
-            logger: console,
-            useWatchFile: true,
-            fsWatchOptions: {
-              interval: 1000,
-            },
-          };
-          break;
-        case "access":
-          logPath = path.join(process.cwd(), "logs", "access.log");
-          streamConfig = {
-            follow: true,
-            fromBeginning: false,
-            logger: console,
-            useWatchFile: true,
-            fsWatchOptions: {
-              interval: 1000,
-            },
-          };
-          break;
-        case "ai-service":
-          // Try multiple log file paths for ai-service
-          const aiServiceLogPaths = [
-            path.join(
-              process.cwd(),
-              "..",
-              "ai-service",
-              "logs",
-              "ai-service.log"
-            ),
-            path.join(process.cwd(), "ai-service", "logs", "ai-service.log"),
-            path.join(process.cwd(), "logs", "ai-service.log"),
-          ];
-
-          logPath =
-            aiServiceLogPaths.find((p) => fs.existsSync(p)) ||
-            aiServiceLogPaths[0];
-
-          streamConfig = {
-            follow: true,
-            fromBeginning: false,
-            logger: console,
-            useWatchFile: true,
-            fsWatchOptions: {
-              interval: 1000,
-            },
-          };
-          break;
-        case "agent":
-          // Try multiple log file paths for agent
-          const agentLogPaths = [
-            path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
-            path.join(process.cwd(), "agent", "logs", "agent.log"),
-            path.join(process.cwd(), "logs", "agent.log"),
-          ];
-
-          logPath =
-            agentLogPaths.find((p) => fs.existsSync(p)) || agentLogPaths[0];
-
-          streamConfig = {
-            follow: true,
-            fromBeginning: false,
-            logger: console,
-            useWatchFile: true,
-            fsWatchOptions: {
-              interval: 1000,
-            },
-          };
-          break;
-        case "server":
-          // Alias for backend/application logs
-          const serverLogPaths = [
-            path.join(process.cwd(), "logs", "combined.log"),
-            path.join(process.cwd(), "logs", "backend.log"),
-            path.join(process.cwd(), "server", "logs", "combined.log"),
-          ];
-
-          logPath =
-            serverLogPaths.find((p) => fs.existsSync(p)) || serverLogPaths[0];
-
-          streamConfig = {
-            follow: true,
-            fromBeginning: false,
-            logger: console,
-            useWatchFile: true,
-            fsWatchOptions: {
-              interval: 1000,
-            },
-          };
-          break;
-        default:
-          return socket.emit("error", {
-            message: `Unsupported log type: ${logType}`,
-            code: "UNSUPPORTED_LOG_TYPE",
+      // Start log collection for requested services
+      for (const serviceId of services) {
+        if (realtime) {
+          const streamId = await logCollectorService.startCollection(
+            serviceId,
+            { realtime: true }
+          );
+          this.activeStreams.set(streamId, {
+            serviceId,
+            userId: user.id,
+            type: "system",
+            startTime: new Date(),
           });
+        }
+
+        // Send recent logs
+        const recentLogs = await logCollectorService.getRecentLogs(serviceId, {
+          lines: 50,
+          level: data.level || "all",
+        });
+
+        socket.emit("system:logs", {
+          serviceId,
+          logs: recentLogs.logs,
+          totalLines: recentLogs.totalLines,
+          source: recentLogs.source,
+        });
       }
 
-      // Check if log file exists, if not try to create it or find alternative
-      if (!fs.existsSync(logPath)) {
-        // Try to create the log file directory if it doesn't exist
-        const logDir = path.dirname(logPath);
-        try {
-          if (!fs.existsSync(logDir)) {
-            fs.mkdirSync(logDir, { recursive: true });
-          }
-
-          // Create an empty log file if it doesn't exist
-          fs.writeFileSync(logPath, "", { flag: "a" });
-          console.log(`Created log file: ${logPath}`);
-        } catch (createError) {
-          console.warn(`Failed to create log file: ${logPath}`, createError);
-
-          // Find alternative log file paths for the service
-          const getAlternativeLogPaths = (logType) => {
-            switch (logType) {
-              case "application":
-              case "server":
-                return [
-                  path.join(process.cwd(), "logs", "backend.log"),
-                  path.join(process.cwd(), "server", "logs", "backend.log"),
-                  "/app/logs/backend.log",
-                  "/app/logs/combined.log",
-                ];
-              case "ai-service":
-                return [
-                  path.join(
-                    process.cwd(),
-                    "..",
-                    "ai-service",
-                    "logs",
-                    "ai-service.log"
-                  ),
-                  path.join(
-                    process.cwd(),
-                    "ai-service",
-                    "logs",
-                    "ai-service.log"
-                  ),
-                  "/app/logs/ai-service.log",
-                ];
-              case "agent":
-                return [
-                  path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
-                  path.join(process.cwd(), "agent", "logs", "agent.log"),
-                  "/app/logs/agent.log",
-                ];
-              default:
-                return [];
-            }
-          };
-
-          const alternativePaths = getAlternativeLogPaths(logType);
-          const foundPath = alternativePaths.find((p) => fs.existsSync(p));
-
-          if (foundPath) {
-            logPath = foundPath;
-            console.log(`Using alternative log file: ${logPath}`);
-          } else {
-            // If no log file exists, create a default one with some initial content
-            try {
-              fs.writeFileSync(
-                logPath,
-                `${new Date().toISOString()} [INFO]: Log file created for ${logType} service\n`,
-                { flag: "a" }
-              );
-              console.log(`Created default log file: ${logPath}`);
-            } catch (defaultCreateError) {
-              console.error(
-                `Failed to create default log file: ${logPath}`,
-                defaultCreateError
-              );
-              return socket.emit("error", {
-                message: `Log file not found and could not be created: ${logPath}`,
-                code: "LOG_FILE_NOT_FOUND",
-                attempts: alternativePaths,
-              });
-            }
-          }
-        }
-      }
-
-      // Create tail instance
-      console.log(`Setting up tail for log file: ${logPath}`); // Debug log
-      const tail = new Tail(logPath, streamConfig);
-
-      // Set up stream handlers
-      tail.on("line", (line) => {
-        console.log(`New log line for stream ${streamId}:`, line); // Debug log
-        socket.emit("log:data", {
-          streamId,
-          logType,
-          timestamp: new Date().toISOString(),
-          data: line,
-        });
-        console.log(`Emitted log:data for stream ${streamId}`); // Debug log
-      });
-
-      tail.on("error", (error) => {
-        console.error(`Tail error for stream ${streamId}:`, error); // Debug log
-        logger.error("Log stream error", {
-          error: error.message,
-          streamId,
-          logType,
-          userId: socket.userId,
-        });
-        socket.emit("log:error", {
-          streamId,
-          logType,
-          error: error.message,
-        });
-      });
-
-      // Add more tail event handlers for debugging
-      tail.on("start", () => {
-        console.log(`Tail started for stream ${streamId}`);
-      });
-
-      tail.on("stop", () => {
-        console.log(`Tail stopped for stream ${streamId}`);
-      });
-
-      socket.emit("log:started", {
-        streamId,
-        logType,
-        logPath,
-        startedAt: new Date().toISOString(),
-      });
-
-      // Generate test logs to verify streaming works
-      let testLogCounter = 0;
-      const testLogInterval = setInterval(() => {
-        testLogCounter++;
-        const testMessage = `Test log message #${testLogCounter} for stream ${streamId}`;
-        console.log(`Generating test log: ${testMessage}`);
-
-        socket.emit("log:data", {
-          streamId,
-          logType,
-          timestamp: new Date().toISOString(),
-          data: testMessage,
-        });
-
-        // Stop test logs after 5 messages
-        if (testLogCounter >= 5) {
-          clearInterval(testLogInterval);
-          console.log(`Test log generation completed for stream ${streamId}`);
-        }
-      }, 2000); // Send a test log every 2 seconds
-
-      // Store the interval reference so we can clean it up
-      const streamKey = `${socket.id}_${streamId}`;
-      this.activeStreams.set(streamKey, {
-        tail,
-        streamId,
-        logType,
-        socketId: socket.id,
-        userId: socket.userId,
-        startedAt: new Date(),
-        testLogInterval, // Store the interval for cleanup
-      });
-
-      logger.info("Log stream started", {
-        streamId,
-        logType,
-        logPath,
-        userId: socket.userId,
+      socket.emit("system:subscribed", {
+        services,
+        realtime,
+        room: "system:all",
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error("Error starting log stream", {
-        error: error.message,
-        userId: socket.userId,
-        data,
-      });
+      logger.error("Error handling system log subscription:", error);
       socket.emit("error", {
-        message: "Failed to start log stream",
-        code: "STREAM_START_ERROR",
+        message: "Failed to subscribe to system logs",
+        error: error.message,
       });
     }
   }
 
   /**
-   * Stop log streaming
-   * @param {Object} socket - Socket instance
-   * @param {Object} data - Stream configuration
+   * Handle user log subscription
    */
-  async stopLogStream(socket, data) {
-    try {
-      const { streamId } = data;
+  async handleUserLogSubscription(socket, data) {
+    const user = socket.user;
+    const { projectId, deploymentId } = data;
 
-      if (!streamId) {
-        return socket.emit("error", {
-          message: "Stream ID is required",
-          code: "MISSING_STREAM_ID",
+    try {
+      // Verify user has access to this project
+      if (!(await this.verifyUserProjectAccess(user.id, projectId))) {
+        socket.emit("error", {
+          message: "Access denied to project logs",
+          code: "ACCESS_DENIED",
+        });
+        return;
+      }
+
+      // Determine room based on scope
+      let roomId;
+      if (deploymentId) {
+        roomId = `deployment:${deploymentId}`;
+      } else if (projectId) {
+        roomId = `project:${projectId}`;
+      } else {
+        roomId = `user:${user.id}`;
+      }
+
+      // Join appropriate room
+      await this.joinRoom(user.id, roomId);
+      socket.join(roomId);
+
+      // Get recent deployment/project logs
+      // TODO: Implement user log fetching
+      const userLogs = await this.getUserLogs(user.id, projectId, deploymentId);
+
+      socket.emit("user:logs", {
+        projectId,
+        deploymentId,
+        logs: userLogs.logs,
+        room: roomId,
+        timestamp: new Date().toISOString(),
+      });
+
+      socket.emit("user:subscribed", {
+        projectId,
+        deploymentId,
+        room: roomId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Error handling user log subscription:", error);
+      socket.emit("error", {
+        message: "Failed to subscribe to user logs",
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Handle deployment log subscription
+   */
+  async handleDeploymentLogSubscription(socket, data) {
+    const user = socket.user;
+    const { deploymentId, realtime = false } = data;
+
+    try {
+      // Verify user has access to this deployment
+      if (!(await this.verifyUserDeploymentAccess(user.id, deploymentId))) {
+        socket.emit("error", {
+          message: "Access denied to deployment logs",
+          code: "ACCESS_DENIED",
+        });
+        return;
+      }
+
+      const roomId = `deployment:${deploymentId}`;
+
+      // Join deployment room
+      await this.joinRoom(user.id, roomId);
+      socket.join(roomId);
+
+      if (realtime) {
+        // TODO: Start real-time deployment log streaming
+        // This would connect to the agent service for live container logs
+      }
+
+      // Get recent deployment logs
+      const deploymentLogs = await this.getDeploymentLogs(deploymentId);
+
+      socket.emit("deployment:logs", {
+        deploymentId,
+        logs: deploymentLogs.logs,
+        room: roomId,
+        timestamp: new Date().toISOString(),
+      });
+
+      socket.emit("deployment:subscribed", {
+        deploymentId,
+        realtime,
+        room: roomId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Error handling deployment log subscription:", error);
+      socket.emit("error", {
+        message: "Failed to subscribe to deployment logs",
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Handle metrics subscription (admin only)
+   */
+  async handleMetricsSubscription(socket, data) {
+    const user = socket.user;
+
+    if (user.role !== "admin") {
+      socket.emit("error", {
+        message: "Insufficient permissions for metrics",
+        code: "PERMISSION_DENIED",
+      });
+      return;
+    }
+
+    try {
+      // Join metrics room
+      await this.joinRoom(user.id, "metrics:system");
+      socket.join("metrics:system");
+
+      // Get current metrics
+      const metrics = await logCollectorService.getSystemMetrics();
+
+      socket.emit("metrics:data", {
+        metrics,
+        room: "metrics:system",
+        timestamp: new Date().toISOString(),
+      });
+
+      socket.emit("metrics:subscribed", {
+        room: "metrics:system",
+        timestamp: new Date().toISOString(),
+      });
+
+      // Start periodic metrics streaming if requested
+      if (data.realtime) {
+        this.startMetricsStreaming(user.id);
+      }
+    } catch (error) {
+      logger.error("Error handling metrics subscription:", error);
+      socket.emit("error", {
+        message: "Failed to subscribe to metrics",
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Start log stream
+   */
+  async startLogStream(socket, data) {
+    const user = socket.user;
+
+    // Validate input data
+    if (!data) {
+      socket.emit("error", {
+        message: "Missing data for log stream",
+        code: "INVALID_REQUEST",
+      });
+      return;
+    }
+
+    // Handle both serviceId and streamId (for backwards compatibility)
+    let { serviceId, streamId, type = "system", options = {} } = data;
+
+    // If streamId is provided but not serviceId, extract serviceId from streamId
+    if (!serviceId && streamId) {
+      // Extract service name from streamId (e.g., "backend-live" -> "backend")
+      if (streamId.includes("-")) {
+        serviceId = streamId.split("-")[0];
+        logger.info("Extracted serviceId from streamId", {
+          streamId,
+          extractedServiceId: serviceId,
+          userId: user.id,
+        });
+      } else {
+        serviceId = streamId;
+      }
+    }
+
+    // Map common service aliases to actual service IDs
+    const serviceIdMappings = {
+      backend: "backend",
+      ai: "ai-service",
+      "ai-service": "ai-service",
+      agent: "agent",
+    };
+
+    if (serviceIdMappings[serviceId]) {
+      const originalServiceId = serviceId;
+      serviceId = serviceIdMappings[serviceId];
+      logger.info("Mapped serviceId", {
+        original: originalServiceId,
+        mapped: serviceId,
+        userId: user.id,
+      });
+    }
+
+    // Validate serviceId
+    if (!serviceId) {
+      logger.error("Missing serviceId in startLogStream request", {
+        data,
+        userId: user.id,
+      });
+      socket.emit("error", {
+        message: "serviceId or streamId is required to start log stream",
+        code: "MISSING_SERVICE_ID",
+        availableServices: logCollectorService.getAvailableServices(),
+      });
+      return;
+    }
+
+    // Check if collector exists for this service
+    if (!logCollectorService.hasCollector(serviceId)) {
+      logger.error("Invalid serviceId in startLogStream request", {
+        serviceId,
+        userId: user.id,
+        availableServices: logCollectorService.getAvailableServices(),
+      });
+      socket.emit("error", {
+        message: `Invalid serviceId: ${serviceId}`,
+        code: "INVALID_SERVICE_ID",
+        availableServices: logCollectorService.getAvailableServices(),
+      });
+      return;
+    }
+
+    try {
+      // Check permissions
+      if (type === "system" && user.role !== "admin") {
+        socket.emit("error", {
+          message: "Insufficient permissions for system log streaming",
+          code: "PERMISSION_DENIED",
+        });
+        return;
+      }
+
+      logger.info("Starting log stream", { serviceId, type, userId: user.id });
+
+      // Join appropriate room for receiving broadcasts
+      if (type === "system") {
+        await this.joinRoom(user.id, "system:all");
+        socket.join("system:all");
+        logger.info("User joined system:all room for log streaming", {
+          userId: user.id,
         });
       }
 
-      const stopped = this.stopLogStreamForSocket(socket, streamId);
+      // Use the client-provided streamId if available, otherwise generate one
+      const clientStreamId = data.streamId || `${serviceId}_${Date.now()}`;
 
-      if (stopped) {
-        socket.emit("log:stopped", {
-          streamId,
-          stoppedAt: new Date().toISOString(),
-        });
-        logger.info("Log stream stopped", {
-          streamId,
-          userId: socket.userId,
-        });
-      } else {
+      const collectorStreamId = await logCollectorService.startCollection(
+        serviceId,
+        {
+          realtime: true,
+          clientStreamId: clientStreamId, // Pass the client stream ID
+          ...options,
+        }
+      );
+
+      this.activeStreams.set(clientStreamId, {
+        serviceId,
+        userId: user.id,
+        type,
+        startTime: new Date(),
+        options,
+        collectorStreamId, // Keep reference to collector stream ID
+      });
+
+      socket.emit("log:started", {
+        streamId: clientStreamId, // Use client stream ID in response
+        serviceId,
+        type,
+        startedAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+      });
+
+      logger.info("Log stream started successfully", {
+        streamId: clientStreamId,
+        collectorStreamId,
+        serviceId,
+        userId: user.id,
+      });
+    } catch (error) {
+      logger.error("Error starting log stream:", error);
+      socket.emit("error", {
+        message: "Failed to start log stream",
+        error: error.message,
+        serviceId: serviceId || "undefined",
+      });
+    }
+  }
+
+  /**
+   * Stop log stream
+   */
+  async stopLogStream(socket, data) {
+    const { streamId } = data;
+
+    try {
+      const stream = this.activeStreams.get(streamId);
+      if (!stream) {
         socket.emit("error", {
           message: "Stream not found",
           code: "STREAM_NOT_FOUND",
         });
+        return;
       }
-    } catch (error) {
-      logger.error("Error stopping log stream", {
-        error: error.message,
-        userId: socket.userId,
-        data,
+
+      // Check if user owns this stream or is admin
+      if (stream.userId !== socket.user.id && socket.user.role !== "admin") {
+        socket.emit("error", {
+          message: "Insufficient permissions to stop stream",
+          code: "PERMISSION_DENIED",
+        });
+        return;
+      }
+
+      // Use collectorStreamId if available, otherwise use streamId
+      const collectorStreamId = stream.collectorStreamId || streamId;
+
+      await logCollectorService.stopCollection(collectorStreamId);
+      this.activeStreams.delete(streamId);
+
+      socket.emit("log:stopped", {
+        streamId,
+        timestamp: new Date().toISOString(),
       });
+    } catch (error) {
+      logger.error("Error stopping log stream:", error);
       socket.emit("error", {
         message: "Failed to stop log stream",
-        code: "STREAM_STOP_ERROR",
-      });
-    }
-  }
-
-  /**
-   * List available log streams
-   * @param {Object} socket - Socket instance
-   */
-  async listAvailableStreams(socket) {
-    try {
-      this.sendAvailableStreams(socket);
-    } catch (error) {
-      logger.error("Error listing available streams", {
         error: error.message,
-        userId: socket.userId,
-      });
-      socket.emit("error", {
-        message: "Failed to list available streams",
-        code: "LIST_STREAMS_ERROR",
       });
     }
   }
 
   /**
-   * Start Docker log streaming
-   * @param {Object} socket - Socket instance
-   * @param {Object} data - Docker configuration
+   * Handle room join
    */
-  async startDockerLogStream(socket, data) {
-    try {
-      const { streamId, containerName, options = {} } = data;
+  async handleRoomJoin(socket, data) {
+    const user = socket.user;
+    const { roomId } = data;
 
-      if (!streamId || !containerName) {
-        return socket.emit("error", {
-          message: "Stream ID and container name are required",
-          code: "MISSING_DOCKER_CONFIG",
+    try {
+      // Verify user can join this room
+      if (!(await this.verifyRoomAccess(user, roomId))) {
+        socket.emit("error", {
+          message: "Access denied to room",
+          code: "ACCESS_DENIED",
         });
+        return;
       }
 
-      // Stop existing stream if any
-      this.stopLogStreamForSocket(socket, streamId);
+      await this.joinRoom(user.id, roomId);
+      socket.join(roomId);
 
-      const dockerCommand = `docker logs -f ${
-        options.tail ? `--tail ${options.tail}` : ""
-      } ${containerName}`;
-
-      const childProcess = exec(dockerCommand);
-
-      childProcess.stdout.on("data", (data) => {
-        socket.emit("log:data", {
-          streamId,
-          logType: "docker",
-          containerName,
-          timestamp: new Date().toISOString(),
-          data: data.toString(),
-        });
-      });
-
-      childProcess.stderr.on("data", (data) => {
-        socket.emit("log:data", {
-          streamId,
-          logType: "docker",
-          containerName,
-          timestamp: new Date().toISOString(),
-          data: data.toString(),
-          isError: true,
-        });
-      });
-
-      childProcess.on("error", (error) => {
-        logger.error("Docker log stream error", {
-          error: error.message,
-          streamId,
-          containerName,
-          userId: socket.userId,
-        });
-        socket.emit("log:error", {
-          streamId,
-          logType: "docker",
-          containerName,
-          error: error.message,
-        });
-      });
-
-      // Store stream reference
-      const streamKey = `${socket.id}_${streamId}`;
-      this.activeStreams.set(streamKey, {
-        process: childProcess,
-        streamId,
-        logType: "docker",
-        containerName,
-        socketId: socket.id,
-        userId: socket.userId,
-        startedAt: new Date(),
-      });
-
-      socket.emit("log:started", {
-        streamId,
-        logType: "docker",
-        containerName,
-        startedAt: new Date().toISOString(),
-      });
-
-      logger.info("Docker log stream started", {
-        streamId,
-        containerName,
-        userId: socket.userId,
+      socket.emit("room:joined", {
+        roomId,
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error("Error starting Docker log stream", {
-        error: error.message,
-        userId: socket.userId,
-        data,
-      });
+      logger.error("Error joining room:", error);
       socket.emit("error", {
-        message: "Failed to start Docker log stream",
-        code: "DOCKER_STREAM_ERROR",
+        message: "Failed to join room",
+        error: error.message,
       });
     }
   }
 
   /**
-   * Start system log streaming
-   * @param {Object} socket - Socket instance
-   * @param {Object} data - System log configuration
+   * Handle room leave
    */
-  async startSystemLogStream(socket, data) {
+  async handleRoomLeave(socket, data) {
+    const user = socket.user;
+    const { roomId } = data;
+
     try {
-      const { streamId, logType = "syslog", options = {} } = data;
+      await this.leaveRoom(user.id, roomId);
+      socket.leave(roomId);
 
-      if (!streamId) {
-        return socket.emit("error", {
-          message: "Stream ID is required",
-          code: "MISSING_STREAM_ID",
-        });
-      }
-
-      // Stop existing stream if any
-      this.stopLogStreamForSocket(socket, streamId);
-
-      let command;
-      if (process.platform === "win32") {
-        // Windows Event Logs
-        command =
-          "powershell Get-EventLog -LogName System -Newest 10 | ConvertTo-Json";
-      } else {
-        // Unix/Linux system logs
-        command = `tail -f /var/log/${logType}`;
-      }
-
-      const childProcess = exec(command);
-
-      childProcess.stdout.on("data", (data) => {
-        socket.emit("log:data", {
-          streamId,
-          logType: "system",
-          systemLogType: logType,
-          timestamp: new Date().toISOString(),
-          data: data.toString(),
-        });
-      });
-
-      childProcess.stderr.on("data", (data) => {
-        socket.emit("log:data", {
-          streamId,
-          logType: "system",
-          systemLogType: logType,
-          timestamp: new Date().toISOString(),
-          data: data.toString(),
-          isError: true,
-        });
-      });
-
-      childProcess.on("error", (error) => {
-        logger.error("System log stream error", {
-          error: error.message,
-          streamId,
-          logType,
-          userId: socket.userId,
-        });
-        socket.emit("log:error", {
-          streamId,
-          logType: "system",
-          systemLogType: logType,
-          error: error.message,
-        });
-      });
-
-      // Store stream reference
-      const streamKey = `${socket.id}_${streamId}`;
-      this.activeStreams.set(streamKey, {
-        process: childProcess,
-        streamId,
-        logType: "system",
-        systemLogType: logType,
-        socketId: socket.id,
-        userId: socket.userId,
-        startedAt: new Date(),
-      });
-
-      socket.emit("log:started", {
-        streamId,
-        logType: "system",
-        systemLogType: logType,
-        startedAt: new Date().toISOString(),
-      });
-
-      logger.info("System log stream started", {
-        streamId,
-        logType,
-        userId: socket.userId,
+      socket.emit("room:left", {
+        roomId,
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error("Error starting system log stream", {
-        error: error.message,
-        userId: socket.userId,
-        data,
-      });
+      logger.error("Error leaving room:", error);
       socket.emit("error", {
-        message: "Failed to start system log stream",
-        code: "SYSTEM_STREAM_ERROR",
+        message: "Failed to leave room",
+        error: error.message,
       });
     }
   }
 
   /**
-   * Send available streams to socket
-   * @param {Object} socket - Socket instance
+   * Broadcast system log to appropriate rooms
    */
-  async sendAvailableStreams(socket) {
-    try {
-      const logsDir = path.join(process.cwd(), "logs");
-      const availableStreams = {
-        application: [],
-        docker: [],
-        system: [],
-      };
-
-      // Check for application log files
-      if (fs.existsSync(logsDir)) {
-        const logFiles = fs
-          .readdirSync(logsDir)
-          .filter((file) => file.endsWith(".log"));
-        availableStreams.application = logFiles.map((file) => ({
-          name: file.replace(".log", ""),
-          path: path.join(logsDir, file),
-          type: "application",
-        }));
-      }
-
-      // Check for Docker containers
-      try {
-        const { stdout } = await this.execAsync(
-          "docker ps --format '{{.Names}}'"
-        );
-        availableStreams.docker = stdout
-          .trim()
-          .split("\n")
-          .filter((name) => name)
-          .map((name) => ({
-            name,
-            type: "docker",
-          }));
-      } catch (error) {
-        logger.debug("Docker not available or no containers running");
-      }
-
-      // System logs (platform-specific)
-      if (process.platform !== "win32") {
-        availableStreams.system = [
-          { name: "syslog", type: "system" },
-          { name: "auth.log", type: "system" },
-          { name: "kern.log", type: "system" },
-        ];
-      } else {
-        availableStreams.system = [
-          { name: "System", type: "system" },
-          { name: "Application", type: "system" },
-          { name: "Security", type: "system" },
-        ];
-      }
-
-      socket.emit("streams:available", availableStreams);
-    } catch (error) {
-      logger.error("Error getting available streams", {
-        error: error.message,
-        userId: socket.userId,
-      });
-      socket.emit("error", {
-        message: "Failed to get available streams",
-        code: "GET_STREAMS_ERROR",
-      });
+  broadcastSystemLog(logEntry) {
+    if (!this.namespace || !this.namespace.namespace) {
+      logger.warn("Namespace not initialized, cannot broadcast system log");
+      return;
     }
+
+    // Find the client streamId for this service
+    let clientStreamId = `${logEntry.serviceId}_stream`; // Default fallback
+
+    // Look for active stream with matching service
+    for (const [streamId, stream] of this.activeStreams) {
+      if (stream.serviceId === logEntry.serviceId) {
+        clientStreamId = streamId; // Use the actual client stream ID
+        break;
+      }
+    }
+
+    // Get the actual Socket.IO namespace
+    const socketIONamespace = this.namespace.namespace;
+
+    // Broadcast to system logs room (admin only) - use "log:data" event for client compatibility
+    socketIONamespace.to("system:all").emit("log:data", {
+      streamId: clientStreamId, // Use the client stream ID
+      data: logEntry.message,
+      timestamp: logEntry.timestamp,
+      level: logEntry.level,
+      service: logEntry.serviceId,
+      source: logEntry.source,
+      isError: logEntry.level === "error",
+      metadata: logEntry.metadata,
+      ...logEntry,
+    });
+
+    // Also broadcast to admin room if it exists
+    socketIONamespace.to("admin:all").emit("log:data", {
+      streamId: clientStreamId, // Use the client stream ID
+      data: logEntry.message,
+      timestamp: logEntry.timestamp,
+      level: logEntry.level,
+      service: logEntry.serviceId,
+      source: logEntry.source,
+      isError: logEntry.level === "error",
+      metadata: logEntry.metadata,
+      ...logEntry,
+    });
   }
 
   /**
-   * Stop log stream for socket
-   * @param {Object} socket - Socket instance
-   * @param {String} streamId - Stream ID
-   * @returns {Boolean} True if stream was stopped
+   * Broadcast metrics to appropriate rooms
    */
-  stopLogStreamForSocket(socket, streamId) {
-    const streamKey = `${socket.id}_${streamId}`;
-    const stream = this.activeStreams.get(streamKey);
+  broadcastMetrics(metrics) {
+    if (!this.namespace || !this.namespace.namespace) return;
 
-    if (stream) {
-      try {
-        if (stream.tail) {
-          stream.tail.unwatch();
-        }
-        if (stream.process) {
-          stream.process.kill();
-        }
-        if (stream.testLogInterval) {
-          clearInterval(stream.testLogInterval);
-        }
-        this.activeStreams.delete(streamKey);
-        return true;
-      } catch (error) {
-        logger.error("Error stopping stream", {
-          error: error.message,
-          streamId,
-          userId: socket.userId,
-        });
+    this.namespace.namespace.to("metrics:system").emit("metrics:update", {
+      metrics,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Broadcast error to appropriate rooms
+   */
+  broadcastError(error) {
+    if (!this.namespace || !this.namespace.namespace) return;
+
+    this.namespace.namespace.to("system:all").emit("system:error", {
+      error: error.error,
+      service: error.serviceId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Join a room and track membership
+   */
+  async joinRoom(userId, roomId) {
+    // Add user to room tracking
+    if (!this.userRooms.has(userId)) {
+      this.userRooms.set(userId, new Set());
+    }
+    this.userRooms.get(userId).add(roomId);
+
+    // Add room to user tracking
+    if (!this.roomUsers.has(roomId)) {
+      this.roomUsers.set(roomId, new Set());
+    }
+    this.roomUsers.get(roomId).add(userId);
+
+    logger.debug(`User ${userId} joined room ${roomId}`);
+  }
+
+  /**
+   * Leave a room and update tracking
+   */
+  async leaveRoom(userId, roomId) {
+    // Remove user from room tracking
+    const userRooms = this.userRooms.get(userId);
+    if (userRooms) {
+      userRooms.delete(roomId);
+    }
+
+    // Remove room from user tracking
+    const roomUsers = this.roomUsers.get(roomId);
+    if (roomUsers) {
+      roomUsers.delete(userId);
+
+      // Clean up empty rooms
+      if (roomUsers.size === 0) {
+        this.roomUsers.delete(roomId);
       }
+    }
+
+    logger.debug(`User ${userId} left room ${roomId}`);
+  }
+
+  /**
+   * Get available rooms for a user
+   */
+  async getAvailableRooms(user) {
+    const rooms = [];
+
+    // Admin can access all rooms
+    if (user.role === "admin") {
+      rooms.push("system:all", "metrics:system", "admin:all");
+    }
+
+    // User-specific room
+    rooms.push(`user:${user.id}`);
+
+    // TODO: Add user's project and deployment rooms
+    // const userProjects = await getUserProjects(user.id);
+    // for (const project of userProjects) {
+    //   rooms.push(`project:${project.id}`);
+    // }
+
+    return rooms;
+  }
+
+  /**
+   * Verify user has access to a room
+   */
+  async verifyRoomAccess(user, roomId) {
+    // Admin can access all rooms
+    if (user.role === "admin") {
+      return true;
+    }
+
+    // System and metrics rooms are admin-only
+    if (
+      roomId.startsWith("system:") ||
+      roomId.startsWith("metrics:") ||
+      roomId.startsWith("admin:")
+    ) {
+      return false;
+    }
+
+    // User can access their own room
+    if (roomId === `user:${user.id}`) {
+      return true;
+    }
+
+    // Project and deployment room access needs to be verified
+    if (roomId.startsWith("project:")) {
+      const projectId = roomId.split(":")[1];
+      return await this.verifyUserProjectAccess(user.id, projectId);
+    }
+
+    if (roomId.startsWith("deployment:")) {
+      const deploymentId = roomId.split(":")[1];
+      return await this.verifyUserDeploymentAccess(user.id, deploymentId);
     }
 
     return false;
   }
 
   /**
-   * Stop all streams for socket
-   * @param {Object} socket - Socket instance
+   * Verify user has access to a project
    */
-  stopAllStreamsForSocket(socket) {
-    const streamsToStop = [];
-
-    this.activeStreams.forEach((stream, key) => {
-      if (stream.socketId === socket.id) {
-        streamsToStop.push({ key, stream });
-      }
-    });
-
-    streamsToStop.forEach(({ key, stream }) => {
-      try {
-        if (stream.tail) {
-          stream.tail.unwatch();
-        }
-        if (stream.process) {
-          stream.process.kill();
-        }
-        this.activeStreams.delete(key);
-      } catch (error) {
-        logger.error("Error stopping stream during cleanup", {
-          error: error.message,
-          streamId: stream.streamId,
-          userId: socket.userId,
-        });
-      }
-    });
-
-    logger.debug("Stopped all streams for socket", {
-      socketId: socket.id,
-      userId: socket.userId,
-      stoppedCount: streamsToStop.length,
-    });
+  async verifyUserProjectAccess(userId, projectId) {
+    // TODO: Implement project access verification
+    // This should check the database to ensure the user owns or has access to the project
+    return true; // Placeholder
   }
 
   /**
-   * Cleanup all streams
+   * Verify user has access to a deployment
    */
-  static cleanup() {
-    const instance = this._instance;
-    if (instance) {
-      instance.activeStreams.forEach((stream) => {
-        try {
-          if (stream.tail) {
-            stream.tail.unwatch();
-          }
-          if (stream.process) {
-            stream.process.kill();
-          }
-        } catch (error) {
-          logger.error("Error during cleanup", error);
-        }
+  async verifyUserDeploymentAccess(userId, deploymentId) {
+    // TODO: Implement deployment access verification
+    // This should check the database to ensure the user owns or has access to the deployment
+    return true; // Placeholder
+  }
+
+  /**
+   * Get user logs
+   */
+  async getUserLogs(userId, projectId, deploymentId) {
+    // TODO: Implement user log fetching
+    // This should get logs for user's projects and deployments
+    return {
+      logs: [],
+      totalLines: 0,
+      source: "user-logs",
+    };
+  }
+
+  /**
+   * Get deployment logs
+   */
+  async getDeploymentLogs(deploymentId) {
+    // TODO: Implement deployment log fetching
+    // This should get real-time logs from the agent service for the specific deployment
+    return {
+      logs: [],
+      totalLines: 0,
+      source: "deployment-logs",
+    };
+  }
+
+  /**
+   * Start metrics streaming for a user
+   */
+  startMetricsStreaming(userId) {
+    // TODO: Implement periodic metrics streaming
+    // This should send metrics updates at regular intervals
+  }
+
+  /**
+   * Get namespace status
+   */
+  getStatus() {
+    return {
+      activeStreams: this.activeStreams.size,
+      connectedUsers: this.userRooms.size,
+      activeRooms: this.roomUsers.size,
+      rooms: Array.from(this.roomUsers.keys()),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Get available services for log streaming
+   */
+  async getAvailableServices(socket) {
+    const user = socket.user;
+
+    try {
+      const availableServices = logCollectorService.getAvailableServices();
+
+      // Send available streams in the format the client expects
+      const streamData = {};
+      availableServices.forEach((serviceId) => {
+        streamData[serviceId] = {
+          name: serviceId,
+          type: "application",
+          description: `${serviceId} service logs`,
+          available: true,
+        };
       });
-      instance.activeStreams.clear();
-      logger.info("Log streaming cleanup completed");
+
+      socket.emit("streams:available", streamData);
+
+      logger.info("Available services requested", {
+        userId: user.id,
+        services: availableServices,
+      });
+    } catch (error) {
+      logger.error("Error getting available services:", error);
+      socket.emit("error", {
+        message: "Failed to get available services",
+        error: error.message,
+      });
     }
   }
 }
