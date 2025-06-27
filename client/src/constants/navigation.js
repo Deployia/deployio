@@ -107,6 +107,12 @@ export const resourcesItems = [
     description: "Join our developer community",
     comingSoon: "Coming Soon",
   },
+  {
+    label: "System Health",
+    href: "/health",
+    icon: FaTachometerAlt,
+    description: "Real-time system monitoring",
+  },
 ];
 
 // Dashboard navigation items
@@ -210,6 +216,12 @@ export const adminItems = [
     href: "/admin/settings",
     icon: FaCog,
     description: "System configuration",
+  },
+  {
+    label: "System Health",
+    href: "/health",
+    icon: FaTachometerAlt,
+    description: "Real-time system monitoring",
   },
 ];
 

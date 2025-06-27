@@ -31,7 +31,8 @@ const { connectRedis } = require("./config/redisClient");
     features: {
       notifications: true,
       chat: false,
-      logStreaming: true, // <-- Enabled log streaming
+      logStreaming: true,
+      metrics: true, // Enable metrics streaming
       deploymentLogs: false,
       systemMonitoring: false,
     },

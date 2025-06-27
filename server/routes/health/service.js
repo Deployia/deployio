@@ -300,97 +300,106 @@ async function getServiceLogs(serviceName, lines, level) {
     };
   }
   try {
-    // Optimized log reading using streams for better performance
+    // Highly optimized log reading for fast response
     const readRecentLines = async (filePath, numLines) => {
-      const { spawn } = require("child_process");
-      const { createReadStream } = require("fs");
-      const { stat } = require("fs").promises;
-
-      // First, try efficient platform-specific commands
-      const useStreamingApproach = numLines > 1000; // Use streaming for large requests
-
-      if (!useStreamingApproach) {
-        // For smaller requests, use platform commands (fastest)
-        return await readWithPlatformCommand(filePath, numLines);
-      }
-
-      // For larger requests, use efficient streaming approach
-      return await readWithStreaming(filePath, numLines);
-    };
-
-    const readWithPlatformCommand = async (filePath, numLines) => {
-      const { exec } = require("child_process");
-      const util = require("util");
-      const execPromise = util.promisify(exec);
-
-      let command;
-
-      if (process.platform === "win32") {
-        // Optimized Windows PowerShell command
-        command = `powershell -Command "Get-Content -Path '${filePath.replace(
-          /'/g,
-          "''"
-        )}' -Tail ${numLines} -ReadCount 0"`;
-      } else {
-        // Unix-like systems - tail is very efficient
-        command = `tail -n ${numLines} "${filePath}"`;
-      }
-
-      try {
-        const { stdout } = await execPromise(command, {
-          timeout: 30000, // 30 second timeout
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        });
-        return stdout;
-      } catch (cmdError) {
-        console.warn(`Platform command failed: ${cmdError.message}`);
-        // Fallback to streaming approach
-        return await readWithStreaming(filePath, numLines);
-      }
-    };
-
-    const readWithStreaming = async (filePath, numLines) => {
-      const readline = require("readline");
-      const { createReadStream } = require("fs");
+      const fs = require("fs");
       const { stat } = require("fs").promises;
 
       try {
+        // Get file size for optimization decisions
         const fileStats = await stat(filePath);
         const fileSize = fileStats.size;
 
-        // For very large files, start reading from near the end
-        const estimatedLineLength = 200; // Average log line length
-        const estimatedBytesNeeded = numLines * estimatedLineLength;
-        const startPosition = Math.max(0, fileSize - estimatedBytesNeeded * 2);
+        // For small files (< 1MB), read entirely
+        if (fileSize < 1024 * 1024) {
+          const content = await fs.promises.readFile(filePath, "utf8");
+          const lines = content.split(/\r?\n/).filter((line) => line.trim());
+          return lines.slice(-numLines).join("\n");
+        }
 
-        const lines = [];
-        const fileStream = createReadStream(filePath, {
+        // For larger files, use optimized tail approach
+        return await readWithOptimizedTail(filePath, numLines, fileSize);
+      } catch (error) {
+        logger.warn(
+          `Optimized read failed: ${error.message}, falling back to basic read`
+        );
+        // Fallback to basic read for small number of lines
+        return await readWithBasicFallback(filePath, Math.min(numLines, 100));
+      }
+    };
+
+    const readWithOptimizedTail = async (filePath, numLines, fileSize) => {
+      const fs = require("fs");
+
+      // Estimate bytes needed (average 150 chars per line)
+      const estimatedBytesPerLine = 150;
+      const bytesToRead = Math.min(
+        numLines * estimatedBytesPerLine * 2,
+        fileSize
+      );
+      const startPosition = Math.max(0, fileSize - bytesToRead);
+
+      return new Promise((resolve, reject) => {
+        const stream = fs.createReadStream(filePath, {
           start: startPosition,
           encoding: "utf8",
         });
 
-        const rl = readline.createInterface({
-          input: fileStream,
-          crlfDelay: Infinity,
+        let buffer = "";
+        const timeout = setTimeout(() => {
+          stream.destroy();
+          reject(new Error("Read timeout"));
+        }, 5000); // 5 second timeout
+
+        stream.on("data", (chunk) => {
+          buffer += chunk;
         });
 
-        for await (const line of rl) {
-          lines.push(line);
+        stream.on("end", () => {
+          clearTimeout(timeout);
+          const lines = buffer.split(/\r?\n/).filter((line) => line.trim());
+          const recentLines = lines.slice(-numLines);
+          resolve(recentLines.join("\n"));
+        });
+
+        stream.on("error", (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+    };
+
+    const readWithBasicFallback = async (filePath, numLines) => {
+      const fs = require("fs");
+      const { exec } = require("child_process");
+      const util = require("util");
+      const execPromise = util.promisify(exec);
+
+      try {
+        let command;
+        if (process.platform === "win32") {
+          // Use PowerShell for Windows with timeout
+          command = `powershell -Command "& {$ErrorActionPreference='Stop'; Get-Content -Path '${filePath.replace(
+            /'/g,
+            "''"
+          )}' -Tail ${numLines} -ReadCount 0}"`;
+        } else {
+          // Use tail for Unix-like systems
+          command = `tail -n ${numLines} "${filePath}"`;
         }
 
-        // Return the last numLines
-        const recentLines = lines.slice(-numLines);
-        return recentLines.join("\n");
-      } catch (streamError) {
-        // Final fallback - read entire file (not recommended for large files)
-        console.warn(
-          `Streaming failed, using basic fallback: ${streamError.message}`
-        );
+        const { stdout } = await execPromise(command, {
+          timeout: 3000, // 3 second timeout
+          maxBuffer: 5 * 1024 * 1024, // 5MB buffer
+        });
+
+        return stdout;
+      } catch (cmdError) {
+        // Final fallback - read just last part of file
         const fs = require("fs");
         const fileContent = await fs.promises.readFile(filePath, "utf8");
-        const allLines = fileContent.split(/\r?\n/);
-        const recentLines = allLines.slice(-numLines);
-        return recentLines.join("\n");
+        const lines = fileContent.split(/\r?\n/).filter((line) => line.trim());
+        return lines.slice(-Math.min(numLines, 50)).join("\n"); // Limit to 50 lines max for fallback
       }
     };
 
@@ -513,29 +522,138 @@ function parseLogLine(line, serviceName) {
   }
 }
 
+async function getServiceMetrics(serviceName) {
+  switch (serviceName) {
+    case "backend":
+      return await getBackendMetrics();
+    case "ai-service":
+      return await getAiServiceMetrics();
+    case "agent":
+      return await getAgentMetrics();
+    default:
+      throw new Error("Invalid service name");
+  }
+}
+
 async function getBackendMetrics() {
+  const memUsage = process.memoryUsage();
+  const cpuUsage = process.cpuUsage();
+
   return {
-    memory: process.memoryUsage(),
-    cpu: process.cpuUsage(),
-    uptime: process.uptime(),
-    eventLoopDelay: process.hrtime(),
+    service: "backend",
+    timestamp: new Date().toISOString(),
+    memory: {
+      used: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
+      total: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
+      external: Math.round(memUsage.external / 1024 / 1024), // MB
+      rss: Math.round(memUsage.rss / 1024 / 1024), // MB
+      usage: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100), // %
+    },
+    cpu: {
+      user: Math.round(cpuUsage.user / 1000), // microseconds to milliseconds
+      system: Math.round(cpuUsage.system / 1000),
+      usage: Math.round(((cpuUsage.user + cpuUsage.system) / 1000000) * 100), // rough CPU %
+    },
+    uptime: Math.round(process.uptime()),
     activeHandles: process._getActiveHandles().length,
     activeRequests: process._getActiveRequests().length,
+    eventLoopDelay: process.hrtime(),
+    nodeVersion: process.version,
+    platform: process.platform,
   };
 }
 
 async function getAiServiceMetrics() {
-  // This would call the AI service metrics endpoint
-  return {
-    note: "AI Service metrics would be fetched from external service",
-  };
+  try {
+    const axios = require("axios");
+    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+
+    // Try to get metrics from AI service
+    const response = await axios.get(`${aiServiceUrl}/service/v1/health`, {
+      timeout: 5000,
+    });
+
+    // Extract metrics from health response
+    const healthData = response.data;
+    return {
+      service: "ai-service",
+      timestamp: new Date().toISOString(),
+      status: healthData.status || "unknown",
+      uptime: healthData.uptime || 0,
+      memory: healthData.memory || { usage: 0 },
+      cpu: healthData.cpu || { usage: 0 },
+      requests: healthData.requests || { total: 0, active: 0 },
+      redis: healthData.services?.redis || { status: "unknown" },
+      python_version: healthData.python_version || "unknown",
+      url: aiServiceUrl,
+      source: "external",
+    };
+  } catch (error) {
+    return {
+      service: "ai-service",
+      timestamp: new Date().toISOString(),
+      status: "unhealthy",
+      error: error.message,
+      code: error.code || error.response?.status,
+      url: process.env.AI_SERVICE_URL || "http://localhost:8000",
+      source: "external",
+      uptime: 0,
+      memory: { usage: 0 },
+      cpu: { usage: 0 },
+    };
+  }
 }
 
 async function getAgentMetrics() {
-  // This would call the Agent metrics endpoint
-  return {
-    note: "Agent metrics would be fetched from external service",
-  };
+  try {
+    const axios = require("axios");
+    const agentUrl = process.env.AGENT_URL || "http://localhost:8001";
+
+    // Try to get metrics from Agent service
+    const response = await axios.get(`${agentUrl}/agent/v1/health`, {
+      timeout: 5000,
+    });
+
+    // Extract metrics from health response
+    const healthData = response.data;
+    return {
+      service: "agent",
+      timestamp: new Date().toISOString(),
+      status: healthData.status || "unknown",
+      uptime: healthData.uptime || 0,
+      memory: healthData.memory || { usage: 0 },
+      cpu: healthData.cpu || { usage: 0 },
+      services: {
+        docker: healthData.services?.docker || { status: "unknown" },
+        mongodb: healthData.services?.mongodb || { status: "unknown" },
+      },
+      python_version: healthData.python_version || "unknown",
+      url: agentUrl,
+      source: "external",
+    };
+  } catch (error) {
+    return {
+      service: "agent",
+      timestamp: new Date().toISOString(),
+      status: "unhealthy",
+      error: error.message,
+      code: error.code || error.response?.status,
+      url: process.env.AGENT_URL || "http://localhost:8001",
+      source: "external",
+      uptime: 0,
+      memory: { usage: 0 },
+      cpu: { usage: 0 },
+      services: {
+        docker: { status: "unknown" },
+        mongodb: { status: "unknown" },
+      },
+    };
+  }
 }
 
+// Export functions for WebSocket use
 module.exports = router;
+module.exports.getServiceMetrics = getServiceMetrics;
+module.exports.getBackendMetrics = getBackendMetrics;
+module.exports.getAiServiceMetrics = getAiServiceMetrics;
+module.exports.getAgentMetrics = getAgentMetrics;

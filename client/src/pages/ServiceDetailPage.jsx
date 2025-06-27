@@ -1,7 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useLogStream } from "@hooks/useLogStream";
+import { useMetricsStream } from "@hooks/useMetricsStream";
+import MetricsChart from "@components/MetricsChart";
 import SEO from "@components/SEO";
 import { LoadingState, InlineSpinner } from "@components/ui/Spinner";
 import {
@@ -35,10 +37,24 @@ const ServiceDetailPage = () => {
   // Log streaming hook
   const { startStream, stopStream, getStreamLogs } = useLogStream();
 
+  // Metrics streaming hook
+  const {
+    startMetricsStream,
+    stopMetricsStream,
+    getStreamMetrics,
+    getLatestMetrics,
+    isStreamActive: isMetricsStreamActive,
+    isConnected: metricsConnected,
+  } = useMetricsStream();
+
+  // Refs for auto-scroll
+  const logsEndRef = useRef(null);
+  const logsContainerRef = useRef(null);
+  const autoScrollRef = useRef(true);
+
   // Service data state
   const [serviceData, setServiceData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [metricsLoading, setMetricsLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -48,8 +64,6 @@ const ServiceDetailPage = () => {
   const [actualStreamId, setActualStreamId] = useState(null);
   const [logFilter, setLogFilter] = useState("");
   const [logLevel, setLogLevel] = useState("all");
-  // Metrics state
-  const [metrics, setMetrics] = useState(null);
 
   // Add custom CSS for scrollbar styling
   useEffect(() => {
@@ -110,22 +124,6 @@ const ServiceDetailPage = () => {
           })
           .catch((err) => {
             throw err;
-          }),
-
-        // Metrics
-        backend
-          .get(`/health/services/${serviceName}/metrics`, {
-            withCredentials: true,
-          })
-          .then((response) => {
-            setMetrics(response.data.data);
-            setMetricsLoading(false);
-            return response;
-          })
-          .catch((err) => {
-            setMetricsLoading(false);
-            console.warn(`Failed to fetch metrics for ${serviceName}:`, err);
-            return null; // Don't fail the whole request for metrics
           }),
 
         // Recent logs
@@ -257,10 +255,44 @@ const ServiceDetailPage = () => {
 
       return () => clearInterval(interval);
     }
-  }, [isLogStreamActive, actualStreamId]); // Removed getStreamLogs from dependencies
+  }, [isLogStreamActive, actualStreamId, getStreamLogs]);
+
+  // Auto-scroll to bottom when new logs arrive
+  useEffect(() => {
+    if (autoScrollRef.current && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs]);
+
+  // Handle scroll to detect if user scrolled up (disable auto-scroll)
+  const handleLogsScroll = useCallback(() => {
+    if (logsContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        logsContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop <= clientHeight + 50; // 50px tolerance
+      autoScrollRef.current = isAtBottom;
+    }
+  }, []);
 
   const clearLogs = () => {
     setLogs([]);
+  };
+
+  // Metrics streaming functions
+  const startMetrics = async () => {
+    try {
+      await startMetricsStream(serviceName, 5000); // Update every 5 seconds
+    } catch (error) {
+      console.error("Failed to start metrics stream:", error);
+    }
+  };
+
+  const stopMetrics = async () => {
+    try {
+      await stopMetricsStream(serviceName);
+    } catch (error) {
+      console.error("Failed to stop metrics stream:", error);
+    }
   };
 
   const exportLogs = () => {
@@ -738,7 +770,11 @@ const ServiceDetailPage = () => {
                     )}
                   </div>
                 </div>{" "}
-                <div className="h-96 overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm custom-scrollbar">
+                <div
+                  ref={logsContainerRef}
+                  onScroll={handleLogsScroll}
+                  className="h-96 overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm custom-scrollbar"
+                >
                   {logsLoading ? (
                     <div className="flex items-center justify-center h-full">
                       <LoadingState
@@ -786,61 +822,186 @@ const ServiceDetailPage = () => {
                           )}{" "}
                         </div>
                       ))}
+                      <div ref={logsEndRef} />
                     </div>
                   )}
                 </div>
               </div>{" "}
-              {/* Additional Metrics */}
-              {metricsLoading ? (
-                <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
-                  <div className="flex items-center gap-3 mb-4">
+              {/* Real-time Metrics */}
+              <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-yellow-600/20 text-yellow-400 flex items-center justify-center">
                       <FaChartLine className="h-5 w-5" />
                     </div>
                     <div>
                       <h2 className="text-lg font-semibold text-white heading">
-                        Performance Metrics
+                        Real-time Metrics
                       </h2>
                       <p className="text-xs text-neutral-400">
-                        Additional service performance data
+                        Live performance monitoring
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-center py-8">
-                    <LoadingState
-                      text="Loading metrics..."
-                      size="md"
-                      color="yellow"
-                      textClassName="text-yellow-400"
-                    />
+
+                  {/* Metrics Controls */}
+                  <div className="flex items-center gap-2">
+                    {isMetricsStreamActive(serviceName) ? (
+                      <button
+                        onClick={stopMetrics}
+                        className="flex items-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 px-4 py-2 rounded-lg transition-colors text-sm"
+                      >
+                        <FaStop className="h-4 w-4" />
+                        Stop Stream
+                      </button>
+                    ) : (
+                      <button
+                        onClick={startMetrics}
+                        className="flex items-center gap-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 px-4 py-2 rounded-lg transition-colors text-sm"
+                      >
+                        <FaPlay className="h-4 w-4" />
+                        Start Stream
+                      </button>
+                    )}
+
+                    <div className="flex items-center gap-2 text-sm">
+                      <span
+                        className={`inline-block w-2 h-2 rounded-full ${
+                          metricsConnected ? "bg-green-400" : "bg-red-400"
+                        }`}
+                      ></span>
+                      <span className="text-neutral-400">
+                        {metricsConnected ? "Connected" : "Disconnected"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                metrics && (
-                  <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="h-10 w-10 rounded-lg bg-yellow-600/20 text-yellow-400 flex items-center justify-center">
-                        <FaChartLine className="h-5 w-5" />
+
+                {/* Metrics Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Memory Usage Chart */}
+                  <MetricsChart
+                    data={getStreamMetrics(serviceName).map((m) => ({
+                      timestamp: m.timestamp,
+                      value: m.memory?.usage || m.memory?.used || 0,
+                    }))}
+                    title="Memory Usage"
+                    dataKey="value"
+                    color="#10B981"
+                    type="area"
+                    unit="%"
+                    formatValue={(value) => `${Math.round(value)}%`}
+                    formatTime={(time) => new Date(time).toLocaleTimeString()}
+                  />
+
+                  {/* CPU Usage Chart */}
+                  <MetricsChart
+                    data={getStreamMetrics(serviceName).map((m) => ({
+                      timestamp: m.timestamp,
+                      value: m.cpu?.usage || 0,
+                    }))}
+                    title="CPU Usage"
+                    dataKey="value"
+                    color="#3B82F6"
+                    type="line"
+                    unit="%"
+                    formatValue={(value) => `${Math.round(value)}%`}
+                    formatTime={(time) => new Date(time).toLocaleTimeString()}
+                  />
+
+                  {/* Uptime Chart */}
+                  <MetricsChart
+                    data={getStreamMetrics(serviceName).map((m) => ({
+                      timestamp: m.timestamp,
+                      value: m.uptime || 0,
+                    }))}
+                    title="Uptime"
+                    dataKey="value"
+                    color="#8B5CF6"
+                    type="line"
+                    unit="s"
+                    formatValue={(value) => {
+                      const hours = Math.floor(value / 3600);
+                      const minutes = Math.floor((value % 3600) / 60);
+                      return `${hours}h ${minutes}m`;
+                    }}
+                    formatTime={(time) => new Date(time).toLocaleTimeString()}
+                  />
+
+                  {/* Response Time / Active Connections */}
+                  <MetricsChart
+                    data={getStreamMetrics(serviceName).map((m) => ({
+                      timestamp: m.timestamp,
+                      value: m.activeRequests || m.activeHandles || 0,
+                    }))}
+                    title="Active Connections"
+                    dataKey="value"
+                    color="#F59E0B"
+                    type="area"
+                    unit=""
+                    formatValue={(value) => `${Math.round(value)}`}
+                    formatTime={(time) => new Date(time).toLocaleTimeString()}
+                  />
+                </div>
+
+                {/* Latest Metrics Summary */}
+                {getLatestMetrics(serviceName) && (
+                  <div className="mt-6 p-4 bg-black/30 rounded-lg border border-neutral-700">
+                    <h3 className="text-white font-medium mb-3">
+                      Latest Metrics
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-neutral-400">Memory:</span>
+                        <span className="text-white ml-2">
+                          {getLatestMetrics(serviceName).memory?.usage ||
+                            getLatestMetrics(serviceName).memory?.used ||
+                            "N/A"}
+                          {typeof (
+                            getLatestMetrics(serviceName).memory?.usage ||
+                            getLatestMetrics(serviceName).memory?.used
+                          ) === "number"
+                            ? "%"
+                            : ""}
+                        </span>
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold text-white heading">
-                          Performance Metrics
-                        </h2>
-                        <p className="text-xs text-neutral-400">
-                          Additional service performance data
-                        </p>
+                        <span className="text-neutral-400">CPU:</span>
+                        <span className="text-white ml-2">
+                          {getLatestMetrics(serviceName).cpu?.usage || "N/A"}
+                          {typeof getLatestMetrics(serviceName).cpu?.usage ===
+                          "number"
+                            ? "%"
+                            : ""}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400">Uptime:</span>
+                        <span className="text-white ml-2">
+                          {formatUptime(
+                            getLatestMetrics(serviceName).uptime || 0
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400">Status:</span>
+                        <span
+                          className={`ml-2 ${
+                            getLatestMetrics(serviceName).status === "healthy"
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {getLatestMetrics(serviceName).status || "Unknown"}
+                        </span>
                       </div>
                     </div>
-                    <pre className="text-xs text-neutral-300 bg-black/30 p-4 rounded-lg border border-neutral-700 overflow-auto">
-                      {JSON.stringify(metrics, null, 2)}
-                    </pre>
                   </div>
-                )
-              )}
+                )}
+              </div>
             </div>
           ) : (
             <div className="min-h-[400px] flex items-center justify-center">
-              {" "}
               <div className="text-center">
                 <FaExclamationTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
                 <p className="text-neutral-400">No service data available</p>

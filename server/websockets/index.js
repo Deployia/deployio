@@ -5,6 +5,7 @@ const logger = require("../config/logger");
 // Import namespace classes
 const NotificationsNamespace = require("./namespaces/NotificationsNamespace");
 const LogStreamingNamespace = require("./namespaces/LogStreamingNamespace");
+const MetricsNamespace = require("./namespaces/MetricsNamespace");
 const ChatNamespace = require("./namespaces/ChatNamespace");
 const BuildLogsNamespace = require("./namespaces/BuildLogsNamespace");
 
@@ -35,6 +36,7 @@ function initializeWebSockets(server, options = {}) {
     features: {
       notifications: true,
       logStreaming: true,
+      metrics: true, // New metrics streaming
       chat: false, // Future: Real-time chat
       buildLogs: false, // Future: Build log streaming
     },
@@ -123,6 +125,22 @@ function setupNamespaces(features) {
       });
     } catch (error) {
       logger.error("✗ Failed to initialize log streaming namespace", {
+        error: error.message,
+      });
+    }
+  }
+
+  // Metrics streaming namespace - Admin only
+  if (features.metrics) {
+    try {
+      MetricsNamespace.initialize();
+      logger.info("✓ Metrics streaming namespace initialized", {
+        namespace: "/metrics",
+        requireAuth: true,
+        requireAdmin: true,
+      });
+    } catch (error) {
+      logger.error("✗ Failed to initialize metrics streaming namespace", {
         error: error.message,
       });
     }
