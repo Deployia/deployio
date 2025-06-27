@@ -12,6 +12,7 @@ export function useLogStream() {
   const [availableStreams, setAvailableStreams] = useState({});
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [logUpdateCounter, setLogUpdateCounter] = useState(0); // Track log updates
   const logBuffersRef = useRef(new Map());
   const socketRef = useRef(null);
   const activeStreamsRef = useRef(new Set());
@@ -43,6 +44,7 @@ export function useLogStream() {
 
     // Trigger re-render
     setActiveStreams((prev) => new Map(prev));
+    setLogUpdateCounter((prev) => prev + 1); // Increment log update counter
   }, []); // Initialize WebSocket connection
   useEffect(() => {
     let mounted = true;
@@ -264,6 +266,7 @@ export function useLogStream() {
     // Stream data
     activeStreams: Array.from(activeStreams.entries()),
     availableStreams,
+    logUpdateCounter, // Export the log update counter
 
     // Stream control
     startStream,

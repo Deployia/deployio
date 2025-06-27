@@ -18,7 +18,7 @@ const MetricsChart = ({
   dataKey = "value",
   timeKey = "timestamp",
   color = "#3B82F6", // Default blue
-  height = 300,
+  height = 200, // Reduced from 300 for compactness
   showGrid = true,
   strokeWidth = 2,
   fillOpacity = 0.1,
@@ -26,6 +26,7 @@ const MetricsChart = ({
   unit = "",
   formatValue = null,
   formatTime = null,
+  compact = false, // New compact mode
 }) => {
   // Format data for recharts
   const chartData = data.map((item, index) => ({
@@ -65,30 +66,38 @@ const MetricsChart = ({
 
   return (
     <div
-      className={`bg-neutral-900/40 backdrop-blur-lg border border-neutral-800/30 rounded-xl p-6 ${className}`}
+      className={`bg-neutral-900/60 backdrop-blur-lg border border-neutral-800/50 rounded-xl p-4 hover:bg-neutral-900/70 transition-all duration-200 ${className}`}
     >
-      <h3 className="text-white font-semibold text-lg mb-4 heading">{title}</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-white font-semibold text-base heading">{title}</h3>
+        {data.length > 0 && (
+          <div className="text-xs text-gray-400">{data.length} data points</div>
+        )}
+      </div>
 
       {chartData.length === 0 ? (
-        <div className="flex items-center justify-center h-64 text-gray-400">
+        <div className="flex items-center justify-center h-32 text-gray-400">
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 opacity-30">
+            <div className="w-12 h-12 mx-auto mb-2 opacity-30">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
               </svg>
             </div>
-            <p className="body">No data available</p>
+            <p className="text-sm body">No data available</p>
           </div>
         </div>
       ) : (
-        <div style={{ height }}>
+        <div style={{ height: compact ? height * 0.7 : height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ChartComponent data={chartData}>
+            <ChartComponent
+              data={chartData}
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            >
               {showGrid && (
                 <CartesianGrid
-                  strokeDasharray="3 3"
+                  strokeDasharray="2 2"
                   stroke="#374151"
-                  opacity={0.3}
+                  opacity={0.2}
                 />
               )}
 
@@ -98,10 +107,11 @@ const MetricsChart = ({
                 tickLine={false}
                 tick={{
                   fill: "#9CA3AF",
-                  fontSize: 12,
+                  fontSize: 10,
                   fontFamily: "DM Sans, sans-serif",
                 }}
                 interval="preserveStartEnd"
+                tickMargin={5}
               />
 
               <YAxis
@@ -109,12 +119,14 @@ const MetricsChart = ({
                 tickLine={false}
                 tick={{
                   fill: "#9CA3AF",
-                  fontSize: 12,
+                  fontSize: 10,
                   fontFamily: "DM Sans, sans-serif",
                 }}
                 tickFormatter={(value) =>
                   formatValue ? formatValue(value) : `${value}${unit}`
                 }
+                width={60}
+                tickMargin={5}
               />
 
               <Tooltip content={<CustomTooltip />} />
@@ -129,10 +141,11 @@ const MetricsChart = ({
                   strokeWidth={strokeWidth}
                   dot={false}
                   activeDot={{
-                    r: 4,
+                    r: 3,
                     fill: color,
                     stroke: "#fff",
                     strokeWidth: 2,
+                    shadow: `0 0 6px ${color}`,
                   }}
                 />
               ) : (
@@ -143,10 +156,11 @@ const MetricsChart = ({
                   strokeWidth={strokeWidth}
                   dot={false}
                   activeDot={{
-                    r: 4,
+                    r: 3,
                     fill: color,
                     stroke: "#fff",
                     strokeWidth: 2,
+                    shadow: `0 0 6px ${color}`,
                   }}
                 />
               )}

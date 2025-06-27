@@ -35,7 +35,8 @@ const ServiceDetailPage = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   // Log streaming hook
-  const { startStream, stopStream, getStreamLogs } = useLogStream();
+  const { startStream, stopStream, getStreamLogs, logUpdateCounter } =
+    useLogStream();
 
   // Metrics streaming hook
   const {
@@ -217,45 +218,52 @@ const ServiceDetailPage = () => {
     }
   };
 
-  // Update logs from stream - using a more efficient approach
+  // Update logs from stream - react to real-time changes
   useEffect(() => {
     if (isLogStreamActive && actualStreamId) {
-      // Set up interval to periodically fetch logs from the stream
-      const interval = setInterval(() => {
-        const streamLogs = getStreamLogs(actualStreamId);
+      const streamLogs = getStreamLogs(actualStreamId);
 
-        if (streamLogs && streamLogs.length > 0) {
-          setLogs((prevLogs) => {
-            const formattedLogs = streamLogs.map((log, index) => ({
+      if (streamLogs && streamLogs.length > 0) {
+        setLogs((prevLogs) => {
+          const formattedLogs = streamLogs.map((log, index) => {
+            // More robust log parsing
+            const content = log.content || log.data || log.raw || "";
+            let level = "INFO";
+
+            // Try to parse log level from content
+            if (log.isError || content.toLowerCase().includes("error")) {
+              level = "ERROR";
+            } else if (content.toLowerCase().includes("warn")) {
+              level = "WARN";
+            } else if (content.toLowerCase().includes("debug")) {
+              level = "DEBUG";
+            }
+
+            return {
               id: log.id || `stream_${Date.now()}_${index}`,
               timestamp: log.timestamp || new Date().toISOString(),
-              level: log.data?.level || "INFO",
-              message:
-                log.data?.message ||
-                log.content ||
-                log.raw ||
-                "Unknown log message",
-              raw: log.raw || log.content || log.data?.message || "",
+              level,
+              message: content,
+              raw: content,
               source: "realtime",
-            }));
-
-            // Only update if we have new logs
-            const currentIds = new Set(prevLogs.map((log) => log.id));
-            const newLogs = formattedLogs.filter(
-              (log) => !currentIds.has(log.id)
-            );
-
-            if (newLogs.length > 0) {
-              return [...prevLogs, ...newLogs].slice(-1000); // Keep last 1000 logs
-            }
-            return prevLogs;
+            };
           });
-        }
-      }, 1000); // Check for new logs every second
 
-      return () => clearInterval(interval);
+          // Only update if we have new logs
+          const currentIds = new Set(prevLogs.map((log) => log.id));
+          const newLogs = formattedLogs.filter(
+            (log) => !currentIds.has(log.id)
+          );
+
+          if (newLogs.length > 0) {
+            console.log(`Adding ${newLogs.length} new log entries`);
+            return [...prevLogs, ...newLogs].slice(-1000); // Keep last 1000 logs
+          }
+          return prevLogs;
+        });
+      }
     }
-  }, [isLogStreamActive, actualStreamId, getStreamLogs]);
+  }, [isLogStreamActive, actualStreamId, getStreamLogs, logUpdateCounter]);
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
@@ -878,7 +886,7 @@ const ServiceDetailPage = () => {
                 </div>
 
                 {/* Metrics Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Memory Usage Chart */}
                   <MetricsChart
                     data={getStreamMetrics(serviceName).map((m) => ({
@@ -890,6 +898,8 @@ const ServiceDetailPage = () => {
                     color="#10B981"
                     type="area"
                     unit="%"
+                    height={250}
+                    compact={true}
                     formatValue={(value) => `${Math.round(value)}%`}
                     formatTime={(time) => new Date(time).toLocaleTimeString()}
                   />
@@ -905,6 +915,8 @@ const ServiceDetailPage = () => {
                     color="#3B82F6"
                     type="line"
                     unit="%"
+                    height={250}
+                    compact={true}
                     formatValue={(value) => `${Math.round(value)}%`}
                     formatTime={(time) => new Date(time).toLocaleTimeString()}
                   />
@@ -920,6 +932,8 @@ const ServiceDetailPage = () => {
                     color="#8B5CF6"
                     type="line"
                     unit="s"
+                    height={250}
+                    compact={true}
                     formatValue={(value) => {
                       const hours = Math.floor(value / 3600);
                       const minutes = Math.floor((value % 3600) / 60);
@@ -939,6 +953,8 @@ const ServiceDetailPage = () => {
                     color="#F59E0B"
                     type="area"
                     unit=""
+                    height={250}
+                    compact={true}
                     formatValue={(value) => `${Math.round(value)}`}
                     formatTime={(time) => new Date(time).toLocaleTimeString()}
                   />
