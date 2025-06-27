@@ -5,11 +5,52 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const { getRedisClient } = require("@config/redisClient");
+const os = require("os");
+
+// Helper function to get system metrics
+function getSystemMetrics() {
+  const memoryUsage = process.memoryUsage();
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  const usedMemory = totalMemory - freeMemory;
+
+  // Get CPU usage (Node.js process only)
+  const cpuUsage = process.cpuUsage();
+  const cpus = os.cpus();
+
+  return {
+    memory: {
+      usage: Math.round((usedMemory / totalMemory) * 100 * 100) / 100, // % with 2 decimal places
+      used: Math.round((memoryUsage.heapUsed / 1024 / 1024) * 100) / 100, // MB
+      total: Math.round((memoryUsage.heapTotal / 1024 / 1024) * 100) / 100, // MB
+      system_used: Math.round((usedMemory / 1024 / 1024) * 100) / 100, // MB
+      system_total: Math.round((totalMemory / 1024 / 1024) * 100) / 100, // MB
+      external: Math.round((memoryUsage.external / 1024 / 1024) * 100) / 100, // MB
+    },
+    cpu: {
+      usage: 0, // Node.js doesn't provide real-time CPU percentage easily
+      cores: cpus.length,
+      model: cpus[0]?.model || "Unknown",
+      user_cpu_time: cpuUsage.user,
+      system_cpu_time: cpuUsage.system,
+    },
+    system: {
+      platform: os.platform(),
+      arch: os.arch(),
+      node_version: process.version,
+      uptime: os.uptime(),
+      load_average: os.loadavg(),
+    },
+  };
+}
 
 // Basic health check
 router.get("/", async (req, res) => {
   try {
     const startTime = Date.now();
+
+    // Get enhanced system metrics
+    const systemMetrics = getSystemMetrics();
 
     const health = {
       service: "Express Backend",
@@ -18,11 +59,9 @@ router.get("/", async (req, res) => {
       version: process.env.APP_VERSION || "1.0.0",
       environment: process.env.NODE_ENV || "development",
       uptime: process.uptime(),
-      memory: {
-        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-        external: Math.round(process.memoryUsage().external / 1024 / 1024),
-      },
+      memory: systemMetrics.memory,
+      cpu: systemMetrics.cpu,
+      system: systemMetrics.system,
       services: {},
     };
 

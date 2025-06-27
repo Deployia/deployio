@@ -29,6 +29,8 @@ class HealthResponse(BaseModel):
     uptime: float
     responseTime: float
     memory: dict
+    cpu: Optional[dict] = None
+    disk: Optional[dict] = None
     services: dict
 
 

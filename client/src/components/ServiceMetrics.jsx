@@ -159,7 +159,15 @@ const ServiceMetrics = ({
           unit="%"
           height={250}
           compact={true}
-          formatValue={(value) => `${Math.round(value)}%`}
+          formatValue={(value) =>
+            `${Math.round(value)}${
+              typeof value === "number" && value > 1
+                ? "%"
+                : value > 1
+                ? "%"
+                : "MB"
+            }`
+          }
           formatTime={(time) => new Date(time).toLocaleTimeString()}
         />
 
@@ -167,7 +175,7 @@ const ServiceMetrics = ({
         <MetricsChart
           data={getMetricsData(serviceName).map((m) => ({
             timestamp: m.timestamp,
-            value: m.cpu?.usage || 0,
+            value: m.cpu?.usage || m.cpu?.process_usage || 0,
           }))}
           title="CPU Usage"
           dataKey="value"
@@ -201,13 +209,16 @@ const ServiceMetrics = ({
           formatTime={(time) => new Date(time).toLocaleTimeString()}
         />
 
-        {/* Response Time / Active Connections */}
+        {/* Active Connections / Docker Containers */}
         <MetricsChart
           data={getMetricsData(serviceName).map((m) => ({
             timestamp: m.timestamp,
-            value: m.activeRequests || m.activeHandles || 0,
+            value:
+              m.activeRequests || m.activeHandles || m.docker?.containers || 0,
           }))}
-          title="Active Connections"
+          title={
+            serviceName === "agent" ? "Docker Containers" : "Active Connections"
+          }
           dataKey="value"
           color="#F59E0B"
           type="area"

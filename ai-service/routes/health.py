@@ -5,6 +5,8 @@ Health and utility routes for FastAPI service
 import time
 import logging
 import asyncio
+import psutil  # For system metrics
+import os
 from fastapi import APIRouter, HTTPException
 from models.response import HealthResponse, HelloResponse
 from config.redis_client import get_redis_client
@@ -16,11 +18,60 @@ logger = logging.getLogger(__name__)
 server_start = time.time()
 
 
+def get_system_metrics():
+    """Get detailed system metrics"""
+    try:
+        # Get memory info
+        memory = psutil.virtual_memory()
+        process = psutil.Process(os.getpid())
+        process_memory = process.memory_info()
+
+        # Get CPU usage
+        cpu_usage = psutil.cpu_percent(interval=0.1)
+
+        # Get process-specific metrics
+        process_cpu = process.cpu_percent(interval=0.1)
+
+        return {
+            "memory": {
+                "usage": round((memory.used / memory.total) * 100, 2),
+                "used": round(memory.used / 1024 / 1024, 2),  # MB
+                "total": round(memory.total / 1024 / 1024, 2),  # MB
+                "available": round(memory.available / 1024 / 1024, 2),  # MB
+                "process_used": round(process_memory.rss / 1024 / 1024, 2),  # MB
+            },
+            "cpu": {
+                "usage": round(cpu_usage, 2),
+                "process_usage": round(process_cpu, 2),
+                "cores": psutil.cpu_count(),
+            },
+            "disk": {
+                "usage": round(psutil.disk_usage("/").percent, 2),
+                "free": round(
+                    psutil.disk_usage("/").free / 1024 / 1024 / 1024, 2
+                ),  # GB
+                "total": round(
+                    psutil.disk_usage("/").total / 1024 / 1024 / 1024, 2
+                ),  # GB
+            },
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get system metrics: {e}")
+        return {
+            "memory": {"usage": 0, "used": 0, "total": 0},
+            "cpu": {"usage": 0, "process_usage": 0},
+            "disk": {"usage": 0, "free": 0, "total": 0},
+        }
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Comprehensive health check endpoint"""
+    """Comprehensive health check endpoint with detailed metrics"""
     try:
         start_time = time.time()
+
+        # Get system metrics
+        system_metrics = get_system_metrics()
 
         # Check Redis connection
         redis_client = get_redis_client()
@@ -62,10 +113,9 @@ async def health_check():
             version="1.0.0",
             uptime=uptime,
             responseTime=response_time,
-            memory={
-                "usage": "N/A",  # Python memory usage would require psutil
-                "limit": "N/A",
-            },
+            memory=system_metrics["memory"],
+            cpu=system_metrics["cpu"],
+            disk=system_metrics["disk"],
             services={"redis": redis_health},
         )
     except Exception as e:

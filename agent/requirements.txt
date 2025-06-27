@@ -13,3 +13,4 @@ pyyaml>=6.0.1
 boto3>=1.34.0
 botocore>=1.34.0
 colorlog>=6.7.0
+psutil>=5.9.0
