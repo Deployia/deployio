@@ -1,409 +1,344 @@
 /**
- * Remote Agent Log Bridge
- * Handles real-time log streaming from remote EC2 agent using Socket.IO
+ * Remote Agent Log Bridge - Integration with Agent Bridge Namespace
+ * Coordinates with the AgentBridgeNamespace for real-time log streaming
+ * Provides seamless integration between agent logs and existing log streaming infrastructure
  */
 
-const axios = require("axios");
 const EventEmitter = require("events");
-const { io } = require("socket.io-client");
 const logger = require("@config/logger");
+const webSocketRegistry = require("@websockets/core/WebSocketRegistry");
 
 class RemoteAgentLogBridge extends EventEmitter {
   constructor(options = {}) {
     super();
 
-    this.agentUrl =
-      options.agentUrl || process.env.AGENT_URL || "http://localhost:8001";
-    this.agentSecret =
-      options.agentSecret || process.env.AGENT_SECRET || "default-secret";
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10;
-    this.reconnectDelay = 5000; // 5 seconds
-    this.isConnected = false;
-    this.socket = null;
-    this.heartbeatInterval = null;
-
-    // Connection state
-    this.connectionState = "disconnected"; // disconnected, connecting, connected, error
-    this.lastHeartbeat = null;
-    this.connectionStartTime = null;
+    this.agentId = options.agentId || "agent-ec2-2";
+    this.isInitialized = false;
+    this.agentBridgeNamespace = null;
+    this.connectedAgents = new Map();
+    this.logSubscriptions = new Map(); // userId -> subscriptions
 
     // Configuration
     this.config = {
-      heartbeatInterval: 30000, // 30 seconds
-      connectionTimeout: 10000, // 10 seconds
-      maxReconnectDelay: 60000, // 60 seconds
+      enableLogProcessing: true,
+      enableAIAnalysis: true,
+      bufferSize: 1000,
+      batchSize: 50,
     };
   }
 
   /**
-   * Initialize the bridge and attempt connection
+   * Initialize the enhanced bridge
    */
   async initialize() {
-    logger.info("Initializing Remote Agent Log Bridge", {
-      agentUrl: this.agentUrl,
-      maxReconnectAttempts: this.maxReconnectAttempts,
-    });
+    if (this.isInitialized) {
+      return;
+    }
 
-    // Try Socket.IO connection first, fallback to HTTP polling
+    logger.info("Initializing Remote Agent Log Bridge");
+
     try {
-      await this.connectSocketIO();
+      // Get the agent bridge namespace
+      this.agentBridgeNamespace =
+        webSocketRegistry.getNamespace("/agent-bridge");
+
+      if (!this.agentBridgeNamespace) {
+        throw new Error(
+          "Agent bridge namespace not found. Make sure it's initialized first."
+        );
+      }
+
+      // Setup integration with agent bridge namespace
+      this.setupAgentBridgeIntegration();
+
+      this.isInitialized = true;
+      logger.info("Enhanced Remote Agent Log Bridge initialized successfully");
+
+      this.emit("initialized");
     } catch (error) {
-      logger.warn("Socket.IO connection failed, falling back to HTTP polling", {
+      logger.error("Failed to initialize Enhanced Remote Agent Log Bridge", {
         error: error.message,
+        stack: error.stack,
       });
-      this.startHttpPolling();
-    }
-  }
-
-  /**
-   * Connect to agent using Socket.IO
-   */
-  async connectSocketIO() {
-    if (
-      this.connectionState === "connecting" ||
-      this.connectionState === "connected"
-    ) {
-      return;
-    }
-
-    this.connectionState = "connecting";
-    this.connectionStartTime = new Date();
-
-    logger.info("Attempting Socket.IO connection to agent", {
-      url: this.agentUrl,
-    });
-
-    try {
-      this.socket = io(this.agentUrl + "/logs", {
-        auth: {
-          token: this.agentSecret,
-        },
-        timeout: this.config.connectionTimeout,
-        reconnection: true,
-        reconnectionAttempts: this.maxReconnectAttempts,
-        reconnectionDelay: this.reconnectDelay,
-      });
-
-      this.socket.on("connect", () => {
-        this.handleSocketIOConnect();
-      });
-
-      this.socket.on("log", (data) => {
-        this.handleLogMessage(data);
-      });
-
-      this.socket.on("error", (error) => {
-        this.handleSocketIOError(error);
-      });
-
-      this.socket.on("disconnect", (reason) => {
-        this.handleSocketIODisconnect(reason);
-      });
-
-      // Connection timeout
-      setTimeout(() => {
-        if (this.connectionState === "connecting") {
-          this.handleConnectionTimeout();
-        }
-      }, this.config.connectionTimeout);
-    } catch (error) {
-      this.handleSocketIOError(error);
-    }
-  }
-
-  /**
-   * Handle Socket.IO connection
-   */
-  handleSocketIOConnect() {
-    logger.info("Socket.IO connection to agent established");
-
-    this.connectionState = "connected";
-    this.isConnected = true;
-    this.reconnectAttempts = 0;
-    this.lastHeartbeat = new Date();
-
-    // Start heartbeat
-    this.startHeartbeat();
-
-    // Subscribe to log streams
-    this.subscribeToLogStreams();
-
-    this.emit("connected");
-  }
-
-  /**
-   * Handle Socket.IO error
-   */
-  handleSocketIOError(error) {
-    logger.error("Socket.IO error with agent", {
-      error: error.message,
-      connectionState: this.connectionState,
-    });
-
-    this.connectionState = "error";
-    this.isConnected = false;
-
-    this.emit("error", error);
-
-    // Attempt reconnection
-    this.scheduleReconnection();
-  }
-
-  /**
-   * Handle Socket.IO disconnect
-   */
-  handleSocketIODisconnect(reason) {
-    logger.warn("Socket.IO connection to agent disconnected", {
-      reason,
-      wasConnected: this.isConnected,
-    });
-
-    this.connectionState = "disconnected";
-    this.isConnected = false;
-
-    // Stop heartbeat
-    this.stopHeartbeat();
-
-    this.emit("disconnected", { code, reason });
-
-    // Attempt reconnection if it wasn't a clean close
-    if (code !== 1000) {
-      this.scheduleReconnection();
-    }
-  }
-
-  /**
-   * Handle connection timeout
-   */
-  handleConnectionTimeout() {
-    logger.error("Socket.IO connection to agent timed out");
-
-    if (this.socket) {
-      this.socket.disconnect();
-    }
-
-    this.connectionState = "error";
-    this.scheduleReconnection();
-  }
-
-  /**
-   * Schedule reconnection attempt
-   */
-  scheduleReconnection() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.error(
-        "Max reconnection attempts reached, falling back to HTTP polling",
-        {
-          attempts: this.reconnectAttempts,
-        }
-      );
-      this.startHttpPolling();
-      return;
-    }
-
-    this.reconnectAttempts++;
-    const delay = Math.min(
-      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
-      this.config.maxReconnectDelay
-    );
-
-    logger.info("Scheduling Socket.IO reconnection", {
-      attempt: this.reconnectAttempts,
-      delay,
-    });
-
-    setTimeout(() => {
-      this.connectSocketIO();
-    }, delay);
-  }
-
-  /**
-   * Start heartbeat mechanism
-   */
-  startHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-    }
-
-    this.heartbeatInterval = setInterval(() => {
-      if (this.socket && this.socket.connected) {
-        this.socket.emit("heartbeat", {
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }, this.config.heartbeatInterval);
-  }
-
-  /**
-   * Stop heartbeat mechanism
-   */
-  stopHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
-  }
-
-  /**
-   * Subscribe to log streams on the agent
-   */
-  subscribeToLogStreams() {
-    if (!this.socket || !this.socket.connected) {
-      return;
-    }
-
-    // Subscribe to agent system logs
-    this.socket.emit("subscribe", {
-      streams: ["system", "deployments", "containers"],
-      timestamp: new Date().toISOString(),
-    });
-
-    logger.info("Subscribed to agent log streams");
-  }
-
-  /**
-   * Handle log message from agent
-   */
-  handleLogMessage(logData) {
-    const standardizedLog = {
-      id:
-        logData.id ||
-        `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: logData.timestamp || new Date().toISOString(),
-      level: (logData.level || "info").toLowerCase(),
-      message: logData.message || "",
-      service: "agent",
-      source: "remote-agent",
-      metadata: {
-        ...logData.metadata,
-        agentUrl: this.agentUrl,
-        bridge: "socket.io",
-      },
-      raw: logData.raw || logData.message,
-    };
-
-    this.emit("log", standardizedLog);
-  }
-
-  /**
-   * Handle deployment log from agent
-   */
-  handleDeploymentLog(logData) {
-    const standardizedLog = {
-      id:
-        logData.id ||
-        `deployment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: logData.timestamp || new Date().toISOString(),
-      level: (logData.level || "info").toLowerCase(),
-      message: logData.message || "",
-      service: "agent-deployment",
-      source: "remote-agent",
-      metadata: {
-        ...logData.metadata,
-        deploymentId: logData.deploymentId,
-        projectId: logData.projectId,
-        userId: logData.userId,
-        containerId: logData.containerId,
-        agentUrl: this.agentUrl,
-        bridge: "websocket",
-      },
-      raw: logData.raw || logData.message,
-    };
-
-    this.emit("deployment_log", standardizedLog);
-  }
-
-  /**
-   * Handle heartbeat response
-   */
-  handleHeartbeat(heartbeatData) {
-    this.lastHeartbeat = new Date();
-    this.emit("heartbeat", heartbeatData);
-  }
-
-  /**
-   * Handle remote error
-   */
-  handleRemoteError(errorData) {
-    logger.error("Remote error from agent", errorData);
-    this.emit("remote_error", errorData);
-  }
-
-  /**
-   * Start HTTP polling as fallback
-   */
-  startHttpPolling() {
-    logger.info("Starting HTTP polling for agent logs");
-
-    this.httpPollingInterval = setInterval(async () => {
-      try {
-        await this.pollAgentLogs();
-      } catch (error) {
-        logger.error("HTTP polling failed", { error: error.message });
-      }
-    }, 10000); // Poll every 10 seconds
-  }
-
-  /**
-   * Poll agent logs via HTTP
-   */
-  async pollAgentLogs() {
-    try {
-      const response = await axios.get(`${this.agentUrl}/agent/v1/logs`, {
-        params: {
-          lines: 10,
-          since:
-            this.lastPollTime || new Date(Date.now() - 60000).toISOString(),
-        },
-        timeout: 5000,
-        headers: {
-          Authorization: `Bearer ${this.agentSecret}`,
-          "User-Agent": "DeployIO-LogBridge-HTTP/1.0",
-        },
-      });
-
-      const logs = response.data.logs || [];
-      for (const log of logs) {
-        this.handleLogMessage(log);
-      }
-
-      this.lastPollTime = new Date().toISOString();
-      this.emit("poll_success", { logs: logs.length });
-    } catch (error) {
-      this.emit("poll_error", error);
       throw error;
     }
   }
 
   /**
-   * Request deployment logs for specific deployment
+   * Setup integration with agent bridge namespace
    */
-  async requestDeploymentLogs(deploymentId, options = {}) {
-    if (this.socket && this.socket.connected) {
-      // Use Socket.IO for real-time streaming
-      this.socket.emit("subscribe_deployment", {
-        deploymentId,
-        options,
-        timestamp: new Date().toISOString(),
+  setupAgentBridgeIntegration() {
+    // Listen for agent status changes
+    this.agentBridgeNamespace.on("agent:status_change", (data) => {
+      this.handleAgentStatusChange(data);
+    });
+
+    // Listen for agent log entries
+    this.agentBridgeNamespace.on("agent:log", (data) => {
+      this.handleAgentLog(data);
+    });
+
+    // Listen for agent connection/disconnection
+    this.agentBridgeNamespace.on("agent:connected", (data) => {
+      this.handleAgentConnected(data);
+    });
+
+    this.agentBridgeNamespace.on("agent:disconnected", (data) => {
+      this.handleAgentDisconnected(data);
+    });
+
+    logger.info("Agent bridge integration setup complete");
+  }
+
+  /**
+   * Handle agent status changes
+   */
+  handleAgentStatusChange(data) {
+    const { agentId, status, agentInfo } = data;
+
+    logger.debug("Agent status changed", { agentId, status: status });
+
+    // Update connected agents map
+    if (status === "connected" && agentInfo) {
+      this.connectedAgents.set(agentId, {
+        id: agentId,
+        info: agentInfo,
+        connectedAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
       });
-    } else {
-      // Use HTTP for one-time fetch
-      try {
-        const response = await axios.get(
-          `${this.agentUrl}/agent/v1/deployments/${deploymentId}/logs`,
-          {
-            params: options,
-            headers: {
-              Authorization: `Bearer ${this.agentSecret}`,
-            },
-          }
-        );
-        return response.data;
-      } catch (error) {
-        throw new Error(`Failed to fetch deployment logs: ${error.message}`);
+    } else if (status === "disconnected") {
+      this.connectedAgents.delete(agentId);
+    }
+
+    // Emit to subscribers
+    this.emit("agent:status", {
+      agentId,
+      status,
+      timestamp: new Date().toISOString(),
+      connectedAgents: this.getConnectedAgentsCount(),
+    });
+  }
+
+  /**
+   * Handle agent connection
+   */
+  handleAgentConnected(data) {
+    logger.info("Agent connected to bridge", { agentId: data.agentId });
+
+    this.emit("agent:connected", {
+      agentId: data.agentId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Handle agent disconnection
+   */
+  handleAgentDisconnected(data) {
+    logger.info("Agent disconnected from bridge", { agentId: data.agentId });
+
+    this.emit("agent:disconnected", {
+      agentId: data.agentId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Handle incoming agent logs
+   */
+  handleAgentLog(logData) {
+    const { agentId } = logData;
+
+    // Process and enrich log
+    const processedLog = this.processLog(logData);
+
+    // Emit to local subscribers
+    this.emit("log", processedLog);
+
+    // Route to specific log handlers based on source
+    this.routeLog(processedLog);
+
+    logger.debug("Agent log processed", {
+      agentId,
+      source: logData.source,
+      timestamp: logData.timestamp,
+    });
+  }
+
+  /**
+   * Process and enrich log entry
+   */
+  processLog(logData) {
+    return {
+      ...logData,
+      processedAt: new Date().toISOString(),
+      bridgeId: "enhanced-remote-agent-bridge",
+      enriched: {
+        level: this.normalizeLogLevel(logData.level),
+        category: this.categorizeLog(logData),
+        severity: this.calculateSeverity(logData),
+      },
+    };
+  }
+
+  /**
+   * Normalize log levels to standard format
+   */
+  normalizeLogLevel(level) {
+    if (typeof level === "string") {
+      return level.toLowerCase();
+    }
+
+    // Convert systemd priority levels
+    const levels = {
+      0: "emergency",
+      1: "alert",
+      2: "critical",
+      3: "error",
+      4: "warning",
+      5: "notice",
+      6: "info",
+      7: "debug",
+    };
+
+    return levels[level] || "info";
+  }
+
+  /**
+   * Categorize log based on content and source
+   */
+  categorizeLog(logData) {
+    const { source, service, message } = logData;
+
+    if (source === "docker") {
+      return "container";
+    }
+
+    if (source === "system") {
+      if (service && service.includes("docker")) {
+        return "docker-system";
+      }
+      if (service && service.includes("ssh")) {
+        return "security";
+      }
+      return "system";
+    }
+
+    if (message) {
+      if (message.includes("error") || message.includes("failed")) {
+        return "error";
+      }
+      if (message.includes("warning") || message.includes("warn")) {
+        return "warning";
       }
     }
+
+    return "general";
+  }
+
+  /**
+   * Calculate log severity score
+   */
+  calculateSeverity(logData) {
+    const level = this.normalizeLogLevel(logData.level);
+    const severityMap = {
+      emergency: 10,
+      alert: 9,
+      critical: 8,
+      error: 7,
+      warning: 5,
+      notice: 3,
+      info: 2,
+      debug: 1,
+    };
+
+    return severityMap[level] || 2;
+  }
+
+  /**
+   * Route log to appropriate handlers
+   */
+  routeLog(logData) {
+    const { source, enriched } = logData;
+
+    // Route to source-specific handlers
+    switch (source) {
+      case "docker":
+        this.emit("docker:log", logData);
+        break;
+      case "system":
+        this.emit("system:log", logData);
+        break;
+      case "deployment":
+        this.emit("deployment:log", logData);
+        break;
+    }
+
+    // Route to severity-specific handlers
+    if (enriched.severity >= 7) {
+      this.emit("critical:log", logData);
+    } else if (enriched.severity >= 5) {
+      this.emit("warning:log", logData);
+    }
+
+    // Route to category-specific handlers
+    this.emit(`${enriched.category}:log`, logData);
+  }
+
+  /**
+   * Subscribe to logs for a specific user
+   */
+  subscribeUserToLogs(userId, filters = {}) {
+    if (!this.logSubscriptions.has(userId)) {
+      this.logSubscriptions.set(userId, new Set());
+    }
+
+    const subscription = {
+      userId,
+      filters,
+      subscribedAt: new Date().toISOString(),
+    };
+
+    this.logSubscriptions.get(userId).add(subscription);
+
+    logger.info("User subscribed to agent logs", { userId, filters });
+
+    return subscription;
+  }
+
+  /**
+   * Unsubscribe user from logs
+   */
+  unsubscribeUserFromLogs(userId, subscriptionId = null) {
+    if (subscriptionId) {
+      // Remove specific subscription
+      const userSubs = this.logSubscriptions.get(userId);
+      if (userSubs) {
+        userSubs.delete(subscriptionId);
+        if (userSubs.size === 0) {
+          this.logSubscriptions.delete(userId);
+        }
+      }
+    } else {
+      // Remove all subscriptions for user
+      this.logSubscriptions.delete(userId);
+    }
+
+    logger.info("User unsubscribed from agent logs", { userId });
+  }
+
+  /**
+   * Get connected agents count
+   */
+  getConnectedAgentsCount() {
+    return this.connectedAgents.size;
+  }
+
+  /**
+   * Get connected agents info
+   */
+  getConnectedAgents() {
+    return Array.from(this.connectedAgents.values());
   }
 
   /**
@@ -411,49 +346,98 @@ class RemoteAgentLogBridge extends EventEmitter {
    */
   getStatus() {
     return {
-      connectionState: this.connectionState,
-      isConnected: this.isConnected,
-      agentUrl: this.agentUrl,
-      reconnectAttempts: this.reconnectAttempts,
-      lastHeartbeat: this.lastHeartbeat,
-      connectionStartTime: this.connectionStartTime,
-      uptime: this.connectionStartTime
-        ? new Date() - this.connectionStartTime
-        : 0,
-      socket: {
-        connected: this.socket ? this.socket.connected : false,
-        id: this.socket ? this.socket.id : null,
+      initialized: this.isInitialized,
+      connectedAgents: this.getConnectedAgentsCount(),
+      totalSubscriptions: this.logSubscriptions.size,
+      config: this.config,
+      uptime: process.uptime(),
+      lastUpdate: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Request specific log stream from agent
+   */
+  async requestLogStream(agentId, streamType, params = {}) {
+    if (!this.agentBridgeNamespace) {
+      throw new Error("Agent bridge namespace not available");
+    }
+
+    const streamId = `${agentId}-${streamType}-${Date.now()}`;
+
+    // Send stream request to agent via namespace
+    this.agentBridgeNamespace.to(agentId).emit("stream_request", {
+      type: streamType,
+      stream_id: streamId,
+      params,
+    });
+
+    logger.info("Log stream requested", { agentId, streamType, streamId });
+
+    return streamId;
+  }
+
+  /**
+   * Stop log stream
+   */
+  async stopLogStream(agentId, streamId) {
+    if (!this.agentBridgeNamespace) {
+      throw new Error("Agent bridge namespace not available");
+    }
+
+    this.agentBridgeNamespace.to(agentId).emit("stream_stop", {
+      stream_id: streamId,
+    });
+
+    logger.info("Log stream stop requested", { agentId, streamId });
+  }
+
+  /**
+   * Get bridge statistics
+   */
+  getStatistics() {
+    return {
+      bridge: {
+        initialized: this.isInitialized,
+        uptime: process.uptime(),
+      },
+      agents: {
+        connected: this.getConnectedAgentsCount(),
+        total: this.connectedAgents.size,
+      },
+      subscriptions: {
+        active: this.logSubscriptions.size,
+        total: Array.from(this.logSubscriptions.values()).reduce(
+          (total, userSubs) => total + userSubs.size,
+          0
+        ),
       },
       timestamp: new Date().toISOString(),
     };
   }
 
   /**
-   * Close the bridge connection
+   * Send health check to all connected agents
    */
-  async close() {
-    logger.info("Closing Remote Agent Log Bridge");
-
-    // Stop heartbeat
-    this.stopHeartbeat();
-
-    // Stop HTTP polling
-    if (this.httpPollingInterval) {
-      clearInterval(this.httpPollingInterval);
-      this.httpPollingInterval = null;
+  async healthCheckAgents() {
+    if (!this.agentBridgeNamespace) {
+      return { error: "Agent bridge namespace not available" };
     }
 
-    // Close Socket.IO connection
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
+    const results = {};
+
+    for (const agentId of this.connectedAgents.keys()) {
+      this.agentBridgeNamespace.to(agentId).emit("health_check", {
+        timestamp: Date.now(),
+        requestId: `health-${Date.now()}`,
+      });
+
+      results[agentId] = "request_sent";
     }
 
-    this.connectionState = "disconnected";
-    this.isConnected = false;
-
-    this.emit("closed");
+    return results;
   }
 }
 
+// Export the class for instantiation
 module.exports = RemoteAgentLogBridge;

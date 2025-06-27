@@ -10,6 +10,8 @@ import os
 import time
 from datetime import datetime
 from typing import Dict, Any
+from queue import Queue
+import threading
 
 import socketio
 import docker
@@ -18,6 +20,63 @@ from fastapi import APIRouter
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+class LogBridgeHandler(logging.Handler):
+    """
+    Custom logging handler that captures Python logs and sends them to the bridge
+    """
+
+    def __init__(self, log_bridge):
+        super().__init__()
+        self.log_bridge = log_bridge
+        self.log_queue = Queue()
+        self._background_task = None
+
+    def emit(self, record):
+        """Called whenever a log message is generated"""
+        try:
+            # Format the log entry
+            log_entry = {
+                "source": "application",
+                "level": record.levelname.lower(),
+                "message": self.format(record),
+                "logger_name": record.name,
+                "module": getattr(record, "module", "unknown"),
+                "function": getattr(record, "funcName", "unknown"),
+                "line_number": getattr(record, "lineno", 0),
+                "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+                "agent_id": self.log_bridge.agent_id if self.log_bridge else "unknown",
+            }
+
+            # Add to queue for async processing
+            if self.log_bridge and self.log_bridge.connected:
+                # Create the async task in the event loop
+                import asyncio
+
+                try:
+                    loop = asyncio.get_event_loop()
+                    loop.create_task(self.log_bridge.queue_log(log_entry))
+                except RuntimeError:
+                    # If no event loop is running, queue for later
+                    self.log_queue.put(log_entry)
+
+        except Exception:
+            # Don't let logging errors break the application
+            pass
+
+    def flush_queued_logs(self):
+        """Flush any queued logs"""
+        import asyncio
+
+        while not self.log_queue.empty():
+            try:
+                log_entry = self.log_queue.get_nowait()
+                if self.log_bridge and self.log_bridge.connected:
+                    loop = asyncio.get_event_loop()
+                    loop.create_task(self.log_bridge.queue_log(log_entry))
+            except Exception:
+                break
 
 
 class AgentLogBridge:
@@ -109,6 +168,9 @@ class AgentLogBridge:
                     "timestamp": datetime.utcnow().isoformat(),
                 },
             )
+
+            # Flush any queued logs from the Python handler
+            self._flush_python_logs()
 
         @self.sio.event
         async def disconnect():
@@ -427,6 +489,21 @@ class AgentLogBridge:
         if self.sio and self.connected:
             await self.sio.disconnect()
         self.connected = False
+
+    def _flush_python_logs(self):
+        """Flush any queued Python logs from the LogBridgeHandler"""
+        # Find any LogBridgeHandler instances and flush their queues
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers:
+            if isinstance(handler, LogBridgeHandler):
+                handler.flush_queued_logs()
+
+        # Also check other common loggers
+        for logger_name in ["uvicorn", "fastapi", "__main__"]:
+            logger_instance = logging.getLogger(logger_name)
+            for handler in logger_instance.handlers:
+                if isinstance(handler, LogBridgeHandler):
+                    handler.flush_queued_logs()
 
 
 # Global instance

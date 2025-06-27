@@ -39,16 +39,15 @@ const { connectRedis } = require("./config/redisClient");
     },
   });
 
-  // Initialize Enhanced Remote Agent Log Bridge
-  const {
-    enhancedRemoteAgentLogBridge,
-  } = require("./services/logging/EnhancedRemoteAgentLogBridge");
+  // Initialize Remote Agent Log Bridge
+  const RemoteAgentLogBridge = require("./services/logging/RemoteAgentLogBridge");
+  const remoteAgentLogBridge = new RemoteAgentLogBridge();
   try {
-    await enhancedRemoteAgentLogBridge.initialize();
-    console.log("✓ Enhanced Remote Agent Log Bridge initialized");
+    await remoteAgentLogBridge.initialize();
+    console.log("✓ Remote Agent Log Bridge initialized");
   } catch (error) {
     console.error(
-      "✗ Failed to initialize Enhanced Remote Agent Log Bridge:",
+      "✗ Failed to initialize Remote Agent Log Bridge:",
       error.message
     );
   }

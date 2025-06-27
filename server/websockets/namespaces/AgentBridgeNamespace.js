@@ -215,16 +215,24 @@ class AgentBridgeNamespace {
   }
 
   /**
-   * Process individual log entry
+   * Process individual log entry and integrate with LogStreamingNamespace
    */
   async processLogEntry(agentId, logEntry) {
-    // Add metadata
+    // Add metadata and normalize log entry to match system log format
     const enrichedLog = {
       ...logEntry,
       agentId,
       receivedAt: new Date().toISOString(),
       processed: true,
+      // Normalize to match existing log format
+      service: "agent",
+      level: this.normalizeLogLevel(logEntry.level),
+      content: logEntry.message || logEntry.content,
+      source: logEntry.source || "agent",
     };
+
+    // Send to existing LogStreamingNamespace for integration with client
+    this.integrateWithLogStreaming(enrichedLog);
 
     // Determine distribution rooms based on log source
     const rooms = this.determineLogRooms(enrichedLog);
@@ -238,6 +246,67 @@ class AgentBridgeNamespace {
     if (process.env.AI_SERVICE_ENABLED === "true") {
       await this.sendToAIService(enrichedLog);
     }
+  }
+
+  /**
+   * Integrate with existing LogStreamingNamespace
+   */
+  integrateWithLogStreaming(logEntry) {
+    const logsNamespace = webSocketRegistry.getNamespace("/logs");
+    if (logsNamespace) {
+      // Format log to match existing system log format
+      const formattedLog = {
+        timestamp: logEntry.timestamp || new Date().toISOString(),
+        level: logEntry.level,
+        message: logEntry.content,
+        service: "agent",
+        source: logEntry.source,
+        agentId: logEntry.agentId,
+        // Additional metadata
+        container_id: logEntry.container_id,
+        container_name: logEntry.container_name,
+        image: logEntry.image,
+      };
+
+      // Emit to logs namespace using the standard format
+      logsNamespace.emit("log:data", {
+        serviceId: "agent",
+        data: formattedLog,
+        timestamp: formattedLog.timestamp,
+        isError: logEntry.level === "error" || logEntry.level === "critical",
+      });
+
+      // Also emit in system logs format for system log subscribers
+      logsNamespace.to("system:all").emit("system:logs", {
+        serviceId: "agent",
+        logs: [formattedLog],
+        source: "real-time",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Normalize log levels to standard format
+   */
+  normalizeLogLevel(level) {
+    if (typeof level === "string") {
+      return level.toLowerCase();
+    }
+
+    // Convert systemd priority levels
+    const levels = {
+      0: "emergency",
+      1: "alert",
+      2: "critical",
+      3: "error",
+      4: "warning",
+      5: "notice",
+      6: "info",
+      7: "debug",
+    };
+
+    return levels[level] || "info";
   }
 
   /**
