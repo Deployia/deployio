@@ -23,7 +23,7 @@ import { backend } from "../utils/api";
 const ServiceDetailPage = () => {
   const { serviceName } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
 
   // Service data state
   const [serviceData, setServiceData] = useState(null);
@@ -32,19 +32,17 @@ const ServiceDetailPage = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   // Logs state for initial load
   const [logs, setLogs] = useState([]);
+  // Metrics state for initial load
+  const [initialMetrics, setInitialMetrics] = useState([]);
 
-  // Check authentication and admin role
+  // Check admin role
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-
+    // Only check for admin role, not authentication (handled globally)
     if (user?.role !== "admin") {
       navigate("/health");
       return;
     }
-  }, [isAuthenticated, user, navigate]); // Valid service names
+  }, [user, navigate]); // Valid service names
   const validServices = useMemo(() => ["backend", "ai-service", "agent"], []);
   const fetchServiceData = useCallback(async () => {
     try {
@@ -76,6 +74,32 @@ const ServiceDetailPage = () => {
           .catch((err) => {
             console.warn(`Failed to fetch logs for ${serviceName}:`, err);
             return null; // Don't fail the whole request for logs
+          }),
+
+        // Initial metrics (static, historical)
+        backend
+          .get(
+            `/api/v1/metrics/system/${serviceName}?type=historical&hours=1`,
+            {
+              withCredentials: true,
+            }
+          )
+          .then((response) => {
+            if (response.data.success && response.data.data.metrics) {
+              setInitialMetrics(
+                Array.isArray(response.data.data.metrics)
+                  ? response.data.data.metrics
+                  : [response.data.data.metrics]
+              );
+            } else {
+              setInitialMetrics([]);
+            }
+            return response;
+          })
+          .catch((err) => {
+            console.warn(`Failed to fetch metrics for ${serviceName}:`, err);
+            setInitialMetrics([]);
+            return null;
           }),
       ];
 
@@ -195,7 +219,7 @@ const ServiceDetailPage = () => {
         return FaInfoCircle;
     }
   };
-  if (!isAuthenticated || user?.role !== "admin") {
+  if (!user || user?.role !== "admin") {
     return null;
   }
 
@@ -484,6 +508,7 @@ const ServiceDetailPage = () => {
               <ServiceMetrics
                 serviceName={serviceName}
                 formatUptime={formatUptime}
+                initialMetrics={initialMetrics}
               />
             </div>
           ) : (

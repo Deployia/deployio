@@ -51,6 +51,7 @@ const ServiceLogs = ({
       stopStream(actualStreamId);
       setIsLogStreamActive(false);
       setActualStreamId(null);
+      setLogs(initialLogs); // Reset to static logs after stopping stream
     }
   };
 
@@ -94,80 +95,86 @@ const ServiceLogs = ({
       console.error("Failed to start log stream:", error);
     }
   };
-
   // Update logs from stream - react to real-time changes
   useEffect(() => {
-    if (isLogStreamActive && actualStreamId) {
-      const streamLogs = getStreamLogs(actualStreamId);
-
-      if (streamLogs && streamLogs.length > 0) {
-        setLogs((prevLogs) => {
-          const formattedLogs = streamLogs.map((log, index) => {
-            // Handle both structured and raw log formats
-            let content, level, timestamp, service;
-
-            if (typeof log === "string") {
-              // Try to parse JSON log format
-              try {
-                const parsed = JSON.parse(log);
-                content = parsed.message || log;
-                level = parsed.level?.toUpperCase() || "INFO";
-                timestamp = parsed.timestamp || new Date().toISOString();
-                service = parsed.service || serviceName;
-              } catch {
-                // Raw string log
-                content = log;
-                level = "INFO";
-                timestamp = new Date().toISOString();
-                service = serviceName;
-              }
-            } else {
-              // Object format
-              content = log.content || log.data || log.message || log.raw || "";
-              level = log.level?.toUpperCase() || "INFO";
-              timestamp = log.timestamp || new Date().toISOString();
-              service = log.service || serviceName;
-            }
-
-            // More robust log level detection
-            if (log.isError || content.toLowerCase().includes("error")) {
-              level = "ERROR";
-            } else if (content.toLowerCase().includes("warn")) {
-              level = "WARN";
-            } else if (content.toLowerCase().includes("debug")) {
-              level = "DEBUG";
-            }
-
-            return {
-              id: log.id || `stream_${Date.now()}_${index}`,
-              timestamp,
-              level,
-              message: content,
-              raw: content,
-              service,
-              source: "realtime",
-            };
-          });
-
-          // Only update if we have new logs
-          const currentIds = new Set(prevLogs.map((log) => log.id));
-          const newLogs = formattedLogs.filter(
-            (log) => !currentIds.has(log.id)
-          );
-
-          if (newLogs.length > 0) {
-            console.log(`Adding ${newLogs.length} new log entries`);
-            return [...prevLogs, ...newLogs].slice(-1000); // Keep last 1000 logs
-          }
-          return prevLogs;
-        });
-      }
+    if (!isLogStreamActive || !actualStreamId) {
+      return;
     }
+
+    const streamLogs = getStreamLogs(actualStreamId);
+    if (!streamLogs || streamLogs.length === 0) {
+      return;
+    }
+
+    // Process new logs
+    const formattedLogs = streamLogs
+      .map((log, index) => {
+        // Handle both structured and raw log formats
+        let content, level, timestamp, service, rawId;
+
+        if (typeof log === "string") {
+          try {
+            const parsed = JSON.parse(log);
+            content = parsed.message || log;
+            level = parsed.level?.toUpperCase() || "INFO";
+            timestamp = parsed.timestamp || new Date().toISOString();
+            service = parsed.service || serviceName;
+            rawId = parsed.id || null;
+          } catch {
+            content = log;
+            level = "INFO";
+            timestamp = new Date().toISOString();
+            service = serviceName;
+            rawId = null;
+          }
+        } else {
+          content = log.content || log.data || log.message || log.raw || "";
+          level = log.level?.toUpperCase() || "INFO";
+          timestamp = log.timestamp || new Date().toISOString();
+          service = log.service || serviceName;
+          rawId = log.id || null;
+        }
+
+        // Robust log level detection
+        if (log.isError || content.toLowerCase().includes("error")) {
+          level = "ERROR";
+        } else if (content.toLowerCase().includes("warn")) {
+          level = "WARN";
+        } else if (content.toLowerCase().includes("debug")) {
+          level = "DEBUG";
+        }
+
+        // Use backend-provided ID if available, else fallback to index-based
+        let id = rawId || `${serviceName}_stream_${Date.now()}_${index}`;
+
+        return {
+          id,
+          timestamp,
+          level,
+          message: content,
+          raw: content,
+          service,
+          source: "realtime",
+        };
+      })
+      // Filter out excessive debug logs for backend
+      .filter((log) => !(serviceName === "backend" && log.level === "DEBUG"));
+
+    // Update logs only if we have new entries
+    setLogs((prevLogs) => {
+      const currentIds = new Set(prevLogs.map((log) => log.id));
+      const newLogs = formattedLogs.filter((log) => !currentIds.has(log.id));
+
+      if (newLogs.length > 0) {
+        return [...prevLogs, ...newLogs].slice(-1000); // Keep last 1000 logs
+      }
+      return prevLogs;
+    });
   }, [
+    logUpdateCounter,
     isLogStreamActive,
     actualStreamId,
     getStreamLogs,
-    logUpdateCounter,
     serviceName,
   ]);
 

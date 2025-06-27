@@ -17,6 +17,11 @@ export function useMetricsStream() {
   const handleMetricsData = useCallback((data) => {
     const { service, timestamp, data: metrics, streamId } = data;
 
+    if (!service) {
+      console.warn("Received metrics data without service:", data);
+      return;
+    }
+
     if (!metricsBuffersRef.current.has(service)) {
       metricsBuffersRef.current.set(service, []);
     }
@@ -60,8 +65,8 @@ export function useMetricsStream() {
         // Set connection state based on current socket state
         setIsConnected(socketConnection.connected);
 
-        // Listen for metrics updates
-        socketConnection.on("metrics_update", handleMetricsData);
+        // Listen for metrics updates - correct event name
+        socketConnection.on("metrics:data", handleMetricsData);
 
         socketConnection.on("connect", () => {
           if (mounted) {
@@ -75,6 +80,13 @@ export function useMetricsStream() {
           if (mounted) {
             setIsConnected(false);
             console.log("Disconnected from metrics streaming:", reason);
+          }
+        });
+
+        socketConnection.on("metrics:error", (error) => {
+          if (mounted) {
+            setError(error.message || "WebSocket connection error");
+            console.error("Metrics WebSocket error:", error);
           }
         });
 
@@ -111,10 +123,13 @@ export function useMetricsStream() {
     return () => {
       mounted = false;
       if (socketRef.current) {
-        socketRef.current.off("metrics_update", handleMetricsData);
+        socketRef.current.off("metrics:data", handleMetricsData);
         socketRef.current.off("connect");
         socketRef.current.off("disconnect");
+        socketRef.current.off("metrics:error");
         socketRef.current.off("error");
+        socketRef.current.off("stream:started");
+        socketRef.current.off("stream:stopped");
       }
     };
   }, [handleMetricsData]);

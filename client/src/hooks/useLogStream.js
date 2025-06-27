@@ -12,12 +12,15 @@ export function useLogStream() {
   const [availableStreams, setAvailableStreams] = useState({});
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [logUpdateCounter, setLogUpdateCounter] = useState(0); // Track log updates
+  const [logUpdateCounter, setLogUpdateCounter] = useState(0);
+
   const logBuffersRef = useRef(new Map());
   const socketRef = useRef(null);
-  const activeStreamsRef = useRef(new Set());
+  const mountedRef = useRef(true);
 
   const handleLogData = useCallback((data) => {
+    if (!mountedRef.current) return;
+
     const { streamId, data: logLine, timestamp, isError } = data;
 
     if (!streamId) {
@@ -47,22 +50,14 @@ export function useLogStream() {
       buffer.splice(0, buffer.length - 1000);
     }
 
-    // Trigger re-render by updating the activeStreams map AND incrementing counter
-    setActiveStreams((prev) => {
-      const newMap = new Map(prev);
-      // Force update by setting the same value again
-      if (newMap.has(streamId)) {
-        const streamInfo = newMap.get(streamId);
-        newMap.set(streamId, { ...streamInfo, lastUpdate: Date.now() });
-      }
-      return newMap;
-    });
-    setLogUpdateCounter((prev) => prev + 1); // Increment log update counter
-  }, []); // Initialize WebSocket connection
+    // Trigger re-render by incrementing counter only
+    setLogUpdateCounter((prev) => prev + 1);
+  }, []);
+
+  // Initialize WebSocket connection
   useEffect(() => {
-    let mounted = true;
-    const logBuffers = logBuffersRef.current;
-    const activeStreamsSet = activeStreamsRef.current;
+    mountedRef.current = true;
+    const logBuffers = logBuffersRef.current; // Capture ref for cleanup
 
     const initializeConnection = async () => {
       try {
@@ -72,7 +67,7 @@ export function useLogStream() {
         // Connect to logs namespace
         const socket = await webSocketService.connect("/logs");
 
-        if (!mounted) return;
+        if (!mountedRef.current) return;
 
         socketRef.current = socket;
         setSocket(socket);
@@ -80,65 +75,63 @@ export function useLogStream() {
 
         // Set up event handlers
         socket.on("connect", () => {
-          if (mounted) {
+          if (mountedRef.current) {
             setIsConnected(true);
             setError(null);
             console.log("Connected to log streaming");
-
-            // Request available streams
             socket.emit("stream:list");
           }
         });
 
         socket.on("disconnect", (reason) => {
-          if (mounted) {
+          if (mountedRef.current) {
             setIsConnected(false);
             console.log("Disconnected from log streaming:", reason);
           }
         });
 
         socket.on("streams:available", (streams) => {
-          if (mounted) {
+          if (mountedRef.current) {
             setAvailableStreams(streams);
           }
         });
 
         socket.on("log:data", handleLogData);
+
         socket.on("log:started", (data) => {
-          if (mounted) {
-            activeStreamsSet.add(data.streamId);
-            setActiveStreams((prev) =>
-              new Map(prev).set(data.streamId, {
+          if (mountedRef.current) {
+            setActiveStreams((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(data.streamId, {
                 ...data,
                 status: "active",
                 startedAt: new Date(data.startedAt),
-              })
-            );
+              });
+              return newMap;
+            });
           }
         });
 
         socket.on("log:stopped", (data) => {
-          if (mounted) {
-            activeStreamsSet.delete(data.streamId);
+          if (mountedRef.current) {
             setActiveStreams((prev) => {
               const newMap = new Map(prev);
               newMap.delete(data.streamId);
               return newMap;
             });
-            // Clear log buffer for stopped stream
-            logBuffers.delete(data.streamId);
+            logBuffersRef.current.delete(data.streamId);
           }
         });
 
         socket.on("log:error", (data) => {
-          if (mounted) {
+          if (mountedRef.current) {
             console.error("Log stream error:", data);
             setError(`Stream error: ${data.error}`);
           }
         });
 
         socket.on("error", (error) => {
-          if (mounted) {
+          if (mountedRef.current) {
             console.error("Log WebSocket error:", error);
             setError(error.message || "Connection error");
           }
@@ -146,7 +139,7 @@ export function useLogStream() {
 
         setIsLoading(false);
       } catch (error) {
-        if (mounted) {
+        if (mountedRef.current) {
           console.error("Failed to initialize log streaming:", error);
           setError(error.message);
           setIsLoading(false);
@@ -155,26 +148,27 @@ export function useLogStream() {
     };
 
     initializeConnection();
+
     return () => {
-      mounted = false;
-      // Stop all active streams
-      if (socketRef.current?.connected) {
-        // Use captured ref
-        activeStreamsSet.forEach((streamId) => {
-          socketRef.current.emit("stream:stop", { streamId });
-        });
-      }
+      mountedRef.current = false;
+
       if (socketRef.current) {
+        socketRef.current.off("connect");
+        socketRef.current.off("disconnect");
+        socketRef.current.off("streams:available");
+        socketRef.current.off("log:data");
+        socketRef.current.off("log:started");
+        socketRef.current.off("log:stopped");
+        socketRef.current.off("log:error");
+        socketRef.current.off("error");
+
         webSocketService.disconnect("/logs");
         socketRef.current = null;
       }
-      // Clear log buffers using captured ref
-      if (logBuffers) {
-        logBuffers.clear();
-      }
-      activeStreamsSet.clear();
+
+      logBuffers.clear(); // Use captured ref
     };
-  }, [handleLogData]);
+  }, [handleLogData]); // Include handleLogData dependency
 
   // Start a log stream
   const startStream = useCallback((streamConfig) => {
@@ -183,7 +177,6 @@ export function useLogStream() {
       return null;
     }
 
-    // Use provided streamId or generate one
     const streamId =
       streamConfig.streamId ||
       `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -200,100 +193,42 @@ export function useLogStream() {
   // Stop a log stream
   const stopStream = useCallback((streamId) => {
     if (!socketRef.current?.connected) {
-      setError("Not connected to log streaming service");
       return;
     }
 
     socketRef.current.emit("stream:stop", { streamId });
-    logBuffersRef.current.delete(streamId);
   }, []);
-
-  // Start Docker log stream
-  const startDockerStream = useCallback(
-    (containerName, options = {}) => {
-      return startStream({
-        logType: "docker",
-        containerName,
-        options,
-      });
-    },
-    [startStream]
-  );
-
-  // Start system log stream
-  const startSystemStream = useCallback(
-    (systemLogType = "syslog", options = {}) => {
-      return startStream({
-        logType: "system",
-        systemLogType,
-        options,
-      });
-    },
-    [startStream]
-  );
-
-  // Start application log stream
-  const startApplicationStream = useCallback(
-    (logType = "application", options = {}) => {
-      return startStream({
-        logType,
-        options,
-      });
-    },
-    [startStream]
-  );
 
   // Get logs for a specific stream
   const getStreamLogs = useCallback((streamId) => {
     return logBuffersRef.current.get(streamId) || [];
   }, []);
 
-  // Clear logs for a specific stream
+  // Clear logs for a stream
   const clearStreamLogs = useCallback((streamId) => {
-    logBuffersRef.current.set(streamId, []);
-    setActiveStreams((prev) => new Map(prev));
+    if (logBuffersRef.current.has(streamId)) {
+      logBuffersRef.current.set(streamId, []);
+      setLogUpdateCounter((prev) => prev + 1);
+    }
   }, []);
-
-  // Clear error
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  // Get stream info
-  const getStreamInfo = useCallback(
-    (streamId) => {
-      return activeStreams.get(streamId) || null;
-    },
-    [activeStreams]
-  );
 
   return {
     // Connection state
+    socket,
     isConnected,
     isLoading,
     error,
-    socket,
 
-    // Stream data
-    activeStreams: Array.from(activeStreams.entries()),
-    availableStreams,
-    logUpdateCounter, // Export the log update counter
-
-    // Stream control
+    // Stream management
     startStream,
     stopStream,
-    startDockerStream,
-    startSystemStream,
-    startApplicationStream,
+    activeStreams,
+    availableStreams,
 
-    // Log data
+    // Data access
     getStreamLogs,
     clearStreamLogs,
-    getStreamInfo,
-
-    // Utilities
-    clearError,
-    streamCount: activeStreams.size,
+    logUpdateCounter,
   };
 }
 

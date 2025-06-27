@@ -1,11 +1,12 @@
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useMetricsStream } from "@hooks/useMetricsStream";
 import MetricsChart from "@components/MetricsChart";
-import { FaChartLine, FaPlay, FaStop } from "react-icons/fa";
+import { FaChartLine, FaPlay, FaStop, FaSync } from "react-icons/fa";
 
 const ServiceMetrics = ({
   serviceName,
   className = "",
+  initialMetrics = [], // Accept initialMetrics as a prop
   formatUptime = (seconds) => {
     const days = Math.floor(seconds / (24 * 3600));
     const hours = Math.floor((seconds % (24 * 3600)) / 3600);
@@ -25,11 +26,20 @@ const ServiceMetrics = ({
     isConnected: metricsConnected,
   } = useMetricsStream();
 
+  // Static data state
+  const [staticMetrics, setStaticMetrics] = useState(initialMetrics);
+  const [dataSource, setDataSource] = useState("static"); // "static" or "realtime"
+
+  // If initialMetrics changes, update staticMetrics
+  useEffect(() => {
+    setStaticMetrics(initialMetrics);
+  }, [initialMetrics]);
+
   // Manual control functions
   const handleStartMetrics = useCallback(async () => {
     try {
-      console.log("Manual start metrics for:", serviceName);
       await startMetricsStream(serviceName, 5000);
+      setDataSource("realtime");
     } catch (error) {
       console.error("Failed to start metrics stream:", error);
     }
@@ -37,37 +47,52 @@ const ServiceMetrics = ({
 
   const handleStopMetrics = useCallback(async () => {
     try {
-      console.log("Manual stop metrics for:", serviceName);
       await stopMetricsStream(serviceName);
+      setDataSource("static");
     } catch (error) {
       console.error("Failed to stop metrics stream:", error);
     }
   }, [stopMetricsStream, serviceName]);
 
-  // Safe getter for metrics data
+  // No fetch logic here; refresh just resets to initialMetrics
+  const handleRefreshStatic = useCallback(() => {
+    setStaticMetrics(initialMetrics);
+  }, [initialMetrics]);
+
+  // Safe getter for metrics data - supports both real-time and static
   const getMetricsData = useCallback(
     (serviceName) => {
       try {
-        return getStreamMetrics(serviceName) || [];
-      } catch (error) {
-        console.warn("Failed to get stream metrics:", error);
-        return [];
+        if (dataSource === "realtime" && isMetricsStreamActive(serviceName)) {
+          return getStreamMetrics(serviceName) || [];
+        } else {
+          return staticMetrics;
+        }
+      } catch {
+        return staticMetrics; // Fallback to static data
       }
     },
-    [getStreamMetrics]
+    [getStreamMetrics, staticMetrics, dataSource, isMetricsStreamActive]
   );
 
   // Safe getter for latest metrics
   const getLatestMetricsData = useCallback(
     (serviceName) => {
       try {
-        return getLatestMetrics(serviceName);
-      } catch (error) {
-        console.warn("Failed to get latest metrics:", error);
-        return null;
+        if (dataSource === "realtime" && isMetricsStreamActive(serviceName)) {
+          return getLatestMetrics(serviceName);
+        } else {
+          return staticMetrics.length > 0
+            ? staticMetrics[staticMetrics.length - 1]
+            : null;
+        }
+      } catch {
+        return staticMetrics.length > 0
+          ? staticMetrics[staticMetrics.length - 1]
+          : null;
       }
     },
-    [getLatestMetrics]
+    [getLatestMetrics, staticMetrics, dataSource, isMetricsStreamActive]
   );
 
   return (
@@ -83,64 +108,84 @@ const ServiceMetrics = ({
             <h2 className="text-lg font-semibold text-white heading">
               Real-time Metrics
             </h2>
-            <p className="text-xs text-neutral-400">
-              Live performance monitoring
-            </p>
+            {/* Data Source Indicator styled like ServiceLogs */}
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isMetricsStreamActive ? "bg-green-400" : "bg-neutral-400"
+                }`}
+              />
+              <span
+                className={`text-xs ${
+                  isMetricsStreamActive ? "text-green-400" : "text-neutral-400"
+                }`}
+              >
+                {isMetricsStreamActive
+                  ? "Live Stream Active"
+                  : "Static Metrics"}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Connection Status and Controls */}
-        <div className="flex items-center gap-3">
-          {/* Manual Controls */}
-          <div className="flex items-center gap-2">
-            {isMetricsStreamActive(serviceName) ? (
-              <button
-                onClick={handleStopMetrics}
-                className="flex items-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 px-3 py-2 rounded-lg transition-colors text-sm"
-              >
-                <FaStop className="h-3 w-3" />
-                Stop
-              </button>
-            ) : (
+        {/* Manual Controls */}
+        <div className="flex items-center gap-2">
+          {isMetricsStreamActive(serviceName) ? (
+            <button
+              onClick={handleStopMetrics}
+              className="flex items-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 px-3 py-2 rounded-lg transition-colors text-sm"
+            >
+              <FaStop className="h-3 w-3" />
+              Stop
+            </button>
+          ) : (
+            <>
               <button
                 onClick={handleStartMetrics}
                 className="flex items-center gap-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 px-3 py-2 rounded-lg transition-colors text-sm"
               >
                 <FaPlay className="h-3 w-3" />
-                Start
+                Start Live
               </button>
-            )}
-          </div>
-
-          {/* Connection Status */}
-          <div className="flex items-center gap-2 text-sm">
-            <span
-              className={`inline-block w-2 h-2 rounded-full ${
-                metricsConnected ? "bg-green-400" : "bg-red-400"
-              }`}
-            ></span>
-            <span className="text-neutral-400">
-              {metricsConnected ? "Connected" : "Disconnected"}
-            </span>
-          </div>
+              <button
+                onClick={handleRefreshStatic}
+                className="flex items-center gap-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-2 rounded-lg transition-colors text-sm"
+              >
+                <FaSync className="h-3 w-3" />
+                Refresh
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Metrics Charts */}
-      {!metricsConnected && !isMetricsStreamActive(serviceName) && (
-        <div className="mb-4 p-4 bg-blue-900/30 border border-blue-700/30 rounded-lg">
-          <p className="text-blue-400 text-sm">
-            📊 Click &ldquo;Start&rdquo; to begin real-time metrics monitoring
-            for {serviceName}.
-          </p>
-        </div>
-      )}
+      {!metricsConnected &&
+        !isMetricsStreamActive(serviceName) &&
+        dataSource === "static" && (
+          <div className="mb-4 p-4 bg-blue-900/30 border border-blue-700/30 rounded-lg">
+            <p className="text-blue-400 text-sm">
+              📊 Showing static historical metrics. Click &ldquo;Start
+              Live&rdquo; for real-time monitoring or &ldquo;Refresh&rdquo; to
+              update static data for {serviceName}.
+            </p>
+          </div>
+        )}
 
       {!metricsConnected && isMetricsStreamActive(serviceName) && (
         <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-700/30 rounded-lg">
           <p className="text-yellow-400 text-sm">
             ⚠️ Metrics WebSocket disconnected. Charts may not update in
             real-time.
+          </p>
+        </div>
+      )}
+
+      {dataSource === "static" && staticMetrics.length === 0 && (
+        <div className="mb-4 p-3 bg-neutral-800/50 border border-neutral-700 rounded-lg">
+          <p className="text-neutral-400 text-sm">
+            📊 No historical metrics available. Try refreshing or starting live
+            monitoring.
           </p>
         </div>
       )}
