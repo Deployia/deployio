@@ -53,6 +53,7 @@ services:
       - ./server/.env.production
     volumes:
       - ./server/logs:/app/logs
+      - ./ai-service/logs:/shared-logs
     security_opt:
       - no-new-privileges:true
     tmpfs:

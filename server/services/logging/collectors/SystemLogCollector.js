@@ -23,20 +23,27 @@ class SystemLogCollector extends BaseLogCollector {
   getLogPaths() {
     const basePaths = {
       backend: {
-        basePath: path.join(__dirname, "..", "..", "..", "logs"),
+        // Use /app/logs in Docker, local path in dev
+        basePath:
+          process.env.NODE_ENV === "development"
+            ? path.join(__dirname, "..", "..", "..", "logs")
+            : "/app/logs",
         files: ["combined.log", "backend.log"],
       },
       "ai-service": {
-        // Use the host-mount path directly for ai-service logs
-        basePath: path.resolve(
-          __dirname,
-          "..",
-          "..",
-          "..",
-          "..",
-          "ai-service",
-          "logs"
-        ),
+        // Use shared volume in Docker, local path in dev
+        basePath:
+          process.env.NODE_ENV === "development"
+            ? path.resolve(
+                __dirname,
+                "..",
+                "..",
+                "..",
+                "..",
+                "ai-service",
+                "logs"
+              )
+            : "/shared-logs",
         files: ["ai-service.log", "error.log"],
       },
     };
@@ -49,7 +56,6 @@ class SystemLogCollector extends BaseLogCollector {
 
     const paths = [];
     for (const filename of config.files) {
-      // Always use the basePath (host-mount path) for ai-service logs
       const filePath = path.join(config.basePath, filename);
       if (fs.existsSync(filePath)) {
         paths.push(filePath);
