@@ -6,7 +6,7 @@ Header-based authentication for backend-to-agent communication
 import httpx
 import logging
 import os
-from fastapi import APIRouter, Request
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -109,29 +109,3 @@ class AuthMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"Error validating token with backend: {str(e)}")
             return False
-
-
-def create_demo_routes(app):
-    router = APIRouter()
-
-    @router.post("/agent/v1/demo-token")
-    async def get_demo_token():
-        """Fetch a demo user JWT token from backend for testing"""
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.post(
-                    f"{BACKEND_URL}/api/internal/auth/demo-token",
-                    headers={"X-Internal-Service": "deployio-agent"},
-                )
-                if response.status_code == 200:
-                    return response.json()
-                return {"error": True, "message": response.text}
-        except Exception as e:
-            return {"error": True, "message": str(e)}
-
-    @router.get("/agent/v1/protected-test")
-    async def protected_test():
-        """A protected endpoint to test authentication"""
-        return {"message": "You have accessed a protected endpoint!"}
-
-    app.include_router(router)
