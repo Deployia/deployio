@@ -55,7 +55,6 @@ services:
       - ./server/logs:/app/logs
     security_opt:
       - no-new-privileges:true
-    read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     labels:
@@ -81,7 +80,6 @@ services:
       - ./ai-service/logs:/app/logs
     security_opt:
       - no-new-privileges:true
-    read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     labels:

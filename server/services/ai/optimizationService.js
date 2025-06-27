@@ -41,7 +41,7 @@ const optimizePerformance = async (projectId, currentConfig, metrics, user) => {
     const result = response.data.data;
 
     // Cache for 1 hour
-    await redisClient.setex(cacheKey, 3600, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(result));
 
     logger.info(
       `AI performance optimization completed for project ${projectId}`
@@ -94,7 +94,7 @@ const optimizeSecurity = async (projectId, securityConfig, options, user) => {
     const result = response.data.data;
 
     // Cache for 2 hours
-    await redisClient.setex(cacheKey, 7200, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 7200, JSON.stringify(result));
 
     logger.info(`AI security optimization completed for project ${projectId}`);
     return result;
@@ -143,7 +143,7 @@ const optimizeCosts = async (projectId, costConfig, options, user) => {
     const result = response.data.data;
 
     // Cache for 4 hours
-    await redisClient.setex(cacheKey, 14400, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 14400, JSON.stringify(result));
 
     logger.info(`AI cost optimization completed for project ${projectId}`);
     return result;
@@ -191,7 +191,7 @@ const generateRecommendations = async (projectId, analysisResults, user) => {
     const result = response.data.data;
 
     // Cache for 30 minutes
-    await redisClient.setex(cacheKey, 1800, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 1800, JSON.stringify(result));
 
     logger.info(`AI recommendations generated for project ${projectId}`);
     return result;
@@ -247,7 +247,7 @@ const analyzeOptimization = async (
     const result = response.data.data;
 
     // Cache for 1 hour
-    await redisClient.setex(cacheKey, 3600, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(result));
 
     logger.info(`AI optimization analysis completed for project ${projectId}`);
     return result;

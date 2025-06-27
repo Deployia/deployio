@@ -601,7 +601,7 @@ async function storeRefreshToken(userId, token) {
         );
 
         if (ttlSeconds > 0) {
-          await redisClient.setex(
+          await redisClient.setEx(
             tokenKey,
             ttlSeconds,
             JSON.stringify({

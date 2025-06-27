@@ -702,7 +702,7 @@ function Health() {
             </div>
 
             {/* Browser Information Section */}
-            <div>
+            <div className="mb-6">
               <h4 className="text-md font-medium text-white mb-3 flex items-center">
                 <FaMemory className="mr-2 text-orange-400" />
                 Browser Information

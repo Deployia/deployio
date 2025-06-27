@@ -46,7 +46,7 @@ const generateDockerfile = async (
     const result = response.data.data;
 
     // Cache for 2 hours
-    await redisClient.setex(cacheKey, 7200, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 7200, JSON.stringify(result));
 
     logger.info(`AI dockerfile generation completed for project ${projectId}`);
     return result;
@@ -100,7 +100,7 @@ const generatePipeline = async (projectId, pipelineConfig, user) => {
     const result = response.data.data;
 
     // Cache for 1 hour
-    await redisClient.setex(cacheKey, 3600, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(result));
 
     logger.info(`AI pipeline generation completed for project ${projectId}`);
     return result;
@@ -154,7 +154,7 @@ const generateCompose = async (projectId, composeConfig, user) => {
     const result = response.data.data;
 
     // Cache for 2 hours
-    await redisClient.setex(cacheKey, 7200, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 7200, JSON.stringify(result));
 
     logger.info(`AI compose generation completed for project ${projectId}`);
     return result;
@@ -210,7 +210,7 @@ const generateKubernetes = async (projectId, k8sConfig, user) => {
     const result = response.data.data;
 
     // Cache for 2 hours
-    await redisClient.setex(cacheKey, 7200, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 7200, JSON.stringify(result));
 
     logger.info(`AI kubernetes generation completed for project ${projectId}`);
     return result;
