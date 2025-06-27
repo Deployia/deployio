@@ -112,15 +112,19 @@ const ServiceMetrics = ({
             <div className="flex items-center gap-2">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  isMetricsStreamActive ? "bg-green-400" : "bg-neutral-400"
+                  isMetricsStreamActive(serviceName)
+                    ? "bg-green-400"
+                    : "bg-neutral-400"
                 }`}
               />
               <span
                 className={`text-xs ${
-                  isMetricsStreamActive ? "text-green-400" : "text-neutral-400"
+                  isMetricsStreamActive(serviceName)
+                    ? "text-green-400"
+                    : "text-neutral-400"
                 }`}
               >
-                {isMetricsStreamActive
+                {isMetricsStreamActive(serviceName)
                   ? "Live Stream Active"
                   : "Static Metrics"}
               </span>

@@ -72,12 +72,6 @@ class LogStreamingNamespace {
   initializeLogCollectorIntegration() {
     // Listen for log events from the collector service
     logCollectorService.on("log", (logEntry) => {
-      logger.debug("Received log entry from collector service", {
-        serviceId: logEntry.serviceId,
-        level: logEntry.level,
-        source: logEntry.source,
-        timestamp: logEntry.timestamp,
-      });
       this.broadcastSystemLog(logEntry);
     });
 

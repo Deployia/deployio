@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLogStream } from "@hooks/useLogStream";
 import { LoadingState } from "@components/ui/Spinner";
 import {
@@ -24,7 +24,6 @@ const ServiceLogs = ({
   // Refs for auto-scroll
   const logsEndRef = useRef(null);
   const logsContainerRef = useRef(null);
-  const autoScrollRef = useRef(true);
 
   // Logs state
   const [logs, setLogs] = useState(initialLogs);
@@ -39,12 +38,12 @@ const ServiceLogs = ({
     setLogs(initialLogs);
   }, [initialLogs]);
 
-  // Notify parent when logs change
+  // Notify parent when logs change (only for static logs, not during live stream)
   useEffect(() => {
-    if (onLogsChange) {
+    if (onLogsChange && !isLogStreamActive) {
       onLogsChange(logs);
     }
-  }, [logs, onLogsChange]);
+  }, [logs, onLogsChange, isLogStreamActive]);
 
   const stopLogStream = () => {
     if (isLogStreamActive && actualStreamId) {
@@ -177,24 +176,6 @@ const ServiceLogs = ({
     getStreamLogs,
     serviceName,
   ]);
-
-  // Auto-scroll to bottom when new logs arrive - fixed implementation
-  useEffect(() => {
-    if (autoScrollRef.current && logsContainerRef.current) {
-      const container = logsContainerRef.current;
-      container.scrollTop = container.scrollHeight;
-    }
-  }, [logs]);
-
-  // Handle scroll to detect if user scrolled up (disable auto-scroll)
-  const handleLogsScroll = useCallback(() => {
-    if (logsContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        logsContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop <= clientHeight + 50; // 50px tolerance
-      autoScrollRef.current = isAtBottom;
-    }
-  }, []);
 
   const clearLogs = () => {
     setLogs([]);
@@ -353,8 +334,7 @@ const ServiceLogs = ({
 
       <div
         ref={logsContainerRef}
-        onScroll={handleLogsScroll}
-        className="h-96 overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm custom-scrollbar"
+        className="h-96 max-h-[60vh] min-h-[200px] overflow-y-auto bg-black/50 rounded-lg border border-neutral-700 p-4 font-mono text-sm custom-scrollbar"
       >
         {logsLoading ? (
           <div className="flex items-center justify-center h-full">
