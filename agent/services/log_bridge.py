@@ -90,8 +90,7 @@ class AgentLogBridge:
         self.reconnect_delay = settings.log_bridge_reconnect_delay
         self.last_heartbeat = None
 
-        # Log sources
-        self.docker_client = None
+        self.docker_client = docker.from_env()
         self.active_streams = set()
         self.log_buffer = []
         self.buffer_size = settings.log_bridge_buffer_size
@@ -118,9 +117,6 @@ class AgentLogBridge:
         logger.info("Initializing Agent Log Bridge")
 
         try:
-            # Initialize Docker client
-            self.docker_client = docker.from_env()
-
             # Initialize SocketIO client
             self.sio = socketio.AsyncClient(
                 reconnection=True,
@@ -317,45 +313,76 @@ class AgentLogBridge:
         asyncio.create_task(self.periodic_status_updates())
 
     async def stream_system_logs(self):
-        """Stream system logs (journalctl, syslog)"""
+        """Stream system logs (journalctl on Linux, agent.log on Windows)"""
+        import platform
+
         logger.info("Starting system log streaming")
-
         try:
-            import subprocess
+            if platform.system() == "Windows":
+                import os
 
-            # Use journalctl to stream system logs
-            proc = subprocess.Popen(
-                ["journalctl", "-f", "--output=json", "--no-tail"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-            )
+                log_path = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)), "logs", "agent.log"
+                )
+                if not os.path.exists(log_path):
+                    logger.warning(
+                        f"Log file {log_path} does not exist, skipping system log streaming."
+                    )
+                    return
+                with open(log_path, "r", encoding="utf-8") as f:
+                    # Go to the end of the file
+                    f.seek(0, os.SEEK_END)
+                    while self.connected:
+                        line = f.readline()
+                        if line:
+                            formatted_log = {
+                                "source": "system",
+                                "timestamp": time.time(),
+                                "level": "info",
+                                "service": "agent",
+                                "message": line.strip(),
+                                "host": self.agent_id,
+                                "agent_id": self.agent_id,
+                            }
+                            await self.queue_log(formatted_log)
+                        else:
+                            await asyncio.sleep(0.5)
+            else:
+                import subprocess
 
-            while self.connected:
-                line = proc.stdout.readline()
-                if line:
-                    try:
-                        log_entry = json.loads(line.strip())
+                # Use journalctl to stream system logs
+                proc = subprocess.Popen(
+                    ["journalctl", "-f", "--output=json", "--no-tail"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
 
-                        # Format log entry
-                        formatted_log = {
-                            "source": "system",
-                            "timestamp": log_entry.get(
-                                "__REALTIME_TIMESTAMP", time.time() * 1000000
-                            ),
-                            "level": log_entry.get("PRIORITY", "6"),
-                            "service": log_entry.get("_SYSTEMD_UNIT", "unknown"),
-                            "message": log_entry.get("MESSAGE", ""),
-                            "host": log_entry.get("_HOSTNAME", self.agent_id),
-                            "agent_id": self.agent_id,
-                        }
+                while self.connected:
+                    line = proc.stdout.readline()
+                    if line:
+                        try:
+                            log_entry = json.loads(line.strip())
 
-                        await self.queue_log(formatted_log)
+                            # Format log entry
+                            formatted_log = {
+                                "source": "system",
+                                "timestamp": log_entry.get(
+                                    "__REALTIME_TIMESTAMP", time.time() * 1000000
+                                ),
+                                "level": log_entry.get("PRIORITY", "6"),
+                                "service": log_entry.get("_SYSTEMD_UNIT", "unknown"),
+                                "message": log_entry.get("MESSAGE", ""),
+                                "host": log_entry.get("_HOSTNAME", self.agent_id),
+                                "agent_id": self.agent_id,
+                            }
 
-                    except json.JSONDecodeError:
-                        continue
+                            await self.queue_log(formatted_log)
 
-                await asyncio.sleep(0.1)
+                        except json.JSONDecodeError:
+                            continue
+
+                    await asyncio.sleep(0.1)
 
         except Exception as e:
             logger.error(f"System log streaming error: {e}")
@@ -363,7 +390,6 @@ class AgentLogBridge:
     async def stream_docker_logs(self):
         """Stream Docker container logs"""
         logger.info("Starting Docker log streaming")
-
         try:
             while self.connected:
                 containers = self.docker_client.containers.list()

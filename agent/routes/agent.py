@@ -7,15 +7,38 @@ import logging
 import docker
 import psutil
 import os
-from fastapi import APIRouter
-from motor.motor_asyncio import AsyncIOMotorClient
+import sys
+from fastapi import APIRouter, Security
+from fastapi.security import HTTPBearer
 from config.settings import settings
+import httpx
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Security scheme for OpenAPI docs
+security = HTTPBearer()
+
+REQUIRED_INTERNAL_SERVICE = "deployio-backend"
+BACKEND_URL = os.getenv("PLATFORM_URL", "http://localhost:3000")
+TOKEN_VALIDATION_URL = f"{BACKEND_URL}/api/internal/auth/validate-token"
+
 # Server start time for uptime calculation
 server_start = time.time()
+
+
+# Patch root logger to use UTF-8 encoding for stdout (Windows fix for Unicode)
+if (
+    hasattr(sys.stdout, "encoding")
+    and sys.stdout.encoding
+    and sys.stdout.encoding.lower() != "utf-8"
+):
+    try:
+        import io
+
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    except Exception:
+        pass
 
 
 def get_system_metrics():
@@ -76,12 +99,22 @@ def get_system_metrics():
 
 async def check_mongodb_connection():
     """Check MongoDB connection"""
+    if not settings.mongodb_uri:
+        logger.warning(
+            "MongoDB URI is not set in environment (.env). Please set MONGODB_URI."
+        )
+        return "not_configured"
     try:
+        from motor.motor_asyncio import AsyncIOMotorClient
+
         client = AsyncIOMotorClient(settings.mongodb_uri)
         # Try to ping the database
-        await client.admin.command("ping")
-        await client.close()
-        return "connected"
+        result = await client.admin.command("ping")
+        client.close()  # Correct: do not await
+        if result and result.get("ok") == 1.0:
+            return "connected"
+        else:
+            return "disconnected"
     except Exception as e:
         logger.warning(f"MongoDB check failed: {str(e)}")
         return "disconnected"
@@ -101,8 +134,6 @@ def check_docker_connection():
 async def check_traefik_connection():
     """Check Traefik connection using httpx for better performance"""
     try:
-        import httpx
-
         # Try to connect to Traefik API endpoint
         traefik_url = "http://localhost:8080/api/overview"  # Default Traefik API port
         async with httpx.AsyncClient() as client:
@@ -179,9 +210,18 @@ async def health_check():
         }
 
 
-@router.get("/status")
+@router.get(
+    "/status",
+    tags=["Agent"],
+    summary="Get detailed agent status (authenticated)",
+    dependencies=[Security(HTTPBearer())],
+)
 async def agent_status():
-    """Get detailed agent status (authenticated endpoint)"""
+    """
+    Get detailed agent status (requires Bearer token and X-Internal-Service header).
+    - **Authorization**: Bearer token required
+    - **X-Internal-Service**: deployio-backend
+    """
     uptime = time.time() - server_start
 
     # Check service connections
@@ -213,50 +253,18 @@ async def agent_status():
     }
 
 
-# Placeholder routes for future implementation
-@router.post("/deployments")
-async def create_deployment():
-    """Create new deployment - placeholder"""
-    return {"message": "Deployment endpoint ready for implementation"}
-
-
-@router.get("/deployments")
-async def list_deployments():
-    """List all deployments - placeholder"""
-    return {"deployments": [], "total": 0}
-
-
-@router.get("/deployments/{deployment_id}")
-async def get_deployment(deployment_id: str):
-    """Get deployment details - placeholder"""
-    return {"deployment_id": deployment_id, "status": "placeholder"}
-
-
-@router.delete("/deployments/{deployment_id}")
-async def delete_deployment(deployment_id: str):
-    """Delete deployment - placeholder"""
-    return {
-        "deployment_id": deployment_id,
-        "action": "deleted",
-        "status": "placeholder",
-    }
-
-
-@router.get("/containers")
-async def list_containers():
-    """List running containers - placeholder"""
-    return {"containers": [], "total": 0}
-
-
-@router.get("/traefik/routes")
-async def list_traefik_routes():
-    """List Traefik routes - placeholder"""
-    return {"routes": [], "total": 0}
-
-
-@router.get("/logs")
+@router.get(
+    "/logs",
+    tags=["Agent"],
+    summary="Get recent logs from the agent service (authenticated)",
+    dependencies=[Security(HTTPBearer())],
+)
 async def get_logs(lines: int = 50, level: str = "all"):
-    """Get recent logs from the agent service"""
+    """
+    Get recent logs from the agent service (requires Bearer token and X-Internal-Service header).
+    - **Authorization**: Bearer token required
+    - **X-Internal-Service**: deployio-backend
+    """
     try:
         import os
         import subprocess

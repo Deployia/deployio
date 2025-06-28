@@ -9,7 +9,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-    
+
     // User ownership
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -27,11 +27,13 @@ const projectCreationSessionSchema = new mongoose.Schema(
     },
 
     // Step completion status
-    completedSteps: [{
-      type: Number,
-      min: 1,
-      max: 6,
-    }],
+    completedSteps: [
+      {
+        type: Number,
+        min: 1,
+        max: 6,
+      },
+    ],
 
     // Wizard step data
     stepData: {
@@ -40,7 +42,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
         type: String,
         enum: ["github", "gitlab", "azure-devops"],
       },
-      
+
       // Step 2: Repository Selection
       repository: {
         provider: String,
@@ -77,7 +79,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
           date: Date,
         },
       },
-      
+
       // Analysis settings
       analysisSettings: {
         enableAI: {
@@ -160,7 +162,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
           enum: ["private", "public"],
           default: "private",
         },
-        
+
         // Build configuration
         buildConfig: {
           buildCommand: String,
@@ -170,7 +172,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
           outputDir: String,
           nodeVersion: String,
         },
-        
+
         // Runtime configuration
         runtime: {
           port: Number,
@@ -179,7 +181,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
           instances: Number,
           platform: String,
         },
-        
+
         // Environment variables
         environmentVariables: {
           development: [
@@ -204,7 +206,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
             },
           ],
         },
-        
+
         // Advanced settings
         advanced: {
           customDomain: String,
@@ -291,10 +293,10 @@ const projectCreationSessionSchema = new mongoose.Schema(
 );
 
 // Indexes for performance
-projectCreationSessionSchema.index({ sessionId: 1 });
-projectCreationSessionSchema.index({ user: 1 });
+// projectCreationSessionSchema.index({ sessionId: 1 }); // removed duplicate
+// projectCreationSessionSchema.index({ user: 1 }); // removed duplicate
 projectCreationSessionSchema.index({ status: 1 });
-projectCreationSessionSchema.index({ expiresAt: 1 });
+// projectCreationSessionSchema.index({ expiresAt: 1 }); // removed duplicate
 projectCreationSessionSchema.index({ createdAt: -1 });
 
 // Generate unique session ID
@@ -303,9 +305,12 @@ projectCreationSessionSchema.statics.generateSessionId = function () {
 };
 
 // Create new session
-projectCreationSessionSchema.statics.createSession = async function (userId, metadata = {}) {
+projectCreationSessionSchema.statics.createSession = async function (
+  userId,
+  metadata = {}
+) {
   const sessionId = this.generateSessionId();
-  
+
   return await this.create({
     sessionId,
     user: userId,
@@ -318,51 +323,57 @@ projectCreationSessionSchema.statics.createSession = async function (userId, met
 };
 
 // Update session step
-projectCreationSessionSchema.methods.updateStep = function (stepNumber, stepData = {}) {
+projectCreationSessionSchema.methods.updateStep = function (
+  stepNumber,
+  stepData = {}
+) {
   this.currentStep = stepNumber;
-  
+
   // Mark step as completed
   if (!this.completedSteps.includes(stepNumber)) {
     this.completedSteps.push(stepNumber);
   }
-  
+
   // Update step data
   this.stepData = {
     ...this.stepData,
     ...stepData,
   };
-  
+
   // Update activity timestamp
   this.metadata.lastActivityAt = new Date();
-  
+
   // Track navigation
   this.metadata.stepsNavigated.push({
     step: stepNumber,
     timestamp: new Date(),
-    action: 'completed',
+    action: "completed",
   });
-  
+
   return this.save();
 };
 
 // Update analysis progress
-projectCreationSessionSchema.methods.updateAnalysisProgress = function (progress, status = 'in-progress') {
+projectCreationSessionSchema.methods.updateAnalysisProgress = function (
+  progress,
+  status = "in-progress"
+) {
   this.stepData.analysis = {
     ...this.stepData.analysis,
     progress,
     status,
   };
-  
-  if (status === 'in-progress' && !this.stepData.analysis.startedAt) {
+
+  if (status === "in-progress" && !this.stepData.analysis.startedAt) {
     this.stepData.analysis.startedAt = new Date();
   }
-  
-  if (status === 'completed' || status === 'failed') {
+
+  if (status === "completed" || status === "failed") {
     this.stepData.analysis.completedAt = new Date();
   }
-  
+
   this.metadata.lastActivityAt = new Date();
-  
+
   return this.save();
 };
 
@@ -371,11 +382,11 @@ projectCreationSessionSchema.methods.setAnalysisResults = function (results) {
   this.stepData.analysis = {
     ...this.stepData.analysis,
     results,
-    status: 'completed',
+    status: "completed",
     completedAt: new Date(),
     progress: 100,
   };
-  
+
   return this.save();
 };
 
@@ -384,19 +395,19 @@ projectCreationSessionSchema.methods.setAnalysisError = function (error) {
   this.stepData.analysis = {
     ...this.stepData.analysis,
     error,
-    status: 'failed',
+    status: "failed",
     completedAt: new Date(),
   };
-  
+
   return this.save();
 };
 
 // Complete session
 projectCreationSessionSchema.methods.completeSession = function (projectId) {
-  this.status = 'completed';
+  this.status = "completed";
   this.projectId = projectId;
   this.metadata.lastActivityAt = new Date();
-  
+
   return this.save();
 };
 
@@ -418,7 +429,7 @@ projectCreationSessionSchema.methods.getTimeSpent = function () {
 };
 
 // Pre-save middleware to update time spent
-projectCreationSessionSchema.pre('save', function (next) {
+projectCreationSessionSchema.pre("save", function (next) {
   if (!this.isNew) {
     this.metadata.timeSpentInSession = this.getTimeSpent();
   }
@@ -426,11 +437,14 @@ projectCreationSessionSchema.pre('save', function (next) {
 });
 
 // Automatically expire sessions
-projectCreationSessionSchema.pre('save', function (next) {
-  if (this.isExpired() && this.status === 'active') {
-    this.status = 'expired';
+projectCreationSessionSchema.pre("save", function (next) {
+  if (this.isExpired() && this.status === "active") {
+    this.status = "expired";
   }
   next();
 });
 
-module.exports = mongoose.model('ProjectCreationSession', projectCreationSessionSchema);
+module.exports = mongoose.model(
+  "ProjectCreationSession",
+  projectCreationSessionSchema
+);

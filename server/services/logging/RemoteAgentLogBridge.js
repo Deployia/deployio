@@ -39,8 +39,7 @@ class RemoteAgentLogBridge extends EventEmitter {
 
     try {
       // Get the agent bridge namespace
-      this.agentBridgeNamespace =
-        webSocketRegistry.getNamespace("/agent-bridge");
+      this.agentBridgeNamespace = webSocketRegistry.get("/agent-bridge");
 
       if (!this.agentBridgeNamespace) {
         throw new Error(

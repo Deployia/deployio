@@ -65,10 +65,10 @@ def setup_log_bridge_handler():
             if bridge_handler not in logger_instance.handlers:
                 logger_instance.addHandler(bridge_handler)
 
-        logger.info("✓ Log bridge handler configured for Python logging")
+        logger.info("Log bridge handler configured for Python logging")
 
     except Exception as e:
-        logger.error(f"✗ Failed to setup log bridge handler: {e}")
+        logger.error(f"Failed to setup log bridge handler: {e}")
 
 
 @app.on_event("startup")
@@ -80,20 +80,18 @@ async def startup_event():
     try:
         log_bridge_started = await start_log_bridge()
         if log_bridge_started:
-            logger.info("✓ Log bridge started successfully")
+            logger.info("Log bridge started successfully")
 
             # Set up the log handler after bridge is running
             setup_log_bridge_handler()
 
             # Test log to verify it's working
-            logger.info(
-                "🔗 Log bridge integration test - this should appear in admin UI"
-            )
+            logger.info("Log bridge integration test - this should appear in admin UI")
 
         else:
-            logger.warning("✗ Log bridge failed to start")
+            logger.warning("Log bridge failed to start")
     except Exception as e:
-        logger.error(f"✗ Log bridge startup error: {e}")
+        logger.error(f"Log bridge startup error: {e}")
 
 
 @app.on_event("shutdown")
@@ -106,9 +104,9 @@ async def shutdown_event():
         from services.log_bridge_starter import stop_log_bridge
 
         await stop_log_bridge()
-        logger.info("✓ Log bridge stopped")
+        logger.info("Log bridge stopped")
     except Exception as e:
-        logger.error(f"✗ Log bridge shutdown error: {e}")
+        logger.error(f"Log bridge shutdown error: {e}")
 
 
 if __name__ == "__main__":

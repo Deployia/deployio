@@ -15,8 +15,12 @@ const router = express.Router();
  */
 const validateInternalService = (req, res, next) => {
   const serviceHeader = req.headers["x-internal-service"];
-  // Accept both ai-service and agent as valid internal callers
-  const allowedServices = ["deployio-ai-service", "deployio-agent"];
+  // Accept ai-service, agent, and backend as valid internal callers
+  const allowedServices = [
+    "deployio-ai-service",
+    "deployio-agent",
+    "deployio-backend",
+  ];
   if (!allowedServices.includes(serviceHeader)) {
     return res.status(403).json({
       success: false,
@@ -67,6 +71,23 @@ router.post("/validate-token", validateInternalService, async (req, res) => {
             type: "demo",
           },
           isDemo: true,
+        },
+      });
+    }
+
+    // Handle system/service tokens (deployio-backend)
+    if (decoded.type === "system" && decoded.id === "deployio_backend") {
+      return res.status(200).json({
+        success: true,
+        data: {
+          valid: true,
+          user: {
+            id: "deployio_backend",
+            email: "backend@deployio.com",
+            username: "deployio-backend",
+            type: "system",
+          },
+          isSystem: true,
         },
       });
     }

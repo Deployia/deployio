@@ -5,6 +5,14 @@ Settings configuration for the DeployIO Agent
 import os
 from typing import Optional
 
+# Load environment variables from .env if present
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass  # dotenv is optional, but recommended for local/dev
+
 
 class Settings:
     """Application settings"""
@@ -35,10 +43,9 @@ class Settings:
 
     # Traefik settings
     traefik_config_dir: str = os.getenv("TRAEFIK_CONFIG_DIR", "/dynamic")
-    traefik_api_url: str = os.getenv(
-        "TRAEFIK_API_URL", "http://traefik:8080"
-    )  # MongoDB Atlas settings
-    database_url: Optional[str] = os.getenv("DATABASE_URL")
+    traefik_api_url: str = os.getenv("TRAEFIK_API_URL", "http://traefik:8080")
+    # MongoDB Atlas settings
+    mongodb_uri: Optional[str] = os.getenv("MONGODB_URI")
     mongodb_database: str = os.getenv("MONGODB_DATABASE", "deployio_agent")
 
     # Authentication
@@ -48,7 +55,7 @@ class Settings:
     api_key_header: str = "X-Agent-Secret"
 
     # Platform Communication
-    platform_url: str = os.getenv("PLATFORM_URL", "https://deployio.tech")
+    platform_url: str = os.getenv("PLATFORM_URL", "http://localhost:3000")
     platform_api_key: Optional[str] = os.getenv("PLATFORM_API_KEY")
 
     # Log Bridge Configuration

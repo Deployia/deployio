@@ -3,13 +3,13 @@
  * Handles remote agent log collection via HTTP and WebSocket
  */
 
-const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
 const { exec } = require("child_process");
 const util = require("util");
 const logger = require("@config/logger");
 const BaseLogCollector = require("./BaseLogCollector");
+const { agentServiceClient } = require("../agentServiceClient");
 
 const execPromise = util.promisify(exec);
 
@@ -51,20 +51,13 @@ class AgentLogCollector extends BaseLogCollector {
   }
 
   async getRecentLogs(options = {}) {
-    const { lines = 50, level = "all" } = options;
-
+    const { lines = 50, level = "all", user } = options;
     try {
-      const response = await axios.get(`${this.agentUrl}/agent/v1/logs`, {
+      // Use the agentServiceClient with user context if provided
+      const response = await agentServiceClient.get("/logs", {
         params: { lines, level },
-        timeout: 10000,
-        headers: {
-          Authorization: `Bearer ${
-            process.env.AGENT_SECRET || "default-secret"
-          }`,
-          "User-Agent": "LogCollector/1.0",
-        },
+        user, // Pass user context for per-user JWT, or omit for system
       });
-
       const agentLogs = response.data.logs || [];
       const parsedLogs = agentLogs.map((log, index) => ({
         id: `agent_remote_${Date.now()}_${index}`,
@@ -76,7 +69,6 @@ class AgentLogCollector extends BaseLogCollector {
         metadata: log,
         raw: log.raw || log.message,
       }));
-
       return {
         logs: parsedLogs,
         totalLines: parsedLogs.length,
@@ -84,8 +76,17 @@ class AgentLogCollector extends BaseLogCollector {
         url: this.agentUrl,
       };
     } catch (error) {
-      // Fallback to local agent logs if available
-      return await this.getLocalAgentLogs(lines, level);
+      logger.error("Failed to fetch remote agent logs:", error);
+      return {
+        logs: [],
+        totalLines: 0,
+        source: "remote-agent-error",
+        url: this.agentUrl,
+        error: error.response
+          ? error.response.data
+          : error.message || error.toString(),
+        status: error.response ? error.response.status : undefined,
+      };
     }
   }
 
