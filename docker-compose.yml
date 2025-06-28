@@ -66,6 +66,13 @@ services:
       - "traefik.http.routers.backend.tls.domains[0].main=api.deployio.tech"
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
       - "traefik.http.routers.backend.priority=2"
+      # WebSocket support for agent bridge on main domain
+      - "traefik.http.routers.backend-ws.rule=Host(`deployio.tech`) && (PathPrefix(`/agent-bridge`) || PathPrefix(`/socket.io`))"
+      - "traefik.http.routers.backend-ws.entrypoints=websecure"
+      - "traefik.http.routers.backend-ws.tls.certresolver=myresolver"
+      - "traefik.http.routers.backend-ws.tls.domains[0].main=deployio.tech"
+      - "traefik.http.routers.backend-ws.priority=10"
+      - "traefik.http.services.backend-ws.loadbalancer.server.port=3000"
     depends_on:
       redis:
         condition: service_healthy

@@ -1,552 +1,213 @@
-# DeployIO Agent - Subdomain Management System
+# DeployIO Agent - Modular Architecture
 
-Complete MERN stack deployment automation with dynamic subdomain routing and beautiful landing pages.
-
-## 🎯 Features
-
-- **Dynamic Subdomain Routing** - Automatic subdomain management with Traefik
-- **Beautiful Landing Pages** - Professional "coming soon" pages for unassigned subdomains
-- **Container Management** - Full MERN app lifecycle management
-- **SSL Automation** - Automatic SSL certificates via Let's Encrypt
-- **Resource Management** - Container limits and monitoring
-- **MongoDB Atlas Integration** - Cloud database for scalable app deployments
-
-## 🏗️ Architecture
+## 📁 Directory Structure
 
 ```
-*.deployio.tech
-├── agent.deployio.tech     → DeployIO Agent API
-├── app.deployio.tech       → App Management Interface
-├── traefik.deployio.tech   → Traefik Dashboard
-└── [user-app].deployio.tech → User Applications or Landing Page
+agent/
+├── app/                          # Main application package
+│   ├── __init__.py
+│   ├── main.py                   # FastAPI application factory
+│   ├── core/                     # Core configuration and utilities
+│   │   ├── __init__.py
+│   │   ├── config.py            # Settings with Pydantic validation
+│   │   ├── logging.py           # Logging configuration
+│   │   └── events.py            # Startup/shutdown event handlers
+│   ├── services/                 # Business logic services
+│   │   ├── __init__.py
+│   │   ├── log_bridge.py        # WebSocket log bridge service
+│   │   └── health_monitor.py    # Health monitoring service
+│   ├── middleware/              # FastAPI middleware
+│   │   ├── __init__.py
+│   │   ├── auth.py              # Authentication middleware
+│   │   └── exception_handlers.py # Global exception handlers
+│   └── routes/                  # API route handlers
+│       ├── __init__.py
+│       ├── health.py            # Health check endpoints
+│       ├── logs.py              # Log management endpoints
+│       └── system.py            # System information endpoints
+├── main_new.py                  # Application entry point
+├── requirements-new.txt         # Updated dependencies
+├── deploy_new.sh               # Deployment script
+└── README-new.md               # This documentation
 ```
 
-## 🚀 Quick Start
+## 🚀 Features
 
-### 1. Setup Environment
+### ✅ Working Features
 
-```bash
-# Clone and navigate to agent directory
-cd deployio-agent
+1. **Modular Architecture**
 
-# Configure environment
-cp .env.example .env
-nano .env  # Configure your settings
-```
+   - Clean separation of concerns
+   - Follows FastAPI best practices
+   - Easy to test and maintain
 
-### 2. Configure Environment Variables
+2. **WebSocket Log Bridge**
 
-Key variables in `.env`:
+   - Real-time log streaming to platform
+   - Automatic reconnection with exponential backoff
+   - System and Docker log monitoring
+   - Heartbeat and health checks
 
-```bash
-# Domain Configuration
-BASE_DOMAIN=deployio.tech
-WILDCARD_SSL_ENABLED=true
+3. **Health Monitoring**
 
-# Security
-AGENT_SECRET=your-secure-secret-here
+   - System metrics collection (CPU, Memory, Disk, Network)
+   - Process monitoring
+   - Docker container status
+   - Health status reporting
 
-# Database (MongoDB Atlas)
-DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/deployio_agent?retryWrites=true&w=majority
-MONGODB_DATABASE=deployio_agent
+4. **Authentication**
 
-# ECR Configuration
-AWS_REGION=us-east-1
-ECR_REGISTRY_URL=your-account.dkr.ecr.us-east-1.amazonaws.com
+   - Agent secret-based authentication
+   - Token validation with platform backend
+   - Middleware-based security
 
-# Platform Communication
+5. **API Endpoints**
+   - RESTful API design
+   - Comprehensive health checks
+   - Log retrieval and status
+   - System information and monitoring
+
+### 🔧 Configuration
+
+The agent uses Pydantic settings for configuration management:
+
+```python
+# Environment variables (or .env file)
+DEBUG=false
+ENVIRONMENT=production
+HOST=0.0.0.0
+PORT=8000
+AGENT_SECRET=your-secret-here
 PLATFORM_URL=https://deployio.tech
-PLATFORM_API_KEY=your-platform-api-key
+AGENT_ID=agent-ec2-2
+LOG_BRIDGE_ENABLED=true
 ```
 
-### 3. Setup MongoDB Atlas
+### 🌐 WebSocket Connection
 
-1. **Create MongoDB Atlas Account**
+The agent connects to the platform via WebSocket:
 
-   - Go to [MongoDB Atlas](https://www.mongodb.com/atlas)
-   - Create a new cluster (free tier available)
+- **Local**: `ws://127.0.0.1:3000/agent-bridge`
+- **Production**: `wss://deployio.tech/agent-bridge`
 
-2. **Configure Database Access**
+**Authentication Headers**:
 
-   - Create a database user with read/write permissions
-   - Add your IP address to the IP whitelist (or use 0.0.0.0/0 for development)
+- `x-agent-secret`: Agent authentication secret
+- `x-agent-id`: Unique agent identifier
+- `x-agent-domain`: Platform domain
 
-3. **Get Connection String**
-   - Click "Connect" on your cluster
-   - Choose "Connect your application"
-   - Copy the connection string and update your `.env` file
+### 📊 API Endpoints
+
+#### Health Endpoints
+
+- `GET /` - Service information
+- `GET /health` - Basic health check
+- `GET /health/detailed` - Detailed health with system metrics
+
+#### Log Management
+
+- `GET /agent/v1/logs` - Get recent logs with filtering
+- `GET /agent/v1/logs/status` - Log bridge connection status
+- `POST /agent/v1/logs/test` - Test log bridge connection
+
+#### System Information
+
+- `GET /agent/v1/system` - Current system information
+- `GET /agent/v1/containers` - Docker containers status
+- `GET /agent/v1/processes` - Top processes by CPU usage
+
+### 🔄 Log Processing Flow
+
+1. **Application Logs** → Custom LogHandler → Buffer → WebSocket Batch
+2. **System Metrics** → Background Monitor → WebSocket Stream
+3. **Docker Logs** → Container Monitor → WebSocket Stream
+4. **Platform** ← Real-time Distribution ← Log Processing
+
+### 🐳 Production Deployment
+
+The agent automatically connects to the production platform when:
+
+1. **Traefik Configuration** routes `/agent-bridge` to backend service
+2. **SSL/TLS** terminates properly for WebSocket upgrades
+3. **Environment Variables** are set correctly for production
+
+### 🛠️ Key Improvements Over Legacy Code
+
+1. **Modular Design**: Each component has a single responsibility
+2. **Type Safety**: Pydantic models for configuration and API
+3. **Error Handling**: Comprehensive exception handling and logging
+4. **Testing Ready**: Clean architecture makes testing easier
+5. **Documentation**: Auto-generated API docs via FastAPI
+6. **Performance**: Async/await throughout for better concurrency
+7. **Security**: Middleware-based authentication and validation
+
+### 🔍 Monitoring and Debugging
+
+**Health Checks**:
 
 ```bash
-DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/deployio_agent?retryWrites=true&w=majority
+curl http://localhost:8000/health
+curl http://localhost:8000/health/detailed
 ```
 
-### 4. Deploy the System
-
-#### Local Development:
+**Log Bridge Status**:
 
 ```bash
-# Build and start locally
-./deploy.sh
-
-# Or manually:
-docker-compose up --build -d
+curl http://localhost:8000/agent/v1/logs/status
 ```
 
-#### Production Deployment:
+**System Information**:
 
 ```bash
-# 1. Build and push to ECR
-./build-push-ecr.sh
-
-# 2. Deploy from ECR
-export ECR_IMAGE=your-account.dkr.ecr.region.amazonaws.com/deployio-agent:latest
-./deploy.sh
-
-# Or on EC2:
-ECR_IMAGE=your-ecr-image docker-compose up -d
+curl http://localhost:8000/agent/v1/system
+curl http://localhost:8000/agent/v1/containers
 ```
 
-# Check status
+**API Documentation** (Debug Mode):
 
-docker-compose ps
+- http://localhost:8000/agent/docs
+- http://localhost:8000/agent/redoc
 
-# View logs
+### 🚀 Getting Started
 
-docker-compose logs -f
+1. **Install Dependencies**:
 
-```
+   ```bash
+   pip install -r requirements-new.txt
+   ```
 
-## 🌐 Subdomain System
+2. **Configure Environment**:
 
-### Reserved Subdomains
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
 
-- `agent.deployio.tech` - Agent API endpoints
-- `app.deployio.tech` - App management interface
-- `traefik.deployio.tech` - Traefik dashboard
+3. **Run Agent**:
 
-### Dynamic User Subdomains
+   ```bash
+   python main_new.py
+   ```
 
-- **Unassigned**: Shows beautiful landing page with redirect to platform
-- **Deployed Apps**: Routes to user's MERN application containers
-- **SSL**: Automatic HTTPS certificates for all subdomains
+4. **Deploy to Production**:
+   ```bash
+   chmod +x deploy_new.sh
+   ./deploy_new.sh
+   ```
 
-## 📡 API Endpoints
+### 🎯 Next Steps
 
-### Health Check
-
-```
-
-GET /agent/v1/health
-
-```
-
-### Deployment Management
-
-```
-
-POST /agent/v1/deployments # Create deployment
-GET /agent/v1/deployments # List deployments
-GET /agent/v1/deployments/{id} # Get deployment
-POST /agent/v1/deployments/{id}/start # Start deployment
-POST /agent/v1/deployments/{id}/stop # Stop deployment
-POST /agent/v1/deployments/{id}/restart # Restart deployment
-DELETE /agent/v1/deployments/{id} # Delete deployment
-GET /agent/v1/deployments/{id}/logs # Get logs
-GET /agent/v1/deployments/{id}/status # Get status
-
-```
-
-### Subdomain Management
-
-```
-
-GET /agent/v1/deployments/subdomains/available/{subdomain}
-GET /agent/v1/deployments/subdomains/routes
-
-````
-
-## 🎨 Landing Page Features
-
-The default landing page includes:
-
-- **Responsive Design** - Works on all devices
-- **Neural Network Animation** - Interactive background
-- **Typing Animation** - Dynamic status messages
-- **DeployIO Branding** - Consistent with platform design
-- **Call-to-Action** - Directs users to main platform
-
-## 🔧 Configuration Files
-
-### Traefik Configuration
-
-- `traefik/traefik.yml` - Main Traefik configuration
-- `traefik/dynamic.yml` - Dynamic routing rules
-
-### Docker Configuration
-
-- `docker-compose.yml` - Complete service orchestration
-- `Dockerfile` - Agent container image
-- `landing-page/Dockerfile` - Landing page container
-
-## 🚦 Deployment Flow
-
-1. **Platform Request** - Main platform sends deployment request
-2. **Image Pull** - Agent pulls containers from ECR
-3. **Container Deploy** - Creates isolated containers with resource limits
-4. **Database Setup** - Provisions MongoDB database for app
-5. **Route Creation** - Updates Traefik routing to new subdomain
-6. **SSL Certificate** - Automatic HTTPS certificate generation
-7. **Health Check** - Monitors application health
-
-## 📊 Monitoring
-
-### Container Health
-
-- Automatic health checks for all containers
-- Resource usage monitoring
-- Log aggregation and storage
-
-### Deployment Statistics
-
-- Success/failure rates
-- Resource utilization
-- Performance metrics
-
-## 🔒 Security
-
-- **Container Isolation** - Each app runs in isolated containers
-- **Resource Limits** - CPU/memory limits enforced
-- **SSL Encryption** - All traffic encrypted via HTTPS
-- **Authentication** - API key protection for agent endpoints
-
-## 🛠️ Development
-
-### Running Locally
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start services
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-````
-
-### Testing
-
-```bash
-# Test deployment endpoint
-curl -X POST https://agent.deployio.tech/agent/v1/deployments \
-  -H "Content-Type: application/json" \
-  -H "X-Agent-Secret: your-secret" \
-  -d '{
-    "project_id": "test-project",
-    "subdomain": "my-test-app",
-    "images": {
-      "frontend": "your-ecr-url/frontend:latest",
-      "backend": "your-ecr-url/backend:latest"
-    }
-  }'
-```
-
-## 📝 Logs
-
-### Application Logs
-
-```bash
-# Agent logs
-docker-compose logs deployio-agent
-
-# Landing page logs
-docker-compose logs landing-page
-
-# Traefik logs
-docker-compose logs traefik
-```
-
-### Deployment Logs
-
-```bash
-# Get logs for specific deployment
-curl https://agent.deployio.tech/agent/v1/deployments/{deployment-id}/logs
-```
-
-## 🔄 Maintenance
-
-### Cleanup Old Deployments
-
-```bash
-# Automated cleanup runs daily
-# Manual cleanup via API
-DELETE /agent/v1/deployments/{deployment-id}
-```
-
-### SSL Certificate Renewal
-
-- Automatic renewal via Let's Encrypt
-- Certificates stored in `letsencrypt/acme.json`
-
-## 📋 Troubleshooting
-
-### Common Issues
-
-1. **Subdomain not resolving**
-
-   - Check DNS configuration
-   - Verify Traefik routing rules
-
-2. **SSL certificate issues**
-
-   - Check Let's Encrypt rate limits
-   - Verify domain ownership
-
-3. **Container deployment fails**
-   - Check ECR permissions
-   - Verify Docker network connectivity
-
-### Debug Commands
-
-```bash
-# Check container status
-docker ps -a
-
-# Check network connectivity
-docker network inspect deployio-network
-
-# View Traefik configuration
-curl http://traefik.deployio.tech:8080/api/rawdata
-```
-
-## 🏗️ MongoDB Atlas Migration
-
-This system has been optimized to use **MongoDB Atlas** as the cloud database provider, removing the need for local MongoDB containers and improving scalability for EC2 deployments.
-
-### Key Benefits
-
-- **Cloud-native**: No local database containers to manage
-- **Scalable**: Automatic scaling with MongoDB Atlas
-- **Secure**: Built-in security features and encryption
-- **Per-app databases**: Each deployed application gets its own database instance
-- **EC2 optimized**: Reduced local resource usage
-
-### Database Architecture
-
-```
-MongoDB Atlas Cluster
-├── deployio_agent (Agent metadata)
-├── app_user1_project1 (User app database)
-├── app_user1_project2 (User app database)
-└── app_user2_project1 (User app database)
-```
-
-### Connection Management
-
-- **Agent Database**: Uses main `DATABASE_URL` for agent operations
-- **App Databases**: Each deployment gets a unique database name
-- **Automatic Provisioning**: Database names generated per user/project
-- **Environment Injection**: Apps receive `DATABASE_URL` and `MONGODB_URI` environment variables
-
-### Testing Atlas Integration
-
-```bash
-# Test the Atlas connection
-./test-atlas.sh
-
-# Check service health with database status
-curl http://localhost:8000/agent/v1/health/detailed
-```
-
-## 📡 API Endpoints
-
-### Health Check
-
-```
-GET /agent/v1/health
-```
-
-### Deployment Management
-
-```
-POST   /agent/v1/deployments              # Create deployment
-GET    /agent/v1/deployments              # List deployments
-GET    /agent/v1/deployments/{id}         # Get deployment
-POST   /agent/v1/deployments/{id}/start   # Start deployment
-POST   /agent/v1/deployments/{id}/stop    # Stop deployment
-POST   /agent/v1/deployments/{id}/restart # Restart deployment
-DELETE /agent/v1/deployments/{id}         # Delete deployment
-GET    /agent/v1/deployments/{id}/logs    # Get logs
-GET    /agent/v1/deployments/{id}/status  # Get status
-```
-
-### Subdomain Management
-
-```
-GET /agent/v1/deployments/subdomains/available/{subdomain}
-GET /agent/v1/deployments/subdomains/routes
-```
-
-## 🎨 Landing Page Features
-
-The default landing page includes:
-
-- **Responsive Design** - Works on all devices
-- **Neural Network Animation** - Interactive background
-- **Typing Animation** - Dynamic status messages
-- **DeployIO Branding** - Consistent with platform design
-- **Call-to-Action** - Directs users to main platform
-
-## 🔧 Configuration Files
-
-### Traefik Configuration
-
-- `traefik/traefik.yml` - Main Traefik configuration
-- `traefik/dynamic.yml` - Dynamic routing rules
-
-### Docker Configuration
-
-- `docker-compose.yml` - Complete service orchestration
-- `Dockerfile` - Agent container image
-- `landing-page/Dockerfile` - Landing page container
-
-## 🚦 Deployment Flow
-
-1. **Platform Request** - Main platform sends deployment request
-2. **Image Pull** - Agent pulls containers from ECR
-3. **Container Deploy** - Creates isolated containers with resource limits
-4. **Database Setup** - Provisions MongoDB database for app
-5. **Route Creation** - Updates Traefik routing to new subdomain
-6. **SSL Certificate** - Automatic HTTPS certificate generation
-7. **Health Check** - Monitors application health
-
-## 📊 Monitoring
-
-### Container Health
-
-- Automatic health checks for all containers
-- Resource usage monitoring
-- Log aggregation and storage
-
-### Deployment Statistics
-
-- Success/failure rates
-- Resource utilization
-- Performance metrics
-
-## 🔒 Security
-
-- **Container Isolation** - Each app runs in isolated containers
-- **Resource Limits** - CPU/memory limits enforced
-- **SSL Encryption** - All traffic encrypted via HTTPS
-- **Authentication** - API key protection for agent endpoints
-
-## 🛠️ Development
-
-### Running Locally
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start services
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Testing
-
-```bash
-# Test deployment endpoint
-curl -X POST https://agent.deployio.tech/agent/v1/deployments \
-  -H "Content-Type: application/json" \
-  -H "X-Agent-Secret: your-secret" \
-  -d '{
-    "project_id": "test-project",
-    "subdomain": "my-test-app",
-    "images": {
-      "frontend": "your-ecr-url/frontend:latest",
-      "backend": "your-ecr-url/backend:latest"
-    }
-  }'
-```
-
-## 📝 Logs
-
-### Application Logs
-
-```bash
-# Agent logs
-docker-compose logs deployio-agent
-
-# Landing page logs
-docker-compose logs landing-page
-
-# Traefik logs
-docker-compose logs traefik
-```
-
-### Deployment Logs
-
-```bash
-# Get logs for specific deployment
-curl https://agent.deployio.tech/agent/v1/deployments/{deployment-id}/logs
-```
-
-## 🔄 Maintenance
-
-### Cleanup Old Deployments
-
-```bash
-# Automated cleanup runs daily
-# Manual cleanup via API
-DELETE /agent/v1/deployments/{deployment-id}
-```
-
-### SSL Certificate Renewal
-
-- Automatic renewal via Let's Encrypt
-- Certificates stored in `letsencrypt/acme.json`
-
-## 📋 Troubleshooting
-
-### Common Issues
-
-1. **Subdomain not resolving**
-
-   - Check DNS configuration
-   - Verify Traefik routing rules
-
-2. **SSL certificate issues**
-
-   - Check Let's Encrypt rate limits
-   - Verify domain ownership
-
-3. **Container deployment fails**
-   - Check ECR permissions
-   - Verify Docker network connectivity
-
-### Debug Commands
-
-```bash
-# Check container status
-docker ps -a
-
-# Check network connectivity
-docker network inspect deployio-network
-
-# View Traefik configuration
-curl http://traefik.deployio.tech:8080/api/rawdata
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create Pull Request
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
+1. **Migration**: Replace old agent with modular version
+2. **Testing**: Add comprehensive test suite
+3. **Monitoring**: Integrate with platform monitoring
+4. **Features**: Add deployment management capabilities
+5. **Security**: Implement additional security measures
 
 ---
 
-**Built with ❤️ for the DeployIO Platform**
+## 🚧 Migration Notes
+
+- **Backup**: Old agent files are automatically backed up
+- **Compatibility**: API endpoints maintain backward compatibility
+- **Configuration**: Environment variables remain the same
+- **Deployment**: Zero-downtime deployment possible

@@ -12,10 +12,12 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 # Configuration
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
+BACKEND_URL = settings.platform_url
 TOKEN_VALIDATION_URL = f"{BACKEND_URL}/api/internal/auth/validate-token"
 JWT_SECRET = (
     os.getenv("JWT_SECRET")
