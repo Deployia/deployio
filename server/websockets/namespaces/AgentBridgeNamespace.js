@@ -3,18 +3,23 @@
  * Handles real-time communication with remote deployment agents
  */
 
+const EventEmitter = require("events");
 const webSocketRegistry = require("../core/WebSocketRegistry");
 const logger = require("@config/logger");
 const RemoteAgentLogBridge = require("@services/logging/RemoteAgentLogBridge");
 
-class AgentBridgeNamespace {
+class AgentBridgeNamespace extends EventEmitter {
   constructor() {
+    super();
     this.namespace = null;
     this.connectedAgents = new Map(); // agentId -> socket
     this.agentInfo = new Map(); // agentId -> agent metadata
     this.logStreams = new Map(); // streamId -> stream info
     this.userSubscriptions = new Map(); // userId -> Set of streamIds
   }
+
+  // Static property to store the singleton instance
+  static instance = null;
 
   /**
    * Initialize the agent bridge namespace
@@ -50,8 +55,18 @@ class AgentBridgeNamespace {
     // Setup periodic agent health checks
     instance.setupHealthChecks();
 
+    // Store instance for global access
+    AgentBridgeNamespace.instance = instance;
+
     logger.info("Agent bridge namespace initialized");
     return instance;
+  }
+
+  /**
+   * Get the singleton instance
+   */
+  static getInstance() {
+    return AgentBridgeNamespace.instance;
   }
 
   /**
@@ -99,6 +114,12 @@ class AgentBridgeNamespace {
       timestamp: new Date().toISOString(),
       server: "DeployIO Platform",
     });
+
+    // Emit event for AgentLogCollector
+    this.emit("agent:connected", {
+      agentId,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   /**
@@ -119,6 +140,12 @@ class AgentBridgeNamespace {
 
       // Clean up streams for this agent
       this.cleanupAgentStreams(agentId);
+
+      // Emit event for AgentLogCollector
+      this.emit("agent:disconnected", {
+        agentId,
+        timestamp: new Date().toISOString(),
+      });
     }
   }
 
@@ -230,6 +257,9 @@ class AgentBridgeNamespace {
       content: logEntry.message || logEntry.content,
       source: logEntry.source || "agent",
     };
+
+    // Emit event for AgentLogCollector to consume
+    this.emit("agent:log", enrichedLog);
 
     // Send to existing LogStreamingNamespace for integration with client
     this.integrateWithLogStreaming(enrichedLog);
