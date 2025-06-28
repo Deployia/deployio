@@ -5,6 +5,7 @@ import useEnvironmentInfo from "@utils/useEnvironmentInfo";
 import useNotifications from "@hooks/useNotifications";
 import Spinner from "@components/Spinner";
 import SEO from "@components/SEO.jsx";
+import { InlineSpinner } from "@components/ui/Spinner";
 import {
   FaCheckCircle,
   FaTimesCircle,
@@ -264,7 +265,8 @@ function Health() {
 
   const envInfo = useEnvironmentInfo();
 
-  const fetchStatuses = useCallback(async () => {
+  const fetchStatuses = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true);
     try {
       const response = await backend.get("/health");
 
@@ -417,9 +419,11 @@ function Health() {
                 disabled={refreshing}
                 className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white rounded-lg transition-colors duration-200 flex items-center text-sm"
               >
-                <FaSync
-                  className={`mr-2 ${refreshing ? "animate-spin" : ""}`}
-                />
+                {refreshing ? (
+                  <InlineSpinner size="sm" color="white" />
+                ) : (
+                  <FaSync className="mr-2" />
+                )}
                 {refreshing ? "Refreshing..." : "Refresh"}
               </button>
               {error ? (
@@ -491,7 +495,7 @@ function Health() {
           {/* Service Status Cards */}
           <div className="grid gap-6 mb-6 md:grid-cols-2">
             {Object.entries(services)
-              .filter(([,service]) => service.icon) // Only render cards for services with an icon
+              .filter(([, service]) => service.icon) // Only render cards for services with an icon
               .map(([key, service]) => (
                 <ServiceCard
                   key={key}
@@ -587,7 +591,7 @@ function Health() {
             )}
           </div>{" "}
           {/* Environment Information */}
-          <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body bg-neutral-900/70">
+          <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body bg-neutral-900/70 mb-6">
             <h3 className="text-lg font-semibold text-white mb-4 heading flex items-center">
               <FaCode className="mr-2 text-blue-400" />
               Environment Information
@@ -599,7 +603,7 @@ function Health() {
                 <FaCog className="mr-2 text-green-400" />
                 Environment Variables
               </h4>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 custom-scrollbar overflow-auto">
                 <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
                   <p className="text-xs text-neutral-400 mb-1">Environment</p>
                   <p className="text-sm text-white font-mono">
