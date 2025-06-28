@@ -125,20 +125,19 @@ class LogBridgeService:
 
     async def start(self):
         """Start the log bridge service"""
-        if not settings.log_bridge_enabled:
-            logger.info("Log bridge service disabled")
-            return
-
         logger.info("Initializing Agent Log Bridge")
 
         try:
             await self._initialize_websocket()
             await self._setup_log_handler()
             logger.info("Log bridge service started successfully")
-
         except Exception as e:
             logger.error(f"Failed to start log bridge service: {e}")
-            raise
+            # Gracefully degrade: do not raise, just log and continue
+            self.connected = False
+            logger.warning(
+                "Log bridge service could not connect, continuing without log bridge."
+            )
 
     async def stop(self):
         """Stop the log bridge service"""
