@@ -63,6 +63,26 @@ class Settings(BaseSettings):
     health_check_interval: int = 30
     heartbeat_interval: int = 60
 
+    # Database Configuration (MongoDB Atlas)
+    mongodb_uri: Optional[str] = None
+    mongodb_database: Optional[str] = None
+    # Domain Configuration
+    base_domain: Optional[str] = None
+    wildcard_ssl_enabled: bool = False
+    # Traefik Configuration
+    traefik_api_url: Optional[str] = None
+    traefik_config_dir: Optional[str] = None
+    # ECR Configuration
+    aws_region: Optional[str] = None
+    ecr_registry_url: Optional[str] = None
+    # SSL/TLS Configuration
+    acme_email: Optional[str] = None
+    # Deployment Configuration
+    max_concurrent_deployments: int = 5
+    deployment_timeout: int = 600
+    # Traefik Auth
+    traefik_auth_users: Optional[str] = None
+
     class Config:
         env_file = ".env"
         case_sensitive = False

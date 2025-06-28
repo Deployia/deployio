@@ -3,13 +3,15 @@ Health check routes for DeployIO Agent
 """
 
 import time
-from datetime import datetime
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Dict, Any
+import psutil
+import os
+import docker
+import httpx
 
 from app.core.config import settings
-from app.services.health_monitor import health_monitor
 from app.services.log_bridge import log_bridge_service
 
 router = APIRouter()
@@ -39,58 +41,175 @@ async def root():
     }
 
 
-@router.get("/health", response_model=HealthResponse)
+async def check_mongodb_connection():
+    """Check MongoDB connection"""
+    try:
+        from motor.motor_asyncio import AsyncIOMotorClient
+
+        client = AsyncIOMotorClient(settings.mongodb_uri)
+        result = await client.admin.command("ping")
+        client.close()
+        if result and result.get("ok") == 1.0:
+            return "connected"
+        else:
+            return "disconnected"
+    except Exception:
+        return "disconnected"
+
+
+def check_docker_connection():
+    try:
+        client = docker.from_env()
+        client.ping()
+        return "connected"
+    except Exception:
+        return "disconnected"
+
+
+async def check_traefik_connection():
+    try:
+        traefik_url = "http://localhost:8080/api/overview"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(traefik_url, timeout=2.0)
+            if response.status_code == 200:
+                return "connected"
+            else:
+                return "unreachable"
+    except Exception:
+        return "not_configured"
+
+
+# --- Backend-compatible health check ---
+@router.get(
+    "/health",
+    tags=["Health"],
+    summary="Backend-compatible health check",
+    response_model=None,
+)
 async def health_check():
-    """Comprehensive health check endpoint"""
-
-    current_time = time.time()
-    uptime = current_time - server_start
-
-    # Get service statuses
-    services = {
-        "log_bridge": {
-            "status": "connected" if log_bridge_service.connected else "disconnected",
-            "last_heartbeat": log_bridge_service.last_heartbeat,
-        },
-        "health_monitor": {
-            "status": (
-                "running"
-                if health_monitor.monitoring_task
-                and not health_monitor.monitoring_task.done()
-                else "stopped"
-            ),
-            "last_check": (
-                health_monitor.last_check.isoformat()
-                if health_monitor.last_check
-                else None
-            ),
-        },
+    """
+    Public health check endpoint for the DeployIO Agent with detailed metrics, log bridge status, and service checks.
+    """
+    uptime = time.time() - server_start
+    try:
+        memory = psutil.virtual_memory()
+        process = psutil.Process(os.getpid())
+        process_memory = process.memory_info()
+        cpu_usage = psutil.cpu_percent(interval=0.1)
+        process_cpu = process.cpu_percent(interval=0.1)
+        docker_containers = 0
+        try:
+            client = docker.from_env()
+            docker_containers = len(client.containers.list())
+        except Exception:
+            pass
+        system_metrics = {
+            "memory": {
+                "usage": round((memory.used / memory.total) * 100, 2),
+                "used": round(memory.used / 1024 / 1024, 2),
+                "total": round(memory.total / 1024 / 1024, 2),
+                "available": round(memory.available / 1024 / 1024, 2),
+                "process_used": round(process_memory.rss / 1024 / 1024, 2),
+            },
+            "cpu": {
+                "usage": round(cpu_usage, 2),
+                "process_usage": round(process_cpu, 2),
+                "cores": psutil.cpu_count(),
+            },
+            "disk": {
+                "usage": round(psutil.disk_usage("/").percent, 2),
+                "free": round(psutil.disk_usage("/").free / 1024 / 1024 / 1024, 2),
+                "total": round(psutil.disk_usage("/").total / 1024 / 1024 / 1024, 2),
+            },
+            "docker": {"containers": docker_containers},
+        }
+    except Exception:
+        system_metrics = {"memory": {}, "cpu": {}, "disk": {}, "docker": {}}
+    # Service checks
+    mongodb_status = await check_mongodb_connection()
+    docker_status = check_docker_connection()
+    traefik_status = await check_traefik_connection()
+    services_status = {
+        "mongodb": {"status": mongodb_status},
+        "docker": {"status": docker_status},
+        "traefik": {"status": traefik_status},
     }
-
-    # Get overall health from health monitor
-    health_data = health_monitor.get_current_health()
-    overall_status = health_data.get("status", "unknown")
-
-    return HealthResponse(
-        status=overall_status,
-        uptime=uptime,
-        timestamp=datetime.now().isoformat(),
-        version=settings.version,
-        agent_id=settings.agent_id,
-        services=services,
+    log_bridge = {
+        "connected": log_bridge_service.connected,
+        "last_heartbeat": log_bridge_service.last_heartbeat,
+        "buffer_size": len(log_bridge_service.log_buffer),
+        "max_buffer_size": log_bridge_service.buffer_size,
+        "reconnect_attempts": log_bridge_service.reconnect_attempts,
+        "server_url": log_bridge_service.server_url,
+        "agent_id": log_bridge_service.agent_id,
+    }
+    # Determine overall status
+    core_services_healthy = (
+        mongodb_status == "connected" and docker_status == "connected"
     )
-
-
-@router.get("/health/detailed")
-async def detailed_health_check():
-    """Detailed health check with system metrics"""
-
-    basic_health = await health_check()
-    detailed_health = health_monitor.get_current_health()
-
+    if core_services_healthy:
+        overall_status = "healthy"
+    else:
+        overall_status = "degraded"
     return {
-        **basic_health.dict(),
-        "system_metrics": detailed_health.get("data", {}),
+        "service": "DeployIO Agent",
+        "status": overall_status,
+        "timestamp": time.time(),
+        "uptime": uptime,
+        "version": "1.0.0",
         "environment": settings.environment,
-        "platform_url": settings.platform_url,
+        "base_domain": getattr(settings, "base_domain", None),
+        "memory": system_metrics["memory"],
+        "cpu": system_metrics["cpu"],
+        "disk": system_metrics["disk"],
+        "docker": system_metrics["docker"],
+        "services": services_status,
+        "log_bridge": log_bridge,
+        "responseTime": 0,
     }
+
+
+# --- System metrics only ---
+@router.get(
+    "/system-metrics",
+    tags=["Health"],
+    summary="System metrics (no auth required)",
+)
+async def system_metrics():
+    """
+    Get detailed system metrics. No authentication required.
+    """
+    try:
+        memory = psutil.virtual_memory()
+        process = psutil.Process(os.getpid())
+        process_memory = process.memory_info()
+        cpu_usage = psutil.cpu_percent(interval=0.1)
+        process_cpu = process.cpu_percent(interval=0.1)
+        docker_containers = 0
+        try:
+            client = docker.from_env()
+            docker_containers = len(client.containers.list())
+        except Exception:
+            pass
+        return {
+            "memory": {
+                "usage": round((memory.used / memory.total) * 100, 2),
+                "used": round(memory.used / 1024 / 1024, 2),
+                "total": round(memory.total / 1024 / 1024, 2),
+                "available": round(memory.available / 1024 / 1024, 2),
+                "process_used": round(process_memory.rss / 1024 / 1024, 2),
+            },
+            "cpu": {
+                "usage": round(cpu_usage, 2),
+                "process_usage": round(process_cpu, 2),
+                "cores": psutil.cpu_count(),
+            },
+            "disk": {
+                "usage": round(psutil.disk_usage("/").percent, 2),
+                "free": round(psutil.disk_usage("/").free / 1024 / 1024 / 1024, 2),
+                "total": round(psutil.disk_usage("/").total / 1024 / 1024 / 1024, 2),
+            },
+            "docker": {"containers": docker_containers},
+        }
+    except Exception:
+        return {"error": "Failed to collect system metrics"}

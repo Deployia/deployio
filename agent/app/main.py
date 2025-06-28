@@ -44,8 +44,9 @@ def create_app() -> FastAPI:
         description=settings.description,
         debug=settings.debug,
         lifespan=lifespan,
-        docs_url="/agent/docs" if settings.debug else None,
-        redoc_url="/agent/redoc" if settings.debug else None,
+        docs_url="/agent/v1/docs",
+        redoc_url="/agent/v1/redoc",
+        openapi_url="/agent/v1/openapi.json",
     )
 
     # Add CORS middleware

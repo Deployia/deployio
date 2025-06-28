@@ -5,6 +5,7 @@ System information routes for DeployIO Agent
 import logging
 import psutil
 import docker
+import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
@@ -172,3 +173,48 @@ async def get_processes(limit: int = 10):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get processes information: {str(e)}",
         )
+
+
+@router.get(
+    "/system-metrics",
+    tags=["System"],
+    summary="System metrics (no auth required)",
+)
+async def system_metrics():
+    """
+    Get detailed system metrics. No authentication required.
+    """
+    try:
+        memory = psutil.virtual_memory()
+        process = psutil.Process(os.getpid())
+        process_memory = process.memory_info()
+        cpu_usage = psutil.cpu_percent(interval=0.1)
+        process_cpu = process.cpu_percent(interval=0.1)
+        docker_containers = 0
+        try:
+            client = docker.from_env()
+            docker_containers = len(client.containers.list())
+        except Exception:
+            pass
+        return {
+            "memory": {
+                "usage": round((memory.used / memory.total) * 100, 2),
+                "used": round(memory.used / 1024 / 1024, 2),
+                "total": round(memory.total / 1024 / 1024, 2),
+                "available": round(memory.available / 1024 / 1024, 2),
+                "process_used": round(process_memory.rss / 1024 / 1024, 2),
+            },
+            "cpu": {
+                "usage": round(cpu_usage, 2),
+                "process_usage": round(process_cpu, 2),
+                "cores": psutil.cpu_count(),
+            },
+            "disk": {
+                "usage": round(psutil.disk_usage("/").percent, 2),
+                "free": round(psutil.disk_usage("/").free / 1024 / 1024 / 1024, 2),
+                "total": round(psutil.disk_usage("/").total / 1024 / 1024 / 1024, 2),
+            },
+            "docker": {"containers": docker_containers},
+        }
+    except Exception:
+        return {"error": "Failed to collect system metrics"}

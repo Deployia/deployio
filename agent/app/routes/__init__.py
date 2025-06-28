@@ -12,7 +12,7 @@ def include_routes(app: FastAPI):
     """Include all route modules"""
 
     # Health check routes
-    app.include_router(health_router, tags=["Health"])
+    app.include_router(health_router, prefix="/agent/v1", tags=["Health"])
 
     # Log management routes
     app.include_router(logs_router, prefix="/agent/v1", tags=["Logs"])
