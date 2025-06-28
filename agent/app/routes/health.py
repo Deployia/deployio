@@ -13,6 +13,7 @@ import httpx
 
 from app.core.config import settings
 from app.services.log_bridge import log_bridge_service
+from app.core.logging import get_logger
 
 router = APIRouter()
 
@@ -42,7 +43,8 @@ async def root():
 
 
 async def check_mongodb_connection():
-    """Check MongoDB connection"""
+    """Check MongoDB connection and log status"""
+    logger = get_logger("mongodb-health")
     try:
         from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -50,19 +52,25 @@ async def check_mongodb_connection():
         result = await client.admin.command("ping")
         client.close()
         if result and result.get("ok") == 1.0:
+            logger.info("MongoDB connection: connected")
             return "connected"
         else:
+            logger.warning("MongoDB connection: disconnected (ping failed)")
             return "disconnected"
-    except Exception:
+    except Exception as e:
+        logger.error(f"MongoDB connection: disconnected (error: {e})")
         return "disconnected"
 
 
 def check_docker_connection():
+    logger = get_logger("docker-health")
     try:
         client = docker.from_env()
         client.ping()
+        logger.info("Docker connection: connected")
         return "connected"
-    except Exception:
+    except Exception as e:
+        logger.error(f"Docker connection: disconnected (error: {e})")
         return "disconnected"
 
 

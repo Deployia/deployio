@@ -53,3 +53,8 @@ def setup_logging():
     logging.getLogger("docker").setLevel(logging.WARNING)
     logging.getLogger("socketio").setLevel(logging.WARNING)
     logging.getLogger("engineio").setLevel(logging.WARNING)
+
+
+def get_logger(name: str = None):
+    """Get a logger with the given name, using the global logging config."""
+    return logging.getLogger(name)
