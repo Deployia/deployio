@@ -200,38 +200,39 @@ class SystemLogCollector extends BaseLogCollector {
 
     try {
       const logPath = this.logPaths[0];
-      const command = `tail -n ${lines} "${logPath}"`;
-      const { stdout } = await execPromise(command);
-
-      const logLines = stdout
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim());
-      const parsedLogs = logLines.map((line, index) => {
-        try {
-          const logEntry = JSON.parse(line);
-          return {
-            id: `${this.serviceId}_file_${Date.now()}_${index}`,
-            timestamp: logEntry.timestamp,
-            level: logEntry.level,
-            message: logEntry.message,
-            service: this.serviceId,
-            source: "file-logs",
-            metadata: logEntry,
-            raw: line,
-          };
-        } catch {
-          return {
-            id: `${this.serviceId}_file_${Date.now()}_${index}`,
-            timestamp: new Date().toISOString(),
-            level: "info",
-            message: line,
-            service: this.serviceId,
-            source: "file-logs",
-            raw: line,
-          };
-        }
-      });
+      // Fast Node.js tail implementation
+      const logLines = await tailFile(logPath, lines);
+      const parsedLogs = logLines
+        .map((line, index) => {
+          try {
+            const logEntry = JSON.parse(line);
+            return {
+              id: `${this.serviceId}_file_${Date.now()}_${index}`,
+              timestamp: logEntry.timestamp || new Date().toISOString(),
+              level: (logEntry.level || "info").toUpperCase(),
+              message: logEntry.message || line,
+              service: this.serviceId,
+              source: "file-logs",
+              metadata: logEntry,
+              raw: line,
+            };
+          } catch {
+            return {
+              id: `${this.serviceId}_file_${Date.now()}_${index}`,
+              timestamp: new Date().toISOString(),
+              level: "INFO",
+              message: line,
+              service: this.serviceId,
+              source: "file-logs",
+              raw: line,
+            };
+          }
+        })
+        .filter((log) =>
+          level === "all"
+            ? true
+            : log.level.toLowerCase() === level.toLowerCase()
+        );
 
       return {
         logs: parsedLogs,
@@ -252,6 +253,54 @@ class SystemLogCollector extends BaseLogCollector {
     }
     this.watchers = [];
   }
+}
+
+async function tailFile(filePath, lines = 100, chunkSize = 4096) {
+  return new Promise((resolve, reject) => {
+    fs.open(filePath, "r", (err, fd) => {
+      if (err) return resolve([]);
+      fs.fstat(fd, (err, stats) => {
+        if (err) {
+          fs.close(fd, () => {});
+          return resolve([]);
+        }
+        let fileSize = stats.size;
+        let buffer = Buffer.alloc(0);
+        let position = fileSize;
+        let lineCount = 0;
+        let chunks = [];
+        function readChunk() {
+          if (position === 0 || lineCount > lines * 2) {
+            processBuffer();
+            return;
+          }
+          let readSize = Math.min(chunkSize, position);
+          position -= readSize;
+          let chunkBuffer = Buffer.alloc(readSize);
+          fs.read(fd, chunkBuffer, 0, readSize, position, (err, bytesRead) => {
+            if (err) {
+              fs.close(fd, () => {});
+              return resolve([]);
+            }
+            buffer = Buffer.concat([chunkBuffer, buffer]);
+            lineCount = buffer.toString().split("\n").length - 1;
+            if (position > 0 && lineCount <= lines * 2) {
+              readChunk();
+            } else {
+              processBuffer();
+            }
+          });
+        }
+        function processBuffer() {
+          fs.close(fd, () => {});
+          let allLines = buffer.toString().split("\n");
+          if (allLines[allLines.length - 1] === "") allLines.pop();
+          resolve(allLines.slice(-lines));
+        }
+        readChunk();
+      });
+    });
+  });
 }
 
 module.exports = SystemLogCollector;

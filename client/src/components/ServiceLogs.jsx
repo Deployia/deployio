@@ -271,6 +271,33 @@ const ServiceLogs = ({
     return matchesFilter && matchesLevel;
   });
 
+  // Format timestamp for display
+  const formatTime = (ts) => {
+    if (!ts) return "--:--:--";
+    try {
+      const d = new Date(ts);
+      return d.toLocaleTimeString([], { hour12: false });
+    } catch {
+      return ts;
+    }
+  };
+
+  // Level badge color
+  const levelClass = (level) => {
+    switch ((level || "").toLowerCase()) {
+      case "error":
+        return "bg-red-900/50 text-red-400";
+      case "warn":
+        return "bg-yellow-900/50 text-yellow-400";
+      case "info":
+        return "bg-blue-900/50 text-blue-400";
+      case "debug":
+        return "bg-purple-900/50 text-purple-400";
+      default:
+        return "bg-neutral-800/50 text-neutral-400";
+    }
+  };
+
   return (
     <div
       className={`p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70 ${className}`}
@@ -397,20 +424,12 @@ const ServiceLogs = ({
                 className="flex items-start gap-2 py-1 hover:bg-neutral-800/30 rounded px-2"
               >
                 <span className="text-neutral-500 text-xs min-w-fit">
-                  {new Date(log.timestamp).toLocaleTimeString()}
+                  {formatTime(log.timestamp)}
                 </span>
                 <span
-                  className={`text-xs min-w-fit font-medium uppercase px-2 py-1 rounded ${
-                    log.level.toLowerCase() === "error"
-                      ? "bg-red-900/50 text-red-400"
-                      : log.level.toLowerCase() === "warn"
-                      ? "bg-yellow-900/50 text-yellow-400"
-                      : log.level.toLowerCase() === "info"
-                      ? "bg-blue-900/50 text-blue-400"
-                      : log.level.toLowerCase() === "debug"
-                      ? "bg-purple-900/50 text-purple-400"
-                      : "bg-neutral-800/50 text-neutral-400"
-                  }`}
+                  className={`text-xs min-w-fit font-medium uppercase px-2 py-1 rounded ${levelClass(
+                    log.level
+                  )}`}
                 >
                   {log.level}
                 </span>

@@ -4,7 +4,6 @@ Log management routes for DeployIO Agent
 
 import logging
 import os
-import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +17,39 @@ from app.routes.security import get_bearer_token, verify_internal_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+# --- FAST TAIL IMPLEMENTATION ---
+def tail_file(file_path: Path, lines: int = 100, chunk_size: int = 4096) -> list[str]:
+    """Efficiently read the last N lines from a file."""
+    if not file_path.exists():
+        return []
+    line_ending = b"\n"
+    lines_found = []
+    buffer = b""
+    with open(file_path, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        file_size = f.tell()
+        pos = file_size
+        while pos > 0 and len(lines_found) <= lines:
+            read_size = min(chunk_size, pos)
+            pos -= read_size
+            f.seek(pos)
+            chunk = f.read(read_size)
+            buffer = chunk + buffer
+            while line_ending in buffer:
+                idx = buffer.rfind(line_ending)
+                line = buffer[idx + 1 :]
+                buffer = buffer[:idx]
+                if line:
+                    lines_found.append(line)
+            if pos == 0 and buffer:
+                lines_found.append(buffer)
+    # lines_found is in reverse order, decode and return last N
+    return [
+        line_bytes.decode(errors="replace")
+        for line_bytes in reversed(lines_found[:lines])
+    ]
 
 
 class LogEntry(BaseModel):
@@ -56,9 +88,8 @@ async def get_logs(
     ),
 ):
     """Get recent logs from the agent service. Supports filtering by level."""
-
     try:
-        log_file = Path(__file__).parent.parent / "logs" / "agent.log"
+        log_file = Path(__file__).parent.parent.parent / "logs" / "agent.log"
         if not log_file.exists():
             return {
                 "success": False,
@@ -67,69 +98,31 @@ async def get_logs(
                 "logs": [],
                 "totalLines": 0,
             }
-        # Use tail command to get recent lines
-        try:
-            if os.name == "nt":  # Windows
-                result = subprocess.run(
-                    [
-                        "powershell",
-                        "-Command",
-                        f"Get-Content -Path '{log_file}' -Tail {lines}",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
+        # Use fast Python tail instead of subprocess
+        log_lines = tail_file(log_file, lines=lines)
+        # Filter by level if specified
+        if level != "all":
+            log_lines = [line for line in log_lines if level.upper() in line.upper()]
+        logs = []
+        for i, line in enumerate(log_lines):
+            if line.strip():
+                logs.append(
+                    {
+                        "id": f"agent_{int(time.time())}_{i}",
+                        "timestamp": time.time(),
+                        "level": extract_log_level(line),
+                        "message": line.strip(),
+                        "service": "agent",
+                        "source": "remote",
+                    }
                 )
-            else:  # Unix/Linux
-                result = subprocess.run(
-                    ["tail", "-n", str(lines), str(log_file)],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-            if result.returncode == 0:
-                log_lines = (
-                    result.stdout.strip().split("\n") if result.stdout.strip() else []
-                )
-                # Filter by level if specified
-                if level != "all":
-                    log_lines = [
-                        line for line in log_lines if level.upper() in line.upper()
-                    ]
-                logs = []
-                for i, line in enumerate(log_lines):
-                    if line.strip():
-                        logs.append(
-                            {
-                                "id": f"agent_{int(time.time())}_{i}",
-                                "timestamp": time.time(),
-                                "level": extract_log_level(line),
-                                "message": line.strip(),
-                                "service": "agent",
-                                "source": "remote",
-                            }
-                        )
-                return {
-                    "success": True,
-                    "logs": logs,
-                    "totalLines": len(logs),
-                    "path": str(log_file),
-                    "source": "agent_service",
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Command failed: {result.stderr}",
-                    "logs": [],
-                    "totalLines": 0,
-                }
-        except subprocess.TimeoutExpired:
-            return {
-                "success": False,
-                "error": "Log reading timeout",
-                "logs": [],
-                "totalLines": 0,
-            }
+        return {
+            "success": True,
+            "logs": logs,
+            "totalLines": len(logs),
+            "path": str(log_file),
+            "source": "agent_service",
+        }
     except Exception as e:
         logger.error(f"Error reading logs: {str(e)}")
         return {"success": False, "error": str(e), "logs": [], "totalLines": 0}
