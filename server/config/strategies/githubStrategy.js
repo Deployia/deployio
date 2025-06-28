@@ -39,11 +39,26 @@ const githubBasicStrategy = new GitHubStrategy(
       }
 
       if (user) {
-        // Update basic profile info
-        user.lastLogin = new Date();
-        if (!user.profileImage && profile.photos?.[0]?.value) {
+        // Always update email if changed and present
+        if (
+          profile.emails &&
+          profile.emails[0] &&
+          user.email !== profile.emails[0].value
+        ) {
+          user.email = profile.emails[0].value;
+        }
+        // Always update profile image if changed and present
+        if (
+          profile.photos &&
+          profile.photos[0] &&
+          user.profileImage !== profile.photos[0].value
+        ) {
           user.profileImage = profile.photos[0].value;
         }
+        // Always update lastLogin
+        user.lastLogin = new Date();
+        // Always set isEmailVerified true for OAuth
+        user.isEmailVerified = true;
         await user.save();
         return done(null, user, { accessToken, refreshToken });
       } else {

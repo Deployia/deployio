@@ -35,11 +35,7 @@ passport.use(
           user = await User.findOne({ email: profile.emails[0].value });
           if (user) {
             user.googleId = profile.id;
-            user.isVerified = true; // Verify existing user when linking OAuth account
-            if (profile.photos && profile.photos[0]) {
-              user.profileImage = profile.photos[0].value;
-            }
-            await user.save();
+            user.isVerified = true;
           }
         }
         if (!user) {
@@ -58,18 +54,35 @@ passport.use(
               profile.photos && profile.photos[0]
                 ? profile.photos[0].value
                 : "",
-            isVerified: true, // OAuth users are automatically verified
+            isVerified: true,
+            lastLogin: new Date(),
           });
         } else {
-          // Update profile image if changed
+          let updated = false;
+          // Always update email if changed and present
+          if (
+            profile.emails &&
+            profile.emails[0] &&
+            user.email !== profile.emails[0].value
+          ) {
+            user.email = profile.emails[0].value;
+            updated = true;
+          }
+          // Always update profile image if changed and present
           if (
             profile.photos &&
             profile.photos[0] &&
             user.profileImage !== profile.photos[0].value
           ) {
             user.profileImage = profile.photos[0].value;
-            await user.save();
+            updated = true;
           }
+          // Always update lastLogin
+          user.lastLogin = new Date();
+          updated = true;
+          // Always set isVerified true for OAuth
+          user.isVerified = true;
+          if (updated) await user.save();
         }
         return done(null, user);
       } catch (err) {
