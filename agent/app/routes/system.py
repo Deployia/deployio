@@ -9,11 +9,12 @@ import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 
 from app.core.config import settings
 from app.services.health_monitor import health_monitor
+from app.routes.security import get_bearer_token, verify_internal_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -44,7 +45,11 @@ class ContainerInfo(BaseModel):
     ports: Dict[str, Any]
 
 
-@router.get("/system", response_model=SystemInfo)
+@router.get(
+    "/system",
+    response_model=SystemInfo,
+    dependencies=[Depends(get_bearer_token), Depends(verify_internal_service)],
+)
 async def get_system_info():
     """Get current system information"""
 
@@ -96,7 +101,10 @@ async def get_system_info():
         )
 
 
-@router.get("/containers")
+@router.get(
+    "/containers",
+    dependencies=[Depends(get_bearer_token), Depends(verify_internal_service)],
+)
 async def get_containers():
     """Get Docker containers information"""
 
@@ -139,7 +147,10 @@ async def get_containers():
         )
 
 
-@router.get("/processes")
+@router.get(
+    "/processes",
+    dependencies=[Depends(get_bearer_token), Depends(verify_internal_service)],
+)
 async def get_processes(limit: int = 10):
     """Get top processes by CPU usage"""
 

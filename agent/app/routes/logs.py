@@ -10,10 +10,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Query, HTTPException, status
+from fastapi import APIRouter, Query, HTTPException, status, Depends
 from pydantic import BaseModel
 
 from app.services.log_bridge import log_bridge_service
+from app.routes.security import get_bearer_token, verify_internal_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class LogsResponse(BaseModel):
     "/logs",
     tags=["Agent"],
     summary="Get recent logs from the agent service (supports filtering)",
+    dependencies=[Depends(get_bearer_token), Depends(verify_internal_service)],
 )
 async def get_logs(
     lines: int = Query(
@@ -147,7 +149,10 @@ def extract_log_level(log_line: str) -> str:
         return "INFO"
 
 
-@router.get("/logs/status")
+@router.get(
+    "/logs/status",
+    dependencies=[Depends(get_bearer_token), Depends(verify_internal_service)],
+)
 async def get_log_status():
     """Get log bridge connection status"""
 
@@ -163,7 +168,10 @@ async def get_log_status():
     }
 
 
-@router.post("/logs/test")
+@router.post(
+    "/logs/test",
+    dependencies=[Depends(get_bearer_token), Depends(verify_internal_service)],
+)
 async def test_log_bridge():
     """Test the log bridge by sending a test message"""
 

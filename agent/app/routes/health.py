@@ -85,6 +85,7 @@ async def check_traefik_connection():
     tags=["Health"],
     summary="Backend-compatible health check",
     response_model=None,
+    # No auth dependencies for health
 )
 async def health_check():
     """
