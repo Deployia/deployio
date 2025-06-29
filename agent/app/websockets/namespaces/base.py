@@ -74,6 +74,33 @@ class BaseAgentNamespace(ABC):
 
         logger.info(f"SUCCESS: Cleaned up namespace: {self.namespace_path}")
 
+    async def handle_event(self, event: str, data: Any):
+        """
+        Handle incoming server events
+
+        Args:
+            event: Event name from server
+            data: Event data
+        """
+        logger.debug(f"Handling server event '{event}' in {self.namespace_path}")
+
+        # Check if we have a handler for this event
+        if hasattr(self, "event_handlers") and event in self.event_handlers:
+            handler = self.event_handlers[event]
+            try:
+                await handler(data)
+                logger.debug(
+                    f"Successfully handled event '{event}' in {self.namespace_path}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error handling event '{event}' in {self.namespace_path}: {e}"
+                )
+        else:
+            logger.warning(
+                f"No handler found for event '{event}' in {self.namespace_path}"
+            )
+
     async def on_connected(self):
         """Called when WebSocket connection is established"""
         logger.debug(f"Namespace {self.namespace_path} connected to server")
@@ -100,7 +127,9 @@ class BaseAgentNamespace(ABC):
 
             if success and room_name not in self.connected_rooms:
                 self.connected_rooms.append(room_name)
-                logger.debug(f"SUCCESS: Joined room: {room_name} in {self.namespace_path}")
+                logger.debug(
+                    f"SUCCESS: Joined room: {room_name} in {self.namespace_path}"
+                )
 
             return success
 
@@ -129,7 +158,9 @@ class BaseAgentNamespace(ABC):
 
             if success and room_name in self.connected_rooms:
                 self.connected_rooms.remove(room_name)
-                logger.debug(f"SUCCESS: Left room: {room_name} in {self.namespace_path}")
+                logger.debug(
+                    f"SUCCESS: Left room: {room_name} in {self.namespace_path}"
+                )
 
             return success
 

@@ -216,6 +216,7 @@ class AgentWebSocketService:
             if event_type == "connect":
                 logger.info("WebSocket connection established")
                 self.is_connected = True
+                # Don't auto-start streaming - wait for server requests
             elif event_type == "disconnect":
                 logger.warning("WebSocket connection lost")
                 self.is_connected = False

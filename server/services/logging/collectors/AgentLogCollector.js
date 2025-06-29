@@ -181,6 +181,58 @@ class AgentLogCollector extends BaseLogCollector {
   async getRecentLogs(options = {}) {
     const { lines = 50, level = "info" } = options;
 
+    // Try WebSocket bridge first if available
+    if (this.useWebSocketBridge && this.bridgeService) {
+      try {
+        logger.debug("Requesting logs via WebSocket bridge", { lines, level });
+
+        // Get connected agents - for now, use the first available agent
+        // TODO: Later support specifying specific agent ID
+        const agentIds = Array.from(this.bridgeService.connectedAgents.keys());
+        logger.info("Checking connected agents for log request", {
+          connectedAgents: agentIds,
+          totalAgents: agentIds.length,
+        });
+
+        if (agentIds.length > 0) {
+          const agentId = agentIds[0]; // Use first connected agent
+          logger.info("Requesting logs from agent", {
+            agentId,
+            lines,
+            type: "system",
+          });
+
+          const result = await this.requestAgentLogs(agentId, {
+            lines,
+            type: "system",
+          });
+
+          if (result) {
+            logger.info("Log request sent via bridge successfully", {
+              agentId,
+              requestId: result.requestId,
+            });
+
+            // Return a promise that resolves when logs are received
+            // For now, return a placeholder and rely on streaming
+            return {
+              logs: [],
+              source: "websocket-bridge",
+              status: "requested",
+              requestId: result.requestId,
+            };
+          }
+        } else {
+          logger.error("No agents connected to bridge, falling back to HTTP");
+        }
+      } catch (error) {
+        logger.error("Bridge log request failed, falling back to HTTP", {
+          error: error.message,
+        });
+      }
+    }
+
+    // Fallback to HTTP polling
     try {
       logger.debug("Fetching logs from remote agent", {
         agentUrl: this.agentUrl,

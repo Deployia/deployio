@@ -158,7 +158,9 @@ function setupNamespaces(features) {
         if (success) {
           // Integrate with log collector service
           try {
-            const logCollectorService = require("../services/logging/LogCollectorService");
+            const {
+              logCollectorService,
+            } = require("../services/logging/LogCollectorService");
             if (logCollectorService.integrateBridgeService) {
               logCollectorService.integrateBridgeService(agentBridgeService);
               logger.info(

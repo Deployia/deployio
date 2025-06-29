@@ -234,6 +234,52 @@ class AgentWebSocketManager:
             logger.info("WebSocket reconnected to server")
             self.is_connected = True
 
+        # Add event handlers for server requests
+        @self.client.event
+        async def request_logs(data):
+            """Handle log requests from server"""
+            logger.info(f"Received log request from server: {data}")
+
+            # Forward to the appropriate namespace
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("request_logs", data)
+                    except Exception as e:
+                        logger.error(
+                            f"Error handling request_logs in {namespace_path}: {e}"
+                        )
+
+        @self.client.event
+        async def start_log_stream(data):
+            """Handle start log stream requests from server"""
+            logger.info(f"Received start log stream request: {data}")
+
+            # Forward to the appropriate namespace
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("start_log_stream", data)
+                    except Exception as e:
+                        logger.error(
+                            f"Error handling start_log_stream in {namespace_path}: {e}"
+                        )
+
+        @self.client.event
+        async def stop_log_stream(data):
+            """Handle stop log stream requests from server"""
+            logger.info(f"Received stop log stream request: {data}")
+
+            # Forward to the appropriate namespace
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("stop_log_stream", data)
+                    except Exception as e:
+                        logger.error(
+                            f"Error handling stop_log_stream in {namespace_path}: {e}"
+                        )
+
     async def _initialize_namespaces(self):
         """Initialize all registered namespaces after connection"""
         for namespace_path, namespace_instance in self.namespaces.items():
