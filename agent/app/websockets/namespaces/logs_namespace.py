@@ -28,6 +28,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
         self.system_log_stream_task: Optional[asyncio.Task] = None
         self.docker_log_stream_task: Optional[asyncio.Task] = None
         self.active_containers: Dict[str, str] = {}  # container_id -> user_id mapping
+        self.current_stream_id: Optional[str] = None  # Track current client stream ID
 
     async def _register_event_handlers(self):
         """Register logs namespace-specific event handlers - ONLY server-to-agent events"""
@@ -62,6 +63,8 @@ class AgentLogsNamespace(BaseAgentNamespace):
         """
         # Set is_active to True to enable streaming loops
         self.is_active = True
+        # CRITICAL: Also set service streaming state
+        log_collector_service.set_streaming_active(True)
 
         logger.info(f"Starting unified log streaming for {self.namespace_path}")
 
@@ -85,13 +88,13 @@ class AgentLogsNamespace(BaseAgentNamespace):
     async def stop_streaming(self):
         """Stop log streaming tasks"""
         logger.info("🛑 STOP STREAMING: Stopping unified log streaming...")
-        logger.debug(
-            f"🛑 CURRENT STATE: is_active={self.is_active}, system_task_running={self.system_log_stream_task and not self.system_log_stream_task.done()}, docker_task_running={self.docker_log_stream_task and not self.docker_log_stream_task.done()}"
-        )
 
         # Set is_active to False to stop all streaming loops immediately
         was_active = self.is_active
         self.is_active = False
+        self.current_stream_id = None  # Clear stream ID
+        # CRITICAL: Also set service streaming state FIRST to prevent race conditions
+        log_collector_service.set_streaming_active(False)
         logger.info(f"🛑 STATE CHANGED: is_active set to False (was: {was_active})")
 
         # Stop system log streaming
@@ -190,9 +193,10 @@ class AgentLogsNamespace(BaseAgentNamespace):
         """Handle start log streaming request"""
         stream_type = data.get("type", "system")
         auto_start = data.get("autoStart", True)
+        self.current_stream_id = data.get("streamId")  # Capture client stream ID
 
         logger.info(
-            f"🎯 START REQUEST: Starting log stream - type: {stream_type}, autoStart: {auto_start}"
+            f"🎯 START REQUEST: Starting log stream - type: {stream_type}, autoStart: {auto_start}, streamId: {self.current_stream_id}"
         )
         logger.debug(f"🎯 START DATA: {data}")
 
@@ -211,6 +215,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
             "stream_type": stream_type,
             "status": "started",
             "timestamp": datetime.utcnow().isoformat(),
+            "streamId": self.current_stream_id,  # Include streamId in response
         }
 
         logger.info("📤 SENDING CONFIRMATION: log_stream_started event")
@@ -343,16 +348,19 @@ class AgentLogsNamespace(BaseAgentNamespace):
 
             while self.is_active:
                 loop_count += 1
-                logger.debug(
-                    f"📊 STREAM LOOP #{loop_count}: Checking for new logs (is_active: {self.is_active})"
-                )
+                # Reduce debug spam - only log every 10th loop
+                if loop_count % 10 == 0:
+                    logger.debug(
+                        f"📊 STREAM LOOP #{loop_count}: Checking for new logs (is_active: {self.is_active})"
+                    )
 
                 # Get recent logs for incremental streaming
                 logs = await self._get_recent_system_logs(5, since=last_log_time)
 
                 if logs:
-                    logger.info(f"📝 FOUND LOGS: {len(logs)} new system logs to stream")
-                    logger.debug(f"📄 LOG SAMPLE: {logs[0] if logs else 'None'}")
+                    logger.debug(
+                        f"📝 FOUND LOGS: {len(logs)} new system logs to stream"
+                    )
 
                     # **CRITICAL**: Send logs via WebSocket bridge to backend
                     # This is what the AgentLogCollector.handleBridgeLogData() expects
@@ -367,21 +375,17 @@ class AgentLogsNamespace(BaseAgentNamespace):
                             "stream_type": "realtime",
                             "collector_type": "agent",
                             "source": "agent-websocket-stream",  # WebSocket-based, not file-only
+                            "streamId": self.current_stream_id,  # Include client stream ID
                         },
                     )
 
-                    logger.info(
+                    logger.debug(
                         f"✅ SENT TO BACKEND: {len(logs)} logs via WebSocket bridge"
                     )
                     # Update timestamp to prevent duplicates
                     last_log_time = datetime.utcnow()
-                else:
-                    logger.debug(f"⏳ NO NEW LOGS: Loop #{loop_count}")
 
                 # Stream every 2 seconds for responsive WebSocket transmission
-                logger.debug(
-                    f"😴 SLEEPING: 2 seconds before next check (loop #{loop_count})"
-                )
                 await asyncio.sleep(2)
 
         except asyncio.CancelledError:
@@ -478,8 +482,15 @@ class AgentLogsNamespace(BaseAgentNamespace):
         # Define callback for new logs detected by file watcher
         async def file_watcher_callback(new_logs):
             """Handle new logs detected by file watcher"""
+            # **CRITICAL CHECK**: Only process logs if streaming is active
+            if not self.is_active:
+                logger.debug(
+                    f"🛑 FILE WATCHER: Skipping {len(new_logs) if new_logs else 0} logs - streaming not active"
+                )
+                return
+
             if new_logs:
-                logger.info(f"🔄 FILE WATCHER: Detected {len(new_logs)} new logs")
+                logger.debug(f"🔄 FILE WATCHER: Detected {len(new_logs)} new logs")
 
                 # **CRITICAL**: Emit live logs immediately via WebSocket bridge
                 await self.emit_to_server(
@@ -493,9 +504,10 @@ class AgentLogsNamespace(BaseAgentNamespace):
                         "stream_type": "file-watch-realtime",  # Immediate file detection
                         "collector_type": "agent",
                         "source": "agent-file-watcher-websocket",  # WebSocket + file watch
+                        "streamId": self.current_stream_id,  # Include client stream ID
                     },
                 )
-                logger.info(
+                logger.debug(
                     f"✅ FILE WATCHER: Streamed {len(new_logs)} logs via WebSocket"
                 )
 
@@ -686,17 +698,22 @@ class AgentLogsNamespace(BaseAgentNamespace):
         return base_status
 
     async def emit_to_server(self, event: str, data: Any, room: str = None):
-        """Emit data to server with detailed logging for debugging"""
+        """Emit data to server with minimal logging for performance"""
         try:
-            logger.info(f"🚀 AGENT EMIT: Sending event '{event}' to server")
-            logger.debug(f"📦 AGENT EMIT DATA: {data}")
-            if room:
-                logger.debug(f"🏠 AGENT EMIT ROOM: {room}")
+            # Only log non-live events to reduce spam
+            if not event.startswith("live_"):
+                logger.info(f"🚀 AGENT EMIT: Sending event '{event}' to server")
+                logger.debug(f"📦 AGENT EMIT DATA: {data}")
+                if room:
+                    logger.debug(f"🏠 AGENT EMIT ROOM: {room}")
 
             # Call the base class emit method
             result = await super().emit_to_server(event, data, room)
 
-            logger.info(f"✅ AGENT EMIT SUCCESS: Event '{event}' sent successfully")
+            # Only log success for non-live events
+            if not event.startswith("live_"):
+                logger.info(f"✅ AGENT EMIT SUCCESS: Event '{event}' sent successfully")
+
             return result
 
         except Exception as e:

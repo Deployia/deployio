@@ -25,6 +25,16 @@ class AgentLogCollectorService:
     def __init__(self):
         self.file_observer = None
         self.last_file_position = 0
+        self.is_streaming_active = False
+
+    def set_streaming_active(self, active: bool):
+        """Set the streaming active state"""
+        self.is_streaming_active = active
+        logger.debug(f"🎛️ STREAM STATE: Set streaming active to {active}")
+
+    def is_streaming(self) -> bool:
+        """Check if streaming is currently active"""
+        return self.is_streaming_active
 
     async def get_recent_system_logs(
         self, lines: int = 100, since: datetime = None
@@ -297,6 +307,13 @@ class AgentLogCollectorService:
 
                 async def process_new_lines(self):
                     try:
+                        # CRITICAL: Check if streaming is still active before processing
+                        if not self.service.is_streaming():
+                            logger.debug(
+                                "⏹️ SKIP: Streaming inactive, skipping file watcher processing"
+                            )
+                            return
+
                         with open(log_path, "r") as f:
                             f.seek(self.last_position)
                             new_lines = f.readlines()
@@ -318,6 +335,13 @@ class AgentLogCollectorService:
                                             parsed_logs.append(parsed_log)
 
                                 if parsed_logs:
+                                    # CRITICAL: Double-check streaming state before callback
+                                    if not self.service.is_streaming():
+                                        logger.debug(
+                                            "⏹️ SKIP: Streaming inactive, skipping callback"
+                                        )
+                                        return
+
                                     logger.info(
                                         f"🔄 FILE WATCHER: Processing {len(parsed_logs)} new logs"
                                     )
@@ -353,6 +377,9 @@ class AgentLogCollectorService:
 
     async def stop_file_watching(self):
         """Stop file watching"""
+        # Set streaming inactive FIRST to prevent race conditions
+        self.set_streaming_active(False)
+
         if hasattr(self, "file_observer") and self.file_observer:
             try:
                 logger.info("🛑 STOPPING: File watching...")

@@ -166,7 +166,7 @@ class StreamRouter {
     this.routingRules.set("/agent-logs", {
       targetNamespace: "/logs",
       roomMapping: {
-        "admin-system-logs": "admin-logs",
+        "admin-system-logs": "system:all", // Map to the room client joins
         "user-{userId}-logs": "user-{userId}-logs",
       },
       eventMapping: {
@@ -321,7 +321,7 @@ class StreamRouter {
       ) {
         // Transform each log entry to client format
         return data.logs.map((logEntry) => ({
-          streamId: `agent-${metadata.agentId}`, // Use agent-based stream ID
+          streamId: data.streamId || `agent-${metadata.agentId}`, // Use provided streamId or fallback
           data: logEntry.message,
           timestamp: logEntry.timestamp,
           level: logEntry.level,
