@@ -549,6 +549,16 @@ class AgentBridgeNamespace extends EventEmitter {
     if (this.agentInfo.has(agentId)) {
       const agentInfo = this.agentInfo.get(agentId);
       agentInfo.lastHeartbeat = data.timestamp;
+      logger.info("Agent heartbeat received", {
+        agentId,
+        timestamp: data.timestamp,
+        status: data.status,
+      });
+    } else {
+      logger.warn("Received heartbeat for unknown agent", {
+        agentId,
+        data,
+      });
     }
   }
 
