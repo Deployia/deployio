@@ -220,47 +220,96 @@ async function checkDeploymentAgentHealth() {
 // Agent Bridge Health Check
 router.get("/bridge", async (req, res) => {
   try {
-    const agentBridgeService = require("@services/bridge/AgentBridgeService");
+    // Import here to avoid circular dependencies
+    const agentBridgeService = require("../../services/bridge/AgentBridgeService");
 
-    const health = await agentBridgeService.healthCheck();
+    const bridgeHealth = await agentBridgeService.healthCheck();
 
     res.json({
       service: "Agent Bridge",
       timestamp: new Date().toISOString(),
-      ...health,
+      initialized: bridgeHealth.initialized,
+      connectedAgents: bridgeHealth.connectedAgents,
+      health: {
+        overall: bridgeHealth.health.overall,
+        agentConnections: bridgeHealth.health.agentConnections,
+        streamRouting: bridgeHealth.health.streamRouting,
+      },
+      status: bridgeHealth.initialized ? "operational" : "initializing",
     });
   } catch (error) {
     res.status(500).json({
       service: "Agent Bridge",
-      status: "error",
       error: error.message,
       timestamp: new Date().toISOString(),
       health: {
         overall: "error",
-        agentConnections: "unknown",
-        streamRouting: "unknown",
       },
     });
   }
 });
 
-// Agent Bridge Status (detailed)
+// Detailed Agent Bridge Status
 router.get("/bridge/status", async (req, res) => {
   try {
-    const agentBridgeService = require("@services/bridge/AgentBridgeService");
+    const agentBridgeService = require("../../services/bridge/AgentBridgeService");
 
     const status = agentBridgeService.getStatus();
+    const connectedAgents = [];
+
+    // Get detailed information about each connected agent
+    for (const [
+      agentId,
+      agentInfo,
+    ] of agentBridgeService.connectedAgents.entries()) {
+      const verification = await agentBridgeService.verifyBridgeConnection(
+        agentId
+      );
+
+      connectedAgents.push({
+        agentId,
+        socketId: agentInfo.socketId,
+        platformDomain: agentInfo.platformDomain,
+        connectedAt: agentInfo.connectedAt,
+        connectionDuration: new Date() - agentInfo.connectedAt,
+        handshakeCompleted: agentInfo.handshakeCompleted || false,
+        connectionAcked: agentInfo.connectionAcked || false,
+        healthStatus: agentInfo.healthStatus || "unknown",
+        lastHeartbeat: agentInfo.lastHeartbeat,
+        lastPong: agentInfo.lastPong,
+        capabilities: agentInfo.capabilities || {},
+        verification,
+      });
+    }
 
     res.json({
-      service: "Agent Bridge Status",
+      service: "Agent Bridge",
       timestamp: new Date().toISOString(),
-      ...status,
+      initialized: status.initialized,
+      connectedAgents: status.connectedAgents,
+      agentList: status.agentList,
+      activeStreams: status.activeStreams,
+      detailedAgents: connectedAgents,
+      componentStatus: status.componentStatus,
+      stats: {
+        totalConnections: connectedAgents.length,
+        healthyConnections: connectedAgents.filter(
+          (a) => a.verification.connected
+        ).length,
+        completedHandshakes: connectedAgents.filter((a) => a.handshakeCompleted)
+          .length,
+        ackedConnections: connectedAgents.filter((a) => a.connectionAcked)
+          .length,
+      },
     });
   } catch (error) {
     res.status(500).json({
       service: "Agent Bridge Status",
       error: error.message,
       timestamp: new Date().toISOString(),
+      health: {
+        overall: "error",
+      },
     });
   }
 });

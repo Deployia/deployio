@@ -7,6 +7,7 @@ import asyncio
 import logging
 from typing import Dict, Optional, Callable, Any
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 import socketio
 from socketio.exceptions import ConnectionError, TimeoutError
@@ -24,9 +25,13 @@ class AgentWebSocketManager:
 
     def __init__(self):
         self.client: Optional[socketio.AsyncClient] = None
+        self.bridge_client: Optional[socketio.AsyncClient] = (
+            None  # Dedicated bridge client
+        )
         self.namespaces: Dict[str, Any] = {}
         self.connection_handlers: list[Callable] = []
         self.is_connected: bool = False
+        self.bridge_connected: bool = False
         self.connection_lock = asyncio.Lock()
         self.reconnect_attempts: int = 0
         self.max_reconnect_attempts: int = settings.log_bridge_reconnect_attempts
@@ -46,7 +51,7 @@ class AgentWebSocketManager:
             server_url = settings.platform_url
 
         try:
-            # Create Socket.IO client with agent-specific config
+            # Create main Socket.IO client
             self.client = socketio.AsyncClient(
                 reconnection=True,
                 reconnection_attempts=self.max_reconnect_attempts,
@@ -55,7 +60,16 @@ class AgentWebSocketManager:
                 engineio_logger=False,
             )
 
-            # Setup connection event handlers
+            # Create dedicated bridge client for /agent-bridge namespace
+            self.bridge_client = socketio.AsyncClient(
+                reconnection=True,
+                reconnection_attempts=self.max_reconnect_attempts,
+                reconnection_delay=self.reconnect_delay,
+                logger=False,
+                engineio_logger=False,
+            )
+
+            # Setup connection event handlers for both clients
             self._setup_connection_handlers()
 
             logger.info(
@@ -84,11 +98,11 @@ class AgentWebSocketManager:
             bool: Connection success status
         """
         async with self.connection_lock:
-            if self.is_connected:
-                logger.debug("WebSocket already connected")
+            if self.bridge_connected:
+                logger.debug("Bridge WebSocket already connected")
                 return True
 
-            if not self.client:
+            if not self.bridge_client:
                 await self.initialize(server_url)
 
             try:
@@ -98,24 +112,29 @@ class AgentWebSocketManager:
                 auth_headers = self._get_auth_headers()
 
                 logger.info(
-                    "Connecting to DeployIO Server...",
+                    "Connecting to DeployIO Server agent-bridge namespace...",
                     {"server_url": server_url, "agent_id": settings.agent_id},
                 )
 
-                # Connect to agent-bridge namespace with authentication
-                agent_bridge_url = f"{server_url}/agent-bridge"
-                await self.client.connect(
-                    agent_bridge_url,
+                # Connect to the agent-bridge namespace
+                # In Python Socket.IO, we connect to the base URL and then join the namespace
+                await self.bridge_client.connect(
+                    server_url,
                     headers=auth_headers,
                     transports=["websocket", "polling"],
+                    namespaces=["/agent-bridge"],  # Specify namespace to connect to
                 )
 
-                self.is_connected = True
+                self.bridge_connected = True
+                self.is_connected = True  # Keep backward compatibility
                 self.reconnect_attempts = 0
 
                 logger.info(
-                    "SUCCESS: Connected to DeployIO Server",
-                    {"agent_id": settings.agent_id, "connection_id": self.client.sid},
+                    "SUCCESS: Connected to DeployIO Server Bridge",
+                    {
+                        "agent_id": settings.agent_id,
+                        "connection_id": self.bridge_client.sid,
+                    },
                 )
 
                 # Initialize all registered namespaces
@@ -124,17 +143,29 @@ class AgentWebSocketManager:
                 return True
 
             except (ConnectionError, TimeoutError) as e:
-                logger.error(f"WebSocket connection failed: {e}")
+                logger.error(f"Bridge WebSocket connection failed: {e}")
+                self.bridge_connected = False
                 self.is_connected = False
                 return False
             except Exception as e:
-                logger.error(f"Unexpected WebSocket connection error: {e}")
+                logger.error(f"Unexpected bridge WebSocket connection error: {e}")
+                self.bridge_connected = False
                 self.is_connected = False
                 return False
 
     async def disconnect(self):
         """Gracefully disconnect from server"""
         async with self.connection_lock:
+            if self.bridge_client and self.bridge_connected:
+                try:
+                    logger.info("Disconnecting from DeployIO Server Bridge...")
+                    await self.bridge_client.disconnect()
+                    self.bridge_connected = False
+                    self.is_connected = False
+                    logger.info("SUCCESS: Disconnected from DeployIO Server Bridge")
+                except Exception as e:
+                    logger.error(f"Error during bridge disconnect: {e}")
+
             if self.client and self.is_connected:
                 try:
                     logger.info("Disconnecting from DeployIO Server...")
@@ -142,7 +173,7 @@ class AgentWebSocketManager:
                     self.is_connected = False
                     logger.info("SUCCESS: Disconnected from DeployIO Server")
                 except Exception as e:
-                    logger.error(f"Error during disconnect: {e}")
+                    logger.error(f"Error during main disconnect: {e}")
 
     def register_namespace(self, namespace_path: str, namespace_instance):
         """
@@ -167,8 +198,8 @@ class AgentWebSocketManager:
             data: Event data
             room: Room name (optional)
         """
-        if not self.is_connected or not self.client:
-            logger.warning(f"Cannot emit to {namespace} - not connected")
+        if not self.bridge_connected or not self.bridge_client:
+            logger.warning(f"Cannot emit to {namespace} - bridge not connected")
             return False
 
         try:
@@ -180,8 +211,10 @@ class AgentWebSocketManager:
                 else:
                     emission_data = {"data": data, "room": room}
 
-            # Since we're connected to /agent-bridge, emit directly without namespace parameter
-            await self.client.emit(event, emission_data)
+            # Emit to the bridge namespace
+            await self.bridge_client.emit(
+                event, emission_data, namespace="/agent-bridge"
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to emit to {namespace}: {e}")
@@ -198,12 +231,20 @@ class AgentWebSocketManager:
         }
 
     def _setup_connection_handlers(self):
-        """Setup global connection event handlers"""
+        """Setup connection event handlers for bridge namespace"""
 
-        @self.client.event
+        # Bridge connection events for /agent-bridge namespace
+        @self.bridge_client.event(namespace="/agent-bridge")
         async def connect():
-            logger.info("WebSocket connected to server")
+            logger.info(
+                "WebSocket connected to agent-bridge namespace - initiating handshake...",
+                {"agent_id": settings.agent_id, "platform_url": settings.platform_url},
+            )
+            self.bridge_connected = True
             self.is_connected = True
+
+            # Send initial handshake with connection verification
+            await self._perform_connection_handshake()
 
             # Notify all connection handlers
             for handler in self.connection_handlers:
@@ -212,9 +253,13 @@ class AgentWebSocketManager:
                 except Exception as e:
                     logger.error(f"Connection handler error: {e}")
 
-        @self.client.event
+        @self.bridge_client.event(namespace="/agent-bridge")
         async def disconnect():
-            logger.warning("WebSocket disconnected from server")
+            logger.warning(
+                "WebSocket disconnected from agent-bridge namespace",
+                {"agent_id": settings.agent_id, "was_connected": self.bridge_connected},
+            )
+            self.bridge_connected = False
             self.is_connected = False
 
             # Notify all connection handlers
@@ -224,18 +269,90 @@ class AgentWebSocketManager:
                 except Exception as e:
                     logger.error(f"Disconnection handler error: {e}")
 
-        @self.client.event
+        @self.bridge_client.event(namespace="/agent-bridge")
         async def connect_error(data):
-            logger.error(f"WebSocket connection error: {data}")
+            logger.error(
+                "WebSocket connection error on agent-bridge namespace",
+                {"error": str(data), "agent_id": settings.agent_id},
+            )
+            self.bridge_connected = False
             self.is_connected = False
 
-        @self.client.event
+        @self.bridge_client.event(namespace="/agent-bridge")
         async def reconnect():
-            logger.info("WebSocket reconnected to server")
+            logger.info(
+                "WebSocket reconnected to agent-bridge namespace",
+                {"agent_id": settings.agent_id, "attempt": self.reconnect_attempts},
+            )
+            self.bridge_connected = True
             self.is_connected = True
 
+        # Agent bridge specific events
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def connection_established(data):
+            """Handle successful bridge connection establishment"""
+            logger.info(
+                "Bridge connection established successfully",
+                {
+                    "agent_id": data.get("agentId"),
+                    "server_time": data.get("serverTime"),
+                    "available_namespaces": data.get("availableNamespaces", []),
+                    "connection_confirmed": True,
+                },
+            )
+
+            # Send ACK back to server
+            await self.bridge_client.emit(
+                "connection_ack",
+                {
+                    "agent_id": settings.agent_id,
+                    "client_time": datetime.now().isoformat(),
+                    "status": "ready",
+                    "message": "Agent bridge connection confirmed",
+                },
+                namespace="/agent-bridge",
+            )
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def authentication_failed(data):
+            """Handle authentication failure"""
+            logger.error(
+                "Authentication failed",
+                {"message": data.get("message"), "agent_id": settings.agent_id},
+            )
+            self.bridge_connected = False
+            self.is_connected = False
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def bridge_ping(data):
+            """Handle bridge health ping from server"""
+            logger.debug("Received bridge ping, sending pong")
+            await self.bridge_client.emit(
+                "bridge_pong",
+                {
+                    "agent_id": settings.agent_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "ping_id": data.get("ping_id"),
+                },
+                namespace="/agent-bridge",
+            )
+
+        # Bridge handshake response from server
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def bridge_handshake_ack(data):
+            """Handle handshake acknowledgment from server"""
+            logger.info(
+                "Received bridge handshake ACK from server",
+                {
+                    "handshake_id": data.get("handshakeId"),
+                    "server_time": data.get("serverTime"),
+                    "status": data.get("status"),
+                    "bridge_ready": data.get("bridgeReady"),
+                },
+            )
+
         # Add event handlers for server requests
-        @self.client.event
+        @self.bridge_client.event(namespace="/agent-bridge")
         async def request_logs(data):
             """Handle log requests from server"""
             logger.info(f"Received log request from server: {data}")
@@ -250,7 +367,7 @@ class AgentWebSocketManager:
                             f"Error handling request_logs in {namespace_path}: {e}"
                         )
 
-        @self.client.event
+        @self.bridge_client.event(namespace="/agent-bridge")
         async def start_log_stream(data):
             """Handle start log stream requests from server"""
             logger.info(f"Received start log stream request: {data}")
@@ -265,7 +382,7 @@ class AgentWebSocketManager:
                             f"Error handling start_log_stream in {namespace_path}: {e}"
                         )
 
-        @self.client.event
+        @self.bridge_client.event(namespace="/agent-bridge")
         async def stop_log_stream(data):
             """Handle stop log stream requests from server"""
             logger.info(f"Received stop log stream request: {data}")
@@ -300,13 +417,57 @@ class AgentWebSocketManager:
         """Get current connection status"""
         return {
             "connected": self.is_connected,
+            "bridge_connected": self.bridge_connected,
             "connection_id": (
-                self.client.sid if self.client and self.is_connected else None
+                self.bridge_client.sid
+                if self.bridge_client and self.bridge_connected
+                else None
             ),
             "namespaces": list(self.namespaces.keys()),
             "reconnect_attempts": self.reconnect_attempts,
             "agent_id": settings.agent_id,
         }
+
+    async def _perform_connection_handshake(self):
+        """
+        Perform initial handshake with server to verify bridge connection
+        Sends connection details and waits for server acknowledgment
+        """
+        try:
+            handshake_data = {
+                "agent_id": settings.agent_id,
+                "agent_version": settings.version,
+                "platform_url": settings.platform_url,
+                "connection_time": datetime.now().isoformat(),
+                "capabilities": {
+                    "logs": True,
+                    "metrics": False,  # TODO: Enable when implemented
+                    "builds": False,  # TODO: Enable when implemented
+                    "deployments": False,  # TODO: Enable when implemented
+                },
+                "connection_type": "bridge_establishment",
+                "handshake_id": f"handshake_{int(datetime.now().timestamp())}",
+            }
+
+            logger.info(
+                "Sending connection handshake to server",
+                {
+                    "agent_id": settings.agent_id,
+                    "handshake_id": handshake_data["handshake_id"],
+                    "capabilities": handshake_data["capabilities"],
+                },
+            )
+
+            # Send handshake data to server on agent-bridge namespace
+            await self.bridge_client.emit(
+                "bridge_handshake", handshake_data, namespace="/agent-bridge"
+            )
+
+        except Exception as e:
+            logger.error(
+                "Failed to perform connection handshake",
+                {"error": str(e), "agent_id": settings.agent_id},
+            )
 
 
 # Global WebSocket manager instance

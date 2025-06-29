@@ -74,10 +74,11 @@ class AgentBridgeService extends EventEmitter {
     try {
       const { agentId, agentSecret, platformDomain } = agentInfo;
 
-      logger.info("New agent attempting connection", {
+      logger.info("🔗 New agent attempting connection", {
         agentId,
         platformDomain,
         socketId: socket.id,
+        timestamp: new Date().toISOString(),
       });
 
       // Validate agent credentials
@@ -87,9 +88,13 @@ class AgentBridgeService extends EventEmitter {
         platformDomain
       );
       if (!isValid) {
-        logger.error("Agent authentication failed", { agentId });
+        logger.error("🚫 Agent authentication failed", {
+          agentId,
+          reason: "Invalid credentials",
+        });
         socket.emit("authentication_failed", {
           message: "Invalid agent credentials",
+          timestamp: new Date().toISOString(),
         });
         socket.disconnect();
         return false;
@@ -104,6 +109,8 @@ class AgentBridgeService extends EventEmitter {
         connectedAt: new Date(),
         lastHeartbeat: new Date(),
         namespaces: new Set(),
+        connectionStatus: "establishing",
+        handshakeCompleted: false,
       };
 
       this.connectedAgents.set(agentId, connectionInfo);
@@ -111,8 +118,8 @@ class AgentBridgeService extends EventEmitter {
       // Setup agent-specific event handlers
       await this._setupAgentEventHandlers(socket, agentId);
 
-      // Notify connection success
-      socket.emit("connection_established", {
+      // Send connection establishment with verification data
+      const establishmentData = {
         agentId,
         serverTime: new Date().toISOString(),
         availableNamespaces: [
@@ -121,18 +128,26 @@ class AgentBridgeService extends EventEmitter {
           "/agent-builds",
           "/agent-deployments",
         ],
-      });
+        bridgeStatus: "connected",
+        connectionId: socket.id,
+      };
 
-      logger.info("✅ Agent connected successfully", {
+      socket.emit("connection_established", establishmentData);
+
+      logger.info("✅ Agent connection established - awaiting handshake", {
         agentId,
         socketId: socket.id,
         totalAgents: this.connectedAgents.size,
       });
 
+      // Start periodic health check for this agent
+      this._startAgentHealthCheck(agentId);
+
       return true;
     } catch (error) {
-      logger.error("Error handling agent connection", {
+      logger.error("❌ Error handling agent connection", {
         error: error.message,
+        stack: error.stack,
         socketId: socket.id,
       });
       return false;
@@ -144,7 +159,30 @@ class AgentBridgeService extends EventEmitter {
    */
   async handleAgentDisconnection(socket, agentId) {
     try {
-      logger.info("Agent disconnecting", { agentId, socketId: socket.id });
+      logger.info("🔌 Agent disconnecting", {
+        agentId,
+        socketId: socket.id,
+        timestamp: new Date().toISOString(),
+      });
+
+      const agentInfo = this.connectedAgents.get(agentId);
+      if (agentInfo) {
+        // Log connection duration and stats
+        const connectionDuration = new Date() - agentInfo.connectedAt;
+        logger.info("📊 Agent connection statistics", {
+          agentId,
+          connectionDuration: `${Math.round(connectionDuration / 1000)}s`,
+          handshakeCompleted: agentInfo.handshakeCompleted,
+          connectionAcked: agentInfo.connectionAcked,
+          lastHeartbeat: agentInfo.lastHeartbeat,
+          lastPong: agentInfo.lastPong,
+        });
+
+        // Clean up health check interval
+        if (agentInfo.healthCheckInterval) {
+          clearInterval(agentInfo.healthCheckInterval);
+        }
+      }
 
       // Clean up active streams
       await this._cleanupAgentStreams(agentId);
@@ -152,12 +190,12 @@ class AgentBridgeService extends EventEmitter {
       // Remove from connected agents
       this.connectedAgents.delete(agentId);
 
-      logger.info("✅ Agent disconnected", {
+      logger.info("✅ Agent disconnected and cleaned up", {
         agentId,
         remainingAgents: this.connectedAgents.size,
       });
     } catch (error) {
-      logger.error("Error handling agent disconnection", {
+      logger.error("❌ Error handling agent disconnection", {
         error: error.message,
         agentId,
       });
@@ -373,9 +411,82 @@ class AgentBridgeService extends EventEmitter {
       }
     });
 
+    // Bridge handshake - agent sends initial connection data
+    socket.on("bridge_handshake", async (data) => {
+      logger.info("🤝 Received bridge handshake from agent", {
+        agentId,
+        handshakeId: data.handshake_id,
+        capabilities: data.capabilities,
+        agentVersion: data.agent_version,
+      });
+
+      const agentInfo = this.connectedAgents.get(agentId);
+      if (agentInfo) {
+        agentInfo.handshakeCompleted = true;
+        agentInfo.connectionStatus = "established";
+        agentInfo.capabilities = data.capabilities;
+        agentInfo.agentVersion = data.agent_version;
+      }
+
+      // Send handshake response back to agent
+      socket.emit("bridge_handshake_ack", {
+        handshakeId: data.handshake_id,
+        serverTime: new Date().toISOString(),
+        status: "handshake_complete",
+        bridgeReady: true,
+      });
+
+      // Notify AgentLogCollector that this agent is ready for log streaming
+      this.emit("agent_ready", agentId, {
+        capabilities: data.capabilities,
+        connectionInfo: agentInfo,
+      });
+
+      logger.info("✅ Bridge handshake completed successfully", {
+        agentId,
+        status: "fully_connected",
+        capabilities: data.capabilities,
+      });
+    });
+
+    // Connection ACK - agent confirms connection establishment
+    socket.on("connection_ack", async (data) => {
+      logger.info("📋 Received connection ACK from agent", {
+        agentId,
+        clientTime: data.client_time,
+        status: data.status,
+        message: data.message,
+      });
+
+      const agentInfo = this.connectedAgents.get(agentId);
+      if (agentInfo) {
+        agentInfo.connectionAcked = true;
+        agentInfo.lastAck = new Date();
+      }
+    });
+
+    // Bridge pong - health check response
+    socket.on("bridge_pong", (data) => {
+      logger.debug("📡 Received bridge pong from agent", {
+        agentId,
+        pingId: data.ping_id,
+        timestamp: data.timestamp,
+      });
+
+      const agentInfo = this.connectedAgents.get(agentId);
+      if (agentInfo) {
+        agentInfo.lastPong = new Date();
+        agentInfo.healthStatus = "healthy";
+      }
+    });
+
     // Error handling
     socket.on("error", (error) => {
-      logger.error("Agent socket error", { agentId, error: error.message });
+      logger.error("❌ Agent socket error", {
+        agentId,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
     });
 
     logger.debug("✅ Agent event handlers setup completed", { agentId });
@@ -474,6 +585,93 @@ class AgentBridgeService extends EventEmitter {
       logger.error("Error during bridge service cleanup", {
         error: error.message,
       });
+    }
+  }
+
+  /**
+   * Start periodic health check for agent
+   */
+  _startAgentHealthCheck(agentId) {
+    const healthCheckInterval = setInterval(async () => {
+      const agentInfo = this.connectedAgents.get(agentId);
+      if (!agentInfo) {
+        clearInterval(healthCheckInterval);
+        return;
+      }
+
+      try {
+        // Send ping to agent
+        const pingId = `ping_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+
+        logger.debug("📡 Sending bridge ping to agent", {
+          agentId,
+          pingId,
+        });
+
+        agentInfo.socket.emit("bridge_ping", {
+          ping_id: pingId,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Store ping info for tracking
+        agentInfo.lastPing = new Date();
+        agentInfo.lastPingId = pingId;
+      } catch (error) {
+        logger.error("❌ Error sending health ping to agent", {
+          agentId,
+          error: error.message,
+        });
+      }
+    }, 30000); // Every 30 seconds
+
+    // Store interval for cleanup
+    const agentInfo = this.connectedAgents.get(agentId);
+    if (agentInfo) {
+      agentInfo.healthCheckInterval = healthCheckInterval;
+    }
+  }
+
+  /**
+   * Enhanced bridge connection with verification logging
+   */
+  async verifyBridgeConnection(agentId) {
+    try {
+      const agentInfo = this.connectedAgents.get(agentId);
+      if (!agentInfo) {
+        return {
+          connected: false,
+          reason: "Agent not found",
+        };
+      }
+
+      const verification = {
+        connected: agentInfo.socket.connected,
+        handshakeCompleted: agentInfo.handshakeCompleted || false,
+        connectionAcked: agentInfo.connectionAcked || false,
+        healthStatus: agentInfo.healthStatus || "unknown",
+        lastHeartbeat: agentInfo.lastHeartbeat,
+        lastPong: agentInfo.lastPong,
+        connectionDuration: new Date() - agentInfo.connectedAt,
+        capabilities: agentInfo.capabilities || {},
+      };
+
+      logger.info("🔍 Bridge connection verification", {
+        agentId,
+        verification,
+      });
+
+      return verification;
+    } catch (error) {
+      logger.error("❌ Error verifying bridge connection", {
+        agentId,
+        error: error.message,
+      });
+      return {
+        connected: false,
+        reason: error.message,
+      };
     }
   }
 }

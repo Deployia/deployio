@@ -31,7 +31,41 @@ class AgentLogCollector extends BaseLogCollector {
    */
   setBridgeService(bridgeService) {
     this.bridgeService = bridgeService;
-    logger.info("Agent Log Collector integrated with WebSocket bridge");
+
+    // Listen for agent ready events
+    this.bridgeService.on("agent_ready", (agentId, agentData) => {
+      this.handleAgentReady(agentId, agentData);
+    });
+
+    // Listen for agent logs from the bridge
+    this.bridgeService.on("agent_logs", (agentId, logData) => {
+      this.handleBridgeLogData(agentId, logData);
+    });
+
+    logger.info("✅ Agent Log Collector integrated with WebSocket bridge", {
+      bridgeIntegrated: true,
+      eventsListening: ["agent_ready", "agent_logs"],
+    });
+  }
+
+  /**
+   * Handle agent ready event from bridge
+   */
+  handleAgentReady(agentId, agentData) {
+    logger.info("🚀 Agent ready for log streaming", {
+      agentId,
+      capabilities: agentData.capabilities,
+      connectionTime: agentData.connectionInfo?.connectedAt,
+    });
+
+    // Auto-start log collection for ready agents
+    if (agentData.capabilities?.logs) {
+      this.requestAgentLogs(agentId, {
+        type: "system",
+        lines: 100,
+        autoStart: true,
+      });
+    }
   }
 
   async start(options = {}) {
@@ -72,7 +106,15 @@ class AgentLogCollector extends BaseLogCollector {
    */
   handleBridgeLogData(agentId, logData) {
     try {
-      const { logs, log_type, timestamp } = logData;
+      const { logs, log_type, timestamp, room } = logData;
+
+      logger.debug("📨 Received log data via bridge", {
+        agentId,
+        logType: log_type,
+        logCount: Array.isArray(logs) ? logs.length : 1,
+        room,
+        bridgeTimestamp: timestamp,
+      });
 
       if (logs && Array.isArray(logs)) {
         for (const log of logs) {
@@ -82,13 +124,47 @@ class AgentLogCollector extends BaseLogCollector {
             agent_id: agentId,
             bridge_timestamp: timestamp,
             log_type: log_type || "system",
+            bridge_room: room,
+            processed_at: new Date().toISOString(),
           };
 
-          this.emit("log", bridgeLog);
+          // Process and emit the log
+          this.emitLog(bridgeLog);
         }
+
+        // Log successful processing
+        logger.info("✅ Processed agent logs via bridge", {
+          agentId,
+          processedCount: logs.length,
+          logType: log_type,
+          room,
+        });
+      } else if (logs) {
+        // Single log entry
+        const bridgeLog = {
+          ...logs,
+          source: "websocket-bridge-agent",
+          agent_id: agentId,
+          bridge_timestamp: timestamp,
+          log_type: log_type || "system",
+          bridge_room: room,
+          processed_at: new Date().toISOString(),
+        };
+
+        this.emitLog(bridgeLog);
+
+        logger.debug("✅ Processed single agent log via bridge", {
+          agentId,
+          logType: log_type,
+          room,
+        });
       }
     } catch (error) {
-      logger.error("Error processing bridge log data:", error);
+      logger.error("❌ Error processing bridge log data", {
+        error: error.message,
+        agentId,
+        logDataKeys: Object.keys(logData || {}),
+      });
     }
   }
 
@@ -102,15 +178,37 @@ class AgentLogCollector extends BaseLogCollector {
     }
 
     try {
-      const { lines = 50, type = "system" } = options;
+      const { lines = 50, type = "system", autoStart = false } = options;
 
-      return await this.bridgeService.requestAgentLogs(agentId, {
+      logger.info("📤 Requesting logs from agent via bridge", {
+        agentId,
+        type,
+        lines,
+        autoStart,
+        requestTime: new Date().toISOString(),
+      });
+
+      const result = await this.bridgeService.requestAgentLogs(agentId, {
         type,
         lines,
         timestamp: new Date().toISOString(),
       });
+
+      if (result) {
+        logger.info("✅ Agent log request successful", {
+          agentId,
+          requestId: result.requestId,
+          status: result.status,
+        });
+      }
+
+      return result;
     } catch (error) {
-      logger.error("Failed to request agent logs via bridge:", error);
+      logger.error("❌ Failed to request agent logs via bridge", {
+        error: error.message,
+        agentId,
+        options,
+      });
       return null;
     }
   }

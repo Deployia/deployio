@@ -317,7 +317,7 @@ class StreamRouter {
   async _emitToClientNamespace(namespace, event, data, room) {
     try {
       // Get the namespace from registry
-      const namespaceHandler = webSocketRegistry.getNamespace(namespace);
+      const namespaceHandler = webSocketRegistry.get(namespace);
       if (!namespaceHandler) {
         logger.error("Client namespace not found", { namespace });
         return false;
@@ -335,7 +335,7 @@ class StreamRouter {
 
       // Emit to the namespace and room
       if (room) {
-        namespaceHandler.to(room).emit(targetEvent, data);
+        namespaceHandler.namespace.to(room).emit(targetEvent, data);
       } else {
         namespaceHandler.emit(targetEvent, data);
       }
