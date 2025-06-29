@@ -12,7 +12,6 @@ import docker
 import httpx
 
 from app.core.config import settings
-from app.services.log_bridge import log_bridge_service
 from app.core.logging import get_logger
 
 router = APIRouter()
@@ -141,15 +140,6 @@ async def health_check():
         "docker": {"status": docker_status},
         "traefik": {"status": traefik_status},
     }
-    log_bridge = {
-        "connected": log_bridge_service.connected,
-        "last_heartbeat": log_bridge_service.last_heartbeat,
-        "buffer_size": len(log_bridge_service.log_buffer),
-        "max_buffer_size": log_bridge_service.buffer_size,
-        "reconnect_attempts": log_bridge_service.reconnect_attempts,
-        "server_url": log_bridge_service.server_url,
-        "agent_id": log_bridge_service.agent_id,
-    }
     # Determine overall status
     core_services_healthy = (
         mongodb_status == "connected" and docker_status == "connected"
@@ -171,7 +161,6 @@ async def health_check():
         "disk": system_metrics["disk"],
         "docker": system_metrics["docker"],
         "services": services_status,
-        "log_bridge": log_bridge,
         "responseTime": 0,
     }
 

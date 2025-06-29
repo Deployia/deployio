@@ -39,11 +39,6 @@ const { connectRedis } = require("./config/redisClient");
     },
   });
 
-  // Enhanced Agent Log Bridge - Disabled for cleanup
-  logger.debug(
-    "Remote Agent Log Bridge disabled for cleanup - will be redesigned"
-  );
-
   // Graceful shutdown handling
   const { shutdownWebSockets } = require("./websockets");
 
