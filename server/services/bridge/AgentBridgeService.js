@@ -411,10 +411,8 @@ class AgentBridgeService extends EventEmitter {
         streamType: data.stream_type,
       });
 
-      // Emit to AgentLogCollector for processing
-      this.emit("live_system_logs", data);
-
-      // Also route through StreamRouter to client
+      // Route through StreamRouter to client ONLY
+      // Do NOT emit to AgentLogCollector to avoid duplicate processing
       await this.routeAgentStream(
         agentId,
         "/agent-logs",
@@ -431,10 +429,8 @@ class AgentBridgeService extends EventEmitter {
         logCount: data.logs?.length || 0,
       });
 
-      // Emit to AgentLogCollector for processing
-      this.emit("live_container_logs", data);
-
-      // Also route through StreamRouter to client
+      // Route through StreamRouter to client ONLY
+      // Do NOT emit to AgentLogCollector to avoid duplicate processing
       await this.routeAgentStream(
         agentId,
         "/agent-logs",

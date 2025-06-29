@@ -232,7 +232,17 @@ class AgentLogCollectorService:
             # Try JSON parsing first
             try:
                 log_entry = json.loads(line)
-                standardized_log = log_entry
+                standardized_log = {
+                    "timestamp": log_entry.get(
+                        "timestamp", datetime.utcnow().isoformat()
+                    ),
+                    "level": (log_entry.get("level", "info")).upper(),
+                    "message": log_entry.get("message", line),
+                    "source": source,
+                    "metadata": log_entry,
+                    "raw": line,
+                    "id": f"agent_{int(datetime.utcnow().timestamp() * 1000)}_{id(line)}",
+                }
             except (json.JSONDecodeError, TypeError):
                 # Fallback to plain text - exactly like Node.js version
                 timestamp_match = re.search(
@@ -251,6 +261,7 @@ class AgentLogCollectorService:
                     "source": source,
                     "metadata": {"filePath": file_path},
                     "raw": line,
+                    "id": f"agent_{int(datetime.utcnow().timestamp() * 1000)}_{id(line)}",
                 }
 
             # Queue the log for async processing

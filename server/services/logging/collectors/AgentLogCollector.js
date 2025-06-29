@@ -1,6 +1,13 @@
 /**
  * Agent Log Collector for Remote EC2 Service
- * Handles remote agent log collection via HTTP polling
+ *
+ * ROLE CLARIFICATION (Updated Architecture):
+ * - Handles HTTP polling fallback when WebSocket unavailable
+ * - Manages historical log requests (not live streaming)
+ * - Provides local file-based agent logs
+ *
+ * NOTE: Live agent logs via WebSocket are now handled directly by
+ * StreamRouter in AgentBridgeService to avoid duplicate processing.
  */
 
 const path = require("path");
@@ -44,15 +51,11 @@ class AgentLogCollector extends BaseLogCollector {
 
     // Setup event handlers for live streaming
     if (this.bridgeService) {
-      // Handle live log streams from agents
-      this.bridgeService.on(
-        "live_system_logs",
-        this.handleLiveSystemLogs.bind(this)
-      );
-      this.bridgeService.on(
-        "live_container_logs",
-        this.handleLiveContainerLogs.bind(this)
-      );
+      // Handle live log streams from agents - NOTE: These are now handled directly
+      // by StreamRouter in AgentBridgeService to avoid duplicate processing.
+      // AgentLogCollector only handles HTTP fallback and historical logs.
+
+      // Keep stream control event handlers
       this.bridgeService.on(
         "log_stream_started",
         this.handleStreamStarted.bind(this)
@@ -63,7 +66,7 @@ class AgentLogCollector extends BaseLogCollector {
       );
 
       logger.info(
-        "Live streaming event handlers registered with bridge service"
+        "Stream control event handlers registered with bridge service"
       );
     }
   }
@@ -117,23 +120,25 @@ class AgentLogCollector extends BaseLogCollector {
       agentId,
       useWebSocketBridge: this.useWebSocketBridge,
       bridgeAvailable: !!this.bridgeService,
+      role: "http_fallback_and_historical_logs",
     });
 
-    // Try WebSocket bridge first, fall back to HTTP polling
+    // Use WebSocket bridge for stream control, HTTP for fallback
     if (this.useWebSocketBridge && this.bridgeService) {
-      logger.info("Starting agent log collection via WebSocket bridge");
+      logger.info("WebSocket bridge available for agent communication");
       this.startBridgeLogging();
 
-      // If realtime is requested, start streaming from all connected agents
+      // NOTE: Live streaming is now handled directly by StreamRouter
+      // AgentLogCollector focuses on HTTP fallback and historical requests
       if (realtime) {
         logger.info(
-          "Requesting realtime log streaming from all connected agents"
+          "Requesting realtime log streaming from agents (via StreamRouter)"
         );
         await this.requestRealtimeFromAllAgents(options);
       }
     } else {
       logger.info(
-        "WebSocket bridge not available, falling back to HTTP polling"
+        "WebSocket bridge not available, using HTTP polling fallback"
       );
       this.startHttpPolling();
     }
@@ -241,6 +246,8 @@ class AgentLogCollector extends BaseLogCollector {
 
   /**
    * Start log collection via WebSocket bridge
+   * NOTE: This primarily handles non-live log requests and bridge management.
+   * Live streaming is handled directly by StreamRouter to avoid duplicates.
    */
   startBridgeLogging() {
     if (!this.bridgeService) {
@@ -249,9 +256,11 @@ class AgentLogCollector extends BaseLogCollector {
       return;
     }
 
-    logger.info("Agent log collection via WebSocket bridge started");
+    logger.info(
+      "Agent bridge logging started (non-live requests and management)"
+    );
 
-    // Listen for agent log streams
+    // Listen for agent log responses (non-live requests)
     this.bridgeService.on("agent_logs", (agentId, logData) => {
       this.handleBridgeLogData(agentId, logData);
     });
