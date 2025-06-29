@@ -113,7 +113,7 @@ class AgentWebSocketManager:
                 self.reconnect_attempts = 0
 
                 logger.info(
-                    "✅ Connected to DeployIO Server",
+                    "SUCCESS: Connected to DeployIO Server",
                     {"agent_id": settings.agent_id, "connection_id": self.client.sid},
                 )
 
@@ -139,7 +139,7 @@ class AgentWebSocketManager:
                     logger.info("Disconnecting from DeployIO Server...")
                     await self.client.disconnect()
                     self.is_connected = False
-                    logger.info("✅ Disconnected from DeployIO Server")
+                    logger.info("SUCCESS: Disconnected from DeployIO Server")
                 except Exception as e:
                     logger.error(f"Error during disconnect: {e}")
 
@@ -171,7 +171,16 @@ class AgentWebSocketManager:
             return False
 
         try:
-            await self.client.emit(event, data, namespace=namespace, room=room)
+            # Include room information in data payload if specified
+            emission_data = data
+            if room:
+                if isinstance(data, dict):
+                    emission_data = {**data, "room": room}
+                else:
+                    emission_data = {"data": data, "room": room}
+
+            # Emit to namespace (client doesn't support room parameter)
+            await self.client.emit(event, emission_data, namespace=namespace)
             return True
         except Exception as e:
             logger.error(f"Failed to emit to {namespace}: {e}")
@@ -230,7 +239,7 @@ class AgentWebSocketManager:
             try:
                 if hasattr(namespace_instance, "on_connected"):
                     await namespace_instance.on_connected()
-                logger.debug(f"✅ Initialized namespace: {namespace_path}")
+                logger.debug(f"SUCCESS: Initialized namespace: {namespace_path}")
             except Exception as e:
                 logger.error(f"Failed to initialize namespace {namespace_path}: {e}")
 

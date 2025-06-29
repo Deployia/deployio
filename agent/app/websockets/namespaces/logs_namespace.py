@@ -65,7 +65,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
                 self._monitor_docker_logs()
             )
 
-        logger.info("✅ Log streaming started")
+        logger.info("SUCCESS: Log streaming started")
 
     async def stop_streaming(self):
         """Stop log streaming tasks"""
@@ -87,7 +87,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
             except asyncio.CancelledError:
                 pass
 
-        logger.info("✅ Log streaming stopped")
+        logger.info("SUCCESS: Log streaming stopped")
 
     async def cleanup(self):
         """Cleanup logs namespace"""

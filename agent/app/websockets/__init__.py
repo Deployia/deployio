@@ -66,7 +66,7 @@ class AgentWebSocketService:
             self.is_initialized = True
 
             logger.info(
-                "✅ Agent WebSocket service initialized successfully",
+                "SUCCESS: Agent WebSocket service initialized successfully",
                 {
                     "enabled_features": [
                         k for k, v in self.enabled_features.items() if v
@@ -111,7 +111,7 @@ class AgentWebSocketService:
             # Start namespace streaming
             await self._start_namespace_streaming()
 
-            logger.info("✅ Connected to DeployIO Server successfully")
+            logger.info("SUCCESS: Connected to DeployIO Server successfully")
             return True
 
         except Exception as e:
@@ -134,7 +134,7 @@ class AgentWebSocketService:
 
             self.is_connected = False
 
-            logger.info("✅ Disconnected from DeployIO Server")
+            logger.info("SUCCESS: Disconnected from DeployIO Server")
 
         except Exception as e:
             logger.error(f"Error during disconnect: {e}")
@@ -158,7 +158,7 @@ class AgentWebSocketService:
 
             self.is_initialized = False
 
-            logger.info("✅ WebSocket service cleanup completed")
+            logger.info("SUCCESS: WebSocket service cleanup completed")
 
         except Exception as e:
             logger.error(f"Error during WebSocket cleanup: {e}")
@@ -175,14 +175,14 @@ class AgentWebSocketService:
                     "/agent-logs", agent_logs_namespace
                 )
                 agent_registry.register_namespace("/agent-logs", agent_logs_namespace)
-                logger.info("✅ Logs namespace setup completed")
+                logger.info("SUCCESS: Logs namespace setup completed")
             except Exception as e:
                 logger.error(f"Failed to setup logs namespace: {e}")
 
         # TODO: Add other namespaces (metrics, builds, deployments) in future phases
 
         logger.info(
-            f"✅ Namespace setup completed - {len(agent_registry.get_namespace_paths())} namespaces active"
+            f"SUCCESS: Namespace setup completed - {len(agent_registry.get_namespace_paths())} namespaces active"
         )
 
     async def _start_namespace_streaming(self):
@@ -194,11 +194,11 @@ class AgentWebSocketService:
                 namespace = agent_registry.get_namespace(namespace_path)
                 if namespace and hasattr(namespace, "start_streaming"):
                     await namespace.start_streaming()
-                    logger.debug(f"✅ Started streaming for {namespace_path}")
+                    logger.debug(f"SUCCESS: Started streaming for {namespace_path}")
             except Exception as e:
                 logger.error(f"Failed to start streaming for {namespace_path}: {e}")
 
-        logger.info("✅ Namespace streaming started")
+        logger.info("SUCCESS: Namespace streaming started")
 
     async def _stop_namespace_streaming(self):
         """Stop streaming for all active namespaces"""
@@ -209,11 +209,11 @@ class AgentWebSocketService:
                 namespace = agent_registry.get_namespace(namespace_path)
                 if namespace and hasattr(namespace, "stop_streaming"):
                     await namespace.stop_streaming()
-                    logger.debug(f"✅ Stopped streaming for {namespace_path}")
+                    logger.debug(f"SUCCESS: Stopped streaming for {namespace_path}")
             except Exception as e:
                 logger.error(f"Failed to stop streaming for {namespace_path}: {e}")
 
-        logger.info("✅ Namespace streaming stopped")
+        logger.info("SUCCESS: Namespace streaming stopped")
 
     def _setup_connection_handlers(self):
         """Setup global connection event handlers"""

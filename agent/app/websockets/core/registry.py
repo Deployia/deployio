@@ -43,7 +43,7 @@ class AgentWebSocketRegistry:
                 "errors": 0,
             }
 
-            logger.info(f"✅ Registered namespace: {namespace_path}")
+            logger.info(f"SUCCESS: Registered namespace: {namespace_path}")
             return True
 
         except Exception as e:
@@ -76,7 +76,7 @@ class AgentWebSocketRegistry:
             if namespace_path in self.namespace_stats:
                 self.namespace_stats[namespace_path]["active"] = False
 
-            logger.info(f"✅ Unregistered namespace: {namespace_path}")
+            logger.info(f"SUCCESS: Unregistered namespace: {namespace_path}")
             return True
 
         except Exception as e:
@@ -124,7 +124,7 @@ class AgentWebSocketRegistry:
             try:
                 if hasattr(namespace_instance, "cleanup"):
                     namespace_instance.cleanup()
-                logger.debug(f"✅ Cleaned up namespace: {namespace_path}")
+                logger.debug(f"SUCCESS: Cleaned up namespace: {namespace_path}")
             except Exception as e:
                 logger.error(f"Error cleaning up namespace {namespace_path}: {e}")
 
@@ -132,7 +132,7 @@ class AgentWebSocketRegistry:
         for stats in self.namespace_stats.values():
             stats["active"] = False
 
-        logger.info("✅ WebSocket registry cleanup completed")
+        logger.info("SUCCESS: WebSocket registry cleanup completed")
 
 
 # Global registry instance

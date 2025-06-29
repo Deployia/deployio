@@ -49,7 +49,7 @@ class BaseAgentNamespace(ABC):
         if self.flush_interval > 0:
             self._flush_task = asyncio.create_task(self._buffer_flush_loop())
 
-        logger.info(f"✅ Initialized namespace: {self.namespace_path}")
+        logger.info(f"SUCCESS: Initialized namespace: {self.namespace_path}")
 
     async def cleanup(self):
         """Cleanup namespace resources"""
@@ -72,7 +72,7 @@ class BaseAgentNamespace(ABC):
 
         self.connected_rooms.clear()
 
-        logger.info(f"✅ Cleaned up namespace: {self.namespace_path}")
+        logger.info(f"SUCCESS: Cleaned up namespace: {self.namespace_path}")
 
     async def on_connected(self):
         """Called when WebSocket connection is established"""
@@ -100,7 +100,7 @@ class BaseAgentNamespace(ABC):
 
             if success and room_name not in self.connected_rooms:
                 self.connected_rooms.append(room_name)
-                logger.debug(f"✅ Joined room: {room_name} in {self.namespace_path}")
+                logger.debug(f"SUCCESS: Joined room: {room_name} in {self.namespace_path}")
 
             return success
 
@@ -129,7 +129,7 @@ class BaseAgentNamespace(ABC):
 
             if success and room_name in self.connected_rooms:
                 self.connected_rooms.remove(room_name)
-                logger.debug(f"✅ Left room: {room_name} in {self.namespace_path}")
+                logger.debug(f"SUCCESS: Left room: {room_name} in {self.namespace_path}")
 
             return success
 
@@ -161,7 +161,7 @@ class BaseAgentNamespace(ABC):
             )
 
             if success:
-                logger.debug(f"✅ Emitted {event} to {self.namespace_path}")
+                logger.debug(f"SUCCESS: Emitted {event} to {self.namespace_path}")
 
             return success
 
@@ -222,7 +222,7 @@ class BaseAgentNamespace(ABC):
                     break
 
         if not self.buffer:
-            logger.debug(f"✅ Buffer flushed for {self.namespace_path}")
+            logger.debug(f"SUCCESS: Buffer flushed for {self.namespace_path}")
 
     async def _buffer_flush_loop(self):
         """Background task to periodically flush buffer"""

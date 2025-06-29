@@ -36,7 +36,9 @@ async def startup_events():
                     # Connect to server
                     ws_connected = await connect_websockets()
                     if ws_connected:
-                        logger.info("✅ WebSocket bridge connected to DeployIO Server")
+                        logger.info(
+                            "SUCCESS: WebSocket bridge connected to DeployIO Server"
+                        )
                     else:
                         logger.warning(
                             "WebSocket bridge failed to connect - will retry automatically"
@@ -69,7 +71,7 @@ async def shutdown_events():
 
                 logger.info("Shutting down WebSocket bridge...")
                 await cleanup_websockets()
-                logger.info("✅ WebSocket bridge shutdown completed")
+                logger.info("SUCCESS: WebSocket bridge shutdown completed")
             except Exception as e:
                 logger.error(f"Error shutting down WebSocket bridge: {e}")
 

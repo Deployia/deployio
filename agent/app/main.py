@@ -3,9 +3,17 @@ DeployIO Agent - Application Entry Point
 Modular FastAPI service following microservice architecture
 """
 
+import sys
 import time
 import logging
 from contextlib import asynccontextmanager
+
+# Fix Windows console encoding issues
+if sys.platform.startswith("win"):
+    import codecs
+
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
