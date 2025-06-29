@@ -217,4 +217,80 @@ async function checkDeploymentAgentHealth() {
   }
 }
 
+// Agent Bridge Health Check
+router.get("/bridge", async (req, res) => {
+  try {
+    const agentBridgeService = require("@services/bridge/AgentBridgeService");
+
+    const health = await agentBridgeService.healthCheck();
+
+    res.json({
+      service: "Agent Bridge",
+      timestamp: new Date().toISOString(),
+      ...health,
+    });
+  } catch (error) {
+    res.status(500).json({
+      service: "Agent Bridge",
+      status: "error",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+      health: {
+        overall: "error",
+        agentConnections: "unknown",
+        streamRouting: "unknown",
+      },
+    });
+  }
+});
+
+// Agent Bridge Status (detailed)
+router.get("/bridge/status", async (req, res) => {
+  try {
+    const agentBridgeService = require("@services/bridge/AgentBridgeService");
+
+    const status = agentBridgeService.getStatus();
+
+    res.json({
+      service: "Agent Bridge Status",
+      timestamp: new Date().toISOString(),
+      ...status,
+    });
+  } catch (error) {
+    res.status(500).json({
+      service: "Agent Bridge Status",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// WebSocket Services Health
+router.get("/websockets", async (req, res) => {
+  try {
+    const { getWebSocketStats } = require("@websockets/index");
+
+    const stats = getWebSocketStats();
+
+    res.json({
+      service: "WebSocket Services",
+      timestamp: new Date().toISOString(),
+      ...stats,
+      health: {
+        overall: stats.totalNamespaces > 0 ? "healthy" : "degraded",
+        namespaces: `${stats.totalNamespaces} active`,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      service: "WebSocket Services",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+      health: {
+        overall: "error",
+      },
+    });
+  }
+});
+
 module.exports = router;

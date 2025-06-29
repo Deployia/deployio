@@ -37,7 +37,7 @@ function initializeWebSockets(server, options = {}) {
       notifications: true,
       logStreaming: true,
       metrics: true, // New metrics streaming
-      agentBridge: true, // NEW: Agent bridge for remote log streaming
+      agentBridge: true, // NEW: Agent bridge for remote log streaming - ENABLED
       chat: false, // Future: Real-time chat
       buildLogs: false, // Future: Build log streaming
     },
@@ -148,11 +148,36 @@ function setupNamespaces(features) {
     }
   }
 
-  // Agent bridge namespace - Disabled for cleanup
+  // Agent bridge namespace - NEW IMPLEMENTATION
   if (features.agentBridge) {
-    logger.debug("Agent bridge namespace disabled for cleanup", {
+    try {
+      const agentBridgeService = require("../services/bridge/AgentBridgeService");
+
+      // Initialize agent bridge service
+      agentBridgeService.initialize().then((success) => {
+        if (success) {
+          logger.info("✓ Agent bridge service initialized", {
+            namespace: "/agent-bridge",
+            status: "active",
+            features: [
+              "agent-authentication",
+              "stream-routing",
+              "ai-integration",
+            ],
+          });
+        } else {
+          logger.error("✗ Failed to initialize agent bridge service");
+        }
+      });
+    } catch (error) {
+      logger.error("✗ Failed to load agent bridge service", {
+        error: error.message,
+      });
+    }
+  } else {
+    logger.debug("Agent bridge service disabled", {
       namespace: "/agent-bridge",
-      status: "will_be_redesigned",
+      status: "disabled_in_config",
     });
   }
 
