@@ -52,7 +52,6 @@ async def check_mongodb_connection():
         result = await client.admin.command("ping")
         client.close()
         if result and result.get("ok") == 1.0:
-            logger.info("MongoDB connection: connected")
             return "connected"
         else:
             logger.warning("MongoDB connection: disconnected (ping failed)")
@@ -67,7 +66,6 @@ def check_docker_connection():
     try:
         client = docker.from_env()
         client.ping()
-        logger.info("Docker connection: connected")
         return "connected"
     except Exception as e:
         logger.error(f"Docker connection: disconnected (error: {e})")

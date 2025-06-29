@@ -4,11 +4,9 @@ Real-time log streaming and agent communication
 """
 
 import asyncio
-import json
 import logging
-import time
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from queue import Queue
 
 import socketio
@@ -125,14 +123,36 @@ class LogBridgeService:
 
     async def start(self):
         """Start the log bridge service"""
-        logger.info("Initializing Agent Log Bridge")
+        logger.info("=== STARTING AGENT LOG BRIDGE SERVICE ===")
+        logger.info(f"Agent ID: {self.agent_id}")
+        logger.info(f"Target server URL: {self.server_url}")
+        logger.info(f"Log bridge enabled: {settings.log_bridge_enabled}")
+        logger.info(f"Agent secret length: {len(settings.agent_secret)}")
+        logger.info(f"Environment: {settings.environment}")
+
+        if not settings.log_bridge_enabled:
+            logger.warning("Log bridge is disabled in configuration - skipping")
+            return
 
         try:
+            logger.info("Initializing WebSocket connection...")
             await self._initialize_websocket()
+
+            logger.info("Setting up log handler...")
             await self._setup_log_handler()
+
             logger.info("Log bridge service started successfully")
+
         except Exception as e:
             logger.error(f"Failed to start log bridge service: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            logger.error(
+                f"Connection details - URL: {self.server_url}, Agent ID: {self.agent_id}"
+            )
+            import traceback
+
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+
             # Gracefully degrade: do not raise, just log and continue
             self.connected = False
             logger.warning(
@@ -172,6 +192,9 @@ class LogBridgeService:
     async def _initialize_websocket(self):
         """Initialize WebSocket connection"""
         logger.info(f"Connecting to {self.server_url}")
+        logger.info(
+            f"Using agent credentials: ID={self.agent_id}, secret=***{'PRESENT' if settings.agent_secret else 'MISSING'}***"
+        )
 
         self.sio = socketio.AsyncClient(
             reconnection=True,
@@ -186,18 +209,32 @@ class LogBridgeService:
 
         try:
             # Connect with agent headers
-            await self.sio.connect(
-                self.server_url,
-                headers={
-                    "x-agent-secret": settings.agent_secret,
+            headers = {
+                "x-agent-secret": settings.agent_secret,
+                "x-agent-id": self.agent_id,
+                "x-agent-domain": settings.platform_url,
+            }
+
+            logger.info(
+                "Connecting with headers",
+                {
+                    "x-agent-secret": (
+                        "***PRESENT***" if settings.agent_secret else "MISSING"
+                    ),
                     "x-agent-id": self.agent_id,
                     "x-agent-domain": settings.platform_url,
+                    "url": self.server_url,
                 },
+            )
+
+            await self.sio.connect(
+                self.server_url,
+                headers=headers,
             )
 
             self.connected = True
             self.reconnect_attempts = 0
-            logger.info("Connected to server log bridge")
+            logger.info("Connected to server log bridge successfully")
 
             # Send agent identification
             await self._send_agent_identification()
@@ -207,6 +244,9 @@ class LogBridgeService:
 
         except Exception as e:
             logger.error(f"Connection error: {e}")
+            logger.error(
+                f"Connection details: URL={self.server_url}, Agent ID={self.agent_id}"
+            )
             self.connected = False
             raise
 
@@ -216,6 +256,7 @@ class LogBridgeService:
         @self.sio.event
         async def connect():
             logger.info("WebSocket connected successfully")
+            self.connected = True
 
         @self.sio.event
         async def disconnect():
@@ -228,7 +269,27 @@ class LogBridgeService:
 
         @self.sio.event
         async def agent_authenticated(data):
-            logger.info(f"Agent authenticated: {data}")
+            logger.info(f"Agent authenticated successfully: {data}")
+            # Send a test log immediately after authentication
+            await self.queue_log(
+                {
+                    "source": "agent-bridge-test",
+                    "level": "info",
+                    "message": "Agent log bridge test - authentication successful",
+                    "timestamp": datetime.now().isoformat(),
+                    "agent_id": self.agent_id,
+                }
+            )
+
+        @self.sio.event
+        async def auth_error(data):
+            logger.error(f"Authentication error from server: {data}")
+            self.connected = False
+
+        @self.sio.event
+        async def connect_error(data):
+            logger.error(f"Connection error: {data}")
+            self.connected = False
 
         @self.sio.event
         async def heartbeat_request(data):

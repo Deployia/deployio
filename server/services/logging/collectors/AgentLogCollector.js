@@ -53,7 +53,9 @@ class AgentLogCollector extends BaseLogCollector {
       this.agentBridgeNamespace = AgentBridgeNamespace.getInstance();
 
       if (!this.agentBridgeNamespace) {
-        logger.warn("Agent bridge namespace not available");
+        logger.warn(
+          "Agent bridge namespace not available - check if namespace is initialized"
+        );
         return false;
       }
 
@@ -62,17 +64,39 @@ class AgentLogCollector extends BaseLogCollector {
 
       // Check if any agents are currently connected
       const connectedAgents = this.agentBridgeNamespace.connectedAgents;
+
+      // Debug: Get detailed connection status
+      const debugStatus = this.agentBridgeNamespace.getConnectionStatus
+        ? this.agentBridgeNamespace.getConnectionStatus()
+        : { error: "getConnectionStatus method not available" };
+
+      logger.info("Checking agent connections for WebSocket streaming", {
+        connectedAgentsCount: connectedAgents ? connectedAgents.size : 0,
+        connectedAgentIds: connectedAgents
+          ? Array.from(connectedAgents.keys())
+          : [],
+        agentBridgeNamespaceExists: !!this.agentBridgeNamespace,
+        connectedAgentsMapExists: !!connectedAgents,
+        debugStatus,
+      });
+
       if (connectedAgents && connectedAgents.size > 0) {
         this.webSocketConnected = true;
         logger.info(
-          "Successfully connected to agent WebSocket stream (agents already connected)"
+          `Successfully connected to agent WebSocket stream (${connectedAgents.size} agents connected)`,
+          { connectedAgentIds: Array.from(connectedAgents.keys()) }
         );
         return true;
       } else {
         // No agents connected yet, but keep the subscription active
         // The event handlers will activate streaming when an agent connects
-        logger.info(
-          "WebSocket subscription active, waiting for agent connection"
+        logger.warn(
+          "WebSocket connection failed, falling back to HTTP polling",
+          {
+            reason: "No agents currently connected",
+            agentBridgeNamespaceExists: !!this.agentBridgeNamespace,
+            connectedAgentsSize: connectedAgents ? connectedAgents.size : 0,
+          }
         );
         return false; // Return false so HTTP polling starts as fallback
       }
@@ -92,14 +116,21 @@ class AgentLogCollector extends BaseLogCollector {
     };
 
     this.handleAgentConnected = (data) => {
-      logger.info("Agent connected, WebSocket log streaming available");
+      logger.info("Agent connected, enabling WebSocket log streaming", {
+        agentId: data.agentId,
+        timestamp: data.timestamp,
+      });
       this.webSocketConnected = true;
+      this.reconnectAttempts = 0; // Reset reconnect attempts
       // Stop HTTP polling if it's running
       this.stopHttpPolling();
     };
 
     this.handleAgentDisconnected = (data) => {
-      logger.warn("Agent disconnected, falling back to HTTP polling");
+      logger.warn("Agent disconnected, falling back to HTTP polling", {
+        agentId: data.agentId,
+        timestamp: data.timestamp,
+      });
       this.webSocketConnected = false;
       // Start HTTP polling as fallback
       this.startHttpPolling();
@@ -114,6 +145,8 @@ class AgentLogCollector extends BaseLogCollector {
       "agent:disconnected",
       this.handleAgentDisconnected
     );
+
+    logger.info("Agent log collector WebSocket subscription configured");
   }
 
   /**
@@ -121,6 +154,13 @@ class AgentLogCollector extends BaseLogCollector {
    */
   processWebSocketLog(logData) {
     try {
+      logger.debug("Received WebSocket log from agent", {
+        agentId: logData.agentId,
+        level: logData.level,
+        messageLength: logData.message ? logData.message.length : 0,
+        timestamp: logData.timestamp,
+      });
+
       // Convert WebSocket log format to collector format
       const processedLog = {
         id: logData.id || `agent_ws_${Date.now()}_${Math.random()}`,
@@ -141,11 +181,21 @@ class AgentLogCollector extends BaseLogCollector {
         // Emit the log to subscribers
         this.emit("log", processedLog);
 
+        logger.debug("Emitted WebSocket log to subscribers", {
+          logId: processedLog.id,
+          agentId: processedLog.agentId,
+        });
+
         // Clean up old log IDs from buffer (keep last 1000)
         if (this.logBuffer.size > 1000) {
           const bufferArray = Array.from(this.logBuffer);
           this.logBuffer = new Set(bufferArray.slice(-1000));
         }
+      } else {
+        logger.debug("Skipped duplicate WebSocket log", {
+          logId: processedLog.id,
+          agentId: processedLog.agentId,
+        });
       }
     } catch (error) {
       logger.error("Error processing WebSocket log:", error);

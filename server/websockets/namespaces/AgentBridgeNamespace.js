@@ -73,9 +73,22 @@ class AgentBridgeNamespace extends EventEmitter {
    * Handle agent connection with custom authentication
    */
   async handleConnection(socket) {
+    // Store socket headers for debugging
+    this.lastSocketHeaders = socket.handshake.headers;
+
     logger.info("Agent attempting to connect", {
       socketId: socket.id,
-      headers: socket.handshake.headers,
+      headers: {
+        "x-agent-secret": socket.handshake.headers["x-agent-secret"]
+          ? "***PRESENT***"
+          : "MISSING",
+        "x-agent-id": socket.handshake.headers["x-agent-id"],
+        "x-agent-domain": socket.handshake.headers["x-agent-domain"],
+        "user-agent": socket.handshake.headers["user-agent"],
+        origin: socket.handshake.headers["origin"],
+      },
+      query: socket.handshake.query,
+      address: socket.handshake.address,
     });
 
     // Extract agent credentials from headers
@@ -85,9 +98,10 @@ class AgentBridgeNamespace extends EventEmitter {
 
     // Validate agent credentials
     if (!this.validateAgentCredentials(agentSecret, agentId)) {
-      logger.warn("Agent authentication failed", {
+      logger.error("Agent authentication failed - disconnecting", {
         agentId,
         socketId: socket.id,
+        reason: "Invalid credentials",
       });
       socket.emit("auth_error", {
         error: "Invalid agent credentials",
@@ -105,6 +119,8 @@ class AgentBridgeNamespace extends EventEmitter {
       agentId,
       socketId: socket.id,
       domain: agentDomain,
+      totalConnectedAgents: this.connectedAgents.size,
+      connectedAgentIds: Array.from(this.connectedAgents.keys()),
     });
 
     // Send connection acknowledgment
@@ -153,10 +169,57 @@ class AgentBridgeNamespace extends EventEmitter {
    * Validate agent credentials
    */
   validateAgentCredentials(agentSecret, agentId) {
-    const expectedSecret = process.env.AGENT_SECRET;
-    const expectedAgentIds = ["agent-ec2-2"]; // Add more as needed
+    const expectedSecret =
+      process.env.AGENT_SECRET || "development-secret-change-in-production";
+    const allowedAgentIds = (
+      process.env.ALLOWED_AGENT_IDS || "agent-ec2-2"
+    ).split(",");
 
-    return agentSecret === expectedSecret && expectedAgentIds.includes(agentId);
+    logger.info("Validating agent credentials", {
+      providedAgentId: agentId,
+      allowedAgentIds,
+      hasSecret: !!agentSecret,
+      expectedSecretExists: !!expectedSecret,
+      secretLength: agentSecret ? agentSecret.length : 0,
+      expectedSecretLength: expectedSecret.length,
+    });
+
+    if (!agentSecret || !agentId) {
+      logger.warn("Missing agent credentials", {
+        agentSecret: !!agentSecret,
+        agentId: !!agentId,
+        headers: Object.keys(this.lastSocketHeaders || {}),
+      });
+      return false;
+    }
+
+    const isValidSecret = agentSecret === expectedSecret;
+    const isValidAgentId = allowedAgentIds.includes(agentId);
+
+    if (!isValidSecret) {
+      logger.warn("Invalid agent secret provided", {
+        providedLength: agentSecret.length,
+        expectedLength: expectedSecret.length,
+        providedFirst5: agentSecret.substring(0, 5),
+        expectedFirst5: expectedSecret.substring(0, 5),
+      });
+    }
+    if (!isValidAgentId) {
+      logger.warn("Invalid agent ID provided", {
+        providedId: agentId,
+        allowedIds: allowedAgentIds,
+      });
+    }
+
+    const isValid = isValidSecret && isValidAgentId;
+    logger.info("Agent credential validation result", {
+      agentId,
+      isValid,
+      secretValid: isValidSecret,
+      idValid: isValidAgentId,
+    });
+
+    return isValid;
   }
 
   /**
@@ -227,7 +290,12 @@ class AgentBridgeNamespace extends EventEmitter {
     const agentId = data.agent_id;
     const logs = data.logs;
 
-    logger.debug(`Received ${logs.length} logs from agent ${agentId}`);
+    logger.info(`Received ${logs.length} logs from agent ${agentId}`, {
+      agentId,
+      logCount: logs.length,
+      socketId: socket.id,
+      timestamp: new Date().toISOString(),
+    });
 
     // Process and distribute logs
     for (const logEntry of logs) {
@@ -258,10 +326,18 @@ class AgentBridgeNamespace extends EventEmitter {
       source: logEntry.source || "agent",
     };
 
-    // Emit event for AgentLogCollector to consume
-    this.emit("agent:log", enrichedLog);
+    logger.debug("Processing agent log entry", {
+      agentId,
+      logLevel: enrichedLog.level,
+      source: enrichedLog.source,
+      messageLength: enrichedLog.content ? enrichedLog.content.length : 0,
+    });
 
-    // Send to existing LogStreamingNamespace for integration with client
+    // ✅ PRIMARY: Emit to AgentLogCollector for unified processing
+    this.emit("agent:log", enrichedLog);
+    logger.debug("Emitted agent:log event to AgentLogCollector", { agentId });
+
+    // ✅ SECONDARY: Direct integration with LogStreamingNamespace as backup
     this.integrateWithLogStreaming(enrichedLog);
 
     // Determine distribution rooms based on log source
@@ -284,35 +360,49 @@ class AgentBridgeNamespace extends EventEmitter {
   integrateWithLogStreaming(logEntry) {
     const logsNamespace = webSocketRegistry.getNamespace("/logs");
     if (logsNamespace) {
-      // Format log to match existing system log format
+      // Format log to match LogCollectorService format for consistency
       const formattedLog = {
+        id: `agent_bridge_${Date.now()}_${Math.random()}`,
         timestamp: logEntry.timestamp || new Date().toISOString(),
         level: logEntry.level,
-        message: logEntry.content,
+        message: logEntry.content || logEntry.message,
         service: "agent",
-        source: logEntry.source,
+        source: "agent-bridge",
         agentId: logEntry.agentId,
         // Additional metadata
-        container_id: logEntry.container_id,
-        container_name: logEntry.container_name,
-        image: logEntry.image,
+        metadata: {
+          container_id: logEntry.container_id,
+          container_name: logEntry.container_name,
+          image: logEntry.image,
+          agent_source: logEntry.source,
+        },
+        raw: logEntry.message || logEntry.content,
       };
 
-      // Emit to logs namespace using the standard format
-      logsNamespace.emit("log:data", {
-        serviceId: "agent",
-        data: formattedLog,
-        timestamp: formattedLog.timestamp,
-        isError: logEntry.level === "error" || logEntry.level === "critical",
-      });
+      // Get the actual Socket.IO namespace instance for proper broadcasting
+      const socketIONamespace = logsNamespace.namespace;
 
-      // Also emit in system logs format for system log subscribers
-      logsNamespace.to("system:all").emit("system:logs", {
-        serviceId: "agent",
-        logs: [formattedLog],
-        source: "real-time",
-        timestamp: new Date().toISOString(),
-      });
+      if (socketIONamespace) {
+        // Broadcast using the unified log format that clients expect
+        socketIONamespace.to("system:all").emit("log:data", {
+          streamId: "agent_stream", // Standard agent stream ID
+          data: formattedLog.message,
+          timestamp: formattedLog.timestamp,
+          level: formattedLog.level,
+          service: "agent",
+          source: "agent-bridge",
+          isError:
+            formattedLog.level === "error" || formattedLog.level === "critical",
+          metadata: formattedLog.metadata,
+          agentId: formattedLog.agentId,
+        });
+
+        logger.debug("Agent log integrated with LogStreamingNamespace", {
+          agentId: logEntry.agentId,
+          level: formattedLog.level,
+          source: formattedLog.source,
+        });
+      }
     }
   }
 
@@ -584,6 +674,19 @@ class AgentBridgeNamespace extends EventEmitter {
       connectedAgents: this.connectedAgents.size,
       activeStreams: this.logStreams.size,
       lastUpdate: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Get current connection status for debugging
+   */
+  getConnectionStatus() {
+    return {
+      connectedAgentsCount: this.connectedAgents.size,
+      connectedAgentIds: Array.from(this.connectedAgents.keys()),
+      agentInfoCount: this.agentInfo.size,
+      logStreamsCount: this.logStreams.size,
+      userSubscriptionsCount: this.userSubscriptions.size,
     };
   }
 }

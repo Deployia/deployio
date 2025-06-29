@@ -172,6 +172,15 @@ class WebSocketNamespace {
       userEmail: socket.userEmail,
       socketId: socket.id,
       namespace: this.namespacePath,
+      userAgent: socket.handshake.headers["user-agent"],
+      agentHeaders: {
+        "x-agent-secret": socket.handshake.headers["x-agent-secret"]
+          ? "***PRESENT***"
+          : "MISSING",
+        "x-agent-id": socket.handshake.headers["x-agent-id"],
+        "x-agent-domain": socket.handshake.headers["x-agent-domain"],
+      },
+      customAuth: this.options.customAuth,
     });
 
     // Join user to their personal room

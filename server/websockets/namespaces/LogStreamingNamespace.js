@@ -18,6 +18,22 @@ class LogStreamingNamespace {
   }
 
   /**
+   * Clean up all active streams and user/room maps
+   */
+  static cleanup() {
+    if (LogStreamingNamespace._instance) {
+      LogStreamingNamespace._instance.activeStreams.clear();
+      LogStreamingNamespace._instance.userRooms.clear();
+      LogStreamingNamespace._instance.roomUsers.clear();
+      logger.info("LogStreamingNamespace resources cleaned up.");
+    } else {
+      logger.info(
+        "LogStreamingNamespace cleanup called, but no instance found."
+      );
+    }
+  }
+
+  /**
    * Initialize the log streaming namespace
    */
   static initialize() {
