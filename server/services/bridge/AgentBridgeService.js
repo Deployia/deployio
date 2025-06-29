@@ -47,7 +47,7 @@ class AgentBridgeService extends EventEmitter {
 
       this.isInitialized = true;
 
-      logger.info("✅ Agent Bridge Service initialized successfully", {
+      logger.info("Agent Bridge Service initialized successfully", {
         components: [
           "ConnectionManager",
           "StreamRouter",
@@ -74,7 +74,7 @@ class AgentBridgeService extends EventEmitter {
     try {
       const { agentId, agentSecret, platformDomain } = agentInfo;
 
-      logger.info("🔗 New agent attempting connection", {
+      logger.info("New agent attempting connection", {
         agentId,
         platformDomain,
         socketId: socket.id,
@@ -134,7 +134,7 @@ class AgentBridgeService extends EventEmitter {
 
       socket.emit("connection_established", establishmentData);
 
-      logger.info("✅ Agent connection established - awaiting handshake", {
+      logger.info("Agent connection established - awaiting handshake", {
         agentId,
         socketId: socket.id,
         totalAgents: this.connectedAgents.size,
@@ -145,7 +145,7 @@ class AgentBridgeService extends EventEmitter {
 
       return true;
     } catch (error) {
-      logger.error("❌ Error handling agent connection", {
+      logger.error("Error handling agent connection", {
         error: error.message,
         stack: error.stack,
         socketId: socket.id,
@@ -169,7 +169,7 @@ class AgentBridgeService extends EventEmitter {
       if (agentInfo) {
         // Log connection duration and stats
         const connectionDuration = new Date() - agentInfo.connectedAt;
-        logger.info("📊 Agent connection statistics", {
+        logger.info("Agent connection statistics", {
           agentId,
           connectionDuration: `${Math.round(connectionDuration / 1000)}s`,
           handshakeCompleted: agentInfo.handshakeCompleted,
@@ -190,12 +190,12 @@ class AgentBridgeService extends EventEmitter {
       // Remove from connected agents
       this.connectedAgents.delete(agentId);
 
-      logger.info("✅ Agent disconnected and cleaned up", {
+      logger.info("Agent disconnected and cleaned up", {
         agentId,
         remainingAgents: this.connectedAgents.size,
       });
     } catch (error) {
-      logger.error("❌ Error handling agent disconnection", {
+      logger.error("Error handling agent disconnection", {
         error: error.message,
         agentId,
       });
@@ -232,7 +232,7 @@ class AgentBridgeService extends EventEmitter {
       });
 
       if (routed) {
-        logger.debug("✅ Stream routed successfully", {
+        logger.debug("Stream routed successfully", {
           agentId,
           namespace,
           event,
@@ -334,7 +334,7 @@ class AgentBridgeService extends EventEmitter {
       });
     });
 
-    logger.info("✅ Agent namespace setup completed", {
+    logger.info("Agent namespace setup completed", {
       namespace: "/agent-bridge",
       middleware: "agent-auth",
     });
@@ -403,6 +403,58 @@ class AgentBridgeService extends EventEmitter {
       );
     });
 
+    // Live streaming events (real-time log streams)
+    socket.on("live_system_logs", async (data) => {
+      logger.debug("Received live system logs from agent", {
+        agentId,
+        logCount: data.logs?.length || 0,
+        streamType: data.stream_type,
+      });
+
+      // Emit to AgentLogCollector for processing
+      this.emit("live_system_logs", data);
+
+      // Also route through StreamRouter to client
+      await this.routeAgentStream(
+        agentId,
+        "/agent-logs",
+        "live_system_logs",
+        data,
+        data.room || "admin-system-logs"
+      );
+    });
+
+    socket.on("live_container_logs", async (data) => {
+      logger.debug("Received live container logs from agent", {
+        agentId,
+        containerId: data.container_id,
+        logCount: data.logs?.length || 0,
+      });
+
+      // Emit to AgentLogCollector for processing
+      this.emit("live_container_logs", data);
+
+      // Also route through StreamRouter to client
+      await this.routeAgentStream(
+        agentId,
+        "/agent-logs",
+        "live_container_logs",
+        data,
+        data.room || `user-${data.user_id}-logs`
+      );
+    });
+
+    // Stream control events
+    socket.on("log_stream_started", async (data) => {
+      logger.info("Agent confirmed log stream started", { agentId, data });
+      this.emit("log_stream_started", data);
+    });
+
+    socket.on("log_stream_stopped", async (data) => {
+      logger.info("Agent confirmed log stream stopped", { agentId, data });
+      this.emit("log_stream_stopped", data);
+    });
+
     // Heartbeat
     socket.on("heartbeat", (data) => {
       const agentInfo = this.connectedAgents.get(agentId);
@@ -413,7 +465,7 @@ class AgentBridgeService extends EventEmitter {
 
     // Bridge handshake - agent sends initial connection data
     socket.on("bridge_handshake", async (data) => {
-      logger.info("🤝 Received bridge handshake from agent", {
+      logger.info("Received bridge handshake from agent", {
         agentId,
         handshakeId: data.handshake_id,
         capabilities: data.capabilities,
@@ -442,7 +494,7 @@ class AgentBridgeService extends EventEmitter {
         connectionInfo: agentInfo,
       });
 
-      logger.info("✅ Bridge handshake completed successfully", {
+      logger.info("Bridge handshake completed successfully", {
         agentId,
         status: "fully_connected",
         capabilities: data.capabilities,
@@ -451,7 +503,7 @@ class AgentBridgeService extends EventEmitter {
 
     // Connection ACK - agent confirms connection establishment
     socket.on("connection_ack", async (data) => {
-      logger.info("📋 Received connection ACK from agent", {
+      logger.info("Received connection ACK from agent", {
         agentId,
         clientTime: data.client_time,
         status: data.status,
@@ -482,14 +534,14 @@ class AgentBridgeService extends EventEmitter {
 
     // Error handling
     socket.on("error", (error) => {
-      logger.error("❌ Agent socket error", {
+      logger.error("Agent socket error", {
         agentId,
         error: error.message,
         timestamp: new Date().toISOString(),
       });
     });
 
-    logger.debug("✅ Agent event handlers setup completed", { agentId });
+    logger.debug("Agent event handlers setup completed", { agentId });
   }
 
   /**
@@ -512,6 +564,70 @@ class AgentBridgeService extends EventEmitter {
         error: error.message,
         agentId,
       });
+    }
+  }
+
+  /**
+   * Send a message to a specific agent
+   */
+  async sendToAgent(agentId, event, data = {}) {
+    try {
+      const connectionInfo = this.connectedAgents.get(agentId);
+      if (!connectionInfo) {
+        logger.warning("Cannot send message to disconnected agent", {
+          agentId,
+          event,
+        });
+        return false;
+      }
+
+      // Send message to agent via WebSocket
+      connectionInfo.socket.emit(event, {
+        ...data,
+        timestamp: new Date().toISOString(),
+      });
+
+      logger.debug("Message sent to agent", {
+        agentId,
+        event,
+        dataKeys: Object.keys(data),
+      });
+
+      return true;
+    } catch (error) {
+      logger.error("Error sending message to agent", {
+        error: error.message,
+        agentId,
+        event,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Send a message to all connected agents
+   */
+  async sendToAllAgents(event, data = {}) {
+    try {
+      const results = [];
+      for (const [agentId] of this.connectedAgents) {
+        const success = await this.sendToAgent(agentId, event, data);
+        results.push({ agentId, success });
+      }
+
+      logger.info("Message sent to all connected agents", {
+        event,
+        totalAgents: this.connectedAgents.size,
+        successCount: results.filter((r) => r.success).length,
+      });
+
+      return results;
+    } catch (error) {
+      logger.error("Error sending message to all agents", {
+        error: error.message,
+        event,
+      });
+      return [];
     }
   }
 
@@ -580,7 +696,7 @@ class AgentBridgeService extends EventEmitter {
 
       this.isInitialized = false;
 
-      logger.info("✅ Agent Bridge Service cleanup completed");
+      logger.info("Agent Bridge Service cleanup completed");
     } catch (error) {
       logger.error("Error during bridge service cleanup", {
         error: error.message,
@@ -619,7 +735,7 @@ class AgentBridgeService extends EventEmitter {
         agentInfo.lastPing = new Date();
         agentInfo.lastPingId = pingId;
       } catch (error) {
-        logger.error("❌ Error sending health ping to agent", {
+        logger.error("Error sending health ping to agent", {
           agentId,
           error: error.message,
         });
@@ -657,14 +773,14 @@ class AgentBridgeService extends EventEmitter {
         capabilities: agentInfo.capabilities || {},
       };
 
-      logger.info("🔍 Bridge connection verification", {
+      logger.info("Bridge connection verification", {
         agentId,
         verification,
       });
 
       return verification;
     } catch (error) {
-      logger.error("❌ Error verifying bridge connection", {
+      logger.error("Error verifying bridge connection", {
         agentId,
         error: error.message,
       });

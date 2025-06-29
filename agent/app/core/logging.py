@@ -30,7 +30,8 @@ def get_logging_config(debug: bool = False):
                 },
             },
             "file": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+                "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             },
             "access": {

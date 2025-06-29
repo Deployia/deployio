@@ -79,7 +79,31 @@ class StreamRouter {
         timestamp,
       });
 
-      // Route to client namespace
+      // Handle arrays of log entries (for live streaming)
+      if (Array.isArray(transformedData)) {
+        let routeSuccess = true;
+        for (const logEntry of transformedData) {
+          const success = await this._emitToClientNamespace(
+            targetNamespace,
+            event,
+            logEntry,
+            targetRoom
+          );
+          if (!success) routeSuccess = false;
+        }
+
+        if (routeSuccess) {
+          this._updateRoutingStats(
+            targetNamespace,
+            agentId,
+            sourceNamespace,
+            transformedData.length
+          );
+        }
+        return routeSuccess;
+      }
+
+      // Route single data object to client namespace
       const success = await this._emitToClientNamespace(
         targetNamespace,
         event,
@@ -88,36 +112,7 @@ class StreamRouter {
       );
 
       if (success) {
-        // Update routing statistics
-        this.routingStats.totalRouted++;
-        const namespaceCount =
-          this.routingStats.routesByNamespace.get(targetNamespace) || 0;
-        this.routingStats.routesByNamespace.set(
-          targetNamespace,
-          namespaceCount + 1
-        );
-
-        // Track active route
-        const routeId = `${agentId}-${sourceNamespace}-${Date.now()}`;
-        this.activeRoutes.set(routeId, {
-          agentId,
-          sourceNamespace,
-          targetNamespace,
-          targetRoom,
-          event,
-          timestamp,
-          dataSize: JSON.stringify(transformedData).length,
-        });
-
-        logger.debug("✅ Stream routed successfully", {
-          agentId,
-          sourceNamespace,
-          targetNamespace,
-          targetRoom,
-          event,
-          routeId,
-        });
-
+        this._updateRoutingStats(targetNamespace, agentId, sourceNamespace, 1);
         return true;
       }
 
@@ -131,6 +126,36 @@ class StreamRouter {
       this.routingStats.routingErrors++;
       return false;
     }
+  }
+
+  /**
+   * Update routing statistics
+   */
+  _updateRoutingStats(
+    targetNamespace,
+    agentId,
+    sourceNamespace,
+    dataCount = 1
+  ) {
+    // Update routing statistics
+    this.routingStats.totalRouted += dataCount;
+    const namespaceCount =
+      this.routingStats.routesByNamespace.get(targetNamespace) || 0;
+    this.routingStats.routesByNamespace.set(
+      targetNamespace,
+      namespaceCount + dataCount
+    );
+
+    // Track active route
+    const routeId = `${agentId}-${sourceNamespace}-${Date.now()}`;
+    this.activeRoutes.set(routeId, {
+      agentId,
+      sourceNamespace,
+      targetNamespace,
+      event: "live_logs",
+      timestamp: new Date().toISOString(),
+      dataCount,
+    });
   }
 
   /**
@@ -149,6 +174,8 @@ class StreamRouter {
         container_logs: "agent_container_logs",
         system_logs_response: "agent_system_logs",
         container_logs_response: "agent_container_logs",
+        live_system_logs: "log:data", // Map to client's log:data event
+        live_container_logs: "log:data", // Map to client's log:data event
       },
       accessControl: {
         adminOnly: ["admin-system-logs"],
@@ -286,6 +313,32 @@ class StreamRouter {
    */
   _transformDataForClient(data, metadata) {
     try {
+      // Special handling for live log data (match LogStreamingNamespace format)
+      if (
+        metadata.sourceNamespace === "/agent-logs" &&
+        data.logs &&
+        Array.isArray(data.logs)
+      ) {
+        // Transform each log entry to client format
+        return data.logs.map((logEntry) => ({
+          streamId: `agent-${metadata.agentId}`, // Use agent-based stream ID
+          data: logEntry.message,
+          timestamp: logEntry.timestamp,
+          level: logEntry.level,
+          service: metadata.agentId,
+          source: logEntry.source || "agent",
+          isError: logEntry.level === "ERROR" || logEntry.level === "error",
+          metadata: logEntry.metadata || {},
+          // Include original agent data
+          agentId: metadata.agentId,
+          sourceNamespace: metadata.sourceNamespace,
+          routedAt: metadata.timestamp,
+          raw: logEntry.raw,
+          id: logEntry.id,
+        }));
+      }
+
+      // Default transformation for other data types
       const transformed = {
         ...data,
         // Add metadata

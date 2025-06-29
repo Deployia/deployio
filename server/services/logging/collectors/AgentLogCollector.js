@@ -42,28 +42,67 @@ class AgentLogCollector extends BaseLogCollector {
       this.handleBridgeLogData(agentId, logData);
     });
 
-    logger.info("✅ Agent Log Collector integrated with WebSocket bridge", {
-      bridgeIntegrated: true,
-      eventsListening: ["agent_ready", "agent_logs"],
-    });
+    // Setup event handlers for live streaming
+    if (this.bridgeService) {
+      // Handle live log streams from agents
+      this.bridgeService.on(
+        "live_system_logs",
+        this.handleLiveSystemLogs.bind(this)
+      );
+      this.bridgeService.on(
+        "live_container_logs",
+        this.handleLiveContainerLogs.bind(this)
+      );
+      this.bridgeService.on(
+        "log_stream_started",
+        this.handleStreamStarted.bind(this)
+      );
+      this.bridgeService.on(
+        "log_stream_stopped",
+        this.handleStreamStopped.bind(this)
+      );
+
+      logger.info(
+        "Live streaming event handlers registered with bridge service"
+      );
+    }
   }
 
   /**
    * Handle agent ready event from bridge
    */
   handleAgentReady(agentId, agentData) {
-    logger.info("🚀 Agent ready for log streaming", {
+    logger.info("Agent ready for log streaming", {
       agentId,
       capabilities: agentData.capabilities,
       connectionTime: agentData.connectionInfo?.connectedAt,
     });
 
-    // Auto-start log collection for ready agents
-    if (agentData.capabilities?.logs) {
+    // If log collection is already active and realtime, start streaming from this agent
+    if (this.isActive && agentData.capabilities?.logs) {
+      logger.info(
+        "Agent collector is active - starting realtime streaming for new agent",
+        {
+          agentId,
+        }
+      );
+
+      // Request initial logs and start realtime streaming
       this.requestAgentLogs(agentId, {
         type: "system",
-        lines: 100,
+        lines: 50,
         autoStart: true,
+      });
+
+      // Also start realtime streaming if collector is in realtime mode
+      this.requestRealtimeStreaming(agentId, {
+        type: "system",
+        autoStart: true,
+      }).catch((error) => {
+        logger.error("Failed to start realtime streaming for new agent", {
+          agentId,
+          error: error.message,
+        });
       });
     }
   }
@@ -71,15 +110,132 @@ class AgentLogCollector extends BaseLogCollector {
   async start(options = {}) {
     await super.start(options);
 
+    const { realtime = false, agentId = null } = options;
+
+    logger.info("Starting AgentLogCollector", {
+      realtime,
+      agentId,
+      useWebSocketBridge: this.useWebSocketBridge,
+      bridgeAvailable: !!this.bridgeService,
+    });
+
     // Try WebSocket bridge first, fall back to HTTP polling
     if (this.useWebSocketBridge && this.bridgeService) {
       logger.info("Starting agent log collection via WebSocket bridge");
       this.startBridgeLogging();
+
+      // If realtime is requested, start streaming from all connected agents
+      if (realtime) {
+        logger.info(
+          "Requesting realtime log streaming from all connected agents"
+        );
+        await this.requestRealtimeFromAllAgents(options);
+      }
     } else {
       logger.info(
         "WebSocket bridge not available, falling back to HTTP polling"
       );
       this.startHttpPolling();
+    }
+  }
+
+  /**
+   * Request realtime streaming from a specific agent
+   * Integrates with unified /streams endpoint
+   */
+  async requestRealtimeStreaming(agentId, options = {}) {
+    if (!this.bridgeService) {
+      throw new Error("Bridge service not available for realtime streaming");
+    }
+
+    const streamRequest = {
+      type: options.type || "system",
+      autoStart: true,
+      lines: options.lines || 50,
+      realtime: true,
+      timestamp: new Date().toISOString(),
+      streamId: options.streamId || `agent_${agentId}_${Date.now()}`,
+      ...options,
+    };
+
+    logger.info("Requesting realtime log streaming from agent via bridge", {
+      agentId,
+      streamRequest,
+    });
+
+    try {
+      // Send start stream request to agent
+      await this.bridgeService.sendToAgent(
+        agentId,
+        "start_log_stream",
+        streamRequest
+      );
+
+      return {
+        success: true,
+        agentId,
+        streamType: streamRequest.type,
+        streamId: streamRequest.streamId,
+        message: "Realtime stream requested successfully",
+      };
+    } catch (error) {
+      logger.error("Failed to request realtime streaming", {
+        error: error.message,
+        agentId,
+      });
+      throw error;
+    }
+  }
+  /**
+   * Request realtime streaming from all connected agents
+   */
+  async requestRealtimeFromAllAgents(options = {}) {
+    if (!this.bridgeService) {
+      logger.warning("Bridge service not available for realtime streaming");
+      return;
+    }
+
+    try {
+      // Get all connected agents from the bridge service
+      const bridgeStatus = this.bridgeService.getStatus();
+      const connectedAgentIds = bridgeStatus.agentList || [];
+
+      if (!connectedAgentIds || connectedAgentIds.length === 0) {
+        logger.info(
+          "No agents currently connected - will start streaming when agents connect"
+        );
+        return;
+      }
+
+      logger.info(
+        `Requesting realtime streaming from ${connectedAgentIds.length} connected agents`,
+        {
+          connectedAgents: connectedAgentIds,
+        }
+      );
+
+      // Send stream requests to all connected agents
+      const streamPromises = connectedAgentIds.map(async (agentId) => {
+        try {
+          await this.requestRealtimeStreaming(agentId, options);
+          logger.info(
+            `Successfully requested streaming from agent: ${agentId}`
+          );
+        } catch (error) {
+          logger.error(`Failed to request streaming from agent: ${agentId}`, {
+            error: error.message,
+          });
+        }
+      });
+
+      await Promise.allSettled(streamPromises);
+      logger.info(
+        "Completed realtime streaming requests to all connected agents"
+      );
+    } catch (error) {
+      logger.error("Error requesting realtime streaming from all agents", {
+        error: error.message,
+      });
     }
   }
 
@@ -108,7 +264,7 @@ class AgentLogCollector extends BaseLogCollector {
     try {
       const { logs, log_type, timestamp, room } = logData;
 
-      logger.debug("📨 Received log data via bridge", {
+      logger.debug("Received log data via bridge", {
         agentId,
         logType: log_type,
         logCount: Array.isArray(logs) ? logs.length : 1,
@@ -133,7 +289,7 @@ class AgentLogCollector extends BaseLogCollector {
         }
 
         // Log successful processing
-        logger.info("✅ Processed agent logs via bridge", {
+        logger.info("Processed agent logs via bridge", {
           agentId,
           processedCount: logs.length,
           logType: log_type,
@@ -153,7 +309,7 @@ class AgentLogCollector extends BaseLogCollector {
 
         this.emitLog(bridgeLog);
 
-        logger.debug("✅ Processed single agent log via bridge", {
+        logger.debug("Processed single agent log via bridge", {
           agentId,
           logType: log_type,
           room,
@@ -180,7 +336,7 @@ class AgentLogCollector extends BaseLogCollector {
     try {
       const { lines = 50, type = "system", autoStart = false } = options;
 
-      logger.info("📤 Requesting logs from agent via bridge", {
+      logger.info("Requesting logs from agent via bridge", {
         agentId,
         type,
         lines,
@@ -195,7 +351,7 @@ class AgentLogCollector extends BaseLogCollector {
       });
 
       if (result) {
-        logger.info("✅ Agent log request successful", {
+        logger.info("Agent log request successful", {
           agentId,
           requestId: result.requestId,
           status: result.status,
@@ -211,6 +367,165 @@ class AgentLogCollector extends BaseLogCollector {
       });
       return null;
     }
+  }
+
+  /**
+   * Handle live system logs from agent
+   */
+  handleLiveSystemLogs(bridgeLog) {
+    try {
+      logger.debug("Received live system logs from agent", {
+        agentId: bridgeLog.agent_id,
+        logCount: bridgeLog.logs?.length || 0,
+        streamType: bridgeLog.stream_type,
+      });
+
+      // Process each log entry
+      if (bridgeLog.logs && Array.isArray(bridgeLog.logs)) {
+        bridgeLog.logs.forEach((logEntry) => {
+          const standardizedLog = {
+            ...logEntry,
+            serviceId: bridgeLog.agent_id,
+            source: "agent-live-stream",
+            stream_type: "live",
+            room: bridgeLog.room || "admin-system-logs",
+          };
+
+          this.emitLog(standardizedLog);
+        });
+      }
+    } catch (error) {
+      logger.error("Error processing live system logs", {
+        error: error.message,
+        agentId: bridgeLog?.agent_id,
+      });
+    }
+  }
+
+  /**
+   * Handle live container logs from agent
+   */
+  handleLiveContainerLogs(bridgeLog) {
+    try {
+      logger.debug("Received live container logs from agent", {
+        agentId: bridgeLog.agent_id,
+        containerId: bridgeLog.container_id,
+        logCount: bridgeLog.logs?.length || 0,
+      });
+
+      if (bridgeLog.logs && Array.isArray(bridgeLog.logs)) {
+        bridgeLog.logs.forEach((logEntry) => {
+          const standardizedLog = {
+            ...logEntry,
+            serviceId: bridgeLog.agent_id,
+            source: "agent-container-stream",
+            container_id: bridgeLog.container_id,
+            user_id: bridgeLog.user_id,
+            stream_type: "live",
+            room: bridgeLog.room,
+          };
+
+          this.emitLog(standardizedLog);
+        });
+      }
+    } catch (error) {
+      logger.error("Error processing live container logs", {
+        error: error.message,
+        agentId: bridgeLog?.agent_id,
+        containerId: bridgeLog?.container_id,
+      });
+    }
+  }
+
+  /**
+   * Handle stream started confirmation
+   */
+  handleStreamStarted(data) {
+    logger.info("Agent confirmed log stream started", {
+      agentId: data.agent_id,
+      streamType: data.stream_type,
+      timestamp: data.timestamp,
+    });
+  }
+
+  /**
+   * Handle stream stopped confirmation
+   */
+  handleStreamStopped(data) {
+    logger.info("Agent confirmed log stream stopped", {
+      agentId: data.agent_id,
+      streamType: data.stream_type,
+      timestamp: data.timestamp,
+    });
+  }
+
+  /**
+   * Request live log streaming from agent
+   */
+  async requestLiveStream(agentId, options = {}) {
+    if (!this.bridgeService) {
+      throw new Error("Bridge service not available for live streaming");
+    }
+
+    const streamRequest = {
+      type: options.type || "system",
+      autoStart: options.autoStart !== false,
+      lines: options.lines || 50,
+      timestamp: new Date().toISOString(),
+      ...options,
+    };
+
+    logger.info("Requesting live log stream from agent", {
+      agentId,
+      streamRequest,
+    });
+
+    // Send start stream request to agent
+    await this.bridgeService.sendToAgent(
+      agentId,
+      "start_log_stream",
+      streamRequest
+    );
+
+    return {
+      success: true,
+      agentId,
+      streamType: streamRequest.type,
+      message: "Live stream requested",
+    };
+  }
+
+  /**
+   * Stop live log streaming from agent
+   */
+  async stopLiveStream(agentId, options = {}) {
+    if (!this.bridgeService) {
+      throw new Error("Bridge service not available");
+    }
+
+    const stopRequest = {
+      type: options.type || "system",
+      timestamp: new Date().toISOString(),
+      ...options,
+    };
+
+    logger.info("Requesting to stop live log stream from agent", {
+      agentId,
+      stopRequest,
+    });
+
+    await this.bridgeService.sendToAgent(
+      agentId,
+      "stop_log_stream",
+      stopRequest
+    );
+
+    return {
+      success: true,
+      agentId,
+      streamType: stopRequest.type,
+      message: "Live stream stop requested",
+    };
   }
 
   startHttpPolling() {
@@ -374,7 +689,190 @@ class AgentLogCollector extends BaseLogCollector {
     };
   }
 
+  /**
+   * Handle live system logs from agent
+   */
+  handleLiveSystemLogs(bridgeLog) {
+    try {
+      logger.debug("Received live system logs from agent", {
+        agentId: bridgeLog.agent_id,
+        logCount: bridgeLog.logs?.length || 0,
+        streamType: bridgeLog.stream_type,
+      });
+
+      // Process each log entry
+      if (bridgeLog.logs && Array.isArray(bridgeLog.logs)) {
+        bridgeLog.logs.forEach((logEntry) => {
+          const standardizedLog = {
+            ...logEntry,
+            serviceId: bridgeLog.agent_id,
+            source: "agent-live-stream",
+            stream_type: "live",
+            room: bridgeLog.room || "admin-system-logs",
+          };
+
+          this.emitLog(standardizedLog);
+        });
+      }
+    } catch (error) {
+      logger.error("Error processing live system logs", {
+        error: error.message,
+        agentId: bridgeLog?.agent_id,
+      });
+    }
+  }
+
+  /**
+   * Handle live container logs from agent
+   */
+  handleLiveContainerLogs(bridgeLog) {
+    try {
+      logger.debug("Received live container logs from agent", {
+        agentId: bridgeLog.agent_id,
+        containerId: bridgeLog.container_id,
+        logCount: bridgeLog.logs?.length || 0,
+      });
+
+      if (bridgeLog.logs && Array.isArray(bridgeLog.logs)) {
+        bridgeLog.logs.forEach((logEntry) => {
+          const standardizedLog = {
+            ...logEntry,
+            serviceId: bridgeLog.agent_id,
+            source: "agent-container-stream",
+            container_id: bridgeLog.container_id,
+            user_id: bridgeLog.user_id,
+            stream_type: "live",
+            room: bridgeLog.room,
+          };
+
+          this.emitLog(standardizedLog);
+        });
+      }
+    } catch (error) {
+      logger.error("Error processing live container logs", {
+        error: error.message,
+        agentId: bridgeLog?.agent_id,
+        containerId: bridgeLog?.container_id,
+      });
+    }
+  }
+
+  /**
+   * Handle stream started confirmation
+   */
+  handleStreamStarted(data) {
+    logger.info("Agent confirmed log stream started", {
+      agentId: data.agent_id,
+      streamType: data.stream_type,
+      timestamp: data.timestamp,
+    });
+  }
+
+  /**
+   * Handle stream stopped confirmation
+   */
+  handleStreamStopped(data) {
+    logger.info("Agent confirmed log stream stopped", {
+      agentId: data.agent_id,
+      streamType: data.stream_type,
+      timestamp: data.timestamp,
+    });
+  }
+
+  /**
+   * Request live log streaming from agent
+   */
+  async requestLiveStream(agentId, options = {}) {
+    if (!this.bridgeService) {
+      throw new Error("Bridge service not available for live streaming");
+    }
+
+    const streamRequest = {
+      type: options.type || "system",
+      autoStart: options.autoStart !== false,
+      lines: options.lines || 50,
+      timestamp: new Date().toISOString(),
+      ...options,
+    };
+
+    logger.info("Requesting live log stream from agent", {
+      agentId,
+      streamRequest,
+    });
+
+    // Send start stream request to agent
+    await this.bridgeService.sendToAgent(
+      agentId,
+      "start_log_stream",
+      streamRequest
+    );
+
+    return {
+      success: true,
+      agentId,
+      streamType: streamRequest.type,
+      message: "Live stream requested",
+    };
+  }
+
+  /**
+   * Stop live log streaming from agent
+   */
+  async stopLiveStream(agentId, options = {}) {
+    if (!this.bridgeService) {
+      throw new Error("Bridge service not available");
+    }
+
+    const stopRequest = {
+      type: options.type || "system",
+      timestamp: new Date().toISOString(),
+      ...options,
+    };
+
+    logger.info("Requesting to stop live log stream from agent", {
+      agentId,
+      stopRequest,
+    });
+
+    await this.bridgeService.sendToAgent(
+      agentId,
+      "stop_log_stream",
+      stopRequest
+    );
+
+    return {
+      success: true,
+      agentId,
+      streamType: stopRequest.type,
+      message: "Live stream stop requested",
+    };
+  }
+
   async stop() {
+    // Stop realtime streaming from all connected agents
+    if (this.bridgeService) {
+      const bridgeStatus = this.bridgeService.getStatus();
+      const connectedAgentIds = bridgeStatus.agentList || [];
+
+      logger.info("Stopping realtime streaming for all connected agents", {
+        agentCount: connectedAgentIds.length,
+        agentIds: connectedAgentIds,
+      });
+
+      // Stop streaming from each connected agent
+      for (const agentId of connectedAgentIds) {
+        try {
+          await this.stopLiveStream(agentId, { type: "system" });
+          logger.info("Stop request sent to agent", { agentId });
+        } catch (error) {
+          logger.error("Failed to stop streaming from agent", {
+            agentId,
+            error: error.message,
+          });
+        }
+      }
+    }
+
     this.stopHttpPolling();
     await super.stop();
   }
