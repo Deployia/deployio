@@ -209,3 +209,77 @@ async def system_metrics():
         }
     except Exception:
         return {"error": "Failed to collect system metrics"}
+
+
+@router.get(
+    "/websocket-status",
+    tags=["Health"],
+    summary="WebSocket service status",
+)
+async def websocket_status():
+    """
+    Get WebSocket service status and health information
+    """
+    try:
+        from app.websockets import websocket_health_check
+
+        return await websocket_health_check()
+    except ImportError:
+        return {
+            "error": "WebSocket service not available",
+            "health": {
+                "overall": "unavailable",
+                "websocket_connection": "not_implemented",
+            },
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to get WebSocket status: {str(e)}",
+            "health": {"overall": "error", "websocket_connection": "error"},
+        }
+
+
+@router.get(
+    "/bridge-status",
+    tags=["Health"],
+    summary="Agent bridge connection status",
+)
+async def bridge_status():
+    """
+    Get agent bridge connection status for monitoring
+    """
+    try:
+        from app.websockets import get_websocket_status
+
+        status = get_websocket_status()
+
+        # Simplified status for monitoring
+        return {
+            "bridge_enabled": settings.log_bridge_enabled,
+            "connected": status.get("connected", False),
+            "initialized": status.get("initialized", False),
+            "agent_id": settings.agent_id,
+            "platform_url": settings.platform_url,
+            "enabled_features": status.get("enabled_features", {}),
+            "namespaces_active": len(
+                status.get("registry_stats", {}).get("namespace_paths", [])
+            ),
+            "health": status.get("health", {}).get("overall", "unknown"),
+        }
+
+    except ImportError:
+        return {
+            "bridge_enabled": settings.log_bridge_enabled,
+            "connected": False,
+            "initialized": False,
+            "error": "WebSocket bridge not available",
+            "health": "unavailable",
+        }
+    except Exception as e:
+        return {
+            "bridge_enabled": settings.log_bridge_enabled,
+            "connected": False,
+            "initialized": False,
+            "error": f"Failed to get bridge status: {str(e)}",
+            "health": "error",
+        }
