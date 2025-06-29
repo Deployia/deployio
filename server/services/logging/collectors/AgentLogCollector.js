@@ -179,176 +179,100 @@ class AgentLogCollector extends BaseLogCollector {
   }
 
   async getRecentLogs(options = {}) {
-    const { lines = 50, level = "info" } = options;
-
-    // Try WebSocket bridge first if available
-    if (this.useWebSocketBridge && this.bridgeService) {
-      try {
-        logger.debug("Requesting logs via WebSocket bridge", { lines, level });
-
-        // Get connected agents - for now, use the first available agent
-        // TODO: Later support specifying specific agent ID
-        const agentIds = Array.from(this.bridgeService.connectedAgents.keys());
-        logger.info("Checking connected agents for log request", {
-          connectedAgents: agentIds,
-          totalAgents: agentIds.length,
-        });
-
-        if (agentIds.length > 0) {
-          const agentId = agentIds[0]; // Use first connected agent
-          logger.info("Requesting logs from agent", {
-            agentId,
-            lines,
-            type: "system",
-          });
-
-          const result = await this.requestAgentLogs(agentId, {
-            lines,
-            type: "system",
-          });
-
-          if (result) {
-            logger.info("Log request sent via bridge successfully", {
-              agentId,
-              requestId: result.requestId,
-            });
-
-            // Return a promise that resolves when logs are received
-            // For now, return a placeholder and rely on streaming
-            return {
-              logs: [],
-              source: "websocket-bridge",
-              status: "requested",
-              requestId: result.requestId,
-            };
-          }
-        } else {
-          logger.error("No agents connected to bridge, falling back to HTTP");
-        }
-      } catch (error) {
-        logger.error("Bridge log request failed, falling back to HTTP", {
-          error: error.message,
-        });
-      }
-    }
-
-    // Fallback to HTTP polling
+    const { lines = 50, level = "all", user } = options;
     try {
-      logger.debug("Fetching logs from remote agent", {
-        agentUrl: this.agentUrl,
-        lines,
-        level,
+      // Use the agentServiceClient with user context if provided
+      const response = await agentServiceClient.get("/logs", {
+        params: { lines, level },
+        user, // Pass user context for per-user JWT, or omit for system
       });
-
-      // Try to get logs from agent service
-      const response = await agentServiceClient.getLogs(lines, level);
-
-      if (response && response.logs) {
-        logger.debug(`Retrieved ${response.logs.length} logs from agent`);
-        this.reconnectAttempts = 0; // Reset on successful connection
-
-        return {
-          logs: response.logs.map((log) => ({
-            id: log.id || `agent_${Date.now()}_${Math.random()}`,
-            timestamp: log.timestamp || new Date().toISOString(),
-            level: log.level || "info",
-            message: log.message || "",
-            service: "agent",
-            source: "agent-service",
-            metadata: log.metadata || {},
-            raw: log.raw || log.message,
-          })),
-          source: "remote-agent",
-          timestamp: new Date().toISOString(),
-        };
-      } else {
-        // Try fallback to local agent logs if remote fails
-        return await this.getLocalAgentLogs(lines, level);
-      }
+      const agentLogs = response.data.logs || [];
+      const parsedLogs = agentLogs.map((log, index) => ({
+        id: `agent_remote_${Date.now()}_${index}`,
+        timestamp: log.timestamp || new Date().toISOString(),
+        level: log.level || "info",
+        message: log.message || "",
+        service: "agent",
+        source: "remote-agent",
+        metadata: log,
+        raw: log.raw || log.message,
+      }));
+      return {
+        logs: parsedLogs,
+        totalLines: parsedLogs.length,
+        source: "remote-agent",
+        url: this.agentUrl,
+      };
     } catch (error) {
-      logger.error("Failed to fetch logs from remote agent:", error.message);
-
-      // Fallback to local agent logs
-      try {
-        return await this.getLocalAgentLogs(lines, level);
-      } catch (fallbackError) {
-        logger.error(
-          "Fallback to local agent logs also failed:",
-          fallbackError.message
-        );
-        return {
-          logs: [],
-          source: "error",
-          timestamp: new Date().toISOString(),
-        };
-      }
+      logger.error("Failed to fetch remote agent logs:", error);
+      return {
+        logs: [],
+        totalLines: 0,
+        source: "remote-agent-error",
+        url: this.agentUrl,
+        error: error.response
+          ? error.response.data
+          : error.message || error.toString(),
+        status: error.response ? error.response.status : undefined,
+      };
     }
   }
 
   async getLocalAgentLogs(lines, level) {
-    // Try multiple potential log paths for agent
-    const logPaths = [
-      path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
-      path.join(process.cwd(), "agent", "logs", "agent.log"),
-      path.join(process.cwd(), "logs", "agent.log"),
-      "/var/log/deployio-agent.log",
+    const localPaths = [
+      path.join(
+        __dirname,
+        "..",
+        "..",
+        "..",
+        "..",
+        "agent",
+        "logs",
+        "agent.log"
+      ),
+      "/app/logs/agent.log",
     ];
 
-    for (const logPath of logPaths) {
-      try {
-        if (fs.existsSync(logPath)) {
-          logger.debug(`Using local agent log file: ${logPath}`);
+    for (const logPath of localPaths) {
+      if (fs.existsSync(logPath)) {
+        try {
+          const command = `tail -n ${lines} "${logPath}"`;
+          const { stdout } = await execPromise(command);
 
-          const { stdout } = await execPromise(
-            `tail -n ${lines} "${logPath}" | grep -E "(${level}|error|warn|info)" || echo ""`
-          );
-
-          const logs = stdout
+          const logLines = stdout
             .trim()
             .split("\n")
-            .filter((line) => line.trim())
-            .map((line, index) => {
-              // Simple log parsing - adjust format as needed
-              const timestamp = new Date().toISOString();
-              return {
-                id: `agent_local_${Date.now()}_${index}`,
-                timestamp,
-                level: line.includes("ERROR")
-                  ? "error"
-                  : line.includes("WARN")
-                  ? "warn"
-                  : line.includes("INFO")
-                  ? "info"
-                  : "debug",
-                message: line,
-                service: "agent",
-                source: "local-file",
-                metadata: { filePath: logPath },
-                raw: line,
-              };
-            });
+            .filter((line) => line.trim());
+          const parsedLogs = logLines.map((line, index) => ({
+            id: `agent_local_${Date.now()}_${index}`,
+            timestamp: new Date().toISOString(),
+            level: "info",
+            message: line,
+            service: "agent",
+            source: "local-fallback",
+            raw: line,
+          }));
 
           return {
-            logs,
-            source: "local-agent-file",
-            timestamp: new Date().toISOString(),
+            logs: parsedLogs,
+            totalLines: parsedLogs.length,
+            source: "local-fallback",
+            path: logPath,
           };
+        } catch (error) {
+          logger.error(
+            `Failed to read local agent logs from ${logPath}:`,
+            error
+          );
         }
-      } catch (error) {
-        logger.debug(
-          `Failed to read agent log file ${logPath}:`,
-          error.message
-        );
-        continue;
       }
     }
 
-    // No log files found
-    logger.warn("No agent log files found in any of the expected locations");
     return {
       logs: [],
-      source: "no-agent-logs",
-      timestamp: new Date().toISOString(),
+      totalLines: 0,
+      source: "agent-unavailable",
+      error: "Agent logs not available locally or remotely",
     };
   }
 
