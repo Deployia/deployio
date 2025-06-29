@@ -3,56 +3,120 @@ Logging configuration for DeployIO Agent
 """
 
 import logging
-import sys
-import os
-from logging.handlers import RotatingFileHandler
+import logging.config
+from pathlib import Path
 from app.core.config import settings
 
 
-def setup_logging():
-    """Setup logging configuration"""
+def get_logging_config(debug: bool = False):
+    """Get logging configuration dictionary for DeployIO Agent"""
+    log_level = "DEBUG" if debug else settings.log_level.upper()
+    logs_dir = Path(__file__).parent.parent.parent / "logs"
+    logs_dir.mkdir(exist_ok=True)
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "()": "colorlog.ColoredFormatter",
+                "format": "%(asctime)s - %(name)s - %(log_color)s%(levelname)s%(reset)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+                "log_colors": {
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "bold_red,bg_white",
+                },
+            },
+            "file": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            },
+            "access": {
+                "()": "colorlog.ColoredFormatter",
+                "format": "%(asctime)s - %(name)s - %(log_color)s%(levelname)s%(reset)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+                "log_colors": {
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "bold_red,bg_white",
+                },
+            },
+        },
+        "handlers": {
+            "default": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+                "stream": "ext://sys.stdout",
+            },
+            "file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "file",
+                "filename": str(logs_dir / "agent.log"),
+                "maxBytes": 10 * 1024 * 1024,  # 10MB
+                "backupCount": 5,
+            },
+            "error_file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "file",
+                "filename": str(logs_dir / "error.log"),
+                "maxBytes": 5 * 1024 * 1024,  # 5MB
+                "backupCount": 3,
+                "level": "ERROR",
+            },
+            "access": {
+                "class": "logging.StreamHandler",
+                "formatter": "access",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            "uvicorn": {
+                "level": "INFO",
+                "handlers": ["default", "file"],
+                "propagate": False,
+            },
+            "uvicorn.access": {
+                "level": "INFO",
+                "handlers": ["access", "file"],
+                "propagate": False,
+            },
+            "docker": {
+                "level": "INFO",
+                "handlers": ["default", "file"],
+                "propagate": False,
+            },
+            "socketio": {
+                "level": "INFO",
+                "handlers": ["default", "file"],
+                "propagate": False,
+            },
+            "engineio": {
+                "level": "INFO",
+                "handlers": ["default", "file"],
+                "propagate": False,
+            },
+        },
+        "root": {
+            "level": log_level,
+            "handlers": ["default", "file", "error_file"],
+        },
+    }
 
-    # Ensure logs directory exists
-    os.makedirs("logs", exist_ok=True)
 
-    # Create handlers
-    handlers = [logging.StreamHandler(sys.stdout)]
+def setup_logging(debug: bool = False):
+    """Setup logging configuration for DeployIO Agent"""
 
-    # Add file handlers for persistent logging (fallback for HTTP polling)
-    file_handler = RotatingFileHandler(
-        "logs/agent.log", maxBytes=10 * 1024 * 1024, backupCount=5  # 10MB
+    config = get_logging_config(debug=debug or settings.debug)
+    logging.config.dictConfig(config)
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"Logging configured - Level: {'DEBUG' if debug or settings.debug else settings.log_level.upper()}"
     )
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    handlers.append(file_handler)
-
-    # Error-specific log file
-    error_handler = RotatingFileHandler(
-        "logs/error.log", maxBytes=5 * 1024 * 1024, backupCount=3  # 5MB
-    )
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    handlers.append(error_handler)
-
-    # Configure root logger
-    logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=handlers,
-        force=True,  # Override any existing configuration
-    )
-
-    # Set specific logger levels
-    logging.getLogger("uvicorn").setLevel(logging.INFO)
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-
-    # Suppress overly verbose loggers
-    logging.getLogger("docker").setLevel(logging.WARNING)
-    logging.getLogger("socketio").setLevel(logging.WARNING)
-    logging.getLogger("engineio").setLevel(logging.WARNING)
+    logger.info("Docker, socketio, engineio loggers set to INFO")
 
 
 def get_logger(name: str = None):
