@@ -22,13 +22,97 @@ class AgentLogCollector extends BaseLogCollector {
     this.pollingInterval = null;
     this.lastLogId = null; // Track last seen log ID for HTTP polling deduplication
     this.logBuffer = new Set(); // Buffer to track processed logs and avoid duplicates
+    this.bridgeService = null; // Will be injected
+    this.useWebSocketBridge = true; // Prefer WebSocket bridge over HTTP polling
+  }
+
+  /**
+   * Set the agent bridge service for WebSocket communication
+   */
+  setBridgeService(bridgeService) {
+    this.bridgeService = bridgeService;
+    logger.info("Agent Log Collector integrated with WebSocket bridge");
   }
 
   async start(options = {}) {
     await super.start(options);
 
-    // Always use HTTP polling for now
-    this.startHttpPolling();
+    // Try WebSocket bridge first, fall back to HTTP polling
+    if (this.useWebSocketBridge && this.bridgeService) {
+      logger.info("Starting agent log collection via WebSocket bridge");
+      this.startBridgeLogging();
+    } else {
+      logger.info(
+        "WebSocket bridge not available, falling back to HTTP polling"
+      );
+      this.startHttpPolling();
+    }
+  }
+
+  /**
+   * Start log collection via WebSocket bridge
+   */
+  startBridgeLogging() {
+    if (!this.bridgeService) {
+      logger.error("Bridge service not available for agent log collection");
+      this.startHttpPolling();
+      return;
+    }
+
+    logger.info("Agent log collection via WebSocket bridge started");
+
+    // Listen for agent log streams
+    this.bridgeService.on("agent_logs", (agentId, logData) => {
+      this.handleBridgeLogData(agentId, logData);
+    });
+  }
+
+  /**
+   * Handle log data received via WebSocket bridge
+   */
+  handleBridgeLogData(agentId, logData) {
+    try {
+      const { logs, log_type, timestamp } = logData;
+
+      if (logs && Array.isArray(logs)) {
+        for (const log of logs) {
+          const bridgeLog = {
+            ...log,
+            source: "websocket-bridge-agent",
+            agent_id: agentId,
+            bridge_timestamp: timestamp,
+            log_type: log_type || "system",
+          };
+
+          this.emit("log", bridgeLog);
+        }
+      }
+    } catch (error) {
+      logger.error("Error processing bridge log data:", error);
+    }
+  }
+
+  /**
+   * Request logs from specific agent via bridge
+   */
+  async requestAgentLogs(agentId, options = {}) {
+    if (!this.bridgeService) {
+      logger.warning("Bridge service not available, cannot request agent logs");
+      return null;
+    }
+
+    try {
+      const { lines = 50, type = "system" } = options;
+
+      return await this.bridgeService.requestAgentLogs(agentId, {
+        type,
+        lines,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Failed to request agent logs via bridge:", error);
+      return null;
+    }
   }
 
   startHttpPolling() {

@@ -29,9 +29,31 @@ class LogCollectorService extends EventEmitter {
     // Register system service collectors
     this.registerCollector("backend", new SystemLogCollector("backend"));
     this.registerCollector("ai-service", new SystemLogCollector("ai-service"));
-    this.registerCollector("agent", new AgentLogCollector());
+
+    // Create agent collector instance and store reference for bridge integration
+    this.agentCollector = new AgentLogCollector();
+    this.registerCollector("agent", this.agentCollector);
 
     logger.info("Log Collector Service initialized successfully");
+  }
+
+  /**
+   * Integrate with agent bridge service for WebSocket log collection
+   */
+  integrateBridgeService(bridgeService) {
+    if (
+      this.agentCollector &&
+      typeof this.agentCollector.setBridgeService === "function"
+    ) {
+      this.agentCollector.setBridgeService(bridgeService);
+      logger.info(
+        "Agent log collector integrated with WebSocket bridge service"
+      );
+    } else {
+      logger.error(
+        "Cannot integrate bridge service - agent collector not available"
+      );
+    }
   }
 
   /**

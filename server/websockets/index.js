@@ -156,6 +156,21 @@ function setupNamespaces(features) {
       // Initialize agent bridge service
       agentBridgeService.initialize().then((success) => {
         if (success) {
+          // Integrate with log collector service
+          try {
+            const logCollectorService = require("../services/logging/LogCollectorService");
+            if (logCollectorService.integrateBridgeService) {
+              logCollectorService.integrateBridgeService(agentBridgeService);
+              logger.info(
+                "✓ Agent bridge integrated with log collector service"
+              );
+            }
+          } catch (integrationError) {
+            logger.error("✗ Failed to integrate bridge with log collector", {
+              error: integrationError.message,
+            });
+          }
+
           logger.info("✓ Agent bridge service initialized", {
             namespace: "/agent-bridge",
             status: "active",
@@ -163,6 +178,7 @@ function setupNamespaces(features) {
               "agent-authentication",
               "stream-routing",
               "ai-integration",
+              "log-collection-bridge",
             ],
           });
         } else {

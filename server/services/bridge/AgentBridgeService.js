@@ -4,6 +4,7 @@
  * Routes agent streams to client namespaces with AI integration
  */
 
+const EventEmitter = require("events");
 const logger = require("@config/logger");
 const webSocketManager = require("@config/webSocketManager");
 const AgentConnectionManager = require("./AgentConnectionManager");
@@ -11,8 +12,9 @@ const StreamRouter = require("./StreamRouter");
 const AIAnalysisMiddleware = require("./AIAnalysisMiddleware");
 const UserAccessControl = require("./UserAccessControl");
 
-class AgentBridgeService {
+class AgentBridgeService extends EventEmitter {
   constructor() {
+    super();
     this.isInitialized = false;
     this.connectionManager = new AgentConnectionManager();
     this.streamRouter = new StreamRouter();
@@ -214,6 +216,50 @@ class AgentBridgeService {
   }
 
   /**
+   * Request logs from a specific agent
+   */
+  async requestAgentLogs(agentId, options = {}) {
+    try {
+      const connectionInfo = this.connectedAgents.get(agentId);
+      if (!connectionInfo) {
+        logger.warning("Cannot request logs from disconnected agent", {
+          agentId,
+        });
+        return null;
+      }
+
+      const { type = "system", lines = 50 } = options;
+      const requestId = `log_request_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+
+      // Send log request to agent
+      connectionInfo.socket.emit("request_logs", {
+        requestId,
+        type,
+        lines,
+        timestamp: new Date().toISOString(),
+      });
+
+      logger.info("Log request sent to agent", {
+        agentId,
+        requestId,
+        type,
+        lines,
+      });
+
+      // Return request ID for tracking (actual logs will come via stream)
+      return { requestId, status: "requested" };
+    } catch (error) {
+      logger.error("Error requesting agent logs", {
+        error: error.message,
+        agentId,
+      });
+      return null;
+    }
+  }
+
+  /**
    * Setup agent namespace for receiving connections
    */
   async _setupAgentNamespace() {
@@ -279,6 +325,33 @@ class AgentBridgeService {
         data,
         data.room
       );
+    });
+
+    // Log response events (for responding to log requests)
+    socket.on("/agent-logs:system_logs_response", async (data) => {
+      await this.routeAgentStream(
+        agentId,
+        "/agent-logs",
+        "system_logs_response",
+        data,
+        data.room
+      );
+
+      // Also emit to log collector for processing
+      this.emit("agent_logs", agentId, data);
+    });
+
+    socket.on("/agent-logs:container_logs_response", async (data) => {
+      await this.routeAgentStream(
+        agentId,
+        "/agent-logs",
+        "container_logs_response",
+        data,
+        data.room
+      );
+
+      // Also emit to log collector for processing
+      this.emit("agent_logs", agentId, data);
     });
 
     // Agent metrics events (future)

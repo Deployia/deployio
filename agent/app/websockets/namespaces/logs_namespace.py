@@ -16,12 +16,14 @@ logger = logging.getLogger(__name__)
 
 class AgentLogsNamespace(BaseAgentNamespace):
     """
-    Agent Logs Namespace - /agent-logs
+    Agent Logs Namespace - connects to /agent-bridge
     Streams system logs and Docker container logs to DeployIO Server
     """
 
     def __init__(self):
-        super().__init__("/agent-logs")
+        super().__init__(
+            "/agent-bridge"
+        )  # Connect to agent bridge, not direct logs namespace
         self.system_log_stream_task: Optional[asyncio.Task] = None
         self.docker_log_stream_task: Optional[asyncio.Task] = None
         self.active_containers: Dict[str, str] = {}  # container_id -> user_id mapping
@@ -35,16 +37,13 @@ class AgentLogsNamespace(BaseAgentNamespace):
             "stop_log_stream": self._handle_stop_log_stream,
             "join_admin_logs": self._handle_join_admin_logs,
             "server_response": self._handle_server_response,
+            "request_logs": self._handle_log_request,  # NEW: Handle server log requests
         }
 
     async def _on_connected(self):
-        """Handle connection established - join admin room for system logs"""
-        # Join admin system logs room
-        await self.join_room("admin-system-logs")
-
-        # Start streaming system logs if enabled
-        if settings.log_bridge_enabled:
-            await self.start_streaming()
+        """Handle connection established - ready for streaming requests"""
+        # Don't auto-join rooms or start streaming - wait for client request
+        logger.info("Agent bridge connected and ready for log streaming requests")
 
     async def start_streaming(self):
         """Start log streaming tasks"""
@@ -102,7 +101,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
             logs = await self._get_recent_system_logs(data.get("lines", 100))
 
             await self.emit_to_server(
-                "system_logs_response",
+                "/agent-logs:system_logs_response",  # Use namespaced event format
                 {
                     "logs": logs,
                     "agent_id": settings.agent_id,
@@ -131,7 +130,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
             room = f"user-{user_id}-logs" if user_id else "admin-system-logs"
 
             await self.emit_to_server(
-                "container_logs_response",
+                "/agent-logs:container_logs_response",  # Use namespaced event format
                 {
                     "container_id": container_id,
                     "logs": logs,
@@ -177,6 +176,68 @@ class AgentLogsNamespace(BaseAgentNamespace):
         """Handle general server responses"""
         logger.debug(f"Server response: {data}")
 
+    async def _handle_log_request(self, data: Dict[str, Any]):
+        """Handle log request from server (for bridge integration)"""
+        try:
+            request_id = data.get("requestId")
+            log_type = data.get("type", "system")
+            lines = data.get("lines", 50)
+
+            logger.info(
+                f"Received log request: {request_id}, type: {log_type}, lines: {lines}"
+            )
+
+            if log_type == "system":
+                # Get system logs
+                logs = await self._get_recent_system_logs(lines)
+
+                # Send response with the correct event format
+                await self.emit_to_server(
+                    "/agent-logs:system_logs_response",
+                    {
+                        "requestId": request_id,
+                        "logs": logs,
+                        "agent_id": settings.agent_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "log_type": "system",
+                    },
+                    room="admin-system-logs",
+                )
+
+                logger.info(f"Sent system logs response for request: {request_id}")
+
+            elif log_type == "container":
+                container_id = data.get("container_id")
+                if container_id:
+                    # Get container logs
+                    logs = await self._get_container_logs(container_id, lines)
+
+                    await self.emit_to_server(
+                        "/agent-logs:container_logs_response",
+                        {
+                            "requestId": request_id,
+                            "container_id": container_id,
+                            "logs": logs,
+                            "agent_id": settings.agent_id,
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "log_type": "container",
+                        },
+                        room="admin-system-logs",
+                    )
+
+                    logger.info(
+                        f"Sent container logs response for request: {request_id}"
+                    )
+                else:
+                    logger.error(
+                        f"Container ID required for container log request: {request_id}"
+                    )
+            else:
+                logger.error(f"Unknown log type in request: {log_type}")
+
+        except Exception as e:
+            logger.error(f"Error handling log request: {e}")
+
     # Log Streaming Implementation
     async def _stream_system_logs(self):
         """Stream system logs continuously"""
@@ -187,7 +248,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
 
                 if logs:
                     await self.emit_to_server(
-                        "system_logs",
+                        "/agent-logs:system_logs",  # Use namespaced event format
                         {
                             "logs": logs,
                             "agent_id": settings.agent_id,
@@ -216,7 +277,7 @@ class AgentLogsNamespace(BaseAgentNamespace):
                         if logs:
                             room = f"user-{user_id}-logs"
                             await self.emit_to_server(
-                                "container_logs",
+                                "/agent-logs:container_logs",  # Use namespaced event format
                                 {
                                     "container_id": container_id,
                                     "logs": logs,

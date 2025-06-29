@@ -102,9 +102,10 @@ class AgentWebSocketManager:
                     {"server_url": server_url, "agent_id": settings.agent_id},
                 )
 
-                # Connect with authentication
+                # Connect to agent-bridge namespace with authentication
+                agent_bridge_url = f"{server_url}/agent-bridge"
                 await self.client.connect(
-                    server_url,
+                    agent_bridge_url,
                     headers=auth_headers,
                     transports=["websocket", "polling"],
                 )
@@ -161,7 +162,7 @@ class AgentWebSocketManager:
         Emit event to specific namespace and room
 
         Args:
-            namespace: Namespace path
+            namespace: Namespace path (for routing purposes)
             event: Event name
             data: Event data
             room: Room name (optional)
@@ -179,8 +180,8 @@ class AgentWebSocketManager:
                 else:
                     emission_data = {"data": data, "room": room}
 
-            # Emit to namespace (client doesn't support room parameter)
-            await self.client.emit(event, emission_data, namespace=namespace)
+            # Since we're connected to /agent-bridge, emit directly without namespace parameter
+            await self.client.emit(event, emission_data)
             return True
         except Exception as e:
             logger.error(f"Failed to emit to {namespace}: {e}")
@@ -237,6 +238,7 @@ class AgentWebSocketManager:
         """Initialize all registered namespaces after connection"""
         for namespace_path, namespace_instance in self.namespaces.items():
             try:
+                # Initialize the namespace instance
                 if hasattr(namespace_instance, "on_connected"):
                     await namespace_instance.on_connected()
                 logger.debug(f"SUCCESS: Initialized namespace: {namespace_path}")

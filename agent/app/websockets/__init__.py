@@ -108,9 +108,6 @@ class AgentWebSocketService:
 
             self.is_connected = True
 
-            # Start namespace streaming
-            await self._start_namespace_streaming()
-
             logger.info("SUCCESS: Connected to DeployIO Server successfully")
             return True
 
@@ -125,9 +122,6 @@ class AgentWebSocketService:
 
         try:
             logger.info("Disconnecting from DeployIO Server...")
-
-            # Stop namespace streaming
-            await self._stop_namespace_streaming()
 
             # Disconnect WebSocket manager
             await websocket_manager.disconnect()
@@ -172,9 +166,9 @@ class AgentWebSocketService:
             try:
                 await agent_logs_namespace.initialize(websocket_manager)
                 websocket_manager.register_namespace(
-                    "/agent-logs", agent_logs_namespace
+                    "/agent-bridge", agent_logs_namespace
                 )
-                agent_registry.register_namespace("/agent-logs", agent_logs_namespace)
+                agent_registry.register_namespace("/agent-bridge", agent_logs_namespace)
                 logger.info("SUCCESS: Logs namespace setup completed")
             except Exception as e:
                 logger.error(f"Failed to setup logs namespace: {e}")
