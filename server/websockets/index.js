@@ -8,7 +8,6 @@ const LogStreamingNamespace = require("./namespaces/LogStreamingNamespace");
 const MetricsNamespace = require("./namespaces/MetricsNamespace");
 const ChatNamespace = require("./namespaces/ChatNamespace");
 const BuildLogsNamespace = require("./namespaces/BuildLogsNamespace");
-const AgentBridgeNamespace = require("./namespaces/AgentBridgeNamespace");
 
 /**
  * WebSocket Initialization Module
@@ -149,25 +148,11 @@ function setupNamespaces(features) {
     }
   }
 
-  // Agent bridge namespace - Remote agent communication
+  // Agent bridge namespace - Disabled for cleanup
   if (features.agentBridge) {
-    try {
-      AgentBridgeNamespace.initialize();
-      logger.info("✓ Agent bridge namespace initialized", {
-        namespace: "/agent-bridge",
-        requireAuth: false,
-        customAuth: true,
-        features: ["remote-logs", "agent-status", "real-time-streaming"],
-      });
-    } catch (error) {
-      logger.error("✗ Failed to initialize agent bridge namespace", {
-        error: error.message,
-      });
-    }
-  } else {
-    logger.debug("Agent bridge namespace disabled", {
+    logger.debug("Agent bridge namespace disabled for cleanup", {
       namespace: "/agent-bridge",
-      status: "available_for_remote_agents",
+      status: "will_be_redesigned",
     });
   }
 

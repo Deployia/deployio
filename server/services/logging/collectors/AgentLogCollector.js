@@ -1,6 +1,6 @@
 /**
  * Agent Log Collector for Remote EC2 Service
- * Handles remote agent log collection via WebSocket (primary) and HTTP polling (fallback)
+ * Handles remote agent log collection via HTTP polling
  */
 
 const path = require("path");
@@ -10,7 +10,6 @@ const util = require("util");
 const logger = require("@config/logger");
 const BaseLogCollector = require("./BaseLogCollector");
 const { agentServiceClient } = require("../agentServiceClient");
-const AgentBridgeNamespace = require("@websockets/namespaces/AgentBridgeNamespace");
 
 const execPromise = util.promisify(exec);
 
@@ -21,8 +20,6 @@ class AgentLogCollector extends BaseLogCollector {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.pollingInterval = null;
-    this.webSocketConnected = false;
-    this.agentBridgeNamespace = null;
     this.lastLogId = null; // Track last seen log ID for HTTP polling deduplication
     this.logBuffer = new Set(); // Buffer to track processed logs and avoid duplicates
   }
@@ -30,189 +27,11 @@ class AgentLogCollector extends BaseLogCollector {
   async start(options = {}) {
     await super.start(options);
 
-    const { realtime = false } = options;
-
-    if (realtime) {
-      // Try WebSocket first, fallback to HTTP polling if not available
-      const webSocketSuccess = await this.tryWebSocketConnection();
-      if (!webSocketSuccess) {
-        logger.warn(
-          "WebSocket connection failed, falling back to HTTP polling"
-        );
-        this.startHttpPolling();
-      }
-    }
-  }
-
-  /**
-   * Try to establish WebSocket connection for real-time log streaming
-   */
-  async tryWebSocketConnection() {
-    try {
-      // Get the agent bridge namespace instance
-      this.agentBridgeNamespace = AgentBridgeNamespace.getInstance();
-
-      if (!this.agentBridgeNamespace) {
-        logger.warn(
-          "Agent bridge namespace not available - check if namespace is initialized"
-        );
-        return false;
-      }
-
-      // Setup WebSocket subscription regardless of current agent status
-      this.setupWebSocketSubscription();
-
-      // Check if any agents are currently connected
-      const connectedAgents = this.agentBridgeNamespace.connectedAgents;
-
-      // Debug: Get detailed connection status
-      const debugStatus = this.agentBridgeNamespace.getConnectionStatus
-        ? this.agentBridgeNamespace.getConnectionStatus()
-        : { error: "getConnectionStatus method not available" };
-
-      logger.info("Checking agent connections for WebSocket streaming", {
-        connectedAgentsCount: connectedAgents ? connectedAgents.size : 0,
-        connectedAgentIds: connectedAgents
-          ? Array.from(connectedAgents.keys())
-          : [],
-        agentBridgeNamespaceExists: !!this.agentBridgeNamespace,
-        connectedAgentsMapExists: !!connectedAgents,
-        debugStatus,
-      });
-
-      if (connectedAgents && connectedAgents.size > 0) {
-        this.webSocketConnected = true;
-        logger.info(
-          `Successfully connected to agent WebSocket stream (${connectedAgents.size} agents connected)`,
-          { connectedAgentIds: Array.from(connectedAgents.keys()) }
-        );
-        return true;
-      } else {
-        // No agents connected yet, but keep the subscription active
-        // The event handlers will activate streaming when an agent connects
-        logger.warn(
-          "WebSocket connection failed, falling back to HTTP polling",
-          {
-            reason: "No agents currently connected",
-            agentBridgeNamespaceExists: !!this.agentBridgeNamespace,
-            connectedAgentsSize: connectedAgents ? connectedAgents.size : 0,
-          }
-        );
-        return false; // Return false so HTTP polling starts as fallback
-      }
-    } catch (error) {
-      logger.error("Failed to establish WebSocket connection:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Setup WebSocket subscription for agent logs
-   */
-  setupWebSocketSubscription() {
-    // Store handler references for proper cleanup
-    this.handleWebSocketLog = (logData) => {
-      this.processWebSocketLog(logData);
-    };
-
-    this.handleAgentConnected = (data) => {
-      logger.info("Agent connected, enabling WebSocket log streaming", {
-        agentId: data.agentId,
-        timestamp: data.timestamp,
-      });
-      this.webSocketConnected = true;
-      this.reconnectAttempts = 0; // Reset reconnect attempts
-      // Stop HTTP polling if it's running
-      this.stopHttpPolling();
-    };
-
-    this.handleAgentDisconnected = (data) => {
-      logger.warn("Agent disconnected, falling back to HTTP polling", {
-        agentId: data.agentId,
-        timestamp: data.timestamp,
-      });
-      this.webSocketConnected = false;
-      // Start HTTP polling as fallback
-      this.startHttpPolling();
-    };
-
-    // Listen for processed logs from the agent bridge
-    this.agentBridgeNamespace.on("agent:log", this.handleWebSocketLog);
-
-    // Listen for agent connection status changes
-    this.agentBridgeNamespace.on("agent:connected", this.handleAgentConnected);
-    this.agentBridgeNamespace.on(
-      "agent:disconnected",
-      this.handleAgentDisconnected
-    );
-
-    logger.info("Agent log collector WebSocket subscription configured");
-  }
-
-  /**
-   * Handle logs received via WebSocket
-   */
-  processWebSocketLog(logData) {
-    try {
-      logger.debug("Received WebSocket log from agent", {
-        agentId: logData.agentId,
-        level: logData.level,
-        messageLength: logData.message ? logData.message.length : 0,
-        timestamp: logData.timestamp,
-      });
-
-      // Convert WebSocket log format to collector format
-      const processedLog = {
-        id: logData.id || `agent_ws_${Date.now()}_${Math.random()}`,
-        timestamp: logData.timestamp || new Date().toISOString(),
-        level: logData.level || "info",
-        message: logData.message || logData.content || "",
-        service: "agent",
-        source: "websocket-agent",
-        metadata: logData,
-        raw: logData.raw || logData.message || logData.content,
-        agentId: logData.agentId,
-      };
-
-      // Check for duplicates
-      if (!this.logBuffer.has(processedLog.id)) {
-        this.logBuffer.add(processedLog.id);
-
-        // Emit the log to subscribers
-        this.emit("log", processedLog);
-
-        logger.debug("Emitted WebSocket log to subscribers", {
-          logId: processedLog.id,
-          agentId: processedLog.agentId,
-        });
-
-        // Clean up old log IDs from buffer (keep last 1000)
-        if (this.logBuffer.size > 1000) {
-          const bufferArray = Array.from(this.logBuffer);
-          this.logBuffer = new Set(bufferArray.slice(-1000));
-        }
-      } else {
-        logger.debug("Skipped duplicate WebSocket log", {
-          logId: processedLog.id,
-          agentId: processedLog.agentId,
-        });
-      }
-    } catch (error) {
-      logger.error("Error processing WebSocket log:", error);
-    }
-  }
-
-  async startRemoteConnection() {
-    // This method is now replaced by tryWebSocketConnection
-    await this.tryWebSocketConnection();
+    // Always use HTTP polling for now
+    this.startHttpPolling();
   }
 
   startHttpPolling() {
-    // Don't start polling if WebSocket is connected
-    if (this.webSocketConnected) {
-      return;
-    }
-
     // Don't start if already polling
     if (this.pollingInterval) {
       return;
@@ -222,12 +41,6 @@ class AgentLogCollector extends BaseLogCollector {
 
     this.pollingInterval = setInterval(async () => {
       try {
-        // Skip polling if WebSocket connection is established
-        if (this.webSocketConnected) {
-          this.stopHttpPolling();
-          return;
-        }
-
         const logs = await this.getRecentLogs({ lines: 10 });
 
         // Process and emit new logs
@@ -262,7 +75,7 @@ class AgentLogCollector extends BaseLogCollector {
 
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
           logger.error(
-            "Max reconnection attempts reached, stopping HTTP polling"
+            `Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping HTTP polling.`
           );
           this.stopHttpPolling();
         }
@@ -277,144 +90,135 @@ class AgentLogCollector extends BaseLogCollector {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
-      logger.info("Stopped HTTP polling for agent logs");
+      logger.info("HTTP polling stopped");
     }
   }
 
   async getRecentLogs(options = {}) {
-    const { lines = 50, level = "all", user } = options;
+    const { lines = 50, level = "info" } = options;
+
     try {
-      // Use the agentServiceClient with user context if provided
-      const response = await agentServiceClient.get("/logs", {
-        params: { lines, level },
-        user, // Pass user context for per-user JWT, or omit for system
+      logger.debug("Fetching logs from remote agent", {
+        agentUrl: this.agentUrl,
+        lines,
+        level,
       });
-      const agentLogs = response.data.logs || [];
-      const parsedLogs = agentLogs.map((log, index) => ({
-        id: `agent_remote_${Date.now()}_${index}`,
-        timestamp: log.timestamp || new Date().toISOString(),
-        level: log.level || "info",
-        message: log.message || "",
-        service: "agent",
-        source: "remote-agent",
-        metadata: log,
-        raw: log.raw || log.message,
-      }));
-      return {
-        logs: parsedLogs,
-        totalLines: parsedLogs.length,
-        source: "remote-agent",
-        url: this.agentUrl,
-      };
+
+      // Try to get logs from agent service
+      const response = await agentServiceClient.getLogs(lines, level);
+
+      if (response && response.logs) {
+        logger.debug(`Retrieved ${response.logs.length} logs from agent`);
+        this.reconnectAttempts = 0; // Reset on successful connection
+
+        return {
+          logs: response.logs.map((log) => ({
+            id: log.id || `agent_${Date.now()}_${Math.random()}`,
+            timestamp: log.timestamp || new Date().toISOString(),
+            level: log.level || "info",
+            message: log.message || "",
+            service: "agent",
+            source: "agent-service",
+            metadata: log.metadata || {},
+            raw: log.raw || log.message,
+          })),
+          source: "remote-agent",
+          timestamp: new Date().toISOString(),
+        };
+      } else {
+        // Try fallback to local agent logs if remote fails
+        return await this.getLocalAgentLogs(lines, level);
+      }
     } catch (error) {
-      logger.error("Failed to fetch remote agent logs:", error);
-      return {
-        logs: [],
-        totalLines: 0,
-        source: "remote-agent-error",
-        url: this.agentUrl,
-        error: error.response
-          ? error.response.data
-          : error.message || error.toString(),
-        status: error.response ? error.response.status : undefined,
-      };
+      logger.error("Failed to fetch logs from remote agent:", error.message);
+
+      // Fallback to local agent logs
+      try {
+        return await this.getLocalAgentLogs(lines, level);
+      } catch (fallbackError) {
+        logger.error(
+          "Fallback to local agent logs also failed:",
+          fallbackError.message
+        );
+        return {
+          logs: [],
+          source: "error",
+          timestamp: new Date().toISOString(),
+        };
+      }
     }
   }
 
   async getLocalAgentLogs(lines, level) {
-    const localPaths = [
-      path.join(
-        __dirname,
-        "..",
-        "..",
-        "..",
-        "..",
-        "agent",
-        "logs",
-        "agent.log"
-      ),
-      "/app/logs/agent.log",
+    // Try multiple potential log paths for agent
+    const logPaths = [
+      path.join(process.cwd(), "..", "agent", "logs", "agent.log"),
+      path.join(process.cwd(), "agent", "logs", "agent.log"),
+      path.join(process.cwd(), "logs", "agent.log"),
+      "/var/log/deployio-agent.log",
     ];
 
-    for (const logPath of localPaths) {
-      if (fs.existsSync(logPath)) {
-        try {
-          const command = `tail -n ${lines} "${logPath}"`;
-          const { stdout } = await execPromise(command);
+    for (const logPath of logPaths) {
+      try {
+        if (fs.existsSync(logPath)) {
+          logger.debug(`Using local agent log file: ${logPath}`);
 
-          const logLines = stdout
+          const { stdout } = await execPromise(
+            `tail -n ${lines} "${logPath}" | grep -E "(${level}|error|warn|info)" || echo ""`
+          );
+
+          const logs = stdout
             .trim()
             .split("\n")
-            .filter((line) => line.trim());
-          const parsedLogs = logLines.map((line, index) => ({
-            id: `agent_local_${Date.now()}_${index}`,
-            timestamp: new Date().toISOString(),
-            level: "info",
-            message: line,
-            service: "agent",
-            source: "local-fallback",
-            raw: line,
-          }));
+            .filter((line) => line.trim())
+            .map((line, index) => {
+              // Simple log parsing - adjust format as needed
+              const timestamp = new Date().toISOString();
+              return {
+                id: `agent_local_${Date.now()}_${index}`,
+                timestamp,
+                level: line.includes("ERROR")
+                  ? "error"
+                  : line.includes("WARN")
+                  ? "warn"
+                  : line.includes("INFO")
+                  ? "info"
+                  : "debug",
+                message: line,
+                service: "agent",
+                source: "local-file",
+                metadata: { filePath: logPath },
+                raw: line,
+              };
+            });
 
           return {
-            logs: parsedLogs,
-            totalLines: parsedLogs.length,
-            source: "local-fallback",
-            path: logPath,
+            logs,
+            source: "local-agent-file",
+            timestamp: new Date().toISOString(),
           };
-        } catch (error) {
-          logger.error(
-            `Failed to read local agent logs from ${logPath}:`,
-            error
-          );
         }
+      } catch (error) {
+        logger.debug(
+          `Failed to read agent log file ${logPath}:`,
+          error.message
+        );
+        continue;
       }
     }
 
+    // No log files found
+    logger.warn("No agent log files found in any of the expected locations");
     return {
       logs: [],
-      totalLines: 0,
-      source: "agent-unavailable",
-      error: "Agent logs not available locally or remotely",
+      source: "no-agent-logs",
+      timestamp: new Date().toISOString(),
     };
   }
 
   async stop() {
-    await super.stop();
-
-    // Stop HTTP polling
     this.stopHttpPolling();
-
-    // Clean up WebSocket subscriptions safely
-    if (this.agentBridgeNamespace) {
-      try {
-        // Only remove listeners if they were actually set
-        if (this.handleWebSocketLog) {
-          this.agentBridgeNamespace.off("agent:log", this.handleWebSocketLog);
-        }
-        if (this.handleAgentConnected) {
-          this.agentBridgeNamespace.off(
-            "agent:connected",
-            this.handleAgentConnected
-          );
-        }
-        if (this.handleAgentDisconnected) {
-          this.agentBridgeNamespace.off(
-            "agent:disconnected",
-            this.handleAgentDisconnected
-          );
-        }
-      } catch (error) {
-        logger.warn("Error removing event listeners:", error.message);
-      }
-    }
-
-    // Reset state
-    this.webSocketConnected = false;
-    this.reconnectAttempts = 0;
-    this.logBuffer.clear();
-
-    logger.info("Agent log collector stopped");
+    await super.stop();
   }
 
   /**
@@ -422,7 +226,6 @@ class AgentLogCollector extends BaseLogCollector {
    */
   getConnectionStatus() {
     return {
-      webSocketConnected: this.webSocketConnected,
       httpPollingActive: !!this.pollingInterval,
       reconnectAttempts: this.reconnectAttempts,
       maxReconnectAttempts: this.maxReconnectAttempts,
