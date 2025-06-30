@@ -1,53 +1,86 @@
-# � DeployIO Development ### 🏗️ **Architecture** (`/architecture/`)
-
-- `BACKEND_ARCHITECTURE_PLAN.md` - Overall backend architecture design
-- `SERVER-MODULAR-REFACTORING-PLAN.md` - Server refactoring strategy
-- `AI-SERVICE.md` - AI service architecture and implementationumentation
+# 🚀 DeployIO Development Documentation
 
 ## 📖 Overview
 
-This directory contains comprehensive development documentation, organized by category for easy navigation.
+This directory contains essential development documentation for the DeployIO platform. **Cleaned up and organized on June 30, 2025** to focus on current state and future roadmap.
 
-## � **CURRENT PRIORITY: Backend Model Alignment**
+## 🎯 **START HERE**
 
-### Critical Documents (READ FIRST):
+### **📊 Current Status & Roadmap**
 
-- `BACKEND_MODEL_ALIGNMENT_SUMMARY.md` - **Executive Summary** of current status
-- `CONTROLLERS_SERVICES_AUDIT.md` - **Technical Audit** of required changes
-- `IMPLEMENTATION_PLAN.md` - **Complete Implementation Strategy**
+- `CURRENT_STATE_AND_ROADMAP.md` - **Complete platform assessment and strategic roadmap**
 
-### Next Actions Required:
+### **🔄 Active Development**
 
-1. **API Key Migration** (CRITICAL) - Migrate from User model to ApiKey model
-2. **Service Layer Updates** (MEDIUM) - Verify all model relationships
-3. **Testing & Validation** (HIGH) - Comprehensive testing strategy
+- `CLIENT_BACKEND_INTEGRATION_ROADMAP.md` - Current integration priorities
+- `NOTIFICATION_SYSTEM_ROADMAP.md` - Real-time notification implementation
+- `NOTIFICATION_SYSTEM_ANALYSIS.md` - Notification system analysis
+- `NOTIFICATION_SYSTEM_PHASES.md` - Phased implementation plan
+
+### **📋 Current State Documentation**
+
+- `CURRENT_STATE_DOCUMENTATION.md` - Detailed current implementation status
 
 ## 📂 Directory Structure
 
-### 🎯 **Active Project Documents**
+### 🏗️ **Architecture** (`/architecture/`)
 
-- `API_ROUTES_STRUCTURE.md` - Complete API routes documentation
-- `BACKEND_MODEL_ALIGNMENT_SUMMARY.md` - **Executive summary of audit results**
-- `CONTROLLERS_SERVICES_AUDIT.md` - **Detailed technical audit**
-- `IMPLEMENTATION_PLAN.md` - **Complete implementation strategy**
-
-### � **Architecture** (`/architecture/`)
-
+- `AI-SERVICE.md` - AI service architecture and API documentation
 - `BACKEND_ARCHITECTURE_PLAN.md` - Overall backend architecture design
-- `SERVER-MODULAR-REFACTORING-PLAN.md` - Server refactoring strategy
+- `LOGGING_ARCHITECTURE_DESIGN.md` - Logging system architecture
+- `SERVER-MODULAR-REFACTORING-PLAN.md` - Server modularization strategy
 
-### �️ **Models** (`/models/`)
+### 🏆 **Completed Implementations** (`/completed/`)
 
-- `DATABASE_MODELS_DOCUMENTATION.md` - Complete database schema documentation
-- `MODELS_FINAL_REVIEW.md` - Final model validation and review
-- `MODELS_FINAL_STATUS.md` - Model implementation status
+- `AI-SERVICE-MIGRATION.md` - AI service migration summary
+- `CODE_ANALYSIS_ENGINE_SUMMARY.md` - Code analysis engine implementation
 
-### 📚 **Guides** (`/guides/`)
+### 📱 **Product Development** (`/products/`)
 
-- `DEVELOPMENT-SETUP.md` - Development environment setup
-- `QUICK-START-GUIDE.md` - Getting started guide
-- `RATE-LIMITING-GUIDE.md` - Rate limiting implementation
-- `REFRESH-TOKEN-GUIDE.md` - JWT refresh token guide
+- `IMPLEMENTATION_ROADMAP.md` - Product implementation roadmap
+- `PROJECT_CREATION_FLOW_SPECIFICATION.md` - Project creation workflow
+- `UI_UX_DESIGN_GUIDE.md` - UI/UX design patterns and guidelines
+- `QUICK_START_IMPLEMENTATION.md` - Quick start implementation guide
+
+### � **Strategic Planning** (`/ideation/`)
+
+- `TECHNICAL-GAP-ANALYSIS.md` - Platform technical gap analysis
+- `CURRENT-STATE-ANALYSIS.md` - Comprehensive current state analysis
+- `PRODUCT-STRATEGY-VISION.md` - Product strategy and vision
+- `ARCHITECTURAL-EVOLUTION.md` - Architecture evolution planning
+
+### 📦 **Archive** (`/archive/`)
+
+- `completed-features/` - Completed implementation documentation
+- `outdated-analysis/` - Historical analysis and planning documents
+- `legacy-implementations/` - Legacy implementation files
+
+## 🎯 Quick Navigation
+
+### For New Developers
+
+1. Start with `CURRENT_STATE_AND_ROADMAP.md` for complete overview
+2. Review `/architecture/AI-SERVICE.md` for technical architecture
+3. Check `/products/UI_UX_DESIGN_GUIDE.md` for frontend patterns
+4. Follow `/guides/` for development setup
+
+### For Product Planning
+
+1. Review `CURRENT_STATE_AND_ROADMAP.md` for strategic overview
+2. Check `/ideation/TECHNICAL-GAP-ANALYSIS.md` for implementation gaps
+3. Review `/products/IMPLEMENTATION_ROADMAP.md` for feature planning
+
+### For Current Development
+
+1. Check `CLIENT_BACKEND_INTEGRATION_ROADMAP.md` for active priorities
+2. Review `NOTIFICATION_SYSTEM_ROADMAP.md` for current implementation
+3. Follow active implementation documents in root directory
+
+---
+
+_Last Updated: June 30, 2025_
+_Documentation cleaned up and reorganized for clarity and current relevance_
+
 - `TRAEFIK-CONFIG.md` - Traefik configuration guide
 
 ### ✅ **Completed** (`/completed/`)
