@@ -5,7 +5,7 @@ Clean, modular, and highly accurate detection system
 
 import logging
 import time
-from typing import Dict, List
+from typing import Dict, List, Any
 from urllib.parse import urlparse
 
 from .models import (
@@ -19,7 +19,6 @@ from ..analyzers.stack_analyzer import StackAnalyzer
 from ..analyzers.dependency_analyzer import DependencyAnalyzer
 from ..analyzers.code_analyzer import CodeAnalyzer
 from ..enhancers.llm_enhancer import LLMEnhancer
-from ..utils.github_client import GitHubClient
 from ..utils.cache_manager import CacheManager
 from ..analyzers.base_analyzer import BaseAnalyzer
 from exceptions import (
@@ -40,8 +39,10 @@ logger = logging.getLogger(__name__)
 class UnifiedDetectionEngine:
     """
     Main detection engine that orchestrates all analysis operations.
+    Works with enriched repository data from server (no direct API calls)
 
-    Features:    - Unified analysis workflow
+    Features:
+    - Unified analysis workflow using enriched data
     - Smart LLM enhancement
     - Confidence-based decision making
     - Comprehensive caching
@@ -53,13 +54,10 @@ class UnifiedDetectionEngine:
         self.stack_analyzer: BaseAnalyzer = StackAnalyzer()
         self.dependency_analyzer: BaseAnalyzer = DependencyAnalyzer()
         self.code_analyzer: BaseAnalyzer = CodeAnalyzer()
-        self.llm_enhancer = LLMEnhancer()  # Initialize utilities
-        self.github_client = GitHubClient()
+        self.llm_enhancer = LLMEnhancer()
         self.cache_manager = CacheManager()
 
-        logger.info(
-            "UnifiedDetectionEngine initialized with intelligent analysis sequencing"
-        )
+        logger.info("UnifiedDetectionEngine initialized for enriched data analysis")
 
     async def analyze_repository(
         self,
@@ -233,84 +231,81 @@ class UnifiedDetectionEngine:
             repository_url=repository_url, branch=branch, analysis_types=[analysis_type]
         )
 
-    async def _perform_intelligent_analysis(
-        self, repo_data: Dict, analysis_types: List[AnalysisType]
-    ) -> Dict[AnalysisType, Dict]:
+    async def analyze_enriched_data(
+        self,
+        enriched_data: Dict[str, Any],
+        analysis_types: List[AnalysisType] = None,
+        force_llm: bool = False,
+    ) -> AnalysisResult:
         """
-        Perform analysis with intelligent dependencies for better accuracy:
-        1. Stack Detection (foundation)
-        2. Dependency Analysis (uses stack context)
-        3. Code Quality (uses stack + dependency context)
+        Perform comprehensive analysis using enriched repository data from server
 
-        This approach provides more accurate results with better context.
+        Args:
+            enriched_data: Enriched repository data from server
+            analysis_types: Types of analysis to perform (default: all)
+            force_llm: Force LLM enhancement regardless of confidence
+
+        Returns:
+            AnalysisResult: Comprehensive analysis results
         """
-        analysis_results = {}
-        stack_context = None
-        dependency_context = None
+        start_time = time.time()
 
-        logger.info(
-            f"Running intelligent analysis with dependencies for {len(analysis_types)} analysis types"
-        )
+        # Default analysis types
+        if analysis_types is None:
+            analysis_types = [
+                AnalysisType.STACK_DETECTION,
+                AnalysisType.DEPENDENCY_ANALYSIS,
+                AnalysisType.CODE_QUALITY,
+            ]
 
-        # Step 1: Stack Detection (foundation - runs first if needed)
-        if AnalysisType.STACK_DETECTION in analysis_types:
-            try:
-                logger.info("Step 1: Running stack detection (foundation)")
-                stack_result = await self.stack_analyzer.analyze(repo_data)
-                analysis_results[AnalysisType.STACK_DETECTION] = stack_result
-                stack_context = stack_result
-                logger.info(
-                    f"Stack detection completed: {stack_result.get('language', 'unknown')} / {stack_result.get('framework', 'none')}"
+        repository_name = enriched_data.get("repository", {}).get("name", "unknown")
+        logger.info(f"Starting enriched data analysis for {repository_name}")
+
+        try:
+            # Step 1: Check cache based on repository metadata
+            cache_key = self._generate_enriched_cache_key(enriched_data, analysis_types)
+            cached_result = await self.cache_manager.get(cache_key)
+
+            if cached_result and not force_llm:
+                from engines.core.models import AnalysisResult
+
+                if isinstance(cached_result, AnalysisResult):
+                    logger.info("Returning cached analysis result")
+                    return cached_result
+
+            # Step 2: Perform parallel analysis using enriched data
+            analysis_results = await self._perform_parallel_analysis_enriched(
+                enriched_data, analysis_types
+            )
+
+            # Step 3: Combine rule-based analyzer results
+            combined_result = self._combine_analysis_results(analysis_results)
+
+            # Step 4: LLM Enhancement (if needed or forced)
+            if force_llm or combined_result.overall_confidence < 0.85:
+                logger.info("Applying LLM enhancement to improve confidence")
+                enhanced_result = await self.llm_enhancer.enhance_analysis(
+                    combined_result, enriched_data
                 )
-            except Exception as e:
-                logger.error(f"Stack detection failed: {e}")
-                analysis_results[AnalysisType.STACK_DETECTION] = {"error": str(e)}
+                final_result = enhanced_result
+            else:
+                final_result = combined_result
 
-        # Step 2: Dependency Analysis (uses stack context for better parsing)
-        if AnalysisType.DEPENDENCY_ANALYSIS in analysis_types:
-            try:
-                logger.info("Step 2: Running dependency analysis (with stack context)")
-                # Enhance repo_data with stack context for more accurate dependency parsing
-                enhanced_repo_data = repo_data.copy()
-                if stack_context:
-                    enhanced_repo_data["stack_context"] = stack_context
+            # Step 5: Cache the result
+            await self.cache_manager.set(cache_key, final_result, ttl=3600)  # 1 hour
 
-                dependency_result = await self.dependency_analyzer.analyze(
-                    enhanced_repo_data
-                )
-                analysis_results[AnalysisType.DEPENDENCY_ANALYSIS] = dependency_result
-                dependency_context = dependency_result
-                logger.info(
-                    f"Dependency analysis completed: {dependency_result.get('total_dependencies', 0)} dependencies"
-                )
-            except Exception as e:
-                logger.error(f"Dependency analysis failed: {e}")
-                analysis_results[AnalysisType.DEPENDENCY_ANALYSIS] = {"error": str(e)}
+            # Step 6: Performance logging
+            execution_time = time.time() - start_time
+            logger.info(
+                f"Analysis completed in {execution_time:.2f}s "
+                f"(confidence: {final_result.overall_confidence:.2f})"
+            )
 
-        # Step 3: Code Quality (uses both stack and dependency context)
-        if AnalysisType.CODE_QUALITY in analysis_types:
-            try:
-                logger.info("Step 3: Running code quality analysis (with full context)")
-                # Enhance repo_data with both stack and dependency context
-                enhanced_repo_data = repo_data.copy()
-                if stack_context:
-                    enhanced_repo_data["stack_context"] = stack_context
-                if dependency_context:
-                    enhanced_repo_data["dependency_context"] = dependency_context
+            return final_result
 
-                quality_result = await self.code_analyzer.analyze(enhanced_repo_data)
-                analysis_results[AnalysisType.CODE_QUALITY] = quality_result
-                logger.info(
-                    f"Code quality analysis completed: {quality_result.get('total_files_analyzed', 0)} files analyzed"
-                )
-            except Exception as e:
-                logger.error(f"Code quality analysis failed: {e}")
-                analysis_results[AnalysisType.CODE_QUALITY] = {"error": str(e)}
-
-        logger.info(
-            f"Intelligent analysis completed successfully with {len(analysis_results)} results"
-        )
-        return analysis_results
+        except Exception as e:
+            logger.error(f"Analysis failed for {repository_name}: {e}")
+            raise AnalysisException(f"Analysis failed: {str(e)}") from e
 
     async def _perform_parallel_analysis(
         self, repo_data: Dict, analysis_types: List[AnalysisType]
@@ -321,6 +316,45 @@ class UnifiedDetectionEngine:
         """
         # Use intelligent analysis for better results
         return await self._perform_intelligent_analysis(repo_data, analysis_types)
+
+    async def _perform_parallel_analysis_enriched(
+        self, enriched_data: Dict[str, Any], analysis_types: List[AnalysisType]
+    ) -> Dict[AnalysisType, Any]:
+        """
+        Perform parallel analysis on enriched data
+
+        Args:
+            enriched_data: Enriched repository data from server
+            analysis_types: Types of analysis to perform
+
+        Returns:
+            Dict mapping analysis types to results
+        """
+        tasks = {}
+
+        if AnalysisType.STACK_DETECTION in analysis_types:
+            tasks[AnalysisType.STACK_DETECTION] = self.stack_analyzer.analyze(
+                enriched_data
+            )
+
+        if AnalysisType.DEPENDENCY_ANALYSIS in analysis_types:
+            tasks[AnalysisType.DEPENDENCY_ANALYSIS] = self.dependency_analyzer.analyze(
+                enriched_data
+            )
+
+        if AnalysisType.CODE_QUALITY in analysis_types:
+            tasks[AnalysisType.CODE_QUALITY] = self.code_analyzer.analyze(enriched_data)
+
+        # Execute all tasks in parallel
+        results = {}
+        for analysis_type, task in tasks.items():
+            try:
+                results[analysis_type] = await task
+            except Exception as e:
+                logger.error(f"Analysis {analysis_type} failed: {e}")
+                results[analysis_type] = {"error": str(e)}
+
+        return results
 
     async def _combine_analysis_results(
         self,
@@ -481,6 +515,22 @@ class UnifiedDetectionEngine:
         analysis_type_str = "-".join(sorted([at.value for at in analysis_types]))
 
         return f"analysis:{repo_path}:{branch}:{analysis_type_str}"
+
+    def _generate_enriched_cache_key(
+        self, enriched_data: Dict[str, Any], analysis_types: List[AnalysisType]
+    ) -> str:
+        """Generate cache key for enriched data analysis"""
+        repo_data = enriched_data.get("repository", {})
+        metadata = enriched_data.get("metadata", {})
+
+        key_parts = [
+            repo_data.get("full_name", "unknown"),
+            metadata.get("branch", "main"),
+            metadata.get("extracted_at", "unknown"),
+            "+".join([at.value for at in analysis_types]),
+        ]
+
+        return f"enriched_analysis:{':'.join(key_parts)}"
 
     async def get_supported_technologies(self) -> Dict[str, List[str]]:
         """
