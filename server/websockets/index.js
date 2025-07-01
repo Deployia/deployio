@@ -229,6 +229,9 @@ function setupNamespaces(features) {
 
   // AI Service bridge - NEW IMPLEMENTATION
   if (features.ai) {
+    logger.info("🤖 Initializing AI Service bridge...", {
+      enabled: features.ai,
+    });
     try {
       const aiServiceBridgeService = require("../services/bridge/AIServiceBridgeService");
 
@@ -254,6 +257,12 @@ function setupNamespaces(features) {
         error: error.message,
       });
     }
+  } else {
+    logger.debug("AI Service bridge disabled", {
+      namespace: "/ai-service",
+      status: "disabled_in_config",
+      aiFeature: features.ai,
+    });
   }
 
   // Chat namespace - Future feature

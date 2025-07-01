@@ -34,6 +34,7 @@ const { connectRedis } = require("./config/redisClient");
       logStreaming: true,
       metrics: true, // Enable metrics streaming
       agentBridge: true, // Enable agent bridge
+      ai: true, // Enable AI service bridge
       deploymentLogs: false,
       systemMonitoring: false,
     },

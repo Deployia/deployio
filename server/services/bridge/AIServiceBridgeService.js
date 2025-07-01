@@ -6,11 +6,13 @@
 const EventEmitter = require("events");
 const logger = require("@config/logger");
 const webSocketManager = require("@config/webSocketManager");
+const AIStreamRouter = require("./AIStreamRouter");
 
 class AIServiceBridgeService extends EventEmitter {
   constructor() {
     super();
     this.isInitialized = false;
+    this.streamRouter = new AIStreamRouter();
     this.connectedAIServices = new Map(); // serviceId -> connection info
     this.activeSessions = new Map(); // sessionId -> session info
   }
@@ -27,6 +29,9 @@ class AIServiceBridgeService extends EventEmitter {
     try {
       logger.info("Initializing AI Service Bridge...");
 
+      // Initialize stream router
+      await this.streamRouter.initialize();
+
       // Setup AI service namespace for receiving connections
       await this._setupAIServiceNamespace();
 
@@ -34,6 +39,7 @@ class AIServiceBridgeService extends EventEmitter {
 
       logger.info("AI Service Bridge initialized successfully", {
         namespace: "/ai-service",
+        streamRouter: this.streamRouter.isInitialized,
       });
 
       return true;
@@ -61,9 +67,79 @@ class AIServiceBridgeService extends EventEmitter {
         timestamp: new Date().toISOString(),
       });
 
-      // Handle service registration
+      // Handle service registration with handshake
       socket.on("register_service", async (data) => {
         await this.handleServiceRegistration(socket, data);
+      });
+
+      // Handle bridge handshake - similar to agent bridge
+      socket.on("bridge_handshake", async (data) => {
+        logger.info("Received bridge handshake from AI service", {
+          handshakeId: data.handshake_id,
+          serviceId: data.service_id,
+          capabilities: data.capabilities,
+          serviceVersion: data.service_version,
+        });
+
+        const serviceInfo = this.connectedAIServices.get(socket.id);
+        if (serviceInfo) {
+          serviceInfo.handshakeCompleted = true;
+          serviceInfo.connectionStatus = "established";
+          serviceInfo.capabilities = data.capabilities;
+          serviceInfo.serviceVersion = data.service_version;
+        }
+
+        // Send handshake response back to AI service
+        socket.emit("bridge_handshake_ack", {
+          handshakeId: data.handshake_id,
+          serverTime: new Date().toISOString(),
+          status: "handshake_complete",
+          bridgeReady: true,
+        });
+
+        logger.info("Bridge handshake completed successfully", {
+          serviceId: data.service_id,
+          status: "fully_connected",
+          capabilities: data.capabilities,
+        });
+      });
+
+      // Handle connection ACK - AI service confirms connection establishment
+      socket.on("connection_ack", async (data) => {
+        logger.info("Received connection ACK from AI service", {
+          serviceId: data.service_id,
+          clientTime: data.client_time,
+          status: data.status,
+          message: data.message,
+        });
+
+        const serviceInfo = this.connectedAIServices.get(socket.id);
+        if (serviceInfo) {
+          serviceInfo.connectionAcked = true;
+          serviceInfo.lastAck = new Date();
+        }
+      });
+
+      // Heartbeat
+      socket.on("heartbeat", (data) => {
+        const serviceInfo = this.connectedAIServices.get(socket.id);
+        if (serviceInfo) {
+          serviceInfo.lastHeartbeat = new Date();
+        }
+      });
+
+      // Bridge pong - health check response
+      socket.on("bridge_pong", (data) => {
+        logger.debug("📡 Received bridge pong from AI service", {
+          pingId: data.ping_id,
+          timestamp: data.timestamp,
+        });
+
+        const serviceInfo = this.connectedAIServices.get(socket.id);
+        if (serviceInfo) {
+          serviceInfo.lastPong = new Date();
+          serviceInfo.healthStatus = "healthy";
+        }
       });
 
       // Handle analysis progress updates
@@ -107,15 +183,48 @@ class AIServiceBridgeService extends EventEmitter {
     try {
       const { serviceId, serviceVersion, capabilities } = serviceInfo;
 
+      // Check if only one AI service should be connected
+      if (this.connectedAIServices.size > 0) {
+        logger.warn(
+          "Multiple AI services attempting to connect - only one allowed",
+          {
+            existingServices: this.connectedAIServices.size,
+            newServiceId: serviceId || "ai-service-1",
+          }
+        );
+      }
+
       // Store connection info
-      this.connectedAIServices.set(socket.id, {
+      const connectionInfo = {
         serviceId: serviceId || "ai-service-1",
         serviceVersion: serviceVersion || "1.0.0",
         capabilities: capabilities || ["analysis", "generation"],
         socket,
         connectedAt: new Date(),
         lastHeartbeat: new Date(),
-      });
+        connectionStatus: "establishing",
+        handshakeCompleted: false,
+        connectionAcked: false,
+        healthStatus: "unknown",
+      };
+
+      this.connectedAIServices.set(socket.id, connectionInfo);
+
+      // Send connection establishment with verification data
+      const establishmentData = {
+        serviceId: serviceId || "ai-service-1",
+        serverTime: new Date().toISOString(),
+        availableFeatures: [
+          "analysis_processing",
+          "generation_processing",
+          "progress_streaming",
+          "error_handling",
+        ],
+        bridgeStatus: "connected",
+        connectionId: socket.id,
+      };
+
+      socket.emit("connection_established", establishmentData);
 
       // Send registration confirmation
       socket.emit("registration_complete", {
@@ -137,6 +246,9 @@ class AIServiceBridgeService extends EventEmitter {
         capabilities,
         socketId: socket.id,
       });
+
+      // Start periodic health check for this AI service
+      this._startServiceHealthCheck(serviceId || "ai-service-1");
     } catch (error) {
       logger.error("Failed to register AI service", {
         error: error.message,
@@ -157,17 +269,20 @@ class AIServiceBridgeService extends EventEmitter {
     try {
       const { sessionId, progress, status, message } = data;
 
-      // Forward to AI namespace for client distribution
-      const aiNamespace = webSocketManager.getIO().of("/ai");
-      aiNamespace.to(`session:${sessionId}`).emit("ai:progress", {
-        sessionId,
-        progress,
-        status,
-        message,
+      // Route through stream router
+      this.streamRouter.routeStream({
+        event: "analysis_progress",
+        data: {
+          session_id: sessionId,
+          progress,
+          status,
+          message,
+        },
+        serviceId: this._getServiceId(socket),
         timestamp: new Date().toISOString(),
       });
 
-      logger.debug("Analysis progress forwarded to clients", {
+      logger.debug("Analysis progress routed through stream router", {
         sessionId,
         progress,
         status,
@@ -187,16 +302,19 @@ class AIServiceBridgeService extends EventEmitter {
     try {
       const { sessionId, result, status } = data;
 
-      // Forward to AI namespace for client distribution
-      const aiNamespace = webSocketManager.getIO().of("/ai");
-      aiNamespace.to(`session:${sessionId}`).emit("ai:analysis_complete", {
-        sessionId,
-        status: status || "completed",
-        data: result,
+      // Route through stream router
+      this.streamRouter.routeStream({
+        event: "analysis_complete",
+        data: {
+          session_id: sessionId,
+          result,
+          status: status || "completed",
+        },
+        serviceId: this._getServiceId(socket),
         timestamp: new Date().toISOString(),
       });
 
-      logger.info("Analysis completion forwarded to clients", {
+      logger.info("Analysis completion routed through stream router", {
         sessionId,
         status,
       });
@@ -215,18 +333,21 @@ class AIServiceBridgeService extends EventEmitter {
     try {
       const { sessionId, progress, status, message, configType } = data;
 
-      // Forward to AI namespace for client distribution
-      const aiNamespace = webSocketManager.getIO().of("/ai");
-      aiNamespace.to(`session:${sessionId}`).emit("ai:progress", {
-        sessionId,
-        progress,
-        status,
-        message,
-        configType,
+      // Route through stream router
+      this.streamRouter.routeStream({
+        event: "generation_progress",
+        data: {
+          session_id: sessionId,
+          progress,
+          status,
+          message,
+          config_type: configType,
+        },
+        serviceId: this._getServiceId(socket),
         timestamp: new Date().toISOString(),
       });
 
-      logger.debug("Generation progress forwarded to clients", {
+      logger.debug("Generation progress routed through stream router", {
         sessionId,
         progress,
         status,
@@ -247,17 +368,20 @@ class AIServiceBridgeService extends EventEmitter {
     try {
       const { sessionId, result, status, configType } = data;
 
-      // Forward to AI namespace for client distribution
-      const aiNamespace = webSocketManager.getIO().of("/ai");
-      aiNamespace.to(`session:${sessionId}`).emit("ai:generation_complete", {
-        sessionId,
-        status: status || "completed",
-        data: result,
-        configType,
+      // Route through stream router
+      this.streamRouter.routeStream({
+        event: "generation_complete",
+        data: {
+          session_id: sessionId,
+          result,
+          status: status || "completed",
+          config_type: configType,
+        },
+        serviceId: this._getServiceId(socket),
         timestamp: new Date().toISOString(),
       });
 
-      logger.info("Generation completion forwarded to clients", {
+      logger.info("Generation completion routed through stream router", {
         sessionId,
         status,
         configType,
@@ -277,26 +401,19 @@ class AIServiceBridgeService extends EventEmitter {
     try {
       const { sessionId, error, context } = data;
 
-      // Forward to AI namespace for client distribution
-      const aiNamespace = webSocketManager.getIO().of("/ai");
-
-      if (sessionId) {
-        aiNamespace.to(`session:${sessionId}`).emit("ai:error", {
-          sessionId,
+      // Route through stream router
+      this.streamRouter.routeStream({
+        event: "service_error",
+        data: {
+          session_id: sessionId,
           error,
           context,
-          timestamp: new Date().toISOString(),
-        });
-      } else {
-        // Broadcast general error
-        aiNamespace.emit("ai:service_error", {
-          error,
-          context,
-          timestamp: new Date().toISOString(),
-        });
-      }
+        },
+        serviceId: this._getServiceId(socket),
+        timestamp: new Date().toISOString(),
+      });
 
-      logger.error("AI service error forwarded to clients", {
+      logger.error("AI service error routed through stream router", {
         sessionId,
         error,
         context,
@@ -317,7 +434,7 @@ class AIServiceBridgeService extends EventEmitter {
       const serviceInfo = this.connectedAIServices.get(socket.id);
 
       if (serviceInfo) {
-        logger.warning("AI Service disconnected", {
+        logger.warn("AI Service disconnected", {
           serviceId: serviceInfo.serviceId,
           reason,
           socketId: socket.id,
@@ -374,16 +491,46 @@ class AIServiceBridgeService extends EventEmitter {
   }
 
   /**
-   * Get connected AI services status
+   * Start periodic health check for AI service
+   */
+  _startServiceHealthCheck(serviceId) {
+    const healthCheckInterval = setInterval(() => {
+      const serviceInfo = Array.from(this.connectedAIServices.values()).find(
+        (s) => s.serviceId === serviceId
+      );
+
+      if (!serviceInfo) {
+        clearInterval(healthCheckInterval);
+        return;
+      }
+
+      // Send ping to AI service
+      serviceInfo.socket.emit("bridge_ping", {
+        ping_id: `ping_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      logger.debug("📡 Sent bridge ping to AI service", {
+        serviceId,
+        socketId: serviceInfo.socket.id,
+      });
+    }, 30000); // Ping every 30 seconds
+  }
+
+  /**
+   * Get AI service bridge status
    */
   getStatus() {
     const services = Array.from(this.connectedAIServices.values()).map(
       (service) => ({
         serviceId: service.serviceId,
-        serviceVersion: service.serviceVersion,
+        status: service.connectionStatus,
         capabilities: service.capabilities,
         connectedAt: service.connectedAt,
-        socketId: service.socket.id,
+        handshakeCompleted: service.handshakeCompleted,
+        connectionAcked: service.connectionAcked,
+        lastHeartbeat: service.lastHeartbeat,
+        healthStatus: service.healthStatus,
       })
     );
 
@@ -399,6 +546,11 @@ class AIServiceBridgeService extends EventEmitter {
    */
   async shutdown() {
     try {
+      // Shutdown stream router
+      if (this.streamRouter) {
+        await this.streamRouter.shutdown();
+      }
+
       // Disconnect all AI services
       for (const service of this.connectedAIServices.values()) {
         service.socket.disconnect();
@@ -414,6 +566,14 @@ class AIServiceBridgeService extends EventEmitter {
         error: error.message,
       });
     }
+  }
+
+  /**
+   * Get service ID from socket
+   */
+  _getServiceId(socket) {
+    const serviceInfo = this.connectedAIServices.get(socket.id);
+    return serviceInfo ? serviceInfo.serviceId : "unknown";
   }
 }
 
