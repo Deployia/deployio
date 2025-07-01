@@ -107,7 +107,7 @@ class LLMEnhancer:
             if enhanced_result:
                 enhanced_result.llm_enhanced = True
                 logger.info(
-                    f"LLM enhancement completed successfully with confidence boost: {enhanced_result.confidence_boost}"
+                    f"LLM enhancement completed successfully with confidence improvement: {enhanced_result.confidence_improvement}"
                 )
                 return enhanced_result
             else:
@@ -502,7 +502,9 @@ class LLMEnhancer:
             confidence=parsed_data.get("confidence", 0.0),
         )
 
-        confidence_boost = max(0, min(0.4, parsed_data.get("confidence_boost", 0.1)))
+        confidence_improvement = max(
+            0, min(0.4, parsed_data.get("confidence_boost", 0.1))
+        )
 
         # Null field explanations: if a field is null but mentioned in reasoning, add an explanation
         null_field_explanations = parsed_data.get("null_field_explanations", {})
@@ -529,7 +531,7 @@ class LLMEnhancer:
             suggestions=parsed_data.get("additional_insights", []),
             recommendations=parsed_data.get("recommendations", []),
             insights=[],  # Will be populated from parsed_data insights
-            confidence_improvement=confidence_boost,
+            confidence_improvement=confidence_improvement,
             llm_enhanced=True,
             llm_provider="openai",
             processing_time=0.0,

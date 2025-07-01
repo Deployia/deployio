@@ -532,3 +532,12 @@ async def get_supported_technologies():
     """
     data = await analysis_service.get_supported_technologies()
     return ResponseModel(success=True, data=data)
+
+
+@router.get("/analysis/supported-technologies")
+async def get_supported_technologies_legacy():
+    """
+    Legacy alias for supported technologies endpoint
+    """
+    data = await analysis_service.get_supported_technologies()
+    return ResponseModel(success=True, data=data)

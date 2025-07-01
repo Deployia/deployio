@@ -551,7 +551,7 @@ async def get_supported_config_types(
 def _convert_analysis_to_tech_stack(analysis_data: Dict[str, Any]) -> TechnologyStack:
     """Convert analysis results to TechnologyStack object"""
     return TechnologyStack(
-        primary_language=analysis_data.get("primary_language", "unknown"),
+        language=analysis_data.get("primary_language", "unknown"),
         frameworks=analysis_data.get("frameworks", []),
         databases=analysis_data.get("databases", []),
         package_managers=analysis_data.get("package_managers", []),

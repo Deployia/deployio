@@ -75,6 +75,16 @@ class TechnologyStack:
     # Name field added to support stack_analyzer usage
     name: Optional[str] = None
 
+    @property
+    def primary_language(self) -> Optional[str]:
+        """Backwards compatibility property for primary_language"""
+        return self.language
+
+    @primary_language.setter
+    def primary_language(self, value: Optional[str]):
+        """Backwards compatibility setter for primary_language"""
+        self.language = value
+
 
 @dataclass
 class DependencyInfo:
