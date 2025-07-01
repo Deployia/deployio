@@ -5,6 +5,7 @@ This document outlines how to set up monitoring for the DeployIO platform using 
 ## When You Need Monitoring
 
 Monitoring is recommended for:
+
 - **Production deployments**
 - **Performance optimization**
 - **Resource usage tracking**
@@ -31,6 +32,7 @@ For local development, monitoring is **optional** and not required.
 ## Services We Monitor
 
 ### 1. Server (Node.js)
+
 - **HTTP requests** (count, duration, errors)
 - **WebSocket connections**
 - **Memory usage**
@@ -39,6 +41,7 @@ For local development, monitoring is **optional** and not required.
 - **Database queries**
 
 ### 2. AI Service (Python)
+
 - **Analysis requests** (count, duration, errors)
 - **LLM API calls**
 - **Memory usage**
@@ -47,6 +50,7 @@ For local development, monitoring is **optional** and not required.
 - **Processing time**
 
 ### 3. Infrastructure
+
 - **Docker containers**
 - **Database connections**
 - **File system usage**
@@ -80,29 +84,29 @@ rule_files:
 
 scrape_configs:
   # DeployIO Server
-  - job_name: 'deployio-server'
+  - job_name: "deployio-server"
     static_configs:
-      - targets: ['server:3000']
-    metrics_path: '/metrics'
+      - targets: ["server:3000"]
+    metrics_path: "/metrics"
     scrape_interval: 10s
 
   # DeployIO AI Service
-  - job_name: 'deployio-ai-service'
+  - job_name: "deployio-ai-service"
     static_configs:
-      - targets: ['ai-service:8000']
-    metrics_path: '/metrics'
+      - targets: ["ai-service:8000"]
+    metrics_path: "/metrics"
     scrape_interval: 15s
 
   # Node Exporter (system metrics)
-  - job_name: 'node-exporter'
+  - job_name: "node-exporter"
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ["node-exporter:9100"]
 
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
-          - alertmanager:9093
+            - alertmanager:9093
 ```
 
 ### 2. Docker Compose with Monitoring
@@ -110,7 +114,7 @@ alerting:
 Create `docker-compose.monitoring.yml`:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   # Extend existing services
@@ -134,12 +138,12 @@ services:
       - ./monitoring/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
     networks:
       - deployio
 
@@ -170,10 +174,10 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     networks:
       - deployio
 
@@ -191,7 +195,7 @@ networks:
 #### Server (Node.js) - Add to `server/middleware/metrics.js`:
 
 ```javascript
-const promClient = require('prom-client');
+const promClient = require("prom-client");
 
 // Create a Registry
 const register = new promClient.Registry();
@@ -201,29 +205,29 @@ promClient.collectDefaultMetrics({ register });
 
 // Custom metrics
 const httpRequestDuration = new promClient.Histogram({
-  name: 'http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status_code'],
-  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
+  name: "http_request_duration_seconds",
+  help: "Duration of HTTP requests in seconds",
+  labelNames: ["method", "route", "status_code"],
+  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10],
 });
 
 const httpRequestTotal = new promClient.Counter({
-  name: 'http_requests_total',
-  help: 'Total number of HTTP requests',
-  labelNames: ['method', 'route', 'status_code']
+  name: "http_requests_total",
+  help: "Total number of HTTP requests",
+  labelNames: ["method", "route", "status_code"],
 });
 
 const aiAnalysisTotal = new promClient.Counter({
-  name: 'ai_analysis_requests_total',
-  help: 'Total number of AI analysis requests',
-  labelNames: ['type', 'status']
+  name: "ai_analysis_requests_total",
+  help: "Total number of AI analysis requests",
+  labelNames: ["type", "status"],
 });
 
 const aiAnalysisDuration = new promClient.Histogram({
-  name: 'ai_analysis_duration_seconds',
-  help: 'Duration of AI analysis requests',
-  labelNames: ['type'],
-  buckets: [1, 5, 10, 30, 60, 120, 300]
+  name: "ai_analysis_duration_seconds",
+  help: "Duration of AI analysis requests",
+  labelNames: ["type"],
+  buckets: [1, 5, 10, 30, 60, 120, 300],
 });
 
 // Register metrics
@@ -237,7 +241,7 @@ module.exports = {
   httpRequestDuration,
   httpRequestTotal,
   aiAnalysisTotal,
-  aiAnalysisDuration
+  aiAnalysisDuration,
 };
 ```
 
@@ -405,12 +409,14 @@ groups:
 ## Benefits
 
 ### Development
+
 - **Performance debugging**
 - **Resource usage tracking**
 - **API response time analysis**
 - **Error rate monitoring**
 
 ### Production
+
 - **SLA monitoring**
 - **Capacity planning**
 - **Incident response**

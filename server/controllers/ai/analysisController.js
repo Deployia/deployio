@@ -42,11 +42,12 @@ const analyzeRepository = async (req, res) => {
       // NEW: URL-based analysis - we need to fetch repository data from git provider
       // Extract provider from URL (GitHub, GitLab, etc.)
       const provider = extractProviderFromUrl(repositoryUrl);
-      
+
       if (!provider) {
         return res.status(400).json({
           success: false,
-          message: "Could not determine git provider from repository URL. Supported: GitHub, GitLab, Bitbucket, Azure DevOps",
+          message:
+            "Could not determine git provider from repository URL. Supported: GitHub, GitLab, Bitbucket, Azure DevOps",
         });
       }
 
@@ -57,15 +58,20 @@ const analyzeRepository = async (req, res) => {
         repositoryUrl,
         branch
       );
-      
+
       result = await ai.analyzeRepository(fetchedRepoData, analysisOptions);
     }
 
-    logger.info(`Repository analysis completed for ${repositoryUrl || repositoryData?.repository?.full_name}`, {
-      analysisApproach: result.analysis_approach,
-      confidence: result.confidence_score,
-      llmUsed: result.llm_used,
-    });
+    logger.info(
+      `Repository analysis completed for ${
+        repositoryUrl || repositoryData?.repository?.full_name
+      }`,
+      {
+        analysisApproach: result.analysis_approach,
+        confidence: result.confidence_score,
+        llmUsed: result.llm_used,
+      }
+    );
 
     res.status(200).json({
       success: true,
@@ -92,9 +98,13 @@ const analyzeRepository = async (req, res) => {
     } else if (error.code === "ECONNABORTED") {
       statusCode = 408;
       errorMessage = "Analysis request timed out";
-    } else if (error.message.includes("No valid token") || error.message.includes("provider not connected")) {
+    } else if (
+      error.message.includes("No valid token") ||
+      error.message.includes("provider not connected")
+    ) {
       statusCode = 401;
-      errorMessage = "Git provider not connected or token expired. Please reconnect your git provider.";
+      errorMessage =
+        "Git provider not connected or token expired. Please reconnect your git provider.";
     } else if (error.message.includes("Invalid repository URL")) {
       statusCode = 400;
       errorMessage = error.message;
@@ -113,19 +123,22 @@ const analyzeRepository = async (req, res) => {
  */
 function extractProviderFromUrl(repositoryUrl) {
   if (!repositoryUrl) return null;
-  
+
   const url = repositoryUrl.toLowerCase();
-  
-  if (url.includes('github.com')) {
-    return 'github';
-  } else if (url.includes('gitlab.com')) {
-    return 'gitlab';
-  } else if (url.includes('bitbucket.org')) {
-    return 'bitbucket';
-  } else if (url.includes('dev.azure.com') || url.includes('visualstudio.com')) {
-    return 'azuredevops';
+
+  if (url.includes("github.com")) {
+    return "github";
+  } else if (url.includes("gitlab.com")) {
+    return "gitlab";
+  } else if (url.includes("bitbucket.org")) {
+    return "bitbucket";
+  } else if (
+    url.includes("dev.azure.com") ||
+    url.includes("visualstudio.com")
+  ) {
+    return "azuredevops";
   }
-  
+
   return null;
 }
 
@@ -157,7 +170,10 @@ const demoAnalyzeRepository = async (req, res) => {
 
     // For demo, we'll fetch repository data using a basic GitHub client
     // This doesn't require user authentication
-    const repositoryData = await fetchPublicRepositoryData(repositoryUrl, branch);
+    const repositoryData = await fetchPublicRepositoryData(
+      repositoryUrl,
+      branch
+    );
 
     // Demo gets full access with enhanced features
     const analysisOptions = {
@@ -246,48 +262,64 @@ const demoAnalyzeRepository = async (req, res) => {
 async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
   // For demo, we'll use a simple approach to fetch public repository data
   // This is a basic implementation that only works with public GitHub repos
-  const axios = require('axios');
-  
+  const axios = require("axios");
+
   try {
     // Parse GitHub URL
     const match = repositoryUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
     if (!match) {
-      throw new Error("Only public GitHub repositories are supported in demo mode");
+      throw new Error(
+        "Only public GitHub repositories are supported in demo mode"
+      );
     }
-    
+
     const [, owner, repo] = match;
-    const repoName = repo.replace(/\.git$/, '');
-    
+    const repoName = repo.replace(/\.git$/, "");
+
     // Fetch basic repository info
-    const repoResponse = await axios.get(`https://api.github.com/repos/${owner}/${repoName}`);
+    const repoResponse = await axios.get(
+      `https://api.github.com/repos/${owner}/${repoName}`
+    );
     const repository = repoResponse.data;
-    
+
     // Fetch file tree
-    const treeResponse = await axios.get(`https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`);
+    const treeResponse = await axios.get(
+      `https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`
+    );
     const fileTree = treeResponse.data.tree || [];
-    
+
     // Fetch key files (package.json, requirements.txt, etc.)
     const keyFiles = {};
     const importantFiles = [
-      'package.json', 'requirements.txt', 'pom.xml', 'Gemfile', 
-      'composer.json', 'Dockerfile', 'docker-compose.yml', 'README.md'
+      "package.json",
+      "requirements.txt",
+      "pom.xml",
+      "Gemfile",
+      "composer.json",
+      "Dockerfile",
+      "docker-compose.yml",
+      "README.md",
     ];
-    
+
     for (const fileName of importantFiles) {
       try {
-        const fileResponse = await axios.get(`https://api.github.com/repos/${owner}/${repoName}/contents/${fileName}?ref=${branch}`);
+        const fileResponse = await axios.get(
+          `https://api.github.com/repos/${owner}/${repoName}/contents/${fileName}?ref=${branch}`
+        );
         if (fileResponse.data.content) {
           keyFiles[fileName] = {
-            content: Buffer.from(fileResponse.data.content, 'base64').toString('utf8'),
+            content: Buffer.from(fileResponse.data.content, "base64").toString(
+              "utf8"
+            ),
             path: fileName,
-            size: fileResponse.data.size
+            size: fileResponse.data.size,
           };
         }
       } catch (err) {
         // File doesn't exist, ignore
       }
     }
-    
+
     return {
       repository: {
         name: repository.name,
@@ -307,21 +339,23 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
         owner: {
           login: repository.owner.login,
           avatar_url: repository.owner.avatar_url,
-          type: repository.owner.type
-        }
+          type: repository.owner.type,
+        },
       },
       files: keyFiles,
-      file_tree: fileTree.filter(item => item.type === 'blob').map(item => ({
-        path: item.path,
-        size: item.size,
-        type: item.type
-      })),
+      file_tree: fileTree
+        .filter((item) => item.type === "blob")
+        .map((item) => ({
+          path: item.path,
+          size: item.size,
+          type: item.type,
+        })),
       metadata: {
-        provider: 'github',
+        provider: "github",
         branch,
         fetched_at: new Date().toISOString(),
-        demo_mode: true
-      }
+        demo_mode: true,
+      },
     };
   } catch (error) {
     if (error.response?.status === 404) {
