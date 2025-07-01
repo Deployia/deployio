@@ -1,13 +1,10 @@
 """
 Exception handling package for the AI Service
+Clean exceptions for server-provided repository data architecture
 """
 
 from .analysis_exceptions import (
     AnalysisException,
-    RepositoryNotFoundException,
-    RepositoryAccessException,
-    InvalidRepositoryException,
-    BranchNotFoundException,
     AnalysisTimeoutException,
     LLMServiceException,
     RateLimitExceededException,
@@ -18,10 +15,6 @@ from .analysis_exceptions import (
 
 __all__ = [
     "AnalysisException",
-    "RepositoryNotFoundException",
-    "RepositoryAccessException",
-    "InvalidRepositoryException",
-    "BranchNotFoundException",
     "AnalysisTimeoutException",
     "LLMServiceException",
     "RateLimitExceededException",

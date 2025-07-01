@@ -1,6 +1,7 @@
 """
 Custom exceptions for analysis operations
 Provides specific error types with appropriate HTTP status codes
+Cleaned for server-provided repository data architecture
 """
 
 
@@ -13,54 +14,13 @@ class AnalysisException(Exception):
         super().__init__(self.message)
 
 
-class RepositoryNotFoundException(AnalysisException):
-    """Raised when repository is not found or inaccessible"""
-
-    def __init__(self, repository_url: str, original_error: str = None):
-        message = f"Repository not found or inaccessible: {repository_url}"
-        if original_error:
-            message += f" - {original_error}"
-        super().__init__(message, status_code=404)
-        self.repository_url = repository_url
-
-
-class RepositoryAccessException(AnalysisException):
-    """Raised when repository exists but access is denied"""
-
-    def __init__(self, repository_url: str, original_error: str = None):
-        message = f"Access denied to repository: {repository_url}"
-        if original_error:
-            message += f" - {original_error}"
-        super().__init__(message, status_code=403)
-        self.repository_url = repository_url
-
-
-class InvalidRepositoryException(AnalysisException):
-    """Raised when repository URL is invalid"""
-
-    def __init__(self, repository_url: str):
-        message = f"Invalid repository URL: {repository_url}"
-        super().__init__(message, status_code=400)
-        self.repository_url = repository_url
-
-
-class BranchNotFoundException(AnalysisException):
-    """Raised when specified branch does not exist"""
-
-    def __init__(self, repository_url: str, branch: str):
-        message = f"Branch '{branch}' not found in repository: {repository_url}"
-        super().__init__(message, status_code=404)
-        self.repository_url = repository_url
-        self.branch = branch
-
-
 class AnalysisTimeoutException(AnalysisException):
     """Raised when analysis operation times out"""
 
-    def __init__(self, repository_url: str, timeout_duration: int):
-        message = f"Analysis timed out after {timeout_duration}s for repository: {repository_url}"
+    def __init__(self, operation: str, timeout_duration: int):
+        message = f"Analysis timed out after {timeout_duration}s during {operation}"
         super().__init__(message, status_code=408)
-        self.repository_url = repository_url
+        self.operation = operation
         self.timeout_duration = timeout_duration
 
 
@@ -90,11 +50,11 @@ class RateLimitExceededException(AnalysisException):
 class InsufficientDataException(AnalysisException):
     """Raised when repository has insufficient data for analysis"""
 
-    def __init__(self, repository_url: str, reason: str):
-        message = f"Insufficient data for analysis of {repository_url}: {reason}"
+    def __init__(self, reason: str, data_type: str = "repository"):
+        message = f"Insufficient {data_type} data for analysis: {reason}"
         super().__init__(message, status_code=422)
-        self.repository_url = repository_url
         self.reason = reason
+        self.data_type = data_type
 
 
 class ConfigurationException(AnalysisException):

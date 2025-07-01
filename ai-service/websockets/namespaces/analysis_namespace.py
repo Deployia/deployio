@@ -57,8 +57,8 @@ class AnalysisNamespace(BaseAINamespace):
             # Stream initial progress
             await self.emit_progress(session_id, 5, "Initializing analysis...")
 
-            # Process analysis with enriched data and progress callbacks
-            result = await analysis_service.analyze_enriched_data(
+            # Process analysis with repository data and progress callbacks
+            result = await analysis_service.analyze_repository(
                 repository_data=repository_data,
                 session_id=session_id,
                 analysis_types=analysis_types,
