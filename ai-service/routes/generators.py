@@ -1,6 +1,7 @@
 """
-Optimization Routes - Configuration generation and optimization endpoints
+Generator Routes - Configuration generation endpoints
 Provides intelligent deployment configuration generation based on analysis results
+Includes: Dockerfile, docker-compose, CI/CD pipelines, and GitHub Actions
 """
 
 from fastapi import APIRouter, HTTPException, Header, Depends
