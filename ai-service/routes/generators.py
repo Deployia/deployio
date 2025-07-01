@@ -13,7 +13,7 @@ from models.response import ResponseModel
 from engines.generators.config_generator import ConfigurationGenerator
 from engines.generators.dockerfile_generator import DockerfileGenerator
 from engines.generators.pipeline_generator import PipelineGenerator
-from engines.core.models import TechnologyStack, AnalysisResult
+from engines.core.models import TechnologyStack
 from engines.utils.validators import InputValidator
 
 logger = logging.getLogger(__name__)
@@ -27,41 +27,53 @@ validator = InputValidator()
 
 
 # Request Models
-class GenerateConfigRequest(BaseModel):
-    project_id: str
-    repository_url: str
-    technology_stack: Dict[str, Any]
+class GenerationFromAnalysisRequest(BaseModel):
+    """Generate configurations from complete analysis results"""
+
+    session_id: str
+    analysis_result: Dict[str, Any]  # Complete analysis results from detector
     config_types: List[str]  # ["dockerfile", "github_actions", "docker_compose"]
+    user_preferences: Optional[Dict[str, Any]] = None
+    optimization_level: str = (
+        "balanced"  # "basic", "balanced", "performance", "security"
+    )
+
+
+class GenerateConfigRequest(BaseModel):
+    """Generate configurations from analysis results and repository data"""
+
+    session_id: str
+    repository_data: Dict[str, Any]  # Complete repository data from server
+    analysis_results: Dict[str, Any]  # Results from analysis phase
+    config_types: List[str]  # ["dockerfile", "github_actions", "docker_compose"]
+    user_preferences: Optional[Dict[str, Any]] = None
     optimization_level: str = (
         "balanced"  # "basic", "balanced", "performance", "security"
     )
 
 
 class OptimizationRequest(BaseModel):
-    project_id: str
-    repository_url: str
-    technology_stack: Dict[str, Any]
-    current_configs: Optional[Dict[str, str]] = None
+    """Request optimizations based on current configurations"""
+
+    session_id: str
+    repository_data: Dict[str, Any]
+    analysis_results: Dict[str, Any]
+    current_configs: Dict[str, str]  # Current configuration files
     performance_metrics: Optional[Dict[str, Any]] = None
+    optimization_goals: List[str] = ["performance", "security", "maintainability"]
 
 
 class DockerfileRequest(BaseModel):
-    project_id: str
-    technology_stack: Dict[str, Any]
+    """Generate Dockerfile from analysis results"""
+
+    session_id: str
+    repository_data: Dict[str, Any]  # Repository data from server
+    analysis_results: Dict[str, Any]  # Technology stack from analysis
     optimization_level: str = "balanced"
     build_command: Optional[str] = None
     start_command: Optional[str] = None
-    port: int = 3000
-
-
-class GenerationFromAnalysisRequest(BaseModel):
-    """Request model for generating configurations from analysis results"""
-
-    session_id: str
-    analysis_result: Dict[str, Any]
-    config_types: List[str] = ["dockerfile", "docker_compose"]
-    user_preferences: Optional[Dict[str, Any]] = None
-    optimization_level: str = "balanced"
+    port: Optional[int] = None  # Auto-detect if not specified
+    base_image_preference: Optional[str] = None
 
 
 # Response Models
@@ -94,14 +106,6 @@ class OptimizationSuggestionResponse(BaseModel):
     implementation_steps: List[str]
     expected_benefit: str
     technical_details: Optional[Dict[str, Any]] = None
-
-
-class OptimizationRecommendation(BaseModel):
-    type: str
-    title: str
-    description: str
-    priority: str
-    implementation: str
 
 
 class OptimizationResponse(BaseModel):
@@ -201,33 +205,38 @@ async def generate_all_configs(
     """
     Generate all deployment configurations (Dockerfile, CI/CD, Docker Compose, etc.)
 
-    This is the main configuration generation endpoint
+    This is the main configuration generation endpoint using repository data and analysis results
     """
     try:
         import time
 
         start_time = time.time()
 
-        # Validate request
-        config_validation = validator.validate_configuration_request(request.dict())
-        if not config_validation.is_valid:
+        # Validate request has required fields
+        if not request.repository_data:
+            raise HTTPException(status_code=400, detail="repository_data is required")
+        if not request.analysis_results:
+            raise HTTPException(status_code=400, detail="analysis_results is required")
+
+        # Extract technology stack from analysis results
+        tech_stack_data = request.analysis_results.get("technology_stack", {})
+        if not tech_stack_data:
             raise HTTPException(
-                status_code=400,
-                detail=f"Invalid request: {', '.join(config_validation.errors)}",
+                status_code=400, detail="technology_stack not found in analysis_results"
             )
 
-        # Convert dict to TechnologyStack
-        tech_stack = TechnologyStack(**request.technology_stack)
+        # Convert to TechnologyStack object
+        tech_stack = _convert_analysis_to_tech_stack(tech_stack_data)
 
-        # Create mock analysis result for generators
-        analysis_result = AnalysisResult(
-            repository_url=request.repository_url,
-            analysis_type="full_analysis",
-            technology_stack=tech_stack,
-            confidence_score=0.95,
-            analysis_duration=0.0,
-            timestamp=time.time(),
-        )
+        # Create analysis result for generators using the new structure
+        analysis_result = {
+            "repository_data": request.repository_data,
+            "analysis_results": request.analysis_results,
+            "technology_stack": tech_stack_data,
+            "session_id": request.session_id,
+            "confidence_score": request.analysis_results.get("confidence_score", 0.95),
+            "timestamp": time.time(),
+        }
 
         generated_configs = []
         recommendations = []
@@ -341,19 +350,23 @@ async def generate_all_configs(
                 logger.error(f"Error generating {config_type}: {e}")
                 continue
 
-        # Generate optimization recommendations
+        # Generate optimization recommendations based on analysis results
         recommendations = _generate_optimization_recommendations(
             tech_stack, request.optimization_level
         )
         processing_time = time.time() - start_time
+
+        response_data = ConfigGenerationResponse(
+            project_id=request.session_id,
+            generated_configs=generated_configs,
+            overall_optimization_score=0.85,  # Default score, should be calculated
+            generation_time=processing_time,
+            recommendations=recommendations,
+        )
+
         return ResponseModel(
             success=True,
-            data=ConfigGenerationResponse(
-                project_id=request.project_id,
-                generated_configs=generated_configs,
-                recommendations=recommendations,
-                processing_time_ms=int(processing_time * 1000),
-            ),
+            data=response_data,
             message=f"Successfully generated {len(generated_configs)} configurations",
         )
 
@@ -374,15 +387,31 @@ async def generate_dockerfile_only(
     Generate optimized Dockerfile only - faster operation for Docker-specific needs
     """
     try:
-        tech_stack = _dict_to_tech_stack(request.technology_stack)
+        # Extract technology stack from analysis results
+        tech_stack_data = request.analysis_results.get("technology_stack", {})
+        if not tech_stack_data:
+            raise HTTPException(
+                status_code=400, detail="technology_stack not found in analysis_results"
+            )
+
+        tech_stack = _convert_analysis_to_tech_stack(tech_stack_data)
+
+        # Create analysis context for dockerfile generator
+        analysis_context = {
+            "repository_data": request.repository_data,
+            "analysis_results": request.analysis_results,
+            "technology_stack": tech_stack_data,
+            "session_id": request.session_id,
+        }
 
         config = await dockerfile_generator.generate_dockerfile(
+            analysis_context=analysis_context,
             tech_stack=tech_stack,
             optimization_level=request.optimization_level,
-            project_id=request.project_id,
             build_command=request.build_command,
             start_command=request.start_command,
             port=request.port,
+            base_image_preference=request.base_image_preference,
         )
 
         response = _convert_config_to_response(config)
@@ -403,16 +432,32 @@ async def get_optimization_suggestions(
     internal_service: str = Depends(validate_internal_request),
 ):
     """
-    Get deployment optimization suggestions based on technology stack and current setup
+    Get deployment optimization suggestions based on analysis results and current setup
     """
     try:
-        tech_stack = _dict_to_tech_stack(request.technology_stack)
+        # Extract technology stack from analysis results
+        tech_stack_data = request.analysis_results.get("technology_stack", {})
+        if not tech_stack_data:
+            raise HTTPException(
+                status_code=400, detail="technology_stack not found in analysis_results"
+            )
+
+        tech_stack = _convert_analysis_to_tech_stack(tech_stack_data)
+
+        # Create analysis context for optimization
+        analysis_context = {
+            "repository_data": request.repository_data,
+            "analysis_results": request.analysis_results,
+            "session_id": request.session_id,
+        }
 
         # Generate optimization suggestions
         suggestions = await config_generator.generate_optimization_suggestions(
+            analysis_context=analysis_context,
             tech_stack=tech_stack,
             current_configs=request.current_configs or {},
             performance_metrics=request.performance_metrics,
+            optimization_goals=request.optimization_goals,
         )
 
         # Convert to response format
@@ -451,7 +496,7 @@ async def get_optimization_suggestions(
         }
 
         response = OptimizationResponse(
-            project_id=request.project_id,
+            project_id=request.session_id,
             overall_score=overall_score,
             suggestions=suggestion_responses,
             priority_actions=priority_actions,
@@ -501,6 +546,21 @@ async def get_supported_config_types(
 
 
 # Helper functions
+def _convert_analysis_to_tech_stack(analysis_data: Dict[str, Any]) -> TechnologyStack:
+    """Convert analysis results to TechnologyStack object"""
+    return TechnologyStack(
+        primary_language=analysis_data.get("primary_language", "unknown"),
+        frameworks=analysis_data.get("frameworks", []),
+        databases=analysis_data.get("databases", []),
+        package_managers=analysis_data.get("package_managers", []),
+        build_tools=analysis_data.get("build_tools", []),
+        deployment_targets=analysis_data.get("deployment_targets", []),
+        runtime_version=analysis_data.get("runtime_version"),
+        architecture_pattern=analysis_data.get("architecture_pattern"),
+        additional_technologies=analysis_data.get("additional_technologies", []),
+    )
+
+
 def _dict_to_tech_stack(tech_dict: Dict[str, Any]) -> TechnologyStack:
     """Convert dictionary to TechnologyStack object"""
     return TechnologyStack(
@@ -532,81 +592,74 @@ def _convert_config_to_response(config) -> GeneratedConfigResponse:
 
 def _generate_optimization_recommendations(
     tech_stack: TechnologyStack, optimization_level: str
-) -> List[OptimizationRecommendation]:
+) -> List[Dict[str, Any]]:
     """Generate optimization recommendations based on technology stack"""
     recommendations = []
 
     # General recommendations
     recommendations.append(
-        OptimizationRecommendation(
-            type="security",
-            title="Use non-root user in containers",
-            description="Run applications as non-root user for better security",
-            priority="high",
-            implementation="Add USER directive in Dockerfile",
-        )
+        {
+            "type": "security",
+            "title": "Use non-root user in containers",
+            "description": "Run applications as non-root user for better security",
+            "priority": "high",
+            "implementation": "Add USER directive in Dockerfile",
+            "impact": "Reduces security risks",
+            "effort": "low",
+        }
     )
 
     # Language-specific recommendations
-    # Try both 'primary_language' and 'language' for compatibility
-    lang = (
-        getattr(tech_stack, "primary_language", None)
-        or getattr(tech_stack, "language", None)
-        or ""
-    )
-    if lang.lower() == "node":
+    lang = getattr(tech_stack, "primary_language", "").lower()
+    if lang == "node" or lang == "javascript":
         recommendations.extend(
             [
-                OptimizationRecommendation(
-                    type="performance",
-                    title="Use multi-stage Docker builds",
-                    description="Separate build and runtime stages to reduce image size",
-                    priority="medium",
-                    implementation="Implement multi-stage Dockerfile",
-                ),
-                OptimizationRecommendation(
-                    type="performance",
-                    title="Enable npm cache in CI/CD",
-                    description="Cache npm dependencies to speed up builds",
-                    priority="medium",
-                    implementation="Add cache configuration to CI/CD pipeline",
-                ),
+                {
+                    "type": "performance",
+                    "title": "Use multi-stage Docker builds",
+                    "description": "Separate build and runtime stages to reduce image size",
+                    "priority": "medium",
+                    "implementation": "Implement multi-stage Dockerfile",
+                    "impact": "30-50% smaller images",
+                    "effort": "medium",
+                },
+                {
+                    "type": "performance",
+                    "title": "Enable npm cache in CI/CD",
+                    "description": "Cache npm dependencies to speed up builds",
+                    "priority": "medium",
+                    "implementation": "Add cache configuration to CI/CD pipeline",
+                    "impact": "40-60% faster builds",
+                    "effort": "low",
+                },
             ]
         )
 
-    elif lang.lower() == "python":
+    elif lang == "python":
         recommendations.extend(
             [
-                OptimizationRecommendation(
-                    type="performance",
-                    title="Use Python slim images",
-                    description="Use python:slim base images to reduce size",
-                    priority="medium",
-                    implementation="Change FROM directive to python:3.11-slim",
-                ),
-                OptimizationRecommendation(
-                    type="security",
-                    title="Pin Python package versions",
-                    description="Pin exact versions in requirements.txt for reproducible builds",
-                    priority="high",
-                    implementation="Update requirements.txt with exact versions",
-                ),
+                {
+                    "type": "performance",
+                    "title": "Use Python slim images",
+                    "description": "Use python:slim base images to reduce size",
+                    "priority": "medium",
+                    "implementation": "Change FROM directive to python:3.11-slim",
+                    "impact": "40-60% smaller images",
+                    "effort": "low",
+                },
+                {
+                    "type": "security",
+                    "title": "Pin Python package versions",
+                    "description": "Pin exact versions in requirements.txt for reproducible builds",
+                    "priority": "high",
+                    "implementation": "Update requirements.txt with exact versions",
+                    "impact": "Better build reproducibility",
+                    "effort": "low",
+                },
             ]
         )
 
     return recommendations
-
-
-def _convert_tech_stack_dict(tech_dict: Dict[str, Any]) -> TechnologyStack:
-    """Convert dictionary to TechnologyStack object"""
-    return TechnologyStack(
-        primary_language=tech_dict.get("primary_language", "unknown"),
-        frameworks=tech_dict.get("frameworks", []),
-        databases=tech_dict.get("databases", []),
-        package_managers=tech_dict.get("package_managers", []),
-        build_tools=tech_dict.get("build_tools", []),
-        deployment_targets=tech_dict.get("deployment_targets", []),
-    )
 
 
 async def validate_internal_request(x_internal_service: str = Header(None)):

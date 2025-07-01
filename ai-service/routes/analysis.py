@@ -1,6 +1,6 @@
 """
-Analysis Routes - Clean API endpoints delegating to services
-Request/response handling only - all business logic in services
+Analysis Routes - Clean API endpoints for repository analysis
+Uses server-provided repository data architecture only
 """
 
 import logging
@@ -13,10 +13,6 @@ from services.analysis_service import analysis_service
 from services.progress_service import progress_service
 from exceptions import (
     AnalysisException,
-    RepositoryNotFoundException,
-    RepositoryAccessException,
-    InvalidRepositoryException,
-    BranchNotFoundException,
     AnalysisTimeoutException,
     LLMServiceException,
     RateLimitExceededException,
@@ -24,9 +20,7 @@ from exceptions import (
 )
 from middleware.auth import (
     AuthUser,
-    validate_jwt_token,
     validate_demo_or_user_token,
-    log_authentication_event,
 )
 
 # Configure logger
@@ -37,47 +31,42 @@ router = APIRouter()
 
 # Request Models
 class RepositoryAnalysisRequest(BaseModel):
-    repository_url: str
-    branch: str = "main"
-    analysis_types: Optional[List[str]] = None  # ["stack", "dependencies", "quality"]
-    force_llm_enhancement: bool = False
-    include_reasoning: bool = True
-    include_recommendations: bool = True
-    include_insights: bool = True
-    explain_null_fields: bool = True
-    track_progress: bool = False
-
-
-class EnrichedDataAnalysisRequest(BaseModel):
-    """Request model for analysis using pre-enriched repository data"""
+    """Request model for repository analysis using server-provided data"""
 
     repository_data: Dict[str, Any]
-    session_id: str
+    session_id: Optional[str] = None
     analysis_types: Optional[List[str]] = None  # ["stack", "dependencies", "quality"]
     force_llm_enhancement: bool = False
     include_reasoning: bool = True
     include_recommendations: bool = True
     include_insights: bool = True
-    explain_null_fields: bool = True
-
-
-class CodeQualityRequest(BaseModel):
-    repository_url: str
-    branch: str = "main"
-    include_reasoning: bool = True
     explain_null_fields: bool = True
 
 
 class StackDetectionRequest(BaseModel):
-    repository_url: str
-    branch: str = "main"
+    """Request model for technology stack detection only"""
+
+    repository_data: Dict[str, Any]
+    session_id: Optional[str] = None
+    force_llm_enhancement: bool = False
+    include_reasoning: bool = True
+    explain_null_fields: bool = True
+
+
+class CodeQualityRequest(BaseModel):
+    """Request model for code quality analysis only"""
+
+    repository_data: Dict[str, Any]
+    session_id: Optional[str] = None
     include_reasoning: bool = True
     explain_null_fields: bool = True
 
 
 class DependencyAnalysisRequest(BaseModel):
-    repository_url: str
-    branch: str = "main"
+    """Request model for dependency analysis only"""
+
+    repository_data: Dict[str, Any]
+    session_id: Optional[str] = None
     include_reasoning: bool = True
     explain_null_fields: bool = True
 
@@ -106,8 +95,7 @@ class SuggestionModel(BaseModel):
 
 class AnalysisResponse(BaseModel):
     # Basic information
-    repository_url: str
-    branch: str
+    repository_name: str
     analysis_approach: str
     processing_time: float
     confidence_score: float
@@ -139,76 +127,117 @@ class AnalysisResponse(BaseModel):
 
 
 class StackDetectionResponse(BaseModel):
-    repository_url: str
-    branch: str
+    # Basic information
+    repository_name: str
     analysis_approach: str
     processing_time: float
     confidence_score: float
     confidence_level: str
+
+    # Stack-specific results
     technology_stack: Dict
     detected_files: List[str]
+    primary_language: Optional[str] = None
+    framework: Optional[str] = None
+    build_tools: List[str] = []
+    package_managers: List[str] = []
+
+    # Architecture insights
+    architecture_pattern: Optional[str] = None
+    deployment_suggestions: List[str] = []
+
+    # Enhanced insights
     insights: List[InsightModel] = []
     reasoning: str = ""
     null_field_explanations: Dict[str, str] = {}
+
+    # LLM enhancement info
+    llm_used: bool = False
+    llm_confidence: float = 0.0
+    llm_reasoning: Optional[str] = None
+
+    # Progress tracking
     analysis_id: Optional[str] = None
 
 
 class CodeQualityResponse(BaseModel):
-    repository_url: str
-    branch: str
+    # Basic information
+    repository_name: str
     analysis_approach: str
     processing_time: float
     confidence_score: float
     confidence_level: str
-    quality_metrics: Dict
-    recommendations: List[Dict]
-    suggestions: List[SuggestionModel]
+
+    # Code quality metrics
+    quality_score: float
+    total_files_analyzed: int
+    total_lines_of_code: int
+    average_complexity: float
+    code_smells: List[Dict] = []
+
+    # Issues and suggestions
+    quality_issues: List[Dict] = []
+    refactoring_suggestions: List[str] = []
+    best_practices: List[str] = []
+
+    # Enhanced insights
     insights: List[InsightModel] = []
     reasoning: str = ""
     null_field_explanations: Dict[str, str] = {}
+
+    # LLM enhancement info
+    llm_used: bool = False
+    llm_confidence: float = 0.0
+    llm_reasoning: Optional[str] = None
+
+    # Progress tracking
     analysis_id: Optional[str] = None
 
 
 class DependencyAnalysisResponse(BaseModel):
-    repository_url: str
-    branch: str
+    # Basic information
+    repository_name: str
     analysis_approach: str
     processing_time: float
     confidence_score: float
     confidence_level: str
-    dependency_analysis: Dict
-    recommendations: List[Dict]
-    suggestions: List[SuggestionModel]
+
+    # Dependency information
+    total_dependencies: int
+    direct_dependencies: int
+    transitive_dependencies: int
+    package_managers: List[str] = []
+
+    # Security and health
+    vulnerable_packages: List[Dict] = []
+    outdated_packages: List[Dict] = []
+    license_issues: List[Dict] = []
+    dependency_health_score: float
+
+    # Insights and recommendations
+    optimization_suggestions: List[str] = []
+    security_recommendations: List[str] = []
+
+    # Enhanced insights
     insights: List[InsightModel] = []
     reasoning: str = ""
     null_field_explanations: Dict[str, str] = {}
+
+    # LLM enhancement info
+    llm_used: bool = False
+    llm_confidence: float = 0.0
+    llm_reasoning: Optional[str] = None
+
+    # Progress tracking
     analysis_id: Optional[str] = None
 
 
-class ProgressResponse(BaseModel):
-    """Response model for progress tracking"""
-
-    operation_id: str
-    step_name: str
-    percentage: float
-    status: str
-    message: str
-    timestamp: str
-
-
-# Authentication Dependencies
-def validate_internal_request(auth_user: AuthUser = Depends(validate_jwt_token)):
-    """Validate JWT token and internal service header"""
-    log_authentication_event(auth_user, "repository_analysis")
-    return auth_user
-
-
-def validate_demo_access(
-    auth_user: Optional[AuthUser] = Depends(validate_demo_or_user_token),
-):
-    """Allow both authenticated users and demo access"""
-    log_authentication_event(auth_user, "demo_analysis")
-    return auth_user
+# Authentication dependency
+async def validate_internal_request(
+    authorization: str = Depends(validate_demo_or_user_token),
+) -> AuthUser:
+    """Validate internal requests from server"""
+    return authorization
 
 
 # API Endpoints
@@ -218,99 +247,25 @@ async def analyze_repository(
     auth_user: AuthUser = Depends(validate_internal_request),
 ):
     """
-    Complete repository analysis with detailed insights and optional progress tracking
+    Complete repository analysis with detailed insights
 
     Provides comprehensive analysis including:
     - Technology stack detection with detailed reasoning
     - Dependency analysis with security insights
     - Code quality assessment with recommendations
     - Detailed insights with evidence and confidence scoring
+
+    Uses server-provided repository data (no direct GitHub calls)
     """
-    logger.info(
-        f"Repository analysis request for {request.repository_url} from {auth_user}"
-    )
+    # Extract repository name from data
+    repo_metadata = request.repository_data.get("metadata", {})
+    repository_name = repo_metadata.get("full_name", "unknown")
+
+    logger.info(f"Repository analysis request for {repository_name} from {auth_user}")
 
     try:
         # Delegate to service
         result = await analysis_service.analyze_repository(
-            repository_url=request.repository_url,
-            branch=request.branch,
-            analysis_types=request.analysis_types,
-            force_llm=request.force_llm_enhancement,
-            include_reasoning=request.include_reasoning,
-            include_recommendations=request.include_recommendations,
-            include_insights=request.include_insights,
-            explain_null_fields=request.explain_null_fields,
-            track_progress=request.track_progress,
-        )
-
-        logger.info(
-            f"Repository analysis completed successfully for {request.repository_url}"
-        )
-        return ResponseModel(
-            success=True,
-            message="Repository analysis completed successfully",
-            data=AnalysisResponse(**result),
-        )
-
-    except RepositoryNotFoundException as e:
-        logger.error(f"Repository not found: {request.repository_url}")
-        raise HTTPException(status_code=404, detail=e.message)
-
-    except RepositoryAccessException as e:
-        logger.error(f"Repository access denied: {request.repository_url}")
-        raise HTTPException(status_code=403, detail=e.message)
-
-    except InvalidRepositoryException as e:
-        logger.error(f"Invalid repository URL: {request.repository_url}")
-        raise HTTPException(status_code=400, detail=e.message)
-
-    except BranchNotFoundException as e:
-        logger.error(f"Branch not found: {request.branch} in {request.repository_url}")
-        raise HTTPException(status_code=404, detail=e.message)
-
-    except RateLimitExceededException as e:
-        logger.error(f"Rate limit exceeded: {e.service}")
-        raise HTTPException(status_code=429, detail=e.message)
-
-    except AnalysisTimeoutException as e:
-        logger.error(f"Analysis timeout: {request.repository_url}")
-        raise HTTPException(status_code=408, detail=e.message)
-
-    except LLMServiceException as e:
-        logger.error(f"LLM service error: {e.operation}")
-        raise HTTPException(status_code=503, detail=e.message)
-
-    except InsufficientDataException as e:
-        logger.error(f"Insufficient data: {request.repository_url}")
-        raise HTTPException(status_code=422, detail=e.message)
-
-    except AnalysisException as e:
-        logger.error(f"Analysis error: {request.repository_url}")
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-
-    except Exception as e:
-        logger.error(
-            f"Repository analysis failed for {request.repository_url}: {str(e)}",
-            exc_info=True,
-        )
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.post("/analyze-enriched-data", response_model=ResponseModel[AnalysisResponse])
-async def analyze_enriched_data(
-    request: EnrichedDataAnalysisRequest,
-    auth_user: AuthUser = Depends(validate_internal_request),
-):
-    """
-    Analyze repository using pre-enriched data from the server
-    Used in the WebSocket-based analysis flow
-    """
-    logger.info(f"Enriched data analysis request for session: {request.session_id}")
-
-    try:
-        # Run analysis on enriched data
-        result = await analysis_service.analyze_enriched_data(
             repository_data=request.repository_data,
             session_id=request.session_id,
             analysis_types=request.analysis_types,
@@ -321,28 +276,78 @@ async def analyze_enriched_data(
             explain_null_fields=request.explain_null_fields,
         )
 
-        logger.info(
-            f"Enriched data analysis completed successfully for session: {request.session_id}"
-        )
-
+        logger.info(f"Repository analysis completed successfully for {repository_name}")
         return ResponseModel(
             success=True,
-            message="Enriched data analysis completed successfully",
+            message="Repository analysis completed successfully",
             data=AnalysisResponse(**result),
         )
 
+    except AnalysisTimeoutException as e:
+        logger.error(f"Analysis timeout: {repository_name}")
+        raise HTTPException(status_code=408, detail=e.message)
+
+    except LLMServiceException as e:
+        logger.error(f"LLM service error: {repository_name}")
+        raise HTTPException(status_code=503, detail=e.message)
+
+    except RateLimitExceededException as e:
+        logger.error(f"Rate limit exceeded: {repository_name}")
+        raise HTTPException(status_code=429, detail=e.message)
+
+    except InsufficientDataException as e:
+        logger.error(f"Insufficient data: {repository_name}")
+        raise HTTPException(status_code=422, detail=e.message)
+
     except AnalysisException as e:
-        logger.error(
-            f"Enriched data analysis failed for session {request.session_id}: {e.message}"
-        )
+        logger.error(f"Analysis error: {repository_name}")
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
     except Exception as e:
         logger.error(
-            f"Enriched data analysis failed for session {request.session_id}: {str(e)}",
+            f"Repository analysis failed for {repository_name}: {str(e)}",
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error during analysis"
+        )
+
+
+@router.get("/analysis/{analysis_id}/status")
+async def get_analysis_status(
+    analysis_id: str,
+    auth_user: AuthUser = Depends(validate_internal_request),
+):
+    """
+    Get the status of a running analysis
+
+    Returns current progress and status information
+    """
+    try:
+        status = await progress_service.get_analysis_status(analysis_id)
+        return ResponseModel(
+            success=True,
+            message="Analysis status retrieved successfully",
+            data=status,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get analysis status for {analysis_id}: {str(e)}")
+        raise HTTPException(
+            status_code=404, detail="Analysis not found or status unavailable"
+        )
+
+
+@router.get("/health")
+async def health_check():
+    """
+    Health check endpoint for the analysis service
+    """
+    return ResponseModel(
+        success=True,
+        message="Analysis service is healthy",
+        data={"status": "ok", "service": "ai-analysis"},
+    )
 
 
 @router.post("/detect-stack", response_model=ResponseModel[StackDetectionResponse])
@@ -351,53 +356,54 @@ async def detect_technology_stack(
     auth_user: AuthUser = Depends(validate_internal_request),
 ):
     """
-    Focused technology stack detection with insights and reasoning
+    Technology stack detection only
+
+    Provides focused analysis of:
+    - Programming languages and versions
+    - Frameworks and libraries
+    - Build tools and package managers
+    - Architecture patterns and deployment suggestions
     """
-    logger.info(f"Technology stack detection request for {request.repository_url}")
+    repo_metadata = request.repository_data.get("metadata", {})
+    repository_name = repo_metadata.get("full_name", "unknown")
+
+    logger.info(f"Stack detection request for {repository_name} from {auth_user}")
 
     try:
-        # Delegate to service
-        result = await analysis_service.analyze_technology_stack(
-            repository_url=request.repository_url,
-            branch=request.branch,
+        result = await analysis_service.analyze_repository(
+            repository_data=request.repository_data,
+            session_id=request.session_id,
+            analysis_types=["stack"],
+            force_llm=request.force_llm_enhancement,
             include_reasoning=request.include_reasoning,
+            include_recommendations=True,
+            include_insights=True,
             explain_null_fields=request.explain_null_fields,
         )
 
-        logger.info(
-            f"Technology stack detection completed for {request.repository_url}"
-        )
+        logger.info(f"Stack detection completed successfully for {repository_name}")
         return ResponseModel(
             success=True,
-            message="Technology stack analysis completed successfully",
+            message="Technology stack detection completed successfully",
             data=StackDetectionResponse(**result),
         )
 
-    except RepositoryNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.message)
-    except RepositoryAccessException as e:
-        raise HTTPException(status_code=403, detail=e.message)
-    except InvalidRepositoryException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except BranchNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.message)
-    except RateLimitExceededException as e:
-        raise HTTPException(status_code=429, detail=e.message)
     except AnalysisTimeoutException as e:
+        logger.error(f"Stack analysis timeout: {repository_name}")
         raise HTTPException(status_code=408, detail=e.message)
+
     except LLMServiceException as e:
+        logger.error(f"LLM service error during stack detection: {repository_name}")
         raise HTTPException(status_code=503, detail=e.message)
-    except InsufficientDataException as e:
-        raise HTTPException(status_code=422, detail=e.message)
+
     except AnalysisException as e:
+        logger.error(f"Stack detection error: {repository_name}")
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
     except Exception as e:
-        logger.error(
-            f"Technology stack detection failed for {request.repository_url}: {str(e)}",
-            exc_info=True,
-        )
+        logger.error(f"Stack detection failed for {repository_name}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Technology stack analysis failed: {str(e)}"
+            status_code=500, detail="Internal server error during stack detection"
         )
 
 
@@ -407,45 +413,56 @@ async def analyze_code_quality(
     auth_user: AuthUser = Depends(validate_internal_request),
 ):
     """
-    Focused code quality assessment with metrics and recommendations
+    Code quality analysis only
+
+    Provides focused analysis of:
+    - Code complexity and maintainability metrics
+    - Code smells and quality issues
+    - Refactoring suggestions and best practices
+    - Technical debt assessment
     """
+    repo_metadata = request.repository_data.get("metadata", {})
+    repository_name = repo_metadata.get("full_name", "unknown")
+
+    logger.info(f"Code quality analysis request for {repository_name} from {auth_user}")
 
     try:
-        # Delegate to service
-        result = await analysis_service.analyze_code_quality(
-            repository_url=request.repository_url,
-            branch=request.branch,
+        result = await analysis_service.analyze_repository(
+            repository_data=request.repository_data,
+            session_id=request.session_id,
+            analysis_types=["quality"],
+            force_llm=False,  # Code quality doesn't typically need LLM enhancement
             include_reasoning=request.include_reasoning,
+            include_recommendations=True,
+            include_insights=True,
             explain_null_fields=request.explain_null_fields,
         )
 
+        logger.info(
+            f"Code quality analysis completed successfully for {repository_name}"
+        )
         return ResponseModel(
             success=True,
             message="Code quality analysis completed successfully",
             data=CodeQualityResponse(**result),
         )
 
-    except RepositoryNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.message)
-    except RepositoryAccessException as e:
-        raise HTTPException(status_code=403, detail=e.message)
-    except InvalidRepositoryException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except BranchNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.message)
-    except RateLimitExceededException as e:
-        raise HTTPException(status_code=429, detail=e.message)
     except AnalysisTimeoutException as e:
+        logger.error(f"Code quality analysis timeout: {repository_name}")
         raise HTTPException(status_code=408, detail=e.message)
-    except LLMServiceException as e:
-        raise HTTPException(status_code=503, detail=e.message)
+
     except InsufficientDataException as e:
+        logger.error(f"Insufficient data for code quality analysis: {repository_name}")
         raise HTTPException(status_code=422, detail=e.message)
+
     except AnalysisException as e:
+        logger.error(f"Code quality analysis error: {repository_name}")
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
     except Exception as e:
+        logger.error(f"Code quality analysis failed for {repository_name}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Code quality analysis failed: {str(e)}"
+            status_code=500, detail="Internal server error during code quality analysis"
         )
 
 
@@ -457,217 +474,52 @@ async def analyze_dependencies(
     auth_user: AuthUser = Depends(validate_internal_request),
 ):
     """
-    Focused dependency analysis with security insights and recommendations
+    Dependency analysis only
+
+    Provides focused analysis of:
+    - Package dependencies and versions
+    - Security vulnerabilities and licensing issues
+    - Outdated packages and optimization opportunities
+    - Dependency health and risk assessment
     """
+    repo_metadata = request.repository_data.get("metadata", {})
+    repository_name = repo_metadata.get("full_name", "unknown")
+
+    logger.info(f"Dependency analysis request for {repository_name} from {auth_user}")
 
     try:
-        # Delegate to service
-        result = await analysis_service.analyze_dependencies(
-            repository_url=request.repository_url,
-            branch=request.branch,
+        result = await analysis_service.analyze_repository(
+            repository_data=request.repository_data,
+            session_id=request.session_id,
+            analysis_types=["dependencies"],
+            force_llm=False,  # Dependency analysis is rule-based
             include_reasoning=request.include_reasoning,
+            include_recommendations=True,
+            include_insights=True,
             explain_null_fields=request.explain_null_fields,
         )
 
+        logger.info(f"Dependency analysis completed successfully for {repository_name}")
         return ResponseModel(
             success=True,
             message="Dependency analysis completed successfully",
             data=DependencyAnalysisResponse(**result),
         )
 
-    except RepositoryNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.message)
-    except RepositoryAccessException as e:
-        raise HTTPException(status_code=403, detail=e.message)
-    except InvalidRepositoryException as e:
-        raise HTTPException(status_code=400, detail=e.message)
-    except BranchNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.message)
-    except RateLimitExceededException as e:
-        raise HTTPException(status_code=429, detail=e.message)
     except AnalysisTimeoutException as e:
+        logger.error(f"Dependency analysis timeout: {repository_name}")
         raise HTTPException(status_code=408, detail=e.message)
-    except LLMServiceException as e:
-        raise HTTPException(status_code=503, detail=e.message)
+
     except InsufficientDataException as e:
+        logger.error(f"Insufficient data for dependency analysis: {repository_name}")
         raise HTTPException(status_code=422, detail=e.message)
+
     except AnalysisException as e:
+        logger.error(f"Dependency analysis error: {repository_name}")
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
     except Exception as e:
+        logger.error(f"Dependency analysis failed for {repository_name}: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Dependency analysis failed: {str(e)}"
+            status_code=500, detail="Internal server error during dependency analysis"
         )
-
-
-@router.get("/supported-technologies", response_model=ResponseModel[Dict[str, Any]])
-async def get_supported_technologies(
-    auth_user: Optional[AuthUser] = Depends(validate_demo_access),
-):
-    """
-    Get list of supported technologies and frameworks
-    """
-    try:
-        # Delegate to service
-        result = await analysis_service.get_supported_technologies()
-
-        return ResponseModel(
-            success=True,
-            message="Supported technologies retrieved successfully",
-            data=result,
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get supported technologies: {str(e)}"
-        )
-
-
-@router.get("/progress/{operation_id}", response_model=ResponseModel[ProgressResponse])
-async def get_analysis_progress(operation_id: str):
-    """
-    Get progress status for a running analysis operation
-    """
-    try:
-        # Delegate to progress service
-        tracker = progress_service.get_tracker(operation_id)
-        if not tracker:
-            raise HTTPException(status_code=404, detail="Operation not found")
-
-        progress_data = tracker.get_current_state()
-
-        return ResponseModel(
-            success=True,
-            message="Progress retrieved successfully",
-            data=ProgressResponse(
-                operation_id=operation_id,
-                step_name=progress_data["step_name"],
-                percentage=progress_data["percentage"],
-                status=progress_data["status"],
-                message=progress_data["message"],
-                timestamp=progress_data["timestamp"],
-            ),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get progress: {str(e)}")
-
-
-@router.get("/health", response_model=ResponseModel[Dict[str, str]])
-async def health_check():
-    """
-    Basic health check endpoint
-    """
-    try:
-        return ResponseModel(
-            success=True,
-            message="Service is healthy",
-            data={
-                "status": "healthy",
-                "service": "ai-service-analysis",
-                "timestamp": str(int(__import__("time").time())),
-            },
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
-
-
-@router.get("/health/detailed", response_model=ResponseModel[Dict[str, Any]])
-async def detailed_health_check():
-    """
-    Detailed health check including service dependencies
-    """
-    try:
-        # Delegate to service
-        health_data = await analysis_service.get_health_status()
-
-        # Add progress service health
-        progress_health = progress_service.get_health_status()
-        health_data["progress_service"] = progress_health
-
-        return ResponseModel(
-            success=True,
-            message="Detailed health check completed",
-            data=health_data,
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Detailed health check failed: {str(e)}"
-        )
-
-
-class AnalysisResult:
-    """Placeholder class for AnalysisResult"""
-
-    def __init__(
-        self,
-        repository_url,
-        branch,
-        analysis_approach,
-        processing_time,
-        confidence_score,
-        confidence_level,
-        technology_stack,
-        detected_files,
-        recommendations,
-        suggestions,
-        quality_metrics=None,
-        security_metrics=None,
-        detailed_analysis=None,
-        llm_used=False,
-        llm_confidence=0.0,
-        llm_reasoning=None,
-    ):
-        self.repository_url = repository_url
-        self.branch = branch
-        self.analysis_approach = analysis_approach
-        self.processing_time = processing_time
-        self.confidence_score = confidence_score
-        self.confidence_level = confidence_level
-        self.technology_stack = technology_stack
-        self.detected_files = detected_files
-        self.recommendations = recommendations
-        self.suggestions = suggestions
-        self.quality_metrics = quality_metrics
-        self.security_metrics = security_metrics
-        self.detailed_analysis = detailed_analysis or {}
-        self.llm_used = llm_used
-        self.llm_confidence = llm_confidence
-        self.llm_reasoning = llm_reasoning
-
-    class TechnologyStack:
-        def __init__(
-            self,
-            language,
-            framework,
-            database,
-            build_tool,
-            package_manager,
-            runtime_version,
-            additional_technologies,
-            architecture_pattern,
-            deployment_strategy,
-        ):
-            self.language = language
-            self.framework = framework
-            self.database = database
-            self.build_tool = build_tool
-            self.package_manager = package_manager
-            self.runtime_version = runtime_version
-            self.additional_technologies = additional_technologies
-            self.architecture_pattern = architecture_pattern
-            self.deployment_strategy = deployment_strategy
-
-    technology_stack = TechnologyStack(
-        language="Python",
-        framework="FastAPI",
-        database="PostgreSQL",
-        build_tool="Docker",
-        package_manager="pip",
-        runtime_version="3.9",
-        additional_technologies=["Redis", "Celery"],
-        architecture_pattern="Microservices",
-        deployment_strategy="Kubernetes",
-    )
