@@ -80,6 +80,11 @@ class DependencyAnalyzer(BaseAnalyzer):
             # Extract key files from repository data
             key_files = repository_data.get("key_files", {})
 
+            # Debug logging to understand the data structure
+            logger.debug(f"Repository data keys: {list(repository_data.keys())}")
+            logger.debug(f"Key files for dependency analysis: {list(key_files.keys())}")
+            logger.debug(f"Key files count: {len(key_files)}")
+
             # Extract stack context if available
             stack_context = repository_data.get("stack_analysis", None)
 

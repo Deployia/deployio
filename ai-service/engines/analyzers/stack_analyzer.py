@@ -355,6 +355,13 @@ class StackAnalyzer(BaseAnalyzer):
                 ),
             )
 
+            # Debug logging to understand the data structure
+            logger.debug(f"Repository data keys: {list(repository_data.keys())}")
+            logger.debug(f"File tree count: {len(context.file_tree)}")
+            logger.debug(f"Key files count: {len(context.config_files)}")
+            logger.debug(f"Key files: {list(context.config_files.keys())}")
+            logger.debug(f"Package manifests count: {len(context.package_manifests)}")
+
             # Multi-phase analysis
             structure_results = await self._analyze_file_structure(context)
             package_results = await self._analyze_package_files(context)

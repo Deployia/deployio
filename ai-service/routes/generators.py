@@ -550,13 +550,28 @@ async def get_supported_config_types(
 # Helper functions
 def _convert_analysis_to_tech_stack(analysis_data: Dict[str, Any]) -> TechnologyStack:
     """Convert analysis results to TechnologyStack object"""
+    # Extract the first/primary framework from frameworks list if available
+    frameworks_list = analysis_data.get("frameworks", [])
+    primary_framework = frameworks_list[0] if frameworks_list else None
+
     return TechnologyStack(
         language=analysis_data.get("primary_language", "unknown"),
-        frameworks=analysis_data.get("frameworks", []),
-        databases=analysis_data.get("databases", []),
-        package_managers=analysis_data.get("package_managers", []),
-        build_tools=analysis_data.get("build_tools", []),
-        deployment_targets=analysis_data.get("deployment_targets", []),
+        framework=primary_framework,  # Use singular framework field
+        database=(
+            analysis_data.get("databases", [None])[0]
+            if analysis_data.get("databases")
+            else None
+        ),  # Take first database
+        build_tool=(
+            analysis_data.get("build_tools", [None])[0]
+            if analysis_data.get("build_tools")
+            else None
+        ),  # Take first build tool
+        package_manager=(
+            analysis_data.get("package_managers", [None])[0]
+            if analysis_data.get("package_managers")
+            else None
+        ),  # Take first package manager
         runtime_version=analysis_data.get("runtime_version"),
         architecture_pattern=analysis_data.get("architecture_pattern"),
         additional_technologies=analysis_data.get("additional_technologies", []),

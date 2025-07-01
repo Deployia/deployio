@@ -77,61 +77,154 @@ class GitHubProvider extends BaseGitProvider {
 
   async getRepositoryStructure(owner, repo, branch = "main") {
     try {
-      // Get important files for analysis
-      const files = {
-        "package.json": await this.getFileContent(
-          owner,
-          repo,
-          "package.json",
-          branch
-        ),
-        "README.md": await this.getFileContent(
-          owner,
-          repo,
-          "README.md",
-          branch
-        ),
-        Dockerfile: await this.getFileContent(
-          owner,
-          repo,
-          "Dockerfile",
-          branch
-        ),
-        "docker-compose.yml": await this.getFileContent(
-          owner,
-          repo,
-          "docker-compose.yml",
-          branch
-        ),
-        ".env.example": await this.getFileContent(
-          owner,
-          repo,
-          ".env.example",
-          branch
-        ),
-        "requirements.txt": await this.getFileContent(
-          owner,
-          repo,
-          "requirements.txt",
-          branch
-        ),
-        "pom.xml": await this.getFileContent(owner, repo, "pom.xml", branch),
-        Gemfile: await this.getFileContent(owner, repo, "Gemfile", branch),
-        "composer.json": await this.getFileContent(
-          owner,
-          repo,
-          "composer.json",
-          branch
-        ),
-      };
-
-      // Get repository tree to understand structure
+      // Get repository tree to understand structure first
       const tree = await this.getRepositoryTree(owner, repo, branch);
 
+      // Define important file patterns for comprehensive analysis
+      const importantPatterns = [
+        // Package/dependency files
+        "package.json",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "requirements.txt",
+        "setup.py",
+        "pyproject.toml",
+        "Pipfile",
+        "poetry.lock",
+        "pom.xml",
+        "build.gradle",
+        "gradle.properties",
+        "Gemfile",
+        "Gemfile.lock",
+        "composer.json",
+        "composer.lock",
+        "go.mod",
+        "go.sum",
+        "Cargo.toml",
+        "Cargo.lock",
+
+        // Configuration files
+        "Dockerfile",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        ".env.example",
+        ".env.template",
+        "webpack.config.js",
+        "vite.config.js",
+        "tsconfig.json",
+        "babel.config.js",
+        "rollup.config.js",
+        "tailwind.config.js",
+        "postcss.config.js",
+
+        // Framework-specific files
+        "next.config.js",
+        "nuxt.config.js",
+        "vue.config.js",
+        "angular.json",
+        "ng-package.json",
+        "svelte.config.js",
+
+        // Infrastructure and deployment
+        "k8s",
+        "kubernetes",
+        "helm",
+        "terraform",
+        "docker-compose.prod.yml",
+        "docker-compose.dev.yml",
+        ".github/workflows",
+        ".gitlab-ci.yml",
+        "azure-pipelines.yml",
+        "Jenkinsfile",
+        "buildspec.yml",
+
+        // Documentation
+        "README.md",
+        "README.rst",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+
+        // IDE/Editor configs that can indicate tech stack
+        ".vscode/settings.json",
+        ".idea/modules.xml",
+      ];
+
+      // Find all relevant files from the tree
+      const relevantFiles = new Map();
+
+      for (const file of tree.files || []) {
+        const path = file.path;
+
+        // Check if file matches any important pattern
+        const isImportant = importantPatterns.some((pattern) => {
+          if (pattern.includes("/")) {
+            // Directory or path pattern
+            return path.includes(pattern);
+          } else {
+            // Exact filename or extension pattern
+            return (
+              path === pattern ||
+              path.endsWith(`/${pattern}`) ||
+              path.endsWith(pattern)
+            );
+          }
+        });
+
+        if (isImportant) {
+          relevantFiles.set(path, null); // Will fetch content below
+        }
+      }
+
+      // Also include the original hardcoded important files
+      const hardcodedFiles = [
+        "package.json",
+        "README.md",
+        "Dockerfile",
+        "docker-compose.yml",
+        ".env.example",
+        "requirements.txt",
+        "pom.xml",
+        "Gemfile",
+        "composer.json",
+      ];
+
+      for (const fileName of hardcodedFiles) {
+        if (!relevantFiles.has(fileName)) {
+          relevantFiles.set(fileName, null);
+        }
+      }
+
+      // Fetch content for all relevant files (in parallel for efficiency)
+      const filePromises = Array.from(relevantFiles.keys()).map(
+        async (filePath) => {
+          try {
+            const content = await this.getFileContent(
+              owner,
+              repo,
+              filePath,
+              branch
+            );
+            return [filePath, content];
+          } catch (error) {
+            // File doesn't exist or can't be fetched
+            return [filePath, null];
+          }
+        }
+      );
+
+      const fileResults = await Promise.all(filePromises);
+
+      // Build final files object with only successful fetches
+      const files = {};
+      for (const [filePath, content] of fileResults) {
+        if (content !== null) {
+          files[filePath] = content;
+        }
+      }
+
       return {
-        files: Object.fromEntries(
-          Object.entries(files).filter(([_, content]) => content !== null)
-        ),
+        files,
         structure: tree,
         analysisTimestamp: new Date(),
       };

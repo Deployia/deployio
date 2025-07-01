@@ -385,10 +385,50 @@ class GitProviderService {
         token
       );
 
-      const analysis = await providerInstance.analyzeRepository(
-        repoFullName,
+      // Extract owner and repo from fullName
+      const [owner, repo] = repoFullName.split("/");
+
+      // Fetch repository data using the provider
+      const repository = await providerInstance.getRepository(owner, repo);
+      const repositoryStructure = await providerInstance.getRepositoryStructure(
+        owner,
+        repo,
         branch
       );
+
+      // Prepare repository data for AI service in the expected format
+      const repositoryData = {
+        repository: {
+          name: repository.name,
+          full_name: repository.fullName,
+          description: repository.description,
+          private: repository.private,
+          default_branch: repository.defaultBranch,
+          language: repository.language,
+          topics: repository.topics,
+          stars: repository.stars,
+          forks: repository.forks,
+          clone_url: repository.cloneUrl,
+          html_url: repository.htmlUrl,
+        },
+        key_files: repositoryStructure.files,
+        file_tree: repositoryStructure.structure?.files || [],
+        metadata: {
+          branch: branch,
+          analyzed_at: new Date().toISOString(),
+          provider: provider,
+        },
+      };
+
+      // Import AI service to call analyzeRepository
+      const ai = require("@services/ai");
+      const analysis = await ai.analyzeRepository(repositoryData, {
+        user: user,
+        branch: branch,
+        analysisTypes: ["stack", "dependencies", "quality"],
+        includeRecommendations: true,
+        includeInsights: true,
+      });
 
       // Update last used timestamp
       this._updateProviderLastUsed(user, provider);
