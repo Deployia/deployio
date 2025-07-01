@@ -407,6 +407,7 @@ class AnalysisService:
         # Base response structure
         response_data = {
             "repository_url": repository_url,
+            "repository_name": result.repository_name or "unknown",
             "branch": branch,
             "analysis_approach": result.analysis_approach,
             "processing_time": result.processing_time,
@@ -427,7 +428,11 @@ class AnalysisService:
             )
 
         if mode in ["full", "quality"] and result.quality_metrics:
-            response_data["quality_metrics"] = result.quality_metrics
+            # Convert dataclass to dict if needed
+            if hasattr(result.quality_metrics, "__dict__"):
+                response_data["quality_metrics"] = result.quality_metrics.__dict__
+            else:
+                response_data["quality_metrics"] = result.quality_metrics
 
         if mode in ["full", "dependencies"]:
             # Always include dependency_analysis as a dict for response model compatibility

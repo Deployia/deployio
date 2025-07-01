@@ -523,3 +523,12 @@ async def analyze_dependencies(
         raise HTTPException(
             status_code=500, detail="Internal server error during dependency analysis"
         )
+
+
+@router.get("/analysis/technologies")
+async def get_supported_technologies():
+    """
+    Returns the list of supported technologies for analysis
+    """
+    data = await analysis_service.get_supported_technologies()
+    return ResponseModel(success=True, data=data)
