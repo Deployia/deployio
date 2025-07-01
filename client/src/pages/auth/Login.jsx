@@ -18,6 +18,7 @@ import AuthDivider from "@components/auth/Divider";
 import OAuthSection from "@components/auth/OAuthSection";
 import OTPInput from "@components/auth/OTPInput";
 import SEO from "@components/SEO.jsx";
+import { getRedirectPath } from "@utils/authRedirect";
 import { toast } from "react-hot-toast";
 
 function Login() {
@@ -78,7 +79,8 @@ function Login() {
   useEffect(() => {
     if (isAuthenticated) {
       toast.success("Welcome back!");
-      navigate("/dashboard");
+      const redirectPath = getRedirectPath(searchParams, "/dashboard");
+      navigate(redirectPath);
     }
 
     // Redirect to OTP verification if needed
@@ -103,6 +105,7 @@ function Login() {
     error,
     navigate,
     dispatch,
+    searchParams,
   ]);
 
   const onChange = (e) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,25 +13,36 @@ import {
   FaCheckCircle,
   FaDownload,
   FaCodeBranch,
+  FaCog,
+  FaCloudUploadAlt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import AnalysisResults from "@components/analysis/AnalysisResults";
 import api from "@utils/api";
+import { useAuthRedirect } from "@utils/authRedirect";
+import webSocketService from "@services/websocketService";
 
 const AnalysisDemo = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading, checkAuth } = useAuthRedirect(
+    "/products/analysis-demo"
+  );
+
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [branch, setBranch] = useState("main");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);
+  const [generationResults, setGenerationResults] = useState(null);
   const [error, setError] = useState(null);
   const [serviceHealth, setServiceHealth] = useState(null);
   const [checkingHealth, setCheckingHealth] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [operationId, setOperationId] = useState(null); // eslint-disable-line no-unused-vars
   const [realProgress, setRealProgress] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
   const progressIntervalRef = useRef(null);
   const progressPollingRef = useRef(null);
+  const socketRef = useRef(null);
 
   // Progress steps with icons and descriptions
   const progressSteps = [
@@ -56,11 +67,144 @@ const AnalysisDemo = () => {
       description: "Evaluating code quality and security",
     },
     {
+      icon: FaCog,
+      label: "Auto Approval",
+      description: "Automatically approving analysis results",
+    },
+    {
+      icon: FaCloudUploadAlt,
+      label: "Generating Configs",
+      description: "Creating deployment configurations",
+    },
+    {
       icon: FaRocket,
-      label: "Generating Results",
-      description: "Compiling comprehensive analysis report",
+      label: "Complete",
+      description: "Analysis and configuration generation completed",
     },
   ];
+
+  // WebSocket connection setup
+  const setupWebSocketConnection = useCallback(async () => {
+    try {
+      const socket = await webSocketService.connect("/ai");
+      socketRef.current = socket;
+      setWsConnected(true);
+
+      // Listen for progress updates
+      socket.on("ai:progress", (data) => {
+        console.log("Received progress update:", data);
+        setRealProgress(data);
+
+        // Map progress to our step system
+        const stepMap = {
+          Initializing: 0,
+          "Fetching Repository": 0,
+          "Repository Analysis": 1,
+          "Detecting Stack": 1,
+          "AI Enhancement": 2,
+          "Quality Analysis": 3,
+          "Analysis Complete": 3,
+          "Auto Approval": 4,
+          "Configuration Generation": 5,
+          "Generating Configs": 5,
+          Complete: 6,
+        };
+
+        const stepIndex =
+          stepMap[data.step_name] !== undefined
+            ? stepMap[data.step_name]
+            : currentStep;
+        setCurrentStep(stepIndex);
+
+        // Stop progress animation when complete or error
+        if (data.step_name === "Complete" || data.error) {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+          }
+          if (progressPollingRef.current) {
+            clearInterval(progressPollingRef.current);
+          }
+          setCurrentStep(progressSteps.length - 1);
+
+          // Handle errors from progress updates
+          if (data.error) {
+            setError(data.error);
+            setIsAnalyzing(false);
+          }
+        }
+      });
+
+      // Listen for errors
+      socket.on("ai:error", (data) => {
+        console.error("WebSocket AI error:", data);
+        setError(data.error || "WebSocket connection error");
+        setIsAnalyzing(false);
+      });
+
+      // Listen for disconnect
+      socket.on("disconnect", () => {
+        console.log("WebSocket disconnected");
+        setWsConnected(false);
+      });
+
+      // Listen for reconnect
+      socket.on("connect", () => {
+        console.log("WebSocket connected/reconnected");
+        setWsConnected(true);
+      });
+
+      console.log("WebSocket AI connection established");
+    } catch (error) {
+      console.error("Failed to connect to WebSocket:", error);
+      setWsConnected(false);
+    }
+  }, [currentStep, progressSteps.length]); // Include all dependencies
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !checkAuth()) {
+      return; // checkAuth will handle the redirect
+    }
+  }, [isLoading, checkAuth]);
+  // Check service health on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkServiceHealth();
+      setupWebSocketConnection();
+    }
+  }, [isAuthenticated, setupWebSocketConnection]); // Include the memoized function
+
+  // Cleanup on unmount
+  useEffect(() => {
+    const progressInterval = progressIntervalRef.current;
+    const progressPolling = progressPollingRef.current;
+
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      if (progressPolling) {
+        clearInterval(progressPolling);
+      }
+
+      // Cleanup WebSocket connection
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  // Don't render anything while checking auth or redirecting
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-white">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Sample repositories for quick testing
   const sampleRepos = [
@@ -80,23 +224,6 @@ const AnalysisDemo = () => {
       branch: "master",
     },
   ];
-
-  // Check service health on mount
-  useEffect(() => {
-    checkServiceHealth();
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-      if (progressPollingRef.current) {
-        clearInterval(progressPollingRef.current);
-      }
-    };
-  }, []);
 
   const checkServiceHealth = async () => {
     try {
@@ -128,93 +255,20 @@ const AnalysisDemo = () => {
     return input;
   };
 
-  const pollProgress = async (operationId) => {
-    try {
-      const response = await api.get(
-        `/ai/analysis/demo/progress/${operationId}`
-      );
-      if (response.data.success) {
-        const progressData = response.data.data;
-        setRealProgress(progressData);
-
-        // Map progress to our step system
-        if (progressData.step_name) {
-          const stepMap = {
-            Initialization: 0,
-            "Repository Fetch": 0,
-            "Stack Detection": 1,
-            "Dependency Analysis": 1,
-            "Code Analysis": 2,
-            "Insight Generation": 3,
-            Finalization: 4,
-          };
-
-          const stepIndex = stepMap[progressData.step_name] || 0;
-          setCurrentStep(stepIndex);
-        }
-
-        // Stop polling if completed or failed
-        if (
-          progressData.status === "COMPLETED" ||
-          progressData.status === "FAILED"
-        ) {
-          if (progressPollingRef.current) {
-            clearInterval(progressPollingRef.current);
-          }
-          if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error polling progress:", error);
-      // Continue with fallback animation if progress polling fails
-    }
-  };
-
-  const startRealProgressTracking = (operationId) => {
-    setOperationId(operationId);
-    setCurrentStep(0);
-    setRealProgress(null);
-
-    // Clear any existing intervals
-    if (progressPollingRef.current) {
-      clearInterval(progressPollingRef.current);
-    }
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-
-    // Start polling for real progress immediately
-    pollProgress(operationId);
-    progressPollingRef.current = setInterval(() => {
-      pollProgress(operationId);
-    }, 1500); // Poll every 1.5 seconds
-
-    // Fallback animation in case real progress is not available
-    progressIntervalRef.current = setInterval(() => {
-      setCurrentStep((prev) => {
-        if (prev < progressSteps.length - 1) {
-          return prev + 1;
-        }
-        return prev;
-      });
-    }, 4000); // Slower fallback animation (4 seconds per step)
-  };
-
   const startProgressAnimation = () => {
     setCurrentStep(0);
 
+    // More conservative timing for fallback mode
     progressIntervalRef.current = setInterval(() => {
       setCurrentStep((prev) => {
-        if (prev < progressSteps.length - 1) {
+        // Don't go past step 5 (before "Complete") in fallback mode
+        if (prev < progressSteps.length - 2) {
           return prev + 1;
         }
         return prev;
       });
-    }, 1500);
+    }, 3000); // Slower 3-second intervals for fallback
   };
-
   const handleAnalyze = async () => {
     const normalizedUrl = normalizeRepositoryUrl(repositoryUrl.trim());
     if (!normalizedUrl) return;
@@ -222,28 +276,31 @@ const AnalysisDemo = () => {
     setIsAnalyzing(true);
     setError(null);
     setAnalysisResults(null);
+    setGenerationResults(null);
     setRealProgress(null);
     setOperationId(null);
 
-    // Start with fallback animation
-    startProgressAnimation();
+    // Start with fallback animation if WebSocket is not connected
+    if (!wsConnected) {
+      console.log("WebSocket not connected, using fallback progress animation");
+      startProgressAnimation();
+    } else {
+      // Reset progress for real-time updates
+      setCurrentStep(0);
+    }
 
     try {
       const response = await api.post(
-        "/ai/analysis/demo",
+        "/ai/analysis/demo/complete-pipeline",
         {
           repositoryUrl: normalizedUrl,
           branch: branch || "main",
           analysisTypes: ["stack", "dependencies", "quality"],
-          forceLlm: true,
-          includeReasoning: true,
-          includeRecommendations: true,
-          includeInsights: true,
-          explainNullFields: true,
-          trackProgress: true,
+          configTypes: ["dockerfile", "github_actions", "docker_compose"],
+          autoApprove: true,
         },
         {
-          timeout: 60000, // 60 second timeout for analysis
+          timeout: 120000, // 2 minute timeout for complete pipeline
         }
       );
 
@@ -257,16 +314,22 @@ const AnalysisDemo = () => {
         }
 
         setCurrentStep(progressSteps.length - 1);
-        setAnalysisResults(response.data.data);
 
-        // If we have an operation ID, start real progress tracking
-        if (response.data.data?.operation_id) {
-          startRealProgressTracking(response.data.data.operation_id);
-        }
+        // Extract analysis and generation results
+        const pipelineData = response.data.data;
+        setAnalysisResults(pipelineData.analysis);
+        setGenerationResults(pipelineData.generation);
 
         // Store operation ID for future reference
-        if (response.data.data?.data?.analysis_id) {
-          setOperationId(response.data.data.data.analysis_id);
+        if (pipelineData.sessionId) {
+          setOperationId(pipelineData.sessionId);
+
+          // Subscribe to WebSocket progress updates for this session
+          if (socketRef.current) {
+            socketRef.current.emit("subscribe_analysis", {
+              sessionId: pipelineData.sessionId,
+            });
+          }
         }
       }
     } catch (err) {
@@ -312,18 +375,60 @@ const AnalysisDemo = () => {
   };
 
   const handleDownloadReport = async () => {
-    if (!analysisResults) return;
+    if (!analysisResults && !generationResults) return;
 
     try {
-      // For now, generate a JSON download until backend PDF generation is implemented
+      // Create comprehensive download package
       const reportData = {
-        repository: analysisResults.data.repository_url,
-        branch: analysisResults.data.branch,
         timestamp: new Date().toISOString(),
-        analysis: analysisResults.data,
-        generated_by: "DeployIO AI Analysis Engine",
+        generated_by: "DeployIO AI Analysis Engine - Demo",
+        demo_mode: true,
       };
 
+      if (analysisResults) {
+        reportData.repository = analysisResults.data?.repository_url;
+        reportData.branch = analysisResults.data?.branch;
+        reportData.analysis = analysisResults.data;
+      }
+
+      if (generationResults) {
+        reportData.configurations = generationResults.configurations;
+        reportData.generation_metadata = {
+          config_types: Object.keys(generationResults.configurations || {}),
+          optimization_level: generationResults.optimization_level,
+          timestamp: generationResults.timestamp,
+        };
+      }
+
+      // Create a zip-like structure with multiple files
+      const downloadFiles = [];
+
+      // Add analysis report
+      if (analysisResults) {
+        downloadFiles.push({
+          name: "analysis-report.json",
+          content: JSON.stringify(reportData.analysis, null, 2),
+        });
+      }
+
+      // Add individual config files
+      if (generationResults?.configurations) {
+        Object.entries(generationResults.configurations).forEach(
+          ([configType, config]) => {
+            if (config.files) {
+              Object.entries(config.files).forEach(([filename, content]) => {
+                downloadFiles.push({
+                  name: `configs/${configType}/${filename}`,
+                  content: content,
+                });
+              });
+            }
+          }
+        );
+      }
+
+      // For now, download the complete report as JSON
+      // TODO: Implement proper multi-file download or zip generation
       const blob = new Blob([JSON.stringify(reportData, null, 2)], {
         type: "application/json",
       });
@@ -331,20 +436,16 @@ const AnalysisDemo = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `analysis-report-${analysisResults.data.repository_url
-        .split("/")
-        .pop()}-${new Date().toISOString().split("T")[0]}.json`;
+      const repoName =
+        analysisResults?.data?.repository_url?.split("/").pop() ||
+        "demo-project";
+      a.download = `deployio-${repoName}-${
+        new Date().toISOString().split("T")[0]
+      }.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // TODO: Replace with backend API call for PDF generation:
-      // const response = await api.post('/ai/analysis/generate-report', {
-      //   analysisId: analysisResults.data.analysis_id,
-      //   format: 'pdf'
-      // });
-      // window.open(response.data.downloadUrl, '_blank');
     } catch (error) {
       console.error("Error downloading report:", error);
       setError("Failed to generate report download. Please try again.");
@@ -365,8 +466,8 @@ const AnalysisDemo = () => {
   return (
     <>
       <SEO
-        title="AI Code Analysis Demo - Try Our Engine Live"
-        description="Experience our AI-powered code analysis engine. Analyze any GitHub repository instantly with technology stack detection, dependency analysis, and code quality assessment."
+        title="Complete DevOps Pipeline Demo - AI Analysis & Config Generation"
+        description="Experience our complete AI-powered DevOps workflow: repository analysis, automatic approval, and production-ready configuration generation including Docker, GitHub Actions, and more."
       />
 
       <div className="min-h-screen">
@@ -379,30 +480,55 @@ const AnalysisDemo = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-12"
             >
-              <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium mb-6">
-                <FaBrain className="w-4 h-4 mr-2" />
-                AI Code Analysis Engine
+              <div className="flex flex-col sm:flex-row gap-2 items-center justify-center mb-6">
+                <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium">
+                  <FaBrain className="w-4 h-4 mr-2" />
+                  AI Code Analysis Engine
+                  <div
+                    className={`ml-2 w-2 h-2 rounded-full ${
+                      serviceHealth?.status === "healthy"
+                        ? "bg-green-400 animate-pulse"
+                        : "bg-red-400"
+                    }`}
+                  />
+                </div>
                 <div
-                  className={`ml-2 w-2 h-2 rounded-full ${
-                    serviceHealth?.status === "healthy"
-                      ? "bg-green-400 animate-pulse"
-                      : "bg-red-400"
-                  }`}
-                />
+                  className="inline-flex items-center px-3 py-1 rounded-full bg-gray-500/20 border border-gray-500/30 text-gray-300 text-xs font-medium"
+                  title={
+                    wsConnected
+                      ? "Connected to real-time progress updates"
+                      : "Using estimated progress - refresh page to retry connection"
+                  }
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full mr-2 ${
+                      wsConnected
+                        ? "bg-green-400 animate-pulse"
+                        : "bg-orange-400"
+                    }`}
+                  />
+                  {wsConnected ? "Real-time Connected" : "Fallback Mode"}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center mb-4">
+                <span className="px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-semibold rounded-full">
+                  🚀 DEMO MODE
+                </span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-                Analyze Any
+                Complete DevOps
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
                   {" "}
-                  GitHub Repository
+                  Pipeline Demo
                 </span>
               </h1>
 
               <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-                Get instant insights into technology stack, dependencies, code
-                quality, and architecture patterns with our AI-powered analysis
-                engine.
+                Experience our full AI-powered workflow: repository analysis,
+                automatic approval, and complete configuration generation for
+                production-ready deployment.
               </p>
             </motion.div>
 
@@ -585,6 +711,8 @@ const AnalysisDemo = () => {
                               >
                                 {isCurrent && realProgress?.message
                                   ? realProgress.message
+                                  : isCurrent && !wsConnected
+                                  ? `${step.description} (estimated)`
                                   : step.description}
                               </p>
                               {isCurrent && realProgress?.percentage && (
@@ -650,20 +778,89 @@ const AnalysisDemo = () => {
 
             {/* Results Display */}
             <AnimatePresence>
-              {analysisResults && !isAnalyzing && (
+              {(analysisResults || generationResults) && !isAnalyzing && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   className="max-w-7xl mx-auto"
                 >
-                  <AnalysisResults results={analysisResults} />{" "}
+                  {/* Analysis Results */}
+                  {analysisResults && (
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+                        <FaBrain className="w-6 h-6 mr-3 text-blue-400" />
+                        Analysis Results
+                      </h3>
+                      <AnalysisResults results={analysisResults} />
+                    </div>
+                  )}
+
+                  {/* Generation Results */}
+                  {generationResults && (
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+                        <FaCog className="w-6 h-6 mr-3 text-green-400" />
+                        Generated Configurations
+                      </h3>
+                      <div className="space-y-6">
+                        {generationResults.configurations &&
+                          Object.entries(generationResults.configurations).map(
+                            ([configType, config]) => (
+                              <motion.div
+                                key={configType}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50"
+                              >
+                                <h4 className="text-lg font-semibold text-white mb-4 capitalize flex items-center">
+                                  <FaCloudUploadAlt className="w-5 h-5 mr-2 text-green-400" />
+                                  {configType.replace("_", " ")} Configuration
+                                </h4>
+                                <div className="space-y-4">
+                                  {config.files &&
+                                    Object.entries(config.files).map(
+                                      ([filename, content]) => (
+                                        <div
+                                          key={filename}
+                                          className="bg-gray-900/50 rounded-lg p-4"
+                                        >
+                                          <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-gray-300">
+                                              {filename}
+                                            </span>
+                                            <button
+                                              onClick={() =>
+                                                navigator.clipboard.writeText(
+                                                  content
+                                                )
+                                              }
+                                              className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                                            >
+                                              Copy
+                                            </button>
+                                          </div>
+                                          <pre className="text-xs text-gray-300 overflow-x-auto">
+                                            <code>{content}</code>
+                                          </pre>
+                                        </div>
+                                      )
+                                    )}
+                                </div>
+                              </motion.div>
+                            )
+                          )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="text-center mt-12 pt-8 border-t border-gray-700/50">
                     <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
                       <button
                         onClick={() => {
                           setAnalysisResults(null);
+                          setGenerationResults(null);
                           setRepositoryUrl("");
                         }}
                         className="w-full sm:w-auto px-6 py-3 bg-gray-700/50 text-white rounded-xl hover:bg-gray-600/50 transition-colors"
@@ -675,7 +872,7 @@ const AnalysisDemo = () => {
                         className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all flex items-center justify-center"
                       >
                         <FaRocket className="w-4 h-4 mr-2" />
-                        Get Full Access
+                        Create Project
                         <FaArrowRight className="w-4 h-4 ml-2" />
                       </button>
                       <button
@@ -683,7 +880,7 @@ const AnalysisDemo = () => {
                         className="w-full sm:w-auto px-6 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white hover:bg-gray-700 transition-colors flex items-center justify-center"
                       >
                         <FaDownload className="w-4 h-4 mr-2" />
-                        Download Report
+                        Download All Files
                       </button>
                     </div>
                   </div>
