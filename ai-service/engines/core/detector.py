@@ -13,6 +13,7 @@ from .models import (
     TechnologyStack,
     ConfidenceLevel,
     calculate_weighted_confidence,
+    get_confidence_level,
 )
 from ..analyzers.stack_analyzer import StackAnalyzer
 from ..analyzers.dependency_analyzer import DependencyAnalyzer
@@ -114,21 +115,25 @@ class UnifiedDetectionEngine:
             if enhancement and enhancement.llm_enhanced:
                 # Use LLM-enhanced stack and fields if available
                 logger.info(
-                    f"Using LLM technology stack (confidence: {getattr(enhancement.enhanced_stack, 'confidence', 0):.2f})"
+                    f"Using LLM technology stack (confidence improvement: {enhancement.confidence_improvement:.2f})"
                 )
-                combined_result.technology_stack = enhancement.enhanced_stack
-                combined_result.confidence_score = (
-                    getattr(enhancement.enhanced_stack, "confidence", 0.0) or 0.0
-                )
+                if enhancement.enhanced_stack:
+                    combined_result.technology_stack = enhancement.enhanced_stack
+                    # Update confidence with improvement
+                    combined_result.confidence_score = min(
+                        1.0,
+                        combined_result.confidence_score
+                        + enhancement.confidence_improvement,
+                    )
+
                 combined_result.llm_used = True
                 combined_result.analysis_approach = "llm_enhanced"
                 combined_result.recommendations = enhancement.recommendations
-                combined_result.suggestions = getattr(enhancement, "suggestions", [])
+                combined_result.suggestions = enhancement.suggestions
                 combined_result.llm_reasoning = enhancement.reasoning
-                combined_result.llm_confidence = (
-                    getattr(enhancement.enhanced_stack, "confidence", 0.0) or 0.0
-                )
-                combined_result.insights = getattr(enhancement, "insights", [])
+                combined_result.llm_confidence = combined_result.confidence_score
+                combined_result.insights = enhancement.insights
+                combined_result.llm_provider = enhancement.llm_provider
 
             # Step 5: Cache the result
             await self.cache_manager.set(cache_key, combined_result)
@@ -222,22 +227,108 @@ class UnifiedDetectionEngine:
         """
         # Get basic repository info
         repo_info = repository_data.get("repository", {})
+        repo_metadata = repository_data.get("metadata", {})
         repository_url = repo_info.get("url", "")
+        repository_name = repo_metadata.get(
+            "full_name", repo_info.get("name", "unknown")
+        )
         branch = repo_info.get("branch", "main")
 
         # Extract stack analysis
         stack_result = analysis_results.get("stack", {})
-        technology_stack = stack_result.get("technology_stack")
+        stack_dict = stack_result.get("technology_stack", {})
+
+        # Convert stack dictionary to TechnologyStack object
+        if stack_dict and isinstance(stack_dict, dict):
+            detected_technologies = stack_dict.get("detected_technologies", [])
+            primary_tech = detected_technologies[0] if detected_technologies else {}
+
+            technology_stack = TechnologyStack(
+                language=stack_dict.get("primary_language")
+                or primary_tech.get("language"),
+                framework=stack_dict.get("framework")
+                or (
+                    primary_tech.get("name")
+                    if primary_tech.get("type") == "framework"
+                    else None
+                ),
+                version=stack_dict.get("version") or primary_tech.get("version"),
+                confidence=primary_tech.get("confidence", 0.0),
+                detection_method=primary_tech.get("detection_method", "rule_based"),
+                additional_technologies=[
+                    tech.get("name", "") for tech in detected_technologies[1:]
+                ],
+                build_tool=(
+                    stack_dict.get("build_tools", [None])[0]
+                    if stack_dict.get("build_tools")
+                    else None
+                ),
+                package_manager=(
+                    stack_dict.get("package_managers", [None])[0]
+                    if stack_dict.get("package_managers")
+                    else None
+                ),
+                architecture_pattern=stack_dict.get("architecture_pattern"),
+                deployment_strategy=(
+                    stack_dict.get("deployment_suggestions", [None])[0]
+                    if stack_dict.get("deployment_suggestions")
+                    else None
+                ),
+            )
+        else:
+            technology_stack = TechnologyStack()
+
         stack_confidence = stack_result.get("confidence_score", 0.0)
 
-        # Extract dependency analysis
+        # Extract dependency analysis and convert to unified format
         dependency_result = analysis_results.get("dependencies", {})
-        dependencies = dependency_result.get("dependencies", {})
+        dependency_data = dependency_result.get("dependencies", {})
+
+        dependency_analysis = None
+        if dependency_data:
+            from .models import DependencyAnalysis
+
+            # Convert dependency data to structured format
+            vulnerable_packages = dependency_data.get("vulnerable_packages", [])
+            outdated_packages = dependency_data.get("outdated_packages", [])
+
+            dependency_analysis = DependencyAnalysis(
+                total_dependencies=dependency_data.get("total_dependencies", 0),
+                direct_dependencies=dependency_data.get("direct_dependencies", 0),
+                transitive_dependencies=dependency_data.get(
+                    "transitive_dependencies", 0
+                ),
+                package_managers=dependency_data.get("package_managers", []),
+                vulnerable_count=len(vulnerable_packages),
+                outdated_count=len(outdated_packages),
+                health_score=dependency_result.get("dependency_health_score", 0.0),
+                confidence_score=dependency_result.get("confidence_score", 0.0),
+                security_recommendations=dependency_result.get(
+                    "security_recommendations", []
+                ),
+                optimization_suggestions=dependency_result.get(
+                    "optimization_suggestions", []
+                ),
+            )
+
         dependency_confidence = dependency_result.get("confidence_score", 0.0)
 
-        # Extract code quality analysis
+        # Extract code quality analysis and convert to unified format
         quality_result = analysis_results.get("code_quality", {})
-        quality_metrics = quality_result.get("quality_metrics", {})
+        quality_data = quality_result.get("quality_metrics", {})
+
+        quality_metrics = None
+        if quality_data:
+            from .models import QualityMetrics
+
+            quality_metrics = QualityMetrics(
+                total_files_analyzed=quality_data.get("total_files_analyzed", 0),
+                total_lines_of_code=quality_data.get("total_lines_of_code", 0),
+                average_complexity=quality_data.get("average_complexity", 0.0),
+                quality_score=quality_data.get("quality_score", 0.0),
+                code_smells=quality_data.get("code_smells", []),
+            )
+
         quality_confidence = quality_result.get("confidence_score", 0.0)
 
         # Calculate weighted confidence
@@ -246,23 +337,32 @@ class UnifiedDetectionEngine:
             ("dependencies", dependency_confidence, 0.3),
             ("quality", quality_confidence, 0.3),
         ]
-        overall_confidence = calculate_weighted_confidence(confidence_scores)
+        # Unpack scores and weights for the helper
+        scores = [score for _, score, _ in confidence_scores]
+        weights = [weight for _, _, weight in confidence_scores]
+        overall_confidence = calculate_weighted_confidence(scores, weights)
 
-        # Create unified result
+        # Create unified result using the new comprehensive model
         result = AnalysisResult(
             repository_url=repository_url,
+            repository_name=repository_name,
             branch=branch,
-            technology_stack=technology_stack or TechnologyStack(),
-            dependencies=dependencies,
+            technology_stack=technology_stack,
+            dependency_analysis=dependency_analysis,
             quality_metrics=quality_metrics,
             confidence_score=overall_confidence,
-            confidence_level=ConfidenceLevel.from_score(overall_confidence),
+            confidence_level=get_confidence_level(overall_confidence),
             analysis_approach="rule_based",
             llm_used=False,
             processing_time=0.0,  # Will be updated later
-            recommendations=[],  # Will be filled by LLM enhancer
-            suggestions=[],  # Will be filled by LLM enhancer
-            insights=[],  # Will be filled by LLM enhancer
+            detected_files=stack_result.get("detected_files", []),
+            file_tree=repository_data.get("file_tree", []),
+            key_files=repository_data.get("key_files", {}),
+            detailed_analysis={
+                "stack_analysis": stack_result,
+                "dependency_analysis": dependency_result,
+                "quality_analysis": quality_result,
+            },
         )
 
         return result
@@ -287,21 +387,20 @@ class UnifiedDetectionEngine:
         Create an error result when analysis fails
         """
         repo_info = repository_data.get("repository", {})
+        repo_metadata = repository_data.get("metadata", {})
 
         return AnalysisResult(
             repository_url=repo_info.get("url", ""),
+            repository_name=repo_metadata.get(
+                "full_name", repo_info.get("name", "unknown")
+            ),
             branch=repo_info.get("branch", "main"),
             technology_stack=TechnologyStack(),
-            dependencies={},
-            quality_metrics={},
             confidence_score=0.0,
             confidence_level=ConfidenceLevel.LOW,
             analysis_approach="error",
             llm_used=False,
             processing_time=0.0,
-            recommendations=[],
-            suggestions=[],
-            insights=[],
             error_message=error,
         )
 

@@ -9,7 +9,7 @@ import re
 import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from engines.core.models import TechnologyStack, ConfidenceLevel
+from engines.core.models import TechnologyStack
 from exceptions import AnalysisException
 from .base_analyzer import BaseAnalyzer
 
@@ -521,7 +521,7 @@ class StackAnalyzer(BaseAnalyzer):
     ) -> List[TechnologyStack]:
         """Analyze file extensions to detect programming languages"""
         results = []
-        file_types = context.structure_analysis.get("file_types", {})
+        file_types = context.structure_analysis.get("files_by_extension", {})
         total_files = sum(file_types.values())
 
         if total_files == 0:
@@ -560,7 +560,16 @@ class StackAnalyzer(BaseAnalyzer):
         """Analyze package files for technology detection"""
         results = []
 
-        for file_path, content in context.key_files.items():
+        for file_path, file_data in context.config_files.items():
+            # Handle both string content and object format from server
+            if isinstance(file_data, dict):
+                content = file_data.get("content", "")
+            else:
+                content = file_data
+
+            if not content:
+                continue
+
             filename = file_path.split("/")[-1].lower()
 
             if filename in self.package_analyzers:
@@ -969,7 +978,16 @@ class StackAnalyzer(BaseAnalyzer):
         """Analyze file content for framework-specific patterns"""
         results = []
 
-        for file_path, content in context.key_files.items():
+        for file_path, file_data in context.config_files.items():
+            # Handle both string content and object format from server
+            if isinstance(file_data, dict):
+                content = file_data.get("content", "")
+            else:
+                content = file_data
+
+            if not content:
+                continue
+
             # Only analyze code files
             if not self._is_code_file(file_path):
                 continue
@@ -1102,9 +1120,9 @@ class StackAnalyzer(BaseAnalyzer):
         distribution = {"high": 0, "medium": 0, "low": 0}
 
         for result in results:
-            if result.confidence >= ConfidenceLevel.HIGH.value:
+            if result.confidence >= 0.8:  # High confidence threshold
                 distribution["high"] += 1
-            elif result.confidence >= ConfidenceLevel.MEDIUM.value:
+            elif result.confidence >= 0.6:  # Medium confidence threshold
                 distribution["medium"] += 1
             else:
                 distribution["low"] += 1

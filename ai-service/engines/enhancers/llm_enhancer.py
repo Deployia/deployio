@@ -4,30 +4,14 @@ Uses modular LLM services for clean separation of concerns
 """
 
 import logging
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
+from typing import Dict, Optional, Any
 
-from engines.core.models import AnalysisResult, TechnologyStack
+from engines.core.models import AnalysisResult, TechnologyStack, LLMEnhancementResult
 from engines.core.llm import LLMClientManager, LLMAPIClient, LLMRequest, LLMProvider
 from engines.core.llm.response_parser import LLMResponseParser
 from .prompt_templates import PromptTemplates
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class LLMEnhancementResult:
-    """Result of LLM enhancement"""
-
-    enhanced_stack: TechnologyStack
-    confidence_boost: float
-    reasoning: str
-    additional_insights: List[str]
-    recommendations: List[Dict[str, Any]]
-    suggestions: List[Dict[str, Any]] = field(default_factory=list)
-    insights: List[Dict[str, Any]] = field(default_factory=list)
-    null_field_explanations: Dict[str, str] = field(default_factory=dict)
-    llm_enhanced: bool = False
 
 
 class LLMEnhancer:
@@ -477,16 +461,14 @@ class LLMEnhancer:
 
         return LLMEnhancementResult(
             enhanced_stack=enhanced_stack,
-            confidence_boost=total_confidence_boost,
             reasoning=combined_reasoning or "LLM enhancement applied",
-            additional_insights=optimization_data.get("additional_insights", []),
+            suggestions=optimization_data.get("additional_insights", []),
             recommendations=optimization_data.get("recommendations", []),
-            suggestions=optimization_data.get("suggestions", []),
-            insights=tech_data.get("insights", []),
-            null_field_explanations=optimization_data.get(
-                "null_field_explanations", {}
-            ),
+            insights=[],  # Will be populated from tech_data insights
+            confidence_improvement=total_confidence_boost,
             llm_enhanced=True,
+            llm_provider="openai",
+            processing_time=0.0,
         )
 
     def _create_comprehensive_result(
@@ -537,14 +519,14 @@ class LLMEnhancer:
 
         return LLMEnhancementResult(
             enhanced_stack=enhanced_stack,
-            confidence_boost=confidence_boost,
             reasoning=parsed_data.get("reasoning", "Comprehensive LLM analysis"),
-            additional_insights=parsed_data.get("additional_insights", []),
+            suggestions=parsed_data.get("additional_insights", []),
             recommendations=parsed_data.get("recommendations", []),
-            suggestions=parsed_data.get("suggestions", []),
-            insights=parsed_data.get("insights", []),
-            null_field_explanations=null_field_explanations,
+            insights=[],  # Will be populated from parsed_data insights
+            confidence_improvement=confidence_boost,
             llm_enhanced=True,
+            llm_provider="openai",
+            processing_time=0.0,
         )
 
     async def _rule_based_enhancement(
@@ -594,11 +576,14 @@ class LLMEnhancer:
 
         return LLMEnhancementResult(
             enhanced_stack=analysis_result.technology_stack,
-            confidence_boost=0.05,  # Small boost for rule-based enhancement
             reasoning="Rule-based enhancement applied (LLM unavailable)",
-            additional_insights=["Rule-based analysis completed"],
+            suggestions=["Rule-based analysis completed"],
             recommendations=recommendations,
+            insights=[],
+            confidence_improvement=0.05,  # Small boost for rule-based enhancement
             llm_enhanced=False,
+            llm_provider=None,
+            processing_time=0.0,
         )
 
     async def health_check(self) -> Dict[str, Any]:

@@ -6,21 +6,21 @@ Clean, maintainable, and highly accurate AI engines
 from .core.detector import UnifiedDetectionEngine
 from .core.models import (
     AnalysisResult,
-    AnalysisType, 
+    AnalysisType,
     TechnologyStack,
     ConfidenceLevel,
     DependencyAnalysis,
-    CodeQualityMetrics,
-    OptimizationSuggestion
+    QualityMetrics,
 )
+from .optimizers.base_optimizer import OptimizationSuggestion
 
 __all__ = [
     "UnifiedDetectionEngine",
     "AnalysisResult",
     "AnalysisType",
-    "TechnologyStack", 
+    "TechnologyStack",
     "ConfidenceLevel",
     "DependencyAnalysis",
-    "CodeQualityMetrics",
-    "OptimizationSuggestion"
+    "QualityMetrics",
+    "OptimizationSuggestion",
 ]

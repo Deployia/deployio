@@ -8,7 +8,7 @@ import ast
 import logging
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-from engines.core.models import CodeAnalysis, CodeMetrics, QualityIssue
+from engines.core.models import QualityMetrics, CodeAnalysis, CodeMetrics, QualityIssue
 from .base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -250,7 +250,16 @@ class CodeAnalyzer(BaseAnalyzer):
         }
 
         filtered = {}
-        for path, content in files.items():
+        for path, file_data in files.items():
+            # Handle both string content and object format from server
+            if isinstance(file_data, dict):
+                content = file_data.get("content", "")
+            else:
+                content = file_data
+
+            if not content:
+                continue
+
             ext = "." + path.split(".")[-1] if "." in path else ""
             if ext.lower() in source_extensions:
                 filtered[path] = content
@@ -262,7 +271,8 @@ class CodeAnalyzer(BaseAnalyzer):
     ) -> Optional[FileAnalysis]:
         """Analyze a single source file"""
         # Detect language
-        language = self._detect_language(file_path)
+        # Use the correct _detect_language signature
+        language = self._detect_language(file_path, content)
         if not language:
             return None
 

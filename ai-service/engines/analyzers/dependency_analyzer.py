@@ -9,7 +9,7 @@ import logging
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from engines.core.models import DependencyAnalysis, Dependency
+from engines.core.models import DependencyAnalysis, DependencyInfo
 from .base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -229,7 +229,16 @@ class DependencyAnalyzer(BaseAnalyzer):
         )
 
         # Analyze each dependency file in priority order
-        for file_path, content in prioritized_files.items():
+        for file_path, file_data in prioritized_files.items():
+            # Handle both string content and object format from server
+            if isinstance(file_data, dict):
+                content = file_data.get("content", "")
+            else:
+                content = file_data
+
+            if not content:
+                continue
+
             filename = file_path.split("/")[-1].lower()
 
             if filename in self.analyzers:
@@ -261,6 +270,9 @@ class DependencyAnalyzer(BaseAnalyzer):
             total_dependencies=len(unique_dependencies),
             direct_dependencies=len(
                 [d for d in unique_dependencies if not d.transitive]
+            ),
+            transitive_dependencies=len(
+                [d for d in unique_dependencies if d.transitive]
             ),
             dev_dependencies=len([d for d in unique_dependencies if d.dev_dependency]),
             package_managers=list(package_managers),
@@ -298,7 +310,7 @@ class DependencyAnalyzer(BaseAnalyzer):
             # Production dependencies
             for name, version in data.get("dependencies", {}).items():
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version),
                         type="runtime",
@@ -311,7 +323,7 @@ class DependencyAnalyzer(BaseAnalyzer):
             # Development dependencies
             for name, version in data.get("devDependencies", {}).items():
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version),
                         type="development",
@@ -324,7 +336,7 @@ class DependencyAnalyzer(BaseAnalyzer):
             # Peer dependencies
             for name, version in data.get("peerDependencies", {}).items():
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version),
                         type="peer",
@@ -337,7 +349,7 @@ class DependencyAnalyzer(BaseAnalyzer):
             # Optional dependencies
             for name, version in data.get("optionalDependencies", {}).items():
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version),
                         type="optional",
@@ -381,7 +393,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                 version_spec = match.group(2) or ""
 
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version_spec),
                         type="runtime",
@@ -419,7 +431,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                         version_spec = match.group(2) or ""
 
                         dependencies.append(
-                            Dependency(
+                            DependencyInfo(
                                 name=name,
                                 version=self._clean_version(version_spec),
                                 type="runtime",
@@ -468,7 +480,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     scope_text = scope.text if scope is not None else "compile"
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=version_text,
                             type=scope_text,
@@ -516,7 +528,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     is_dev = "test" in pattern.lower()
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=version,
                             type=dep_type,
@@ -552,7 +564,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     continue
 
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version),
                         type="runtime",
@@ -565,7 +577,7 @@ class DependencyAnalyzer(BaseAnalyzer):
             # Development dependencies
             for name, version in data.get("require-dev", {}).items():
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version),
                         type="development",
@@ -613,7 +625,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                         version = version_info
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=version,
                             type="runtime",
@@ -636,7 +648,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     version = parts[1].strip().strip("\"'")
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=version,
                             type="development",
@@ -678,7 +690,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     version = parts[1]
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=version,
                             type="runtime",
@@ -695,7 +707,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     version = parts[1]
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=version,
                             type="runtime",
@@ -739,7 +751,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                 is_dev = current_group in ["development", "test"]
 
                 dependencies.append(
-                    Dependency(
+                    DependencyInfo(
                         name=name,
                         version=self._clean_version(version),
                         type="runtime" if not is_dev else "development",
@@ -796,7 +808,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     version_info = line.split("=")[1].strip().strip("\"'")
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=self._clean_version(version_info),
                             type="runtime",
@@ -818,7 +830,7 @@ class DependencyAnalyzer(BaseAnalyzer):
                     version_info = line.split("=")[1].strip().strip("\"'")
 
                     dependencies.append(
-                        Dependency(
+                        DependencyInfo(
                             name=name,
                             version=self._clean_version(version_info),
                             type="development",
@@ -917,8 +929,8 @@ class DependencyAnalyzer(BaseAnalyzer):
         return cleaned if cleaned else "unknown"
 
     def _deduplicate_dependencies(
-        self, dependencies: List[Dependency]
-    ) -> List[Dependency]:
+        self, dependencies: List[DependencyInfo]
+    ) -> List[DependencyInfo]:
         """Remove duplicate dependencies, keeping the one with most information"""
         unique_deps = {}
 
@@ -938,7 +950,7 @@ class DependencyAnalyzer(BaseAnalyzer):
         return list(unique_deps.values())
 
     def _categorize_dependencies(
-        self, dependencies: List[Dependency]
+        self, dependencies: List[DependencyInfo]
     ) -> Dict[str, List[str]]:
         """Categorize dependencies by type/purpose"""
         categories = {
@@ -1048,7 +1060,7 @@ class DependencyAnalyzer(BaseAnalyzer):
 
         return categories
 
-    def _calculate_metrics(self, dependencies: List[Dependency]) -> Dict[str, Any]:
+    def _calculate_metrics(self, dependencies: List[DependencyInfo]) -> Dict[str, Any]:
         """Calculate dependency metrics"""
         total = len(dependencies)
 
@@ -1077,7 +1089,7 @@ class DependencyAnalyzer(BaseAnalyzer):
             "average_name_length": sum(len(d.name) for d in dependencies) / total,
         }
 
-    def _check_known_vulnerabilities(self, dependencies: List[Dependency]) -> int:
+    def _check_known_vulnerabilities(self, dependencies: List[DependencyInfo]) -> int:
         """Check for known vulnerable packages (simplified)"""
         # This is a simplified check - in production would use vulnerability databases
         known_vulnerable = {
@@ -1102,7 +1114,9 @@ class DependencyAnalyzer(BaseAnalyzer):
 
         return vulnerable_count
 
-    def _calculate_optimization_score(self, dependencies: List[Dependency]) -> float:
+    def _calculate_optimization_score(
+        self, dependencies: List[DependencyInfo]
+    ) -> float:
         """
         Calculate an optimization score for dependencies (0.0-1.0)
         Higher score means more optimized dependencies
