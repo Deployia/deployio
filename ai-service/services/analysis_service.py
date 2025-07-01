@@ -166,6 +166,100 @@ class AnalysisService:
             # Convert generic errors to analysis exceptions
             raise AnalysisException(f"Repository analysis failed: {str(e)}", 500)
 
+    async def analyze_enriched_data(
+        self,
+        repository_data: Dict[str, Any],
+        session_id: str,
+        analysis_types: Optional[List[str]] = None,
+        progress_callback=None,
+        force_llm: bool = False,
+        include_reasoning: bool = True,
+        include_recommendations: bool = True,
+        include_insights: bool = True,
+        explain_null_fields: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Analyze repository using pre-enriched data from the server
+
+        This method is used by the WebSocket-based analysis flow where the server
+        has already extracted repository data and we perform analysis on that data.
+
+        Args:
+            repository_data: Enriched repository data from server
+            session_id: WebSocket session ID for progress tracking
+            analysis_types: Specific analysis types to run
+            progress_callback: Async callback for progress updates
+            force_llm: Force LLM enhancement even for simple cases
+            include_reasoning: Include detailed reasoning in response
+            include_recommendations: Include actionable recommendations
+            include_insights: Include analysis insights
+            explain_null_fields: Explain why certain fields are null/empty
+
+        Returns:
+            Comprehensive analysis result with insights, reasoning, and metadata
+        """
+        logger.info(f"Starting enriched data analysis for session: {session_id}")
+
+        try:
+            # Progress update
+            if progress_callback:
+                await progress_callback(10, "Processing repository data...")
+
+            # Convert analysis types
+            engine_analysis_types = self._convert_analysis_types(analysis_types)
+            logger.debug(f"Analysis types: {engine_analysis_types}")
+
+            # Progress update
+            if progress_callback:
+                await progress_callback(20, "Analyzing technology stack...")
+
+            # Core analysis using enriched data
+            result = await self.detection_engine.analyze_enriched_data(
+                repository_data=repository_data,
+                analysis_types=engine_analysis_types,
+                force_llm=force_llm,
+            )
+
+            logger.info(
+                f"Core analysis completed with confidence: {result.confidence_score}"
+            )
+
+            # Progress update
+            if progress_callback:
+                await progress_callback(
+                    70, "Generating insights and recommendations..."
+                )
+
+            # Process and enhance the analysis result
+            analysis_data = await self._process_analysis_result(
+                result=result,
+                repository_url=repository_data.get("repository", {}).get("url", ""),
+                branch=repository_data.get("repository", {}).get("branch", "main"),
+                include_reasoning=include_reasoning,
+                include_insights=include_insights,
+                include_recommendations=include_recommendations,
+                explain_null_fields=explain_null_fields,
+                analysis_id=session_id,
+            )
+
+            # Final progress update
+            if progress_callback:
+                await progress_callback(100, "Analysis completed successfully!")
+
+            logger.info(
+                f"Enriched data analysis completed successfully for session: {session_id}"
+            )
+            return analysis_data
+
+        except Exception as e:
+            logger.error(
+                f"Enriched data analysis failed for session {session_id}: {str(e)}",
+                exc_info=True,
+            )
+            if progress_callback:
+                await progress_callback(-1, f"Analysis failed: {str(e)}")
+            raise AnalysisException(f"Enriched data analysis failed: {str(e)}", 500)
+
     async def analyze_technology_stack(
         self,
         repository_url: str,
