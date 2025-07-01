@@ -74,7 +74,7 @@ class ConfigurationGenerator:
             config_types = ["docker-compose", "kubernetes", "environment"]
 
         logger.info(
-            f"Generating orchestration configs for {analysis_result.repository_url}"
+            f"Generating orchestration configs for {analysis_result.get('repository_url', 'unknown repository')}"
         )
 
         configurations = []

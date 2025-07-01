@@ -37,13 +37,13 @@ router.get(
   user.gitProvider.getBranches
 );
 
-// Analyze repository for AI suggestions
-router.post(
-  "/:provider/repositories/:owner/:repo/analyze",
-  protect,
-  getRateLimiters().gitProviders.analyze,
-  user.gitProvider.analyzeRepository
-);
+// // Analyze repository for AI suggestions
+// router.post(
+//   "/:provider/repositories/:owner/:repo/analyze",
+//   protect,
+//   getRateLimiters().gitProviders.analyze,
+//   user.gitProvider.analyzeRepository
+// );
 
 // Test provider connection
 router.get("/:provider/test", protect, user.gitProvider.testConnection);

@@ -103,6 +103,23 @@ class DependencyAnalyzer(BaseAnalyzer):
                     "direct_dependencies": dependency_analysis.direct_dependencies,
                     "transitive_dependencies": dependency_analysis.transitive_dependencies,
                     "package_managers": dependency_analysis.package_managers,
+                    # Include the complete dependencies list for proper analysis
+                    "dependencies": [
+                        {
+                            "name": dep.name,
+                            "version": dep.version,
+                            "type": dep.type,
+                            "dev_dependency": dep.dev_dependency,
+                            "package_manager": dep.package_manager,
+                            "file_source": dep.file_source,
+                            "optional": getattr(dep, "optional", False),
+                            "transitive": getattr(dep, "transitive", False),
+                            "vulnerability_level": getattr(
+                                dep, "vulnerability_level", None
+                            ),
+                        }
+                        for dep in dependency_analysis.dependencies
+                    ],
                     "vulnerable_packages": [
                         {
                             "name": dep.name,

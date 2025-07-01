@@ -51,11 +51,23 @@ const analyzeRepository = async (req, res) => {
         });
       }
 
+      // Extract owner and repo from URL
+      const urlMatch = repositoryUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (!urlMatch) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid repository URL format",
+        });
+      }
+
+      const [, owner, repo] = urlMatch;
+      const repoFullName = `${owner}/${repo.replace(/\.git$/, "")}`;
+
       // Fetch repository data from the git provider service
-      const fetchedRepoData = await GitProviderService.fetchRepositoryData(
+      const fetchedRepoData = await GitProviderService.getRepositoryData(
         req.user._id,
         provider,
-        repositoryUrl,
+        repoFullName,
         branch
       );
 
@@ -257,11 +269,10 @@ const demoAnalyzeRepository = async (req, res) => {
 };
 
 /**
- * Fetch public repository data for demo (GitHub only for now)
+ * Fetch comprehensive public repository data for demo (GitHub only)
+ * Optimized to fetch sufficient data for accurate AI analysis
  */
 async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
-  // For demo, we'll use a simple approach to fetch public repository data
-  // This is a basic implementation that only works with public GitHub repos
   const axios = require("axios");
   const githubToken = process.env.GITHUB_TOKEN;
   const axiosConfig = githubToken
@@ -287,47 +298,269 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
     );
     const repository = repoResponse.data;
 
-    // Fetch file tree
+    // Fetch file tree with recursive=1 for full structure
     const treeResponse = await axios.get(
       `https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`,
       axiosConfig
     );
     const fileTree = treeResponse.data.tree || [];
 
-    // Fetch key files (package.json, requirements.txt, etc.)
+    // Comprehensive list of important files for analysis
     const keyFiles = {};
-    const importantFiles = [
+    const importantFilePatterns = [
+      // Package managers
       "package.json",
+      "package-lock.json",
+      "yarn.lock",
       "requirements.txt",
+      "setup.py",
+      "pyproject.toml",
+      "Pipfile",
       "pom.xml",
-      "Gemfile",
+      "build.gradle",
+      "build.gradle.kts",
       "composer.json",
+      "Gemfile",
+      "Gemfile.lock",
+      "Cargo.toml",
+      "go.mod",
+      "go.sum",
+
+      // Docker & deployment
       "Dockerfile",
       "docker-compose.yml",
+      "docker-compose.yaml",
+      ".dockerignore",
+
+      // Configuration files
+      "tsconfig.json",
+      "webpack.config.js",
+      "vite.config.js",
+      "rollup.config.js",
+      "next.config.js",
+      "nuxt.config.js",
+      "vue.config.js",
+      "angular.json",
+      ".eslintrc.js",
+      ".eslintrc.json",
+      "babel.config.js",
+      "jest.config.js",
+
+      // Environment & config
+      ".env",
+      ".env.example",
+      "config.json",
+      "app.json",
+
+      // Documentation
       "README.md",
+      "CHANGELOG.md",
+      "LICENSE",
+
+      // CI/CD
+      ".github/workflows/*.yml",
+      ".github/workflows/*.yaml",
+      ".gitlab-ci.yml",
+      "azure-pipelines.yml",
+
+      // Framework specific
+      "manifest.json",
+      "index.html",
+      "main.py",
+      "app.py",
+      "server.js",
+      "index.js",
+      "manage.py",
+      "settings.py",
+
+      // Common source file patterns for analysis
+      "src/index.js",
+      "src/index.ts",
+      "src/main.js",
+      "src/main.ts",
+      "src/App.js",
+      "src/App.tsx",
+      "src/App.vue",
+      "app/main.py",
+      "app/__init__.py",
+      "main.go",
+      "cmd/main.go",
+      "src/main.java",
+      "index.php",
+      "app.php",
     ];
 
-    for (const fileName of importantFiles) {
+    // First, get all files matching important patterns
+    const filesToFetch = [];
+
+    // Direct file matches
+    for (const pattern of importantFilePatterns) {
+      if (pattern.includes("*")) {
+        // Handle wildcard patterns like .github/workflows/*.yml
+        const basePattern = pattern.replace("*", "");
+        const matchingFiles = fileTree.filter(
+          (item) =>
+            item.type === "blob" &&
+            item.path.includes(basePattern.replace("*.yml", "")) &&
+            (item.path.endsWith(".yml") || item.path.endsWith(".yaml"))
+        );
+        filesToFetch.push(...matchingFiles.map((f) => f.path));
+      } else {
+        // Exact file matches
+        const file = fileTree.find(
+          (item) =>
+            item.type === "blob" &&
+            (item.path === pattern || item.path.endsWith("/" + pattern))
+        );
+        if (file) {
+          filesToFetch.push(file.path);
+        }
+      }
+    }
+
+    // Also look for nested package.json files (important for monorepos)
+    const additionalPackageFiles = fileTree.filter(
+      (item) =>
+        item.type === "blob" &&
+        item.path.includes("package.json") &&
+        !filesToFetch.includes(item.path)
+    );
+    filesToFetch.push(...additionalPackageFiles.map((f) => f.path));
+
+    // Also look for nested requirements.txt, setup.py, etc.
+    const additionalConfigFiles = fileTree.filter(
+      (item) =>
+        item.type === "blob" &&
+        (item.path.includes("requirements.txt") ||
+          item.path.includes("setup.py") ||
+          item.path.includes("Dockerfile") ||
+          item.path.includes("docker-compose")) &&
+        !filesToFetch.includes(item.path)
+    );
+    filesToFetch.push(...additionalConfigFiles.map((f) => f.path));
+
+    // Also include some representative source files for code analysis
+    const sourceFileExtensions = [
+      ".js",
+      ".ts",
+      ".jsx",
+      ".tsx",
+      ".py",
+      ".java",
+      ".php",
+      ".go",
+      ".rs",
+    ];
+    const sourceFiles = fileTree.filter(
+      (item) =>
+        item.type === "blob" &&
+        sourceFileExtensions.some((ext) => item.path.endsWith(ext)) &&
+        item.size < 50000 && // Limit to files under 50KB
+        !filesToFetch.includes(item.path)
+    );
+
+    // Add up to 10 representative source files
+    const representativeSourceFiles = sourceFiles
+      .sort((a, b) => {
+        // Prefer root level files and common patterns
+        const aRoot = !a.path.includes("/");
+        const bRoot = !b.path.includes("/");
+        if (aRoot && !bRoot) return -1;
+        if (!aRoot && bRoot) return 1;
+
+        // Prefer main/index files
+        const aMain =
+          a.path.includes("index") ||
+          a.path.includes("main") ||
+          a.path.includes("app");
+        const bMain =
+          b.path.includes("index") ||
+          b.path.includes("main") ||
+          b.path.includes("app");
+        if (aMain && !bMain) return -1;
+        if (!aMain && bMain) return 1;
+
+        return a.path.localeCompare(b.path);
+      })
+      .slice(0, 10);
+
+    filesToFetch.push(...representativeSourceFiles.map((f) => f.path));
+
+    // Remove duplicates and limit to reasonable number
+    const uniqueFiles = [...new Set(filesToFetch)].slice(0, 40); // Increased limit to accommodate source files
+
+    logger.info(
+      `Fetching ${uniqueFiles.length} key files for repository analysis`,
+      {
+        repositoryUrl,
+        files: uniqueFiles,
+      }
+    );
+
+    // Fetch content for all identified key files
+    const filePromises = uniqueFiles.map(async (filePath) => {
       try {
         const fileResponse = await axios.get(
-          `https://api.github.com/repos/${owner}/${repoName}/contents/${fileName}?ref=${branch}`,
+          `https://api.github.com/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
           axiosConfig
         );
+
         if (fileResponse.data.content) {
-          keyFiles[fileName] = {
-            content: Buffer.from(fileResponse.data.content, "base64").toString(
-              "utf8"
-            ),
-            path: fileName,
+          const content = Buffer.from(
+            fileResponse.data.content,
+            "base64"
+          ).toString("utf8");
+          return {
+            path: filePath,
+            content: content,
             size: fileResponse.data.size,
           };
         }
       } catch (err) {
-        // File doesn't exist, ignore
+        logger.debug(`Could not fetch ${filePath}: ${err.message}`);
+        return null;
       }
-    }
+    });
 
-    return {
+    // Wait for all file fetches to complete
+    const fileResults = await Promise.all(filePromises);
+
+    // Build key_files object with proper structure
+    fileResults.forEach((result) => {
+      if (result) {
+        keyFiles[result.path] = {
+          content: result.content,
+          path: result.path,
+          size: result.size,
+          encoding: "utf-8", // Add encoding info
+        };
+      }
+    });
+
+    // Enhanced file tree with more metadata
+    const enhancedFileTree = fileTree
+      .filter((item) => item.type === "blob" && item.size < 1000000) // Filter files under 1MB
+      .map((item) => ({
+        path: item.path,
+        size: item.size,
+        type: item.type,
+        url: item.url,
+      }))
+      .sort((a, b) => {
+        // Sort by importance - config files first
+        const aImportant = importantFilePatterns.some((pattern) =>
+          a.path.includes(pattern.replace("*", ""))
+        );
+        const bImportant = importantFilePatterns.some((pattern) =>
+          b.path.includes(pattern.replace("*", ""))
+        );
+
+        if (aImportant && !bImportant) return -1;
+        if (!aImportant && bImportant) return 1;
+        return 0;
+      });
+
+    const repositoryData = {
       repository: {
         name: repository.name,
         full_name: repository.full_name,
@@ -349,21 +582,28 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
           type: repository.owner.type,
         },
       },
-      key_files: keyFiles, // AI service expects 'key_files' not 'files'
-      file_tree: fileTree
-        .filter((item) => item.type === "blob")
-        .map((item) => ({
-          path: item.path,
-          size: item.size,
-          type: item.type,
-        })),
+      key_files: keyFiles,
+      file_tree: enhancedFileTree,
       metadata: {
         provider: "github",
         branch,
         fetched_at: new Date().toISOString(),
         demo_mode: true,
+        total_files: fileTree.length,
+        analyzed_files: Object.keys(keyFiles).length,
       },
+      // Add repository URL for generators
+      repository_url: repositoryUrl,
     };
+
+    logger.info(`Successfully fetched comprehensive repository data`, {
+      repositoryUrl,
+      totalFiles: fileTree.length,
+      keyFiles: Object.keys(keyFiles).length,
+      fileTree: enhancedFileTree.length,
+    });
+
+    return repositoryData;
   } catch (error) {
     if (error.response?.status === 404) {
       throw new Error("Repository not found or is private");

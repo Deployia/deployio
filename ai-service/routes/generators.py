@@ -234,10 +234,12 @@ async def generate_all_configs(
         analysis_result = {
             "repository_data": request.repository_data,
             "analysis_results": request.analysis_results,
-            "technology_stack": tech_stack_data,
+            "technology_stack": tech_stack,  # Pass the TechnologyStack object, not dict
             "session_id": request.session_id,
             "confidence_score": request.analysis_results.get("confidence_score", 0.95),
             "timestamp": time.time(),
+            # Add repository_url for generators that need it
+            "repository_url": request.repository_data.get("repository_url", ""),
         }
 
         generated_configs = []
@@ -280,10 +282,8 @@ async def generate_all_configs(
                     )
 
                 elif config_type == "docker_compose":
-                    config_package = (
-                        await config_generator.generate_configuration_package(
-                            analysis_result, ["docker-compose"]
-                        )
+                    config_package = await config_generator.generate_deployment_config(
+                        analysis_result, ["docker-compose"]
                     )
                     docker_compose_config = next(
                         (
@@ -324,10 +324,8 @@ async def generate_all_configs(
                     )
 
                 elif config_type == "kubernetes":
-                    config_package = (
-                        await config_generator.generate_configuration_package(
-                            analysis_result, ["kubernetes"]
-                        )
+                    config_package = await config_generator.generate_deployment_config(
+                        analysis_result, ["kubernetes"]
                     )
                     k8s_configs = [
                         config
@@ -550,28 +548,35 @@ async def get_supported_config_types(
 # Helper functions
 def _convert_analysis_to_tech_stack(analysis_data: Dict[str, Any]) -> TechnologyStack:
     """Convert analysis results to TechnologyStack object"""
+    # The analysis now uses 'language' instead of 'primary_language'
+    language = analysis_data.get("language") or analysis_data.get(
+        "primary_language", "unknown"
+    )
+
     # Extract the first/primary framework from frameworks list if available
     frameworks_list = analysis_data.get("frameworks", [])
-    primary_framework = frameworks_list[0] if frameworks_list else None
+    primary_framework = (
+        frameworks_list[0] if frameworks_list else analysis_data.get("framework")
+    )
 
     return TechnologyStack(
-        language=analysis_data.get("primary_language", "unknown"),
+        language=language,
         framework=primary_framework,  # Use singular framework field
         database=(
             analysis_data.get("databases", [None])[0]
             if analysis_data.get("databases")
-            else None
-        ),  # Take first database
+            else analysis_data.get("database")
+        ),  # Take first database or single database
         build_tool=(
             analysis_data.get("build_tools", [None])[0]
             if analysis_data.get("build_tools")
-            else None
-        ),  # Take first build tool
+            else analysis_data.get("build_tool")
+        ),  # Take first build tool or single build tool
         package_manager=(
             analysis_data.get("package_managers", [None])[0]
             if analysis_data.get("package_managers")
-            else None
-        ),  # Take first package manager
+            else analysis_data.get("package_manager")
+        ),  # Take first package manager or single package manager
         runtime_version=analysis_data.get("runtime_version"),
         architecture_pattern=analysis_data.get("architecture_pattern"),
         additional_technologies=analysis_data.get("additional_technologies", []),

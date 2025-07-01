@@ -94,13 +94,44 @@ class PipelineGenerator:
 
         except Exception as e:
             logger.error(f"Error generating pipeline for {platform}: {e}")
-            return self._generate_fallback_pipeline(analysis.technology_stack, platform)
+            # Handle both dict and object formats for fallback
+            if isinstance(analysis, dict):
+                stack_data = analysis.get("technology_stack", {})
+                # Create a simple TechnologyStack for fallback
+                from ..core.models import TechnologyStack
+
+                fallback_stack = TechnologyStack(
+                    language=stack_data.get("language", "unknown"),
+                    framework=stack_data.get("framework"),
+                )
+            else:
+                fallback_stack = analysis.technology_stack
+            return self._generate_fallback_pipeline(fallback_stack, platform)
 
     def _create_pipeline_config(
         self, analysis: AnalysisResult, platform: str, options: Dict[str, Any]
     ) -> PipelineConfig:
         """Create pipeline configuration based on analysis results"""
-        stack = analysis.technology_stack
+        # Handle both dict and object formats
+        if isinstance(analysis, dict):
+            stack = analysis.get("technology_stack")
+            if isinstance(stack, dict):
+                # Convert dict to TechnologyStack object
+                from ..core.models import TechnologyStack
+
+                stack = TechnologyStack(
+                    language=stack.get("language"),
+                    framework=stack.get("framework"),
+                    database=stack.get("database"),
+                    build_tool=stack.get("build_tool"),
+                    package_manager=stack.get("package_manager"),
+                    runtime_version=stack.get("runtime_version"),
+                    additional_technologies=stack.get("additional_technologies", []),
+                    architecture_pattern=stack.get("architecture_pattern"),
+                    deployment_strategy=stack.get("deployment_strategy"),
+                )
+        else:
+            stack = analysis.technology_stack
 
         # Common configuration
         config = PipelineConfig(

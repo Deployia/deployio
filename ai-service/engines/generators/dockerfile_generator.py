@@ -66,8 +66,28 @@ class DockerfileGenerator:
         try:
             # Handle both legacy and new formats
             if analysis:
-                # Legacy format
-                stack = analysis.technology_stack
+                # Handle both dict and object formats
+                if isinstance(analysis, dict):
+                    stack = analysis.get("technology_stack")
+                    if isinstance(stack, dict):
+                        # Convert dict to TechnologyStack object
+                        from engines.core.models import TechnologyStack
+
+                        stack = TechnologyStack(
+                            language=stack.get("language", "unknown"),
+                            framework=stack.get("framework"),
+                            database=stack.get("database"),
+                            build_tool=stack.get("build_tool"),
+                            package_manager=stack.get("package_manager"),
+                            runtime_version=stack.get("runtime_version"),
+                            architecture_pattern=stack.get("architecture_pattern"),
+                            additional_technologies=stack.get(
+                                "additional_technologies", []
+                            ),
+                        )
+                else:
+                    # Legacy object format
+                    stack = analysis.technology_stack
             elif analysis_context and tech_stack:
                 # New format
                 stack = tech_stack
@@ -184,7 +204,12 @@ class DockerfileGenerator:
 
         # Detect if it's a web framework
         web_frameworks = ["django", "flask", "fastapi", "tornado"]
-        is_web_app = any(fw in stack.frameworks for fw in web_frameworks)
+        # Check framework and additional_technologies instead of frameworks
+        all_frameworks = [stack.framework] if stack.framework else []
+        all_frameworks.extend(stack.additional_technologies or [])
+        is_web_app = any(
+            fw in [f.lower() for f in all_frameworks] for fw in web_frameworks
+        )
 
         if is_web_app:
             config.build_commands = [
@@ -193,13 +218,13 @@ class DockerfileGenerator:
                 "RUN pip install --no-cache-dir -r requirements.txt",
             ]
 
-            if "django" in stack.frameworks:
+            if stack.framework and "django" in stack.framework.lower():
                 config.runtime_commands = [
                     "COPY . .",
                     "RUN python manage.py collectstatic --noinput",
                     'CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"]',
                 ]
-            elif "fastapi" in stack.frameworks:
+            elif stack.framework and "fastapi" in stack.framework.lower():
                 config.runtime_commands = [
                     "COPY . .",
                     'CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]',
@@ -247,12 +272,17 @@ class DockerfileGenerator:
 
     def _configure_frameworks(self, config: DockerfileConfig, stack: TechnologyStack):
         """Apply framework-specific configurations"""
+        # Get all frameworks (framework + additional_technologies)
+        all_frameworks = [stack.framework] if stack.framework else []
+        all_frameworks.extend(stack.additional_technologies or [])
+        all_frameworks = [f.lower() for f in all_frameworks if f]
+
         # Web framework ports
-        if "react" in stack.frameworks and config.expose_ports == [3000]:
+        if "react" in all_frameworks and config.expose_ports == [3000]:
             config.expose_ports = [3000]
-        elif "vue" in stack.frameworks and config.expose_ports == [3000]:
+        elif "vue" in all_frameworks and config.expose_ports == [3000]:
             config.expose_ports = [8080]
-        elif "angular" in stack.frameworks and config.expose_ports == [3000]:
+        elif "angular" in all_frameworks and config.expose_ports == [3000]:
             config.expose_ports = [4200]
 
     def _generate_single_stage_dockerfile(
@@ -370,8 +400,9 @@ EXPOSE 8000
 
 CMD ["echo", "Please configure your application properly"]
 
-# Technology Stack Detected: {stack.primary_language}
-# Frameworks: {', '.join(stack.frameworks)}
+# Technology Stack Detected: {stack.language or 'unknown'}
+# Framework: {stack.framework or 'none'}
+# Additional Technologies: {', '.join(stack.additional_technologies or [])}
 # Please customize this Dockerfile for your specific needs
 """
 

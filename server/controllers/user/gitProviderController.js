@@ -281,15 +281,16 @@ const getBranches = async (req, res) => {
 };
 
 /**
- * Analyze repository
+ * Get repository data for analysis
  */
-const analyzeRepository = async (req, res) => {
+const getRepositoryData = async (req, res) => {
   try {
     const { provider, owner, repo } = req.params;
     const { branch = "main" } = req.body;
     const repoFullName = `${owner}/${repo}`;
 
-    const analysis = await GitProviderService.analyzeRepository(
+    // Get repository data from provider
+    const repositoryData = await GitProviderService.getRepositoryData(
       req.user._id,
       provider,
       repoFullName,
@@ -298,7 +299,7 @@ const analyzeRepository = async (req, res) => {
 
     res.json({
       success: true,
-      data: analysis,
+      data: repositoryData,
     });
   } catch (error) {
     res.status(500).json({
@@ -323,5 +324,5 @@ module.exports = {
   getRepositories,
   getRepository,
   getBranches,
-  analyzeRepository,
+  getRepositoryData,
 };
