@@ -9,13 +9,8 @@ from typing import Dict, List, Optional, Any
 
 from engines.core.detector import UnifiedDetectionEngine
 from engines.core.models import AnalysisType, AnalysisResult
-from services.progress_service import progress_service, OperationSteps
 from exceptions import (
     AnalysisException,
-    RepositoryNotFoundException,
-    RepositoryAccessException,
-    InvalidRepositoryException,
-    BranchNotFoundException,
     AnalysisTimeoutException,
     LLMServiceException,
     RateLimitExceededException,
@@ -46,130 +41,8 @@ class AnalysisService:
 
     async def analyze_repository(
         self,
-        repository_url: str,
-        branch: str = "main",
-        analysis_types: Optional[List[str]] = None,
-        force_llm: bool = False,
-        include_reasoning: bool = True,
-        include_recommendations: bool = True,
-        include_insights: bool = True,
-        explain_null_fields: bool = True,
-        track_progress: bool = False,
-    ) -> Dict[str, Any]:
-        """
-        Complete repository analysis with insights and progress tracking
-
-        Args:
-            repository_url: URL of the repository to analyze
-            branch: Git branch to analyze (default: main)
-            analysis_types: Specific analysis types to run
-            force_llm: Force LLM enhancement even for simple cases
-            include_reasoning: Include detailed reasoning in response
-            include_recommendations: Include actionable recommendations
-            include_insights: Include analysis insights
-            explain_null_fields: Explain why certain fields are null/empty
-            track_progress: Enable progress tracking
-
-        Returns:
-            Comprehensive analysis result with insights, reasoning, and metadata
-        """
-
-        logger.info(
-            f"Starting repository analysis for {repository_url} on branch {branch}"
-        )
-
-        # Setup progress tracking
-        analysis_id = None
-        if track_progress:
-            analysis_id = progress_service.create_operation(
-                operation_type="repository_analysis",
-                steps=OperationSteps.analysis_steps(),
-            )
-            tracker = progress_service.get_tracker(analysis_id)
-            await tracker.start("Starting repository analysis")
-            logger.info(f"Progress tracking enabled with ID: {analysis_id}")
-
-        try:
-            # Convert analysis types
-            engine_analysis_types = self._convert_analysis_types(analysis_types)
-            logger.debug(f"Analysis types: {engine_analysis_types}")
-
-            # Progress update
-            if track_progress:
-                await tracker.next_step("Performing core analysis")
-
-            # Core analysis
-            result = await self.detection_engine.analyze_repository(
-                repository_url=repository_url,
-                branch=branch,
-                analysis_types=engine_analysis_types,
-                force_llm=force_llm,
-            )
-
-            logger.info(
-                f"Core analysis completed with confidence: {result.confidence_score}"
-            )
-
-            # Progress update
-            if track_progress:
-                await tracker.next_step("Generating insights and reasoning")
-
-            # Process and enhance the analysis result
-            analysis_data = await self._process_analysis_result(
-                result=result,
-                repository_url=repository_url,
-                branch=branch,
-                include_reasoning=include_reasoning,
-                include_insights=include_insights,
-                include_recommendations=include_recommendations,
-                explain_null_fields=explain_null_fields,
-                analysis_id=analysis_id,
-            )
-
-            # Complete progress tracking
-            if track_progress:
-                await tracker.complete("Repository analysis completed successfully")
-                logger.info(f"Progress tracking completed for {analysis_id}")
-
-            logger.info(
-                f"Repository analysis completed successfully for {repository_url}"
-            )
-            return analysis_data
-
-        except (
-            RepositoryNotFoundException,
-            RepositoryAccessException,
-            InvalidRepositoryException,
-            BranchNotFoundException,
-            AnalysisTimeoutException,
-            LLMServiceException,
-            RateLimitExceededException,
-            InsufficientDataException,
-        ):
-            # Re-raise analysis exceptions with proper status codes
-            if track_progress and analysis_id:
-                tracker = progress_service.get_tracker(analysis_id)
-                if tracker:
-                    await tracker.fail(
-                        "Analysis failed due to repository/service issues"
-                    )
-            raise
-        except Exception as e:
-            logger.error(
-                f"Repository analysis failed for {repository_url}: {str(e)}",
-                exc_info=True,
-            )
-            if track_progress and analysis_id:
-                tracker = progress_service.get_tracker(analysis_id)
-                if tracker:
-                    await tracker.fail(f"Analysis failed: {str(e)}", e)
-            # Convert generic errors to analysis exceptions
-            raise AnalysisException(f"Repository analysis failed: {str(e)}", 500)
-
-    async def analyze_enriched_data(
-        self,
         repository_data: Dict[str, Any],
-        session_id: str,
+        session_id: Optional[str] = None,
         analysis_types: Optional[List[str]] = None,
         progress_callback=None,
         force_llm: bool = False,
@@ -179,14 +52,11 @@ class AnalysisService:
         explain_null_fields: bool = True,
     ) -> Dict[str, Any]:
         """
-        Analyze repository using pre-enriched data from the server
-
-        This method is used by the WebSocket-based analysis flow where the server
-        has already extracted repository data and we perform analysis on that data.
+        Analyze repository using repository data from the server
 
         Args:
-            repository_data: Enriched repository data from server
-            session_id: WebSocket session ID for progress tracking
+            repository_data: Repository data from server (files, structure, metadata)
+            session_id: Session ID for progress tracking (optional)
             analysis_types: Specific analysis types to run
             progress_callback: Async callback for progress updates
             force_llm: Force LLM enhancement even for simple cases
@@ -198,7 +68,8 @@ class AnalysisService:
         Returns:
             Comprehensive analysis result with insights, reasoning, and metadata
         """
-        logger.info(f"Starting enriched data analysis for session: {session_id}")
+        session_info = f"session: {session_id}" if session_id else "direct call"
+        logger.info(f"Starting repository analysis for {session_info}")
 
         try:
             # Progress update
@@ -213,8 +84,8 @@ class AnalysisService:
             if progress_callback:
                 await progress_callback(20, "Analyzing technology stack...")
 
-            # Core analysis using enriched data
-            result = await self.detection_engine.analyze_enriched_data(
+            # Core analysis using repository data
+            result = await self.detection_engine.analyze_repository(
                 repository_data=repository_data,
                 analysis_types=engine_analysis_types,
                 force_llm=force_llm,
@@ -244,21 +115,22 @@ class AnalysisService:
 
             # Final progress update
             if progress_callback:
-                await progress_callback(100, "Analysis completed successfully!")
+                await progress_callback(100, "Repository analysis completed!")
 
             logger.info(
-                f"Enriched data analysis completed successfully for session: {session_id}"
+                f"Repository analysis completed successfully for {session_info}"
             )
             return analysis_data
 
         except Exception as e:
             logger.error(
-                f"Enriched data analysis failed for session {session_id}: {str(e)}",
+                f"Repository analysis failed for {session_info}: {str(e)}",
                 exc_info=True,
             )
             if progress_callback:
                 await progress_callback(-1, f"Analysis failed: {str(e)}")
-            raise AnalysisException(f"Enriched data analysis failed: {str(e)}", 500)
+            # Convert generic errors to analysis exceptions
+            raise AnalysisException(f"Repository analysis failed: {str(e)}", 500)
 
     async def analyze_technology_stack(
         self,
@@ -299,10 +171,6 @@ class AnalysisService:
             )
 
         except (
-            RepositoryNotFoundException,
-            RepositoryAccessException,
-            InvalidRepositoryException,
-            BranchNotFoundException,
             AnalysisTimeoutException,
             LLMServiceException,
             RateLimitExceededException,
@@ -357,10 +225,6 @@ class AnalysisService:
             )
 
         except (
-            RepositoryNotFoundException,
-            RepositoryAccessException,
-            InvalidRepositoryException,
-            BranchNotFoundException,
             AnalysisTimeoutException,
             LLMServiceException,
             RateLimitExceededException,
@@ -415,10 +279,6 @@ class AnalysisService:
             )
 
         except (
-            RepositoryNotFoundException,
-            RepositoryAccessException,
-            InvalidRepositoryException,
-            BranchNotFoundException,
             AnalysisTimeoutException,
             LLMServiceException,
             RateLimitExceededException,
