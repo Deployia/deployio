@@ -47,6 +47,18 @@ class Settings(BaseSettings):
     deployio_api_key: str = os.getenv("DEPLOYIO_API_KEY", "")
 
     # =============================================================================
+    # WEBSOCKET CONFIGURATION
+    # =============================================================================
+    server_websocket_url: str = os.getenv(
+        "SERVER_WEBSOCKET_URL", "http://localhost:3000"
+    )
+    websocket_enabled: bool = os.getenv("WEBSOCKET_ENABLED", "true").lower() == "true"
+    websocket_reconnect_attempts: int = int(
+        os.getenv("WEBSOCKET_RECONNECT_ATTEMPTS", 5)
+    )
+    websocket_reconnect_delay: int = int(os.getenv("WEBSOCKET_RECONNECT_DELAY", 5))
+
+    # =============================================================================
     # REDIS CACHE CONFIGURATION
     # =============================================================================
     redis_host: str = os.getenv("REDIS_HOST", "localhost")

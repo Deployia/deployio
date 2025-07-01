@@ -125,6 +125,27 @@ def get_logging_config(debug: bool = False) -> Dict[str, Any]:
                 "handlers": ["default", "error_file"],
                 "propagate": False,
             },
+            # Suppress verbose HTTP and API client logs
+            "groq._base_client": {
+                "level": "WARNING",
+                "handlers": ["default", "error_file"],
+                "propagate": False,
+            },
+            "httpcore.connection": {
+                "level": "WARNING",
+                "handlers": ["default", "error_file"],
+                "propagate": False,
+            },
+            "httpcore.http11": {
+                "level": "WARNING",
+                "handlers": ["default", "error_file"],
+                "propagate": False,
+            },
+            "httpx": {
+                "level": "INFO",
+                "handlers": ["default", "error_file"],
+                "propagate": False,
+            },
         },
         "root": {
             "level": log_level,

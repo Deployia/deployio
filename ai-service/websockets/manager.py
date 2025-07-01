@@ -6,6 +6,7 @@ Handles communication with DeployIO Server using clean namespace architecture
 import asyncio
 import logging
 from typing import Dict, Any, Optional
+from datetime import datetime
 
 import socketio
 
@@ -49,13 +50,20 @@ class AIWebSocketManager:
         self.server_url = server_url
 
         try:
-            # Initialize WebSocket client
+            # Initialize WebSocket client and connect
             await self._initialize_client()
 
             # Initialize registry
             ai_websocket_registry.initialize(self)
 
-            # Initialize namespaces
+            # Wait for connection to be established
+            if not self.is_connected:
+                logger.warning(
+                    "WebSocket connection not yet established, namespaces will be initialized after connection"
+                )
+                return True
+
+            # Initialize namespaces only if connected
             await self._initialize_namespaces()
 
             logger.info("AI WebSocket manager initialized successfully")
@@ -67,6 +75,10 @@ class AIWebSocketManager:
 
     async def _initialize_client(self):
         """Initialize the SocketIO client"""
+        logger.info(
+            f"Initializing AI Service WebSocket client connecting to: {self.server_url}"
+        )
+
         self.client = socketio.AsyncClient(
             reconnection=True,
             reconnection_attempts=self.max_reconnect_attempts,
@@ -78,12 +90,20 @@ class AIWebSocketManager:
         # Setup global event handlers
         self._setup_client_handlers()
 
-        # Connect to server
-        await self.client.connect(
-            self.server_url,
-            namespaces=["/ai-service"],
-            headers={"X-Service-Type": "ai-service", "X-Service-Version": "1.0.0"},
-        )
+        try:
+            # Connect to server
+            logger.info(
+                f"Attempting to connect to {self.server_url} on namespace /ai-service"
+            )
+            await self.client.connect(
+                self.server_url,
+                namespaces=["/ai-service"],
+                headers={"X-Service-Type": "ai-service", "X-Service-Version": "1.0.0"},
+            )
+            logger.info("WebSocket connection attempt completed")
+        except Exception as e:
+            logger.error(f"Failed to connect to WebSocket server: {e}")
+            raise
 
     def _setup_client_handlers(self):
         """Setup global client event handlers"""
@@ -94,10 +114,84 @@ class AIWebSocketManager:
             self.is_connected = True
             self.reconnect_attempts = 0
 
+            # Initialize namespaces after connection is established
+            try:
+                await self._initialize_namespaces()
+                logger.info("Namespaces initialized after WebSocket connection")
+            except Exception as e:
+                logger.error(f"Failed to initialize namespaces after connection: {e}")
+
+            # Register service with capabilities
+            await self._register_service()
+
         @self.client.event(namespace="/ai-service")
         async def disconnect():
             logger.warning("AI Service disconnected from server WebSocket")
             self.is_connected = False
+
+        @self.client.event(namespace="/ai-service")
+        async def connect_error(data):
+            logger.error(f"AI Service connection error: {data}")
+            self.is_connected = False
+
+        @self.client.event(namespace="/ai-service")
+        async def connection_established(data):
+            """Handle successful bridge connection establishment"""
+            logger.info(
+                "Bridge connection established successfully",
+                {
+                    "service_id": data.get("serviceId"),
+                    "server_time": data.get("serverTime"),
+                    "available_features": data.get("availableFeatures", []),
+                    "connection_confirmed": True,
+                },
+            )
+
+            # Perform bridge handshake
+            await self._perform_bridge_handshake()
+
+        @self.client.event(namespace="/ai-service")
+        async def bridge_handshake_ack(data):
+            """Handle handshake acknowledgment from server"""
+            logger.info(
+                "Received bridge handshake ACK from server",
+                {
+                    "handshake_id": data.get("handshakeId"),
+                    "server_time": data.get("serverTime"),
+                    "status": data.get("status"),
+                    "bridge_ready": data.get("bridgeReady"),
+                },
+            )
+
+            # Send connection ACK back to server
+            await self.client.emit(
+                "connection_ack",
+                {
+                    "service_id": "ai-service-1",
+                    "client_time": datetime.now().isoformat(),
+                    "status": "ready",
+                    "message": "AI service bridge connection confirmed",
+                },
+                namespace="/ai-service",
+            )
+
+        @self.client.event(namespace="/ai-service")
+        async def bridge_ping(data):
+            """Handle bridge ping from server"""
+            logger.debug(
+                "Received bridge ping from server",
+                {"ping_id": data.get("ping_id"), "timestamp": data.get("timestamp")},
+            )
+
+            # Send pong response
+            await self.client.emit(
+                "bridge_pong",
+                {
+                    "ping_id": data.get("ping_id"),
+                    "timestamp": datetime.now().isoformat(),
+                },
+                namespace="/ai-service",
+            )
 
         @self.client.event(namespace="/ai-service")
         async def analysis_request(data):
@@ -165,6 +259,11 @@ class AIWebSocketManager:
     async def _initialize_namespaces(self):
         """Initialize and register namespaces"""
 
+        # Check if already initialized to prevent duplicates
+        if ai_websocket_registry.get_namespace("/analysis") is not None:
+            logger.debug("Namespaces already initialized, skipping")
+            return
+
         # Initialize analysis namespace
         analysis_ns = AnalysisNamespace()
         await analysis_ns.initialize(self)
@@ -176,6 +275,29 @@ class AIWebSocketManager:
         ai_websocket_registry.register("/generation", generation_ns)
 
         logger.info("All AI namespaces initialized")
+
+    async def _register_service(self):
+        """Register service with server after connection"""
+        try:
+            registration_data = {
+                "serviceId": "ai-service-1",
+                "serviceVersion": "1.0.0",
+                "capabilities": [
+                    "analysis",
+                    "generation",
+                    "repository_analysis",
+                    "config_generation",
+                ],
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            await self.client.emit(
+                "register_service", registration_data, namespace="/ai-service"
+            )
+            logger.info("Service registration sent to server")
+
+        except Exception as e:
+            logger.error(f"Failed to register service: {e}")
 
     async def emit_to_server(self, event: str, data: Dict[str, Any]):
         """
@@ -217,6 +339,45 @@ class AIWebSocketManager:
             "namespaces": registry_stats["namespaces"],
             "total_namespaces": registry_stats["total_namespaces"],
         }
+
+    async def _perform_bridge_handshake(self):
+        """
+        Perform bridge handshake with server (similar to agent bridge)
+        """
+        try:
+            handshake_data = {
+                "handshake_id": f"handshake_{int(datetime.now().timestamp())}",
+                "service_id": "ai-service-1",
+                "service_version": "1.0.0",
+                "capabilities": {
+                    "analysis": True,
+                    "generation": True,
+                    "repository_analysis": True,
+                    "config_generation": True,
+                    "real_time_progress": True,
+                },
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # Send handshake data to server on ai-service namespace
+            await self.client.emit(
+                "bridge_handshake", handshake_data, namespace="/ai-service"
+            )
+
+            logger.info(
+                "Bridge handshake sent to server",
+                {
+                    "handshake_id": handshake_data["handshake_id"],
+                    "service_id": handshake_data["service_id"],
+                    "capabilities": handshake_data["capabilities"],
+                },
+            )
+
+        except Exception as e:
+            logger.error(
+                "Failed to perform bridge handshake",
+                {"error": str(e), "service_id": "ai-service-1"},
+            )
 
 
 # Global manager instance
