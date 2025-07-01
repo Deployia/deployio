@@ -1,5 +1,4 @@
 require("dotenv").config();
-const project = require("@services/project");
 const ai = require("@services/ai");
 const GitProviderService = require("@services/gitProvider/GitProviderService");
 const logger = require("@config/logger");
@@ -498,7 +497,7 @@ const generateConfigurations = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    logger.error("Error generating configurations:", error);
+    logger.error("Error generating configurations:");
 
     let statusCode = 500;
     let errorMessage = "Error generating configurations";
@@ -703,6 +702,10 @@ const demoCompletePipeline = async (req, res) => {
       analysisOptions
     );
 
+    logger.info(`Demo analysis completed for session: ${sessionId}`, {
+      analysisResult,
+    });
+
     // Broadcast analysis complete
     if (aiNamespace) {
       aiNamespace.emit("ai:progress", {
@@ -800,7 +803,7 @@ const demoCompletePipeline = async (req, res) => {
       data: pipelineResult,
     });
   } catch (error) {
-    logger.error("Error in demo complete pipeline:", error);
+    logger.error("Error in demo complete pipeline:");
 
     // Get WebSocket namespace for error broadcasting
     const webSocketManager = require("@config/webSocketManager");

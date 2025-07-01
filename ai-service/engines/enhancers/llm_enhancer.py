@@ -337,8 +337,14 @@ class LLMEnhancer:
         for filename, content in repository_files.items():
             file_lower = filename.lower()
             if any(imp_file in file_lower for imp_file in important_files):
-                # Limit content size for context window (increased for better analysis)
-                key_files[filename] = content[:3000]
+                # Ensure content is a string and limit size for context window
+                if content is not None:
+                    content_str = (
+                        str(content) if not isinstance(content, str) else content
+                    )
+                    key_files[filename] = content_str[:3000]
+                else:
+                    key_files[filename] = ""
 
         # Extract full analyzer context
         stack_context = {}

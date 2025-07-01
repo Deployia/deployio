@@ -511,16 +511,6 @@ const generateConfigurations = async (
   }
 };
 
-// Legacy compatibility for existing controllers
-const analyzeProjectStack = (
-  projectId,
-  repositoryUrl,
-  branch = "main",
-  user
-) => {
-  return detectTechnologyStack(repositoryUrl, { branch, user, projectId });
-};
-
 module.exports = {
   analyzeRepository,
   analyzeRepositoryWithWebSocket,
@@ -532,6 +522,4 @@ module.exports = {
   getSupportedTechnologies,
   checkAiServiceHealth,
   getDetailedAiServiceHealth,
-  // Legacy compatibility
-  analyzeProjectStack,
 };

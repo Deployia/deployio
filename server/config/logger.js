@@ -37,7 +37,44 @@ const logFormat = printf(
       // Remove morgan's internal properties if they exist
       const { 0: morganTokens, 1: req, 2: res, ...restMeta } = metadata;
       if (Object.keys(restMeta).length) {
-        log += ` ${JSON.stringify(restMeta)}`;
+        // If there's an error object, log only key properties to avoid huge/circular logs
+        if (restMeta.error && typeof restMeta.error === "object") {
+          const err = restMeta.error;
+          const errorSummary = {
+            name: err.name,
+            message: err.message,
+            code: err.code,
+            status: err.status,
+            stack: err.stack,
+          };
+          // Optionally include statusCode if present
+          if (err.response && err.response.status) {
+            errorSummary.responseStatus = err.response.status;
+          }
+          log += ` { error: ${JSON.stringify(errorSummary)} }`;
+          // Remove the error object so it's not stringified again below
+          delete restMeta.error;
+        }
+        // Log the rest of the metadata, if any, using the safe stringifier
+        if (Object.keys(restMeta).length) {
+          const getCircularReplacer = () => {
+            const seen = new WeakSet();
+            return (key, value) => {
+              if (typeof value === "object" && value !== null) {
+                if (seen.has(value)) {
+                  return "[Circular]";
+                }
+                seen.add(value);
+              }
+              return value;
+            };
+          };
+          try {
+            log += ` ${JSON.stringify(restMeta, getCircularReplacer())}`;
+          } catch (e) {
+            log += " [Could not stringify metadata: circular structure]";
+          }
+        }
       }
     }
     return log;

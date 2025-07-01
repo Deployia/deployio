@@ -18,11 +18,14 @@ class PromptTemplates:
 
         Returns:
             Formatted prompt for enhanced technology detection
-        """  # Extract data from the correct context structure
+        """
+        # Extract data from the correct context structure
         rule_based = context.get("rule_based_analysis", {})
         stack_detection = rule_based.get("stack_detection", {})
         dependency_analysis = rule_based.get("dependency_analysis", {})
         file_previews = context.get("file_previews", {})
+        repository_info = context.get("repository_info", {})
+        detected_files = context.get("detected_files", [])
         repository_info = context.get("repository_info", {})
         detected_files = context.get("detected_files", [])
 
@@ -30,17 +33,24 @@ class PromptTemplates:
         file_content = ""
         if file_previews:
             for filename, content in file_previews.items():
-                file_content += f"\n--- {filename} ---\n{content[:1500]}\n"
+                # Ensure content is a string before slicing
+                if content is not None:
+                    content_str = str(content) if not isinstance(content, str) else content
+                    file_content += f"\n--- {filename} ---\n{content_str[:1500]}\n"
+                else:
+                    file_content += f"\n--- {filename} ---\n[File content unavailable]\n"
         else:
             file_content = "No file previews available - analysis based on dependency and metadata detection."
 
         # Add detected files information for context
         detected_files_info = ""
         if detected_files:
+            # Ensure detected_files is a list before slicing
+            files_list = detected_files if isinstance(detected_files, list) else []
             detected_files_info = f"""
 DETECTED PROJECT FILES:
-{detected_files[:15]}  # Show first 15 files
-Total Files Detected: {len(detected_files)}
+{files_list[:15]}  # Show first 15 files
+Total Files Detected: {len(files_list)}
 """
 
         # Build dependency summary
@@ -49,12 +59,16 @@ Total Files Detected: {len(detected_files)}
             total_deps = dependency_analysis.get("total_dependencies", 0)
             package_managers = dependency_analysis.get("package_managers", [])
             dependencies = dependency_analysis.get("dependencies", [])
+            
+            # Safely slice dependencies list
+            deps_list = dependencies if isinstance(dependencies, list) else []
+            key_deps = [dep.get('name', '') for dep in deps_list[:10] if isinstance(dep, dict)]
 
             dependency_summary = f"""
 DEPENDENCY ANALYSIS DETECTED:
 - Total Dependencies: {total_deps}
 - Package Managers: {package_managers}
-- Key Dependencies: {[dep.get('name', '') for dep in dependencies[:10] if isinstance(dep, dict)]}
+- Key Dependencies: {key_deps}
 - Dependency Categories: {dependency_analysis.get('dependency_categories', {})}
 """
 
@@ -505,21 +519,27 @@ Focus on practical, implementable security improvements.
         Returns:
             Formatted prompt for dependency analysis
         """
+        # Extract data safely
         dependencies = context.get("dependencies", [])
         package_managers = context.get("package_managers", [])
         file_content = context.get("file_content", "")
+        
+        # Safely slice dependencies list
+        deps_list = dependencies if isinstance(dependencies, list) else []
+        # Safely slice file content
+        content_str = str(file_content) if file_content is not None else ""
 
         prompt = f"""
 You are a software dependency expert analyzing a project's dependencies and package management.
 
 Detected Dependencies:
-{dependencies[:10]}
+{deps_list[:10]}
 
 Package Managers:
 {package_managers}
 
 File Content (truncated):
-{file_content[:1200]}
+{content_str[:1200]}
 
 Analyze the dependency structure, risks, and opportunities for improvement.
 

@@ -81,11 +81,12 @@ class GeneratedConfigResponse(BaseModel):
     config_type: str
     filename: str
     content: str
-    template_used: str
+    description: Optional[str] = None
+    template_used: Optional[str] = "standard"
     optimization_level: str
-    security_features: List[str]
-    setup_instructions: List[str]
-    usage_notes: List[str]
+    security_features: Optional[List[str]] = []
+    setup_instructions: Optional[List[str]] = []
+    usage_notes: Optional[List[str]] = []
 
 
 class ConfigGenerationResponse(BaseModel):
@@ -141,9 +142,10 @@ async def generate_from_analysis(
 
     try:
         # Import here to avoid circular imports
-        from services.generation_service import generation_service
+        from services.generation_service import GenerationService
 
-        # Generate configurations using the generation service
+        # Initialize the service and generate configurations
+        generation_service = GenerationService()
         result = await generation_service.generate_configurations(
             analysis_result=request.analysis_result,
             session_id=request.session_id,

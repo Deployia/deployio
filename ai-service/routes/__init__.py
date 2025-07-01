@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from .health import router as health_router
 from .analysis import router as analysis_router
 from .optimization import router as optimization_router
+from .generators import router as generators_router
 from .dev import router as dev_router  # noqa: F401
 from engines.core.models import ConfidenceLevel  # noqa: F401
 import os
@@ -19,7 +20,8 @@ def create_routes() -> APIRouter:
     New clean structure:
     - /service/v1/health - Health checks
     - /service/v1/analysis - All analysis operations
-    - /service/v1/optimization - Configuration generation and optimization
+    - /service/v1/generators - Configuration generation
+    - /service/v1/optimization - Configuration optimization
     """
     api_router = APIRouter()
 
@@ -35,6 +37,13 @@ def create_routes() -> APIRouter:
         analysis_router,
         prefix="/service/v1/analysis",
         tags=["Analysis"],
+    )
+
+    # Generator endpoints
+    api_router.include_router(
+        generators_router,
+        prefix="/service/v1/generators",
+        tags=["Generators"],
     )
 
     # Optimization endpoints
