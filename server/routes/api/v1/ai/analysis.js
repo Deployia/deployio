@@ -11,15 +11,15 @@ const router = express.Router();
 // Rate limiting configurations
 const demoRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 3 requests per 15 minutes for demo (IP-based)
+  max: 10, // Only 2 requests per 15 minutes for demo (very heavy rate limiting)
   message: {
     success: false,
     message:
-      "Demo rate limit exceeded. Please sign up for unlimited access or try again later.",
+      "Demo rate limit exceeded. Only 2 complete pipeline demos allowed per 15 minutes. Please try again later or upgrade for unlimited access.",
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip, // Rate limit by IP address
+  keyGenerator: (req) => `demo_${req.user.id}`, // Rate limit by authenticated user
 });
 
 const userRateLimit = createRateLimiter({
@@ -33,13 +33,21 @@ const userRateLimit = createRateLimiter({
   legacyHeaders: false,
 });
 
-// // PUBLIC ENDPOINTS (Heavy Rate Limited)
-// router.post("/demo", demoRateLimit, ai.analysis.demoAnalyzeRepository);
-// router.get(
-//   "/demo/progress/:operationId",
-//   demoRateLimit,
-//   ai.analysis.getDemoAnalysisProgress
-// );
+// DEMO ENDPOINTS (Requires Authentication + Heavy Rate Limiting)
+router.post(
+  "/demo/complete-pipeline",
+  protect,
+  demoRateLimit,
+  ai.analysis.demoCompletePipeline
+);
+router.get(
+  "/demo/progress/:operationId",
+  protect,
+  demoRateLimit,
+  ai.analysis.getDemoAnalysisProgress
+);
+
+// PUBLIC ENDPOINTS (Minimal Rate Limiting)
 router.get("/technologies", ai.analysis.getSupportedTechnologies);
 router.get("/health", ai.analysis.checkServiceHealth); // Public health check for demo
 

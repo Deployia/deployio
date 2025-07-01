@@ -27,7 +27,7 @@ const connectDB = async () => {
 
       // Enable query performance monitoring in development
       if (process.env.NODE_ENV === "development") {
-        mongoose.set("debug", true);
+        // mongoose.set("debug", true);
       }
       console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
       return conn;

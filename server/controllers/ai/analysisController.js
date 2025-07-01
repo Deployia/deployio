@@ -1,3 +1,4 @@
+require("dotenv").config();
 const project = require("@services/project");
 const ai = require("@services/ai");
 const GitProviderService = require("@services/gitProvider/GitProviderService");
@@ -263,6 +264,10 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
   // For demo, we'll use a simple approach to fetch public repository data
   // This is a basic implementation that only works with public GitHub repos
   const axios = require("axios");
+  const githubToken = process.env.GITHUB_TOKEN;
+  const axiosConfig = githubToken
+    ? { headers: { Authorization: `token ${githubToken}` } }
+    : {};
 
   try {
     // Parse GitHub URL
@@ -278,13 +283,15 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
 
     // Fetch basic repository info
     const repoResponse = await axios.get(
-      `https://api.github.com/repos/${owner}/${repoName}`
+      `https://api.github.com/repos/${owner}/${repoName}`,
+      axiosConfig
     );
     const repository = repoResponse.data;
 
     // Fetch file tree
     const treeResponse = await axios.get(
-      `https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`
+      `https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`,
+      axiosConfig
     );
     const fileTree = treeResponse.data.tree || [];
 
@@ -304,7 +311,8 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
     for (const fileName of importantFiles) {
       try {
         const fileResponse = await axios.get(
-          `https://api.github.com/repos/${owner}/${repoName}/contents/${fileName}?ref=${branch}`
+          `https://api.github.com/repos/${owner}/${repoName}/contents/${fileName}?ref=${branch}`,
+          axiosConfig
         );
         if (fileResponse.data.content) {
           keyFiles[fileName] = {
@@ -342,7 +350,7 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
           type: repository.owner.type,
         },
       },
-      files: keyFiles,
+      key_files: keyFiles, // AI service expects 'key_files' not 'files'
       file_tree: fileTree
         .filter((item) => item.type === "blob")
         .map((item) => ({
@@ -611,6 +619,279 @@ const completeAnalysisGenerationPipeline = async (req, res) => {
   }
 };
 
+/**
+ * @desc Demo complete pipeline (authenticated users only, heavy rate limited)
+ * @route POST /api/v1/ai/analysis/demo/complete-pipeline
+ * @access Private (Heavy Rate Limited)
+ */
+const demoCompletePipeline = async (req, res) => {
+  try {
+    const {
+      repositoryUrl,
+      branch = "main",
+      analysisTypes = ["stack", "dependencies", "quality"],
+      configTypes = ["dockerfile", "github_actions", "docker_compose"],
+      autoApprove = true, // Auto-approve for demo
+    } = req.body;
+
+    if (!repositoryUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "Repository URL is required",
+      });
+    }
+
+    // For demo, we'll fetch repository data using the public GitHub client
+    const repositoryData = await fetchPublicRepositoryData(
+      repositoryUrl,
+      branch
+    );
+
+    const sessionId = `demo_${Date.now()}_${req.user.id}`;
+
+    // Get WebSocket namespace for progress broadcasting
+    const webSocketManager = require("@config/webSocketManager");
+    const aiNamespace = webSocketManager.getNamespace("/ai");
+
+    // Broadcast initial progress
+    if (aiNamespace) {
+      aiNamespace.emit("ai:progress", {
+        sessionId,
+        progress: 10,
+        step_name: "Initializing",
+        message: "Starting demo pipeline...",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Step 1: Analyze repository with demo-specific options
+    const analysisOptions = {
+      // Don't pass user for demo - this forces demo token generation
+      user: null, // Force demo token usage
+      sessionId,
+      branch,
+      analysisTypes,
+      forceLlm: true, // Enable LLM enhancement for demo
+      includeReasoning: true,
+      includeRecommendations: true,
+      includeInsights: true,
+      explainNullFields: true,
+      trackProgress: true,
+      demoMode: true, // Flag for demo operations
+    };
+
+    logger.info(`Starting demo complete pipeline for session: ${sessionId}`, {
+      repositoryUrl,
+      userId: req.user.id,
+      clientIp: req.ip,
+      demoMode: true,
+    });
+
+    // Broadcast analysis start
+    if (aiNamespace) {
+      aiNamespace.emit("ai:progress", {
+        sessionId,
+        progress: 20,
+        step_name: "Repository Analysis",
+        message: "Analyzing repository structure and dependencies...",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const analysisResult = await ai.analyzeRepository(
+      repositoryData,
+      analysisOptions
+    );
+
+    // Broadcast analysis complete
+    if (aiNamespace) {
+      aiNamespace.emit("ai:progress", {
+        sessionId,
+        progress: 50,
+        step_name: "Analysis Complete",
+        message: "Repository analysis completed successfully",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Step 2: Auto-approve (for demo purposes)
+    if (autoApprove) {
+      logger.info(`Auto-approving analysis for demo session: ${sessionId}`);
+
+      if (aiNamespace) {
+        aiNamespace.emit("ai:progress", {
+          sessionId,
+          progress: 60,
+          step_name: "Auto Approval",
+          message: "Automatically approving analysis results...",
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Step 3: Generate configurations
+    if (aiNamespace) {
+      aiNamespace.emit("ai:progress", {
+        sessionId,
+        progress: 70,
+        step_name: "Configuration Generation",
+        message: "Generating deployment configurations...",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    const generationOptions = {
+      // Don't pass user for demo - this forces demo token generation
+      user: null, // Force demo token usage
+      sessionId,
+      configTypes,
+      optimizationLevel: "balanced",
+      userPreferences: {
+        platform: "docker",
+        cicd: "github_actions",
+        deployment: "containerized",
+      },
+      demoMode: true, // Flag for demo operations
+    };
+
+    const generationResult = await ai.generateConfigurations(
+      repositoryData,
+      analysisResult,
+      generationOptions
+    );
+
+    // Broadcast completion
+    if (aiNamespace) {
+      aiNamespace.emit("ai:progress", {
+        sessionId,
+        progress: 100,
+        step_name: "Complete",
+        message: "Demo pipeline completed successfully!",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const pipelineResult = {
+      sessionId,
+      analysis: analysisResult,
+      generation: generationResult,
+      timestamp: new Date().toISOString(),
+      demo_mode: true,
+      auto_approved: autoApprove,
+      demo_features: [
+        "Full AI-powered analysis with LLM enhancement",
+        "Automatic approval workflow",
+        "Complete configuration generation",
+        "Docker, GitHub Actions, and Docker Compose configs",
+        "Real-time progress tracking via WebSocket",
+        "Real-time progress tracking",
+        "Production-ready deployment files",
+      ],
+    };
+
+    logger.info(`Demo complete pipeline completed for session: ${sessionId}`, {
+      analysisConfidence: analysisResult.confidence_score,
+      generatedConfigs: Object.keys(generationResult.configurations || {}),
+      userId: req.user.id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Demo complete pipeline completed successfully",
+      data: pipelineResult,
+    });
+  } catch (error) {
+    logger.error("Error in demo complete pipeline:", error);
+
+    // Get WebSocket namespace for error broadcasting
+    const webSocketManager = require("@config/webSocketManager");
+    const aiNamespace = webSocketManager.getNamespace("/ai");
+    const sessionId = `demo_${Date.now()}_${req.user?.id}`;
+
+    // Broadcast error
+    if (aiNamespace && req.user?.id) {
+      aiNamespace.emit("ai:progress", {
+        sessionId,
+        progress: 0,
+        step_name: "Error",
+        message: "Demo pipeline failed",
+        error: true,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Enhanced error handling
+    let statusCode = error.status || 500;
+    let errorMessage = error.message || "Error in demo complete pipeline";
+
+    if (error.responseData) {
+      errorMessage =
+        error.responseData.detail || error.responseData.message || errorMessage;
+      statusCode = error.responseData.status || statusCode;
+    }
+
+    // Add specific context for common errors
+    if (statusCode === 404 && errorMessage.toLowerCase().includes("branch")) {
+      errorMessage = `Branch '${branch}' not found in repository`;
+    } else if (statusCode === 404) {
+      errorMessage = "Repository not found or not accessible";
+    } else if (statusCode === 403) {
+      errorMessage = "Repository is private or access is restricted";
+    } else if (statusCode === 422) {
+      errorMessage = "Invalid repository URL or unsupported repository format";
+    } else if (statusCode === 429) {
+      errorMessage = "Demo rate limit exceeded. Please try again later";
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI analysis service is temporarily unavailable";
+    } else if (error.code === "ECONNABORTED") {
+      statusCode = 408;
+      errorMessage =
+        "Analysis request timed out. Repository might be too large";
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+/**
+ * @desc Get demo analysis progress (placeholder for future streaming implementation)
+ * @route GET /api/v1/ai/analysis/demo/progress/:operationId
+ * @access Private (Heavy Rate Limited)
+ */
+const getDemoAnalysisProgress = async (req, res) => {
+  try {
+    const { operationId } = req.params;
+
+    // For now, return a simple progress response
+    // TODO: Implement real-time progress tracking with WebSocket or SSE
+    const progressData = {
+      operation_id: operationId,
+      status: "COMPLETED",
+      progress: 100,
+      step_name: "Complete",
+      message: "Demo pipeline completed successfully",
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Demo progress retrieved successfully",
+      data: progressData,
+    });
+  } catch (error) {
+    logger.error("Error getting demo analysis progress:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving demo progress",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 module.exports = {
   // Core API endpoints
   analyzeRepository,
@@ -624,4 +905,8 @@ module.exports = {
   // Health checks
   checkServiceHealth,
   getDetailedServiceHealth,
+
+  // Demo endpoints
+  demoCompletePipeline,
+  getDemoAnalysisProgress,
 };
