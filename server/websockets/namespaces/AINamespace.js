@@ -11,6 +11,7 @@ class AINamespace {
   constructor() {
     this.namespace = null;
     this.activeSessions = new Map(); // Track active analysis sessions
+    this.aiServiceBridge = null;
   }
 
   /**
@@ -18,6 +19,15 @@ class AINamespace {
    */
   static initialize() {
     const instance = new AINamespace();
+
+    // Get AI service bridge reference
+    try {
+      instance.aiServiceBridge = require("../../services/bridge/AIServiceBridgeService");
+    } catch (error) {
+      logger.warn(
+        "AI Service bridge not available, falling back to direct AI service calls"
+      );
+    }
 
     // Register namespace with authentication required
     const namespace = webSocketRegistry.register("/ai", {
@@ -105,6 +115,9 @@ class AINamespace {
         status: "running",
       });
 
+      // Join session room for progress updates
+      socket.join(`session:${sessionId}`);
+
       // Send initial progress
       socket.emit("ai:progress", {
         sessionId,
@@ -113,36 +126,66 @@ class AINamespace {
         message: "Initializing repository analysis...",
       });
 
-      // Start analysis
-      const analysisOptions = {
-        user: socket.user,
+      // Prepare analysis request
+      const analysisRequest = {
         sessionId,
-        socketId: socket.id,
+        userId: socket.user._id.toString(),
+        repositoryData,
         analysisTypes: analysisTypes || ["stack", "dependencies", "quality"],
-        ...options,
+        options: {
+          user: {
+            id: socket.user._id.toString(),
+            username: socket.user.username,
+            email: socket.user.email,
+          },
+          socketId: socket.id,
+          ...options,
+        },
       };
 
-      const result = await ai.analyzeRepositoryWithWebSocket(
-        repositoryData,
-        analysisOptions
-      );
+      // Send to AI service via bridge or fallback to direct call
+      if (this.aiServiceBridge && this.aiServiceBridge.isInitialized) {
+        const success = await this.aiServiceBridge.sendToAIService(
+          "analysis_request",
+          analysisRequest
+        );
 
-      // Update session status
-      const session = this.activeSessions.get(sessionId);
-      if (session) {
-        session.status = "completed";
-        session.result = result;
+        if (!success) {
+          throw new Error("Failed to send request to AI service");
+        }
+      } else {
+        // Fallback to direct AI service call
+        logger.warn("Using fallback direct AI service call");
+        const analysisOptions = {
+          user: socket.user,
+          sessionId,
+          socketId: socket.id,
+          analysisTypes: analysisTypes || ["stack", "dependencies", "quality"],
+          ...options,
+        };
+
+        const result = await ai.analyzeRepositoryWithWebSocket(
+          repositoryData,
+          analysisOptions
+        );
+
+        // Update session status
+        const session = this.activeSessions.get(sessionId);
+        if (session) {
+          session.status = "completed";
+          session.result = result;
+        }
+
+        // Send completion
+        socket.emit("ai:analysis_complete", {
+          sessionId,
+          status: "completed",
+          data: result,
+          timestamp: new Date().toISOString(),
+        });
       }
 
-      // Send completion
-      socket.emit("ai:analysis_complete", {
-        sessionId,
-        status: "completed",
-        data: result,
-        timestamp: new Date().toISOString(),
-      });
-
-      logger.info(`Analysis completed for session ${sessionId}`);
+      logger.info(`Analysis requested for session ${sessionId}`);
     } catch (error) {
       logger.error(`Analysis failed for session ${sessionId}:`, error);
 
@@ -193,6 +236,9 @@ class AINamespace {
         status: "running",
       });
 
+      // Join session room for progress updates
+      socket.join(`session:${sessionId}`);
+
       // Send initial progress
       socket.emit("ai:progress", {
         sessionId,
@@ -201,41 +247,79 @@ class AINamespace {
         message: "Generating deployment configurations...",
       });
 
-      const generationOptions = {
-        user: socket.user,
+      // Prepare generation request
+      const generationRequest = {
         sessionId,
+        userId: socket.user._id.toString(),
+        repositoryData,
+        analysisResults,
         configTypes: configTypes || [
           "dockerfile",
           "github_actions",
           "docker_compose",
         ],
-        optimizationLevel: options.optimizationLevel || "balanced",
-        userPreferences: options.userPreferences || {},
+        options: {
+          user: {
+            id: socket.user._id.toString(),
+            username: socket.user.username,
+            email: socket.user.email,
+          },
+          socketId: socket.id,
+          optimizationLevel: options.optimizationLevel || "balanced",
+          userPreferences: options.userPreferences || {},
+          ...options,
+        },
       };
 
-      const result = await ai.generateConfigurations(
-        repositoryData,
-        analysisResults,
-        generationOptions
-      );
+      // Send to AI service via bridge or fallback to direct call
+      if (this.aiServiceBridge && this.aiServiceBridge.isInitialized) {
+        const success = await this.aiServiceBridge.sendToAIService(
+          "generation_request",
+          generationRequest
+        );
 
-      // Update session status
-      const session = this.activeSessions.get(sessionId);
-      if (session) {
-        session.status = "completed";
-        session.result = result;
+        if (!success) {
+          throw new Error("Failed to send request to AI service");
+        }
+      } else {
+        // Fallback to direct AI service call
+        logger.warn("Using fallback direct AI service call for generation");
+        const generationOptions = {
+          user: socket.user,
+          sessionId,
+          configTypes: configTypes || [
+            "dockerfile",
+            "github_actions",
+            "docker_compose",
+          ],
+          optimizationLevel: options.optimizationLevel || "balanced",
+          userPreferences: options.userPreferences || {},
+        };
+
+        const result = await ai.generateConfigurations(
+          repositoryData,
+          analysisResults,
+          generationOptions
+        );
+
+        // Update session status
+        const session = this.activeSessions.get(sessionId);
+        if (session) {
+          session.status = "completed";
+          session.result = result;
+        }
+
+        // Send completion
+        socket.emit("ai:generation_complete", {
+          sessionId,
+          status: "completed",
+          data: result,
+          timestamp: new Date().toISOString(),
+        });
       }
 
-      // Send completion
-      socket.emit("ai:generation_complete", {
-        sessionId,
-        status: "completed",
-        data: result,
-        timestamp: new Date().toISOString(),
-      });
-
       logger.info(
-        `Configuration generation completed for session ${sessionId}`
+        `Configuration generation requested for session ${sessionId}`
       );
     } catch (error) {
       logger.error(

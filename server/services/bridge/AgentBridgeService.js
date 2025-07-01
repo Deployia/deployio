@@ -9,7 +9,6 @@ const logger = require("@config/logger");
 const webSocketManager = require("@config/webSocketManager");
 const AgentConnectionManager = require("./AgentConnectionManager");
 const StreamRouter = require("./StreamRouter");
-const AIAnalysisMiddleware = require("./AIAnalysisMiddleware");
 const UserAccessControl = require("./UserAccessControl");
 
 class AgentBridgeService extends EventEmitter {
@@ -18,7 +17,6 @@ class AgentBridgeService extends EventEmitter {
     this.isInitialized = false;
     this.connectionManager = new AgentConnectionManager();
     this.streamRouter = new StreamRouter();
-    this.aiMiddleware = new AIAnalysisMiddleware();
     this.accessControl = new UserAccessControl();
     this.connectedAgents = new Map(); // agentId -> connection info
     this.activeStreams = new Map(); // streamId -> stream info
@@ -39,7 +37,6 @@ class AgentBridgeService extends EventEmitter {
       // Initialize sub-components
       await this.connectionManager.initialize();
       await this.streamRouter.initialize();
-      await this.aiMiddleware.initialize();
       await this.accessControl.initialize();
 
       // Setup agent namespace for receiving connections
@@ -51,7 +48,6 @@ class AgentBridgeService extends EventEmitter {
         components: [
           "ConnectionManager",
           "StreamRouter",
-          "AIMiddleware",
           "AccessControl",
         ],
         agentNamespace: "/agent-bridge",

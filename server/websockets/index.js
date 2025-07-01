@@ -227,6 +227,35 @@ function setupNamespaces(features) {
     });
   }
 
+  // AI Service bridge - NEW IMPLEMENTATION
+  if (features.ai) {
+    try {
+      const aiServiceBridgeService = require("../services/bridge/AIServiceBridgeService");
+
+      // Initialize AI service bridge
+      aiServiceBridgeService.initialize().then((success) => {
+        if (success) {
+          logger.info("✓ AI Service bridge initialized", {
+            namespace: "/ai-service",
+            status: "active",
+            features: [
+              "analysis-routing",
+              "generation-routing",
+              "progress-forwarding",
+              "error-handling",
+            ],
+          });
+        } else {
+          logger.error("✗ Failed to initialize AI service bridge");
+        }
+      });
+    } catch (error) {
+      logger.error("✗ Failed to load AI service bridge", {
+        error: error.message,
+      });
+    }
+  }
+
   // Chat namespace - Future feature
   if (features.chat) {
     try {

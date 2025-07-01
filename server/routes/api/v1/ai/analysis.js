@@ -33,13 +33,13 @@ const userRateLimit = createRateLimiter({
   legacyHeaders: false,
 });
 
-// PUBLIC ENDPOINTS (Heavy Rate Limited)
-router.post("/demo", demoRateLimit, ai.analysis.demoAnalyzeRepository);
-router.get(
-  "/demo/progress/:operationId",
-  demoRateLimit,
-  ai.analysis.getDemoAnalysisProgress
-);
+// // PUBLIC ENDPOINTS (Heavy Rate Limited)
+// router.post("/demo", demoRateLimit, ai.analysis.demoAnalyzeRepository);
+// router.get(
+//   "/demo/progress/:operationId",
+//   demoRateLimit,
+//   ai.analysis.getDemoAnalysisProgress
+// );
 router.get("/technologies", ai.analysis.getSupportedTechnologies);
 router.get("/health", ai.analysis.checkServiceHealth); // Public health check for demo
 
@@ -62,27 +62,27 @@ router.post(
   userRateLimit,
   ai.analysis.completeAnalysisGenerationPipeline
 );
-router.post(
-  "/stack",
-  protect,
-  userRateLimit,
-  ai.analysis.detectTechnologyStack
-);
-router.post(
-  "/code-quality",
-  protect,
-  userRateLimit,
-  ai.analysis.analyzeCodeQuality
-);
-router.post(
-  "/dependencies",
-  protect,
-  userRateLimit,
-  ai.analysis.analyzeDependencies
-);
-router.get("/progress/:operationId", protect, ai.analysis.getAnalysisProgress);
+// router.post(
+//   "/stack",
+//   protect,
+//   userRateLimit,
+//   ai.analysis.detectTechnologyStack
+// );
+// router.post(
+//   "/code-quality",
+//   protect,
+//   userRateLimit,
+//   ai.analysis.analyzeCodeQuality
+// );
+// router.post(
+//   "/dependencies",
+//   protect,
+//   userRateLimit,
+//   ai.analysis.analyzeDependencies
+// );
+// router.get("/progress/:operationId", protect, ai.analysis.getAnalysisProgress);
 
-// HEALTH CHECK ENDPOINTS
-router.get("/health/detailed", protect, ai.analysis.getDetailedServiceHealth);
+// // HEALTH CHECK ENDPOINTS
+// router.get("/health/detailed", protect, ai.analysis.getDetailedServiceHealth);
 
 module.exports = router;
