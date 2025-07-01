@@ -58,6 +58,279 @@ class CodeAnalyzer(BaseAnalyzer):
         # Initialize pattern matchers
         self._init_patterns()
 
+    async def analyze_repository(
+        self,
+        repository_data: Dict[str, Any],
+        analysis_types: Optional[List[str]] = None,
+    ) -> CodeAnalysis:
+        """
+        Analyze repository code using server-provided repository data
+
+        Args:
+            repository_data: Complete repository data from server
+            analysis_types: Optional list of specific analysis types to run
+
+        Returns:
+            CodeAnalysis with code quality and complexity metrics
+        """
+        try:
+            logger.info("Starting repository code analysis with server data")
+
+            # Extract source files from repository data
+            source_files = repository_data.get("key_files", {})
+            file_tree = repository_data.get("file_tree", [])
+
+            # Filter for source code files only
+            code_files = self._filter_source_files(source_files, file_tree)
+
+            # Analyze each file
+            file_analyses = []
+            total_loc = 0
+            total_complexity = 0
+            quality_issues = []
+
+            for file_path, content in code_files.items():
+                try:
+                    analysis = await self._analyze_single_file(file_path, content)
+                    if analysis:
+                        file_analyses.append(analysis)
+                        total_loc += analysis.lines_of_code
+                        total_complexity += analysis.complexity_score
+                        quality_issues.extend(analysis.quality_issues)
+                except Exception as e:
+                    logger.warning(f"Failed to analyze file {file_path}: {e}")
+
+            # Calculate overall metrics
+            avg_complexity = (
+                total_complexity / len(file_analyses) if file_analyses else 0
+            )
+            quality_score = self._calculate_quality_score(quality_issues, total_loc)
+
+            # Convert to dictionary format for detector
+            return {
+                "repository_name": repository_data.get("metadata", {}).get(
+                    "full_name", "unknown"
+                ),
+                "quality_metrics": {
+                    "total_files_analyzed": len(file_analyses),
+                    "total_lines_of_code": total_loc,
+                    "average_complexity": avg_complexity,
+                    "quality_score": quality_score,
+                    "code_smells": self._extract_code_smells(quality_issues),
+                },
+                "confidence_score": min(
+                    quality_score / 100.0, 1.0
+                ),  # Convert to 0-1 scale
+                "confidence_level": self._get_confidence_level(
+                    min(quality_score / 100.0, 1.0)
+                ),
+                "quality_issues": [
+                    {
+                        "file": getattr(issue, "file_path", "unknown"),
+                        "line": getattr(issue, "line_number", 0),
+                        "type": getattr(issue, "issue_type", "unknown"),
+                        "message": getattr(issue, "description", str(issue)),
+                        "severity": getattr(issue, "severity", "medium"),
+                    }
+                    for issue in quality_issues[:20]  # Limit to top 20 issues
+                ],
+                "refactoring_suggestions": self._generate_refactoring_suggestions(
+                    file_analyses, avg_complexity
+                ),
+                "best_practices": self._generate_best_practices(file_analyses),
+                "architecture_insights": self._generate_architecture_insights(
+                    file_analyses
+                ),
+                "analysis_metadata": {
+                    "languages_analyzed": list(
+                        set(
+                            getattr(analysis, "language", "unknown")
+                            for analysis in file_analyses
+                        )
+                    ),
+                    "data_source": "server_provided",
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"Repository code analysis failed: {e}")
+            from exceptions import AnalysisException
+
+            raise AnalysisException(f"Code analysis failed: {str(e)}")
+
+    def _get_confidence_level(self, confidence: float) -> str:
+        """Convert numeric confidence to level string"""
+        if confidence >= 0.8:
+            return "high"
+        elif confidence >= 0.6:
+            return "medium"
+        else:
+            return "low"
+
+    def _extract_code_smells(self, quality_issues: List) -> List[Dict]:
+        """Extract code smells from quality issues"""
+        smells = []
+        for issue in quality_issues:
+            if (
+                hasattr(issue, "issue_type")
+                and "smell" in str(getattr(issue, "issue_type", "")).lower()
+            ):
+                smells.append(
+                    {
+                        "type": getattr(issue, "issue_type", "unknown"),
+                        "description": getattr(issue, "description", str(issue)),
+                        "severity": getattr(issue, "severity", "medium"),
+                    }
+                )
+        return smells[:10]  # Limit to top 10
+
+    def _generate_refactoring_suggestions(
+        self, analyses: List, avg_complexity: float
+    ) -> List[str]:
+        """Generate refactoring suggestions based on analysis"""
+        suggestions = []
+
+        # Check for high complexity
+        if avg_complexity > 10:
+            suggestions.append(
+                "Consider breaking down complex methods - high average complexity detected"
+            )
+
+        # Check for large files
+        large_files = [a for a in analyses if getattr(a, "lines_of_code", 0) > 500]
+        if large_files:
+            suggestions.append(
+                f"{len(large_files)} files exceed 500 lines - consider splitting into smaller modules"
+            )
+
+        return suggestions
+
+    def _generate_best_practices(self, analyses: List) -> List[str]:
+        """Generate best practice recommendations"""
+        practices = []
+
+        languages = set(
+            getattr(analysis, "language", "unknown") for analysis in analyses
+        )
+
+        if "python" in languages:
+            practices.append("Follow PEP 8 style guide for Python code consistency")
+        if "javascript" in languages:
+            practices.append("Consider using ESLint for JavaScript code quality")
+        if "typescript" in languages:
+            practices.append("Leverage TypeScript strict mode for better type safety")
+
+        practices.append("Add comprehensive unit tests for critical business logic")
+        practices.append("Implement code review process for all changes")
+
+        return practices
+
+    def _filter_source_files(
+        self, files: Dict[str, str], file_tree: List
+    ) -> Dict[str, str]:
+        """Filter files to include only source code files"""
+        source_extensions = {
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".java",
+            ".php",
+            ".go",
+            ".rs",
+            ".rb",
+            ".cs",
+            ".cpp",
+            ".c",
+            ".h",
+            ".hpp",
+            ".kt",
+            ".swift",
+        }
+
+        filtered = {}
+        for path, content in files.items():
+            ext = "." + path.split(".")[-1] if "." in path else ""
+            if ext.lower() in source_extensions:
+                filtered[path] = content
+
+        return filtered
+
+    async def _analyze_single_file(
+        self, file_path: str, content: str
+    ) -> Optional[FileAnalysis]:
+        """Analyze a single source file"""
+        # Detect language
+        language = self._detect_language(file_path)
+        if not language:
+            return None
+
+        # Get appropriate analyzer
+        analyzer = self.language_analyzers.get(language)
+        if not analyzer:
+            logger.debug(f"No analyzer available for language: {language}")
+            return None
+
+        # Perform analysis
+        return await analyzer(file_path, content)
+
+    def _detect_language(self, file_path: str) -> Optional[str]:
+        """Detect programming language from file extension"""
+        ext_map = {
+            ".py": "python",
+            ".js": "javascript",
+            ".ts": "typescript",
+            ".jsx": "javascript",
+            ".tsx": "typescript",
+            ".java": "java",
+            ".php": "php",
+            ".go": "go",
+            ".rs": "rust",
+            ".rb": "ruby",
+            ".cs": "csharp",
+        }
+
+        ext = "." + file_path.split(".")[-1] if "." in file_path else ""
+        return ext_map.get(ext.lower())
+
+    def _calculate_quality_score(self, issues: List, total_loc: int) -> float:
+        """Calculate overall code quality score"""
+        if total_loc == 0:
+            return 100.0
+
+        # Basic scoring: start with 100, deduct points for issues
+        score = 100.0
+        issue_penalty = len(issues) * 5  # 5 points per issue
+        loc_penalty = max(0, (total_loc - 1000) / 100)  # Penalty for very large files
+
+        return max(0.0, score - issue_penalty - loc_penalty)
+
+    def _extract_patterns(self, analyses: List) -> List[str]:
+        """Extract common patterns from file analyses"""
+        all_patterns = []
+        for analysis in analyses:
+            all_patterns.extend(analysis.patterns_detected)
+        return list(set(all_patterns))
+
+    def _generate_architecture_insights(self, analyses: List) -> List[str]:
+        """Generate architecture insights from code analysis"""
+        insights = []
+
+        # Count languages used
+        languages = set(analysis.language for analysis in analyses)
+        if len(languages) > 3:
+            insights.append(f"Multi-language project using {len(languages)} languages")
+
+        # Check for large files
+        large_files = [a for a in analyses if a.lines_of_code > 500]
+        if large_files:
+            insights.append(
+                f"{len(large_files)} files exceed 500 lines - consider refactoring"
+            )
+
+        return insights
+
     def _init_patterns(self):
         """Initialize code patterns for different frameworks and languages"""
 

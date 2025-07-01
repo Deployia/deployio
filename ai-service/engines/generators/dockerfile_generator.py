@@ -51,11 +51,40 @@ class DockerfileGenerator:
             "dotnet": "mcr.microsoft.com/dotnet/aspnet:7.0",
         }
 
-    async def generate_dockerfile(self, analysis: AnalysisResult) -> str:
-        """Generate optimized Dockerfile based on analysis results"""
+    async def generate_dockerfile(
+        self,
+        analysis: Optional[AnalysisResult] = None,
+        analysis_context: Optional[Dict] = None,
+        tech_stack: Optional[TechnologyStack] = None,
+        optimization_level: str = "balanced",
+        build_command: Optional[str] = None,
+        start_command: Optional[str] = None,
+        port: Optional[int] = None,
+        base_image_preference: Optional[str] = None,
+    ) -> str:
+        """Generate optimized Dockerfile based on analysis results or context"""
         try:
-            stack = analysis.technology_stack
-            config = self._create_config(stack)
+            # Handle both legacy and new formats
+            if analysis:
+                # Legacy format
+                stack = analysis.technology_stack
+            elif analysis_context and tech_stack:
+                # New format
+                stack = tech_stack
+            else:
+                raise ValueError(
+                    "Either analysis or (analysis_context + tech_stack) must be provided"
+                )
+
+            config = self._create_config(stack, base_image_preference)
+
+            # Apply custom commands if provided
+            if build_command:
+                config.build_commands.extend(build_command.split(" && "))
+            if start_command:
+                config.runtime_commands = [start_command]
+            if port:
+                config.expose_ports = [port]
 
             if config.multi_stage:
                 return self._generate_multi_stage_dockerfile(config, stack)
@@ -64,15 +93,27 @@ class DockerfileGenerator:
 
         except Exception as e:
             logger.error(f"Error generating Dockerfile: {e}")
-            return self._generate_fallback_dockerfile(analysis.technology_stack)
+            # Fallback with basic config
+            fallback_stack = tech_stack or (
+                analysis.technology_stack if analysis else None
+            )
+            if fallback_stack:
+                return self._generate_fallback_dockerfile(fallback_stack)
+            else:
+                return self._generate_basic_fallback_dockerfile()
 
-    def _create_config(self, stack: TechnologyStack) -> DockerfileConfig:
+    def _create_config(
+        self, stack: TechnologyStack, base_image_preference: Optional[str] = None
+    ) -> DockerfileConfig:
         """Create Dockerfile configuration based on technology stack"""
         primary_lang = stack.primary_language.lower()
 
         # Base configuration
+        base_image = base_image_preference or self.base_images.get(
+            primary_lang, "alpine:latest"
+        )
         config = DockerfileConfig(
-            base_image=self.base_images.get(primary_lang, "alpine:latest"),
+            base_image=base_image,
             working_dir="/app",
             expose_ports=[],
             environment_vars={},
@@ -332,4 +373,20 @@ CMD ["echo", "Please configure your application properly"]
 # Technology Stack Detected: {stack.primary_language}
 # Frameworks: {', '.join(stack.frameworks)}
 # Please customize this Dockerfile for your specific needs
+"""
+
+    def _generate_basic_fallback_dockerfile(self) -> str:
+        """Generate very basic fallback Dockerfile when no stack info available"""
+        return """FROM alpine:latest
+
+WORKDIR /app
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["echo", "Application configuration needed"]
+
+# Basic Dockerfile template
+# Please customize for your specific application
 """

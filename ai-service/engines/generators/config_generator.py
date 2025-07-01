@@ -5,7 +5,7 @@ Focused on orchestration and deployment configs only
 
 import logging
 import yaml
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from engines.core.models import TechnologyStack, AnalysisResult
 
@@ -433,3 +433,106 @@ class ConfigurationGenerator:
                 "requests": {"cpu": "250m", "memory": "256Mi"},
                 "limits": {"cpu": "500m", "memory": "512Mi"},
             }
+
+    async def generate_optimization_suggestions(
+        self,
+        analysis_context: Dict[str, Any],
+        tech_stack: TechnologyStack,
+        current_configs: Dict[str, str],
+        performance_metrics: Optional[Dict[str, Any]] = None,
+        optimization_goals: List[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Generate optimization suggestions based on analysis and current configuration"""
+        suggestions = []
+
+        # Basic optimization suggestions
+        suggestions.extend(
+            [
+                {
+                    "suggestion_type": "performance",
+                    "title": "Implement container health checks",
+                    "description": "Add health checks to ensure container reliability",
+                    "priority": "medium",
+                    "impact_level": "medium",
+                    "effort_required": "low",
+                    "implementation_steps": [
+                        "Add HEALTHCHECK instruction to Dockerfile",
+                        "Configure health check endpoint in application",
+                        "Test health check response",
+                    ],
+                    "expected_benefit": "Improved container orchestration and automatic recovery",
+                    "technical_details": {
+                        "health_check_command": "curl -f http://localhost:8000/health || exit 1",
+                        "interval": "30s",
+                        "timeout": "3s",
+                        "retries": 3,
+                    },
+                },
+                {
+                    "suggestion_type": "security",
+                    "title": "Use specific image tags",
+                    "description": "Pin container images to specific versions for reproducible builds",
+                    "priority": "high",
+                    "impact_level": "high",
+                    "effort_required": "low",
+                    "implementation_steps": [
+                        "Replace 'latest' tags with specific versions",
+                        "Update CI/CD pipeline to use pinned versions",
+                        "Implement regular dependency updates",
+                    ],
+                    "expected_benefit": "Improved security and build reproducibility",
+                    "technical_details": {
+                        "recommended_approach": "semantic versioning",
+                        "update_frequency": "monthly",
+                    },
+                },
+            ]
+        )
+
+        # Language-specific suggestions
+        primary_lang = tech_stack.primary_language.lower()
+        if primary_lang == "python":
+            suggestions.append(
+                {
+                    "suggestion_type": "performance",
+                    "title": "Use Python virtual environments",
+                    "description": "Isolate Python dependencies for better reproducibility",
+                    "priority": "medium",
+                    "impact_level": "medium",
+                    "effort_required": "medium",
+                    "implementation_steps": [
+                        "Create virtual environment in Dockerfile",
+                        "Install dependencies in virtual environment",
+                        "Update PATH to use virtual environment",
+                    ],
+                    "expected_benefit": "Better dependency isolation and faster builds",
+                    "technical_details": {
+                        "venv_path": "/opt/venv",
+                        "activation_command": "source /opt/venv/bin/activate",
+                    },
+                }
+            )
+
+        elif primary_lang in ["node", "javascript"]:
+            suggestions.append(
+                {
+                    "suggestion_type": "performance",
+                    "title": "Optimize Node.js package installation",
+                    "description": "Use npm ci for faster, reliable builds",
+                    "priority": "medium",
+                    "impact_level": "medium",
+                    "effort_required": "low",
+                    "implementation_steps": [
+                        "Replace 'npm install' with 'npm ci'",
+                        "Copy package-lock.json to container",
+                        "Set NODE_ENV=production",
+                    ],
+                    "expected_benefit": "40-60% faster builds and consistent dependencies",
+                    "technical_details": {
+                        "command": "npm ci --only=production",
+                        "cache_strategy": "mount package cache",
+                    },
+                }
+            )
+
+        return suggestions

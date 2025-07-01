@@ -9,7 +9,8 @@ import re
 import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from engines.core.models import StackDetectionResult, TechnologyStack, ConfidenceLevel
+from engines.core.models import TechnologyStack, ConfidenceLevel
+from exceptions import AnalysisException
 from .base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -325,62 +326,134 @@ class StackAnalyzer(BaseAnalyzer):
 
         return structure
 
-    async def analyze_stack(
-        self, repository_url: str, branch: str = "main"
-    ) -> StackDetectionResult:
+    async def analyze_repository(
+        self,
+        repository_data: Dict[str, Any],
+        analysis_types: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
-        Perform comprehensive stack analysis
+        Analyze repository stack using server-provided repository data
 
         Args:
-            repository_url: GitHub repository URL
-            branch: Branch to analyze
+            repository_data: Complete repository data from server
+            analysis_types: Optional list of specific analysis types to run
 
         Returns:
-            StackDetectionResult with detected technologies
+            Dict with stack detection results for detector consumption
         """
         try:
-            logger.info(f"Starting stack analysis for {repository_url}")
+            logger.info("Starting repository stack analysis with server data")
 
-            # Step 1: Fetch repository data
-            repo_data = await self.github_client.fetch_repository_data(
-                repository_url, branch
-            )
-
+            # Extract necessary data from repository_data
             context = AnalysisContext(
-                repository_data=repo_data,
-                file_tree=repo_data["file_tree"],
-                key_files=repo_data["key_files"],
-                structure_analysis=repo_data["structure_analysis"],
+                repository_data=repository_data,
+                file_tree=repository_data.get("file_tree", []),
+                config_files=repository_data.get("key_files", {}),
+                package_manifests=repository_data.get("package_manifests", {}),
+                structure_analysis=self._analyze_file_structure_from_tree(
+                    repository_data.get("file_tree", [])
+                ),
             )
 
-            # Step 2: Multi-phase analysis
+            # Multi-phase analysis
             structure_results = await self._analyze_file_structure(context)
             package_results = await self._analyze_package_files(context)
             content_results = await self._analyze_file_content(context)
 
-            # Step 3: Combine results and calculate confidence
+            # Combine results and calculate confidence
             combined_results = self._combine_analysis_results(
                 structure_results, package_results, content_results
-            )  # Step 4: Create final result (LLM enhancement handled by detector)
+            )
             primary_stack = self._determine_primary_stack(combined_results)
 
-            return StackDetectionResult(
-                repository_url=repository_url,
-                primary_stack=primary_stack,
-                detected_technologies=combined_results,
-                analysis_metadata={
+            # Get repository metadata for result
+            repo_metadata = repository_data.get("metadata", {})
+            repository_name = repo_metadata.get("full_name", "unknown")
+
+            # Return structured dictionary for detector
+            return {
+                "repository_name": repository_name,
+                "technology_stack": {
+                    "primary_language": (
+                        primary_stack.language if primary_stack else None
+                    ),
+                    "framework": (
+                        primary_stack.name
+                        if primary_stack and primary_stack.type == "framework"
+                        else None
+                    ),
+                    "version": primary_stack.version if primary_stack else None,
+                    "detected_technologies": [
+                        {
+                            "name": tech.name,
+                            "type": tech.type,
+                            "language": tech.language,
+                            "version": tech.version,
+                            "confidence": tech.confidence,
+                            "detection_method": tech.detection_method,
+                        }
+                        for tech in combined_results
+                    ],
+                },
+                "confidence_score": primary_stack.confidence if primary_stack else 0.0,
+                "confidence_level": self._get_confidence_level(
+                    primary_stack.confidence if primary_stack else 0.0
+                ),
+                "detected_files": list(context.config_files.keys()),
+                "architecture_pattern": self._detect_architecture_pattern(context),
+                "deployment_suggestions": self._suggest_deployment_strategy(
+                    combined_results
+                ),
+                "package_managers": self._extract_package_managers(combined_results),
+                "build_tools": self._extract_build_tools(combined_results),
+                "analysis_metadata": {
                     "total_files_analyzed": len(context.file_tree),
-                    "key_files_analyzed": len(context.key_files),
-                    "analysis_duration": "calculated_separately",
+                    "key_files_analyzed": len(context.config_files),
                     "confidence_distribution": self._get_confidence_distribution(
                         combined_results
                     ),
+                    "data_source": "server_provided",
                 },
-            )
+            }
 
         except Exception as e:
-            logger.error(f"Stack analysis failed: {e}")
-            raise
+            logger.error(f"Repository stack analysis failed: {e}")
+            raise AnalysisException(f"Stack analysis failed: {str(e)}")
+
+    def _get_confidence_level(self, confidence: float) -> str:
+        """Convert numeric confidence to level string"""
+        if confidence >= 0.8:
+            return "high"
+        elif confidence >= 0.6:
+            return "medium"
+        else:
+            return "low"
+
+    def _extract_package_managers(
+        self, technologies: List[TechnologyStack]
+    ) -> List[str]:
+        """Extract package managers from detected technologies"""
+        managers = []
+        for tech in technologies:
+            if tech.language == "javascript" and any(
+                pkg in tech.detection_method for pkg in ["package", "npm", "yarn"]
+            ):
+                managers.append("npm")
+            elif tech.language == "python" and "requirements" in tech.detection_method:
+                managers.append("pip")
+            elif tech.language == "java" and "maven" in tech.detection_method:
+                managers.append("maven")
+            elif tech.language == "java" and "gradle" in tech.detection_method:
+                managers.append("gradle")
+        return list(set(managers))
+
+    def _extract_build_tools(self, technologies: List[TechnologyStack]) -> List[str]:
+        """Extract build tools from detected technologies"""
+        tools = []
+        for tech in technologies:
+            if tech.type == "build_tool":
+                tools.append(tech.name)
+        return tools
 
     async def _analyze_file_structure(
         self, context: AnalysisContext

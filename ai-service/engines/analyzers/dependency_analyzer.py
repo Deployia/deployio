@@ -59,6 +59,152 @@ class DependencyAnalyzer(BaseAnalyzer):
             "pipfile": self._analyze_pipfile,
         }
 
+    async def analyze_repository(
+        self,
+        repository_data: Dict[str, Any],
+        analysis_types: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Analyze repository dependencies using server-provided repository data
+
+        Args:
+            repository_data: Complete repository data from server
+            analysis_types: Optional list of specific analysis types to run
+
+        Returns:
+            Dict with dependency analysis results for detector consumption
+        """
+        try:
+            logger.info("Starting repository dependency analysis with server data")
+
+            # Extract key files from repository data
+            key_files = repository_data.get("key_files", {})
+
+            # Extract stack context if available
+            stack_context = repository_data.get("stack_analysis", None)
+
+            # Use existing analyze_dependencies method
+            dependency_analysis = await self.analyze_dependencies(
+                key_files, stack_context
+            )
+
+            # Convert to dictionary format for detector
+            return {
+                "repository_name": repository_data.get("metadata", {}).get(
+                    "full_name", "unknown"
+                ),
+                "dependencies": {
+                    "total_dependencies": dependency_analysis.total_dependencies,
+                    "direct_dependencies": dependency_analysis.direct_dependencies,
+                    "transitive_dependencies": dependency_analysis.transitive_dependencies,
+                    "package_managers": dependency_analysis.package_managers,
+                    "vulnerable_packages": [
+                        {
+                            "name": dep.name,
+                            "version": dep.version,
+                            "vulnerabilities": getattr(dep, "vulnerabilities", []),
+                            "severity": getattr(dep, "severity", "unknown"),
+                        }
+                        for dep in dependency_analysis.dependencies
+                        if getattr(dep, "vulnerabilities", None)
+                    ],
+                    "outdated_packages": [
+                        {
+                            "name": dep.name,
+                            "current_version": dep.version,
+                            "latest_version": getattr(dep, "latest_version", "unknown"),
+                        }
+                        for dep in dependency_analysis.dependencies
+                        if getattr(dep, "is_outdated", False)
+                    ],
+                },
+                "confidence_score": dependency_analysis.confidence_score,
+                "confidence_level": self._get_confidence_level(
+                    dependency_analysis.confidence_score
+                ),
+                "dependency_health_score": dependency_analysis.health_score,
+                "security_recommendations": self._generate_security_recommendations(
+                    dependency_analysis
+                ),
+                "optimization_suggestions": self._generate_optimization_suggestions(
+                    dependency_analysis
+                ),
+                "analysis_metadata": {
+                    "package_files_analyzed": len(
+                        [f for f in key_files.keys() if self._is_package_file(f)]
+                    ),
+                    "data_source": "server_provided",
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"Repository dependency analysis failed: {e}")
+            from exceptions import AnalysisException
+
+            raise AnalysisException(f"Dependency analysis failed: {str(e)}")
+
+    def _get_confidence_level(self, confidence: float) -> str:
+        """Convert numeric confidence to level string"""
+        if confidence >= 0.8:
+            return "high"
+        elif confidence >= 0.6:
+            return "medium"
+        else:
+            return "low"
+
+    def _generate_security_recommendations(self, analysis) -> List[str]:
+        """Generate security recommendations based on analysis"""
+        recommendations = []
+
+        vulnerable_count = len(
+            [d for d in analysis.dependencies if getattr(d, "vulnerabilities", None)]
+        )
+        if vulnerable_count > 0:
+            recommendations.append(
+                f"Update {vulnerable_count} vulnerable packages to latest secure versions"
+            )
+
+        if analysis.health_score < 0.7:
+            recommendations.append(
+                "Review dependency health - consider reducing dependency count"
+            )
+
+        return recommendations
+
+    def _generate_optimization_suggestions(self, analysis) -> List[str]:
+        """Generate optimization suggestions based on analysis"""
+        suggestions = []
+
+        if analysis.total_dependencies > 100:
+            suggestions.append(
+                "Consider dependency pruning - high dependency count detected"
+            )
+
+        outdated_count = len(
+            [d for d in analysis.dependencies if getattr(d, "is_outdated", False)]
+        )
+        if outdated_count > 10:
+            suggestions.append(
+                f"Update {outdated_count} outdated packages for better performance and security"
+            )
+
+        return suggestions
+
+    def _is_package_file(self, filename: str) -> bool:
+        """Check if file is a package/dependency file"""
+        package_files = [
+            "package.json",
+            "requirements.txt",
+            "pyproject.toml",
+            "pom.xml",
+            "build.gradle",
+            "composer.json",
+            "cargo.toml",
+            "go.mod",
+            "gemfile",
+        ]
+        return any(pf in filename.lower() for pf in package_files)
+
     async def analyze_dependencies(
         self, key_files: Dict[str, str], stack_context: Optional[Dict] = None
     ) -> DependencyAnalysis:

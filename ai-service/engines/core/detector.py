@@ -6,7 +6,6 @@ Clean, modular, and highly accurate detection system
 import logging
 import time
 from typing import Dict, List, Any
-from urllib.parse import urlparse
 
 from .models import (
     AnalysisResult,
@@ -21,17 +20,7 @@ from ..analyzers.code_analyzer import CodeAnalyzer
 from ..enhancers.llm_enhancer import LLMEnhancer
 from ..utils.cache_manager import CacheManager
 from ..analyzers.base_analyzer import BaseAnalyzer
-from exceptions import (
-    AnalysisException,
-    RepositoryNotFoundException,
-    RepositoryAccessException,
-    InvalidRepositoryException,
-    BranchNotFoundException,
-    AnalysisTimeoutException,
-    LLMServiceException,
-    RateLimitExceededException,
-    InsufficientDataException,
-)
+from exceptions import AnalysisException
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +28,10 @@ logger = logging.getLogger(__name__)
 class UnifiedDetectionEngine:
     """
     Main detection engine that orchestrates all analysis operations.
-    Works with enriched repository data from server (no direct API calls)
+    Works with repository data from server (no direct API calls)
 
     Features:
-    - Unified analysis workflow using enriched data
+    - Unified analysis workflow using repository data
     - Smart LLM enhancement
     - Confidence-based decision making
     - Comprehensive caching
@@ -57,21 +46,19 @@ class UnifiedDetectionEngine:
         self.llm_enhancer = LLMEnhancer()
         self.cache_manager = CacheManager()
 
-        logger.info("UnifiedDetectionEngine initialized for enriched data analysis")
+        logger.info("UnifiedDetectionEngine initialized for repository data analysis")
 
     async def analyze_repository(
         self,
-        repository_url: str,
-        branch: str = "main",
+        repository_data: Dict[str, Any],
         analysis_types: List[AnalysisType] = None,
         force_llm: bool = False,
     ) -> AnalysisResult:
         """
-        Perform comprehensive repository analysis
+        Perform comprehensive analysis using repository data from server
 
         Args:
-            repository_url: GitHub repository URL
-            branch: Branch to analyze (default: main)
+            repository_data: Repository data from server (files, structure, metadata)
             analysis_types: Types of analysis to perform (default: all)
             force_llm: Force LLM enhancement regardless of confidence
 
@@ -88,50 +75,44 @@ class UnifiedDetectionEngine:
                 AnalysisType.CODE_QUALITY,
             ]
 
-        logger.info(f"Starting analysis for {repository_url} (branch: {branch})")
+        repository_name = repository_data.get("repository", {}).get("name", "unknown")
+        logger.info(f"Starting repository analysis for {repository_name}")
 
         try:
-            # Step 1: Check cache
-            cache_key = self._generate_cache_key(repository_url, branch, analysis_types)
+            # Step 1: Check cache based on repository metadata
+            cache_key = self._generate_cache_key_from_data(
+                repository_data, analysis_types
+            )
             cached_result = await self.cache_manager.get(cache_key)
 
             if cached_result and not force_llm:
-                # Only return if it's a valid AnalysisResult
                 from engines.core.models import AnalysisResult
 
                 if isinstance(cached_result, AnalysisResult):
                     logger.info("Returning cached analysis result")
                     return cached_result
-                else:
-                    logger.warning(
-                        "Cached result is invalid, ignoring and recomputing."
-                    )
 
-            # Step 2: Fetch repository data
-            repo_data = await self.github_client.fetch_repository_data(
-                repository_url, branch
-            )  # Step 3: Perform parallel analysis
+            # Step 2: Perform parallel analysis using repository data
             analysis_results = await self._perform_parallel_analysis(
-                repo_data, analysis_types
+                repository_data, analysis_types
             )
 
-            # Step 4: Combine rule-based analyzer results (NO LLM logic here)
+            # Step 3: Combine rule-based analyzer results
             combined_result = await self._combine_analysis_results(
-                repository_url, branch, analysis_results, repo_data
+                repository_data, analysis_results
             )
 
-            # Step 5: ALWAYS run LLM enhancer for insights/recommendations/suggestions
-            # The LLM enhancer is the ONLY component that generates insights, recommendations, and suggestions
+            # Step 4: Run LLM enhancer for insights/recommendations/suggestions
             logger.info(
                 "Running LLM enhancer for insights, recommendations, and suggestions"
             )
 
             enhancement = await self.llm_enhancer.enhance_analysis(
-                combined_result, repo_data
+                combined_result, repository_data
             )
 
             if enhancement and enhancement.llm_enhanced:
-                # Always use LLM-enhanced stack and fields if available
+                # Use LLM-enhanced stack and fields if available
                 logger.info(
                     f"Using LLM technology stack (confidence: {getattr(enhancement.enhanced_stack, 'confidence', 0):.2f})"
                 )
@@ -148,479 +129,211 @@ class UnifiedDetectionEngine:
                     getattr(enhancement.enhanced_stack, "confidence", 0.0) or 0.0
                 )
                 combined_result.insights = getattr(enhancement, "insights", [])
-                combined_result.llm_null_explanations = getattr(
-                    enhancement, "null_field_explanations", {}
-                )
-                # Dependency analysis and related metrics always come from analyzer
-                logger.info(
-                    f"LLM enhancement completed - confidence: {combined_result.confidence_score}"
-                )
-            else:
-                logger.warning("LLM enhancement failed - using rule-based results only")
-                # Fallback: empty recommendations and suggestions since only LLM should generate them
-                combined_result.recommendations = []
-                combined_result.suggestions = []
-                combined_result.llm_used = False
-                combined_result.analysis_approach = "rule_based_only"
 
-            # Step 6: Final processing
-            combined_result.processing_time = (
-                time.time() - start_time
-            )  # Step 7: Cache result
-            await self.cache_manager.set(cache_key, combined_result, ttl=3600)  # 1 hour
+            # Step 5: Cache the result
+            await self.cache_manager.set(cache_key, combined_result)
+
+            # Update timing
+            combined_result.processing_time = time.time() - start_time
 
             logger.info(
-                f"Analysis completed: {combined_result.confidence_level.value} "
-                f"confidence ({combined_result.confidence_score:.2f}) "
-                f"in {combined_result.processing_time:.2f}s"
+                f"Analysis completed for {repository_name} "
+                f"(confidence: {combined_result.confidence_score:.2f}, "
+                f"time: {combined_result.processing_time:.2f}s)"
             )
 
             return combined_result
 
-        except (
-            RepositoryNotFoundException,
-            RepositoryAccessException,
-            InvalidRepositoryException,
-            BranchNotFoundException,
-            RateLimitExceededException,
-            AnalysisTimeoutException,
-            LLMServiceException,
-            InsufficientDataException,
-        ):
-            # Re-raise analysis exceptions with proper status codes
-            raise
         except Exception as e:
-            logger.error(f"Analysis failed for {repository_url}: {e}")
+            logger.error(f"Analysis failed for {repository_name}: {e}")
             # Convert generic errors to analysis exceptions
             raise AnalysisException(
-                f"Analysis failed for {repository_url}: {str(e)}", 500
+                f"Analysis failed for {repository_name}: {str(e)}", 500
             )
 
     async def analyze_code_quality_only(
-        self, repository_url: str, branch: str = "main"
+        self, repository_data: Dict[str, Any]
     ) -> AnalysisResult:
         """
         Perform code quality analysis only
         Lighter weight operation for quick quality checks
         """
         return await self.analyze_repository(
-            repository_url, branch, analysis_types=[AnalysisType.CODE_QUALITY]
+            repository_data, analysis_types=[AnalysisType.CODE_QUALITY]
         )
 
     async def analyze_stack_only(
-        self, repository_url: str, branch: str = "main"
+        self, repository_data: Dict[str, Any]
     ) -> AnalysisResult:
         """
         Perform stack detection only
         Fast operation for technology identification
         """
         return await self.analyze_repository(
-            repository_url, branch, analysis_types=[AnalysisType.STACK_DETECTION]
+            repository_data, analysis_types=[AnalysisType.STACK_DETECTION]
         )
 
     async def detect_technology_stack(
         self,
-        repository_url: str,
-        branch: str = "main",
+        repository_data: Dict[str, Any],
         analysis_type: AnalysisType = AnalysisType.STACK_DETECTION,
     ) -> AnalysisResult:
         """
         Main entry point for technology stack detection
-        Alias for analyze_repository with stack detection focus"""
+        Alias for analyze_repository with stack detection focus
+        """
         return await self.analyze_repository(
-            repository_url=repository_url, branch=branch, analysis_types=[analysis_type]
+            repository_data=repository_data, analysis_types=[analysis_type]
         )
 
-    async def analyze_enriched_data(
-        self,
-        enriched_data: Dict[str, Any],
-        analysis_types: List[AnalysisType] = None,
-        force_llm: bool = False,
-    ) -> AnalysisResult:
-        """
-        Perform comprehensive analysis using enriched repository data from server
-
-        Args:
-            enriched_data: Enriched repository data from server
-            analysis_types: Types of analysis to perform (default: all)
-            force_llm: Force LLM enhancement regardless of confidence
-
-        Returns:
-            AnalysisResult: Comprehensive analysis results
-        """
-        start_time = time.time()
-
-        # Default analysis types
-        if analysis_types is None:
-            analysis_types = [
-                AnalysisType.STACK_DETECTION,
-                AnalysisType.DEPENDENCY_ANALYSIS,
-                AnalysisType.CODE_QUALITY,
-            ]
-
-        repository_name = enriched_data.get("repository", {}).get("name", "unknown")
-        logger.info(f"Starting enriched data analysis for {repository_name}")
-
-        try:
-            # Step 1: Check cache based on repository metadata
-            cache_key = self._generate_enriched_cache_key(enriched_data, analysis_types)
-            cached_result = await self.cache_manager.get(cache_key)
-
-            if cached_result and not force_llm:
-                from engines.core.models import AnalysisResult
-
-                if isinstance(cached_result, AnalysisResult):
-                    logger.info("Returning cached analysis result")
-                    return cached_result
-
-            # Step 2: Perform parallel analysis using enriched data
-            analysis_results = await self._perform_parallel_analysis_enriched(
-                enriched_data, analysis_types
-            )
-
-            # Step 3: Combine rule-based analyzer results
-            combined_result = self._combine_analysis_results(analysis_results)
-
-            # Step 4: LLM Enhancement (if needed or forced)
-            if force_llm or combined_result.overall_confidence < 0.85:
-                logger.info("Applying LLM enhancement to improve confidence")
-                enhanced_result = await self.llm_enhancer.enhance_analysis(
-                    combined_result, enriched_data
-                )
-                final_result = enhanced_result
-            else:
-                final_result = combined_result
-
-            # Step 5: Cache the result
-            await self.cache_manager.set(cache_key, final_result, ttl=3600)  # 1 hour
-
-            # Step 6: Performance logging
-            execution_time = time.time() - start_time
-            logger.info(
-                f"Analysis completed in {execution_time:.2f}s "
-                f"(confidence: {final_result.overall_confidence:.2f})"
-            )
-
-            return final_result
-
-        except Exception as e:
-            logger.error(f"Analysis failed for {repository_name}: {e}")
-            raise AnalysisException(f"Analysis failed: {str(e)}") from e
-
     async def _perform_parallel_analysis(
-        self, repo_data: Dict, analysis_types: List[AnalysisType]
-    ) -> Dict[AnalysisType, Dict]:
+        self, repository_data: Dict[str, Any], analysis_types: List[AnalysisType]
+    ) -> Dict[str, Any]:
         """
-        Legacy parallel analysis - kept for backward compatibility
-        For better accuracy, use _perform_intelligent_analysis instead
+        Perform parallel analysis using repository data
         """
-        # Use intelligent analysis for better results
-        return await self._perform_intelligent_analysis(repo_data, analysis_types)
+        results = {}
 
-    async def _perform_parallel_analysis_enriched(
-        self, enriched_data: Dict[str, Any], analysis_types: List[AnalysisType]
-    ) -> Dict[AnalysisType, Any]:
-        """
-        Perform parallel analysis on enriched data
-
-        Args:
-            enriched_data: Enriched repository data from server
-            analysis_types: Types of analysis to perform
-
-        Returns:
-            Dict mapping analysis types to results
-        """
-        tasks = {}
-
+        # Run different analyzers based on analysis types
         if AnalysisType.STACK_DETECTION in analysis_types:
-            tasks[AnalysisType.STACK_DETECTION] = self.stack_analyzer.analyze(
-                enriched_data
+            results["stack"] = await self.stack_analyzer.analyze_repository(
+                repository_data
             )
 
         if AnalysisType.DEPENDENCY_ANALYSIS in analysis_types:
-            tasks[AnalysisType.DEPENDENCY_ANALYSIS] = self.dependency_analyzer.analyze(
-                enriched_data
+            results["dependencies"] = await self.dependency_analyzer.analyze_repository(
+                repository_data
             )
 
         if AnalysisType.CODE_QUALITY in analysis_types:
-            tasks[AnalysisType.CODE_QUALITY] = self.code_analyzer.analyze(enriched_data)
-
-        # Execute all tasks in parallel
-        results = {}
-        for analysis_type, task in tasks.items():
-            try:
-                results[analysis_type] = await task
-            except Exception as e:
-                logger.error(f"Analysis {analysis_type} failed: {e}")
-                results[analysis_type] = {"error": str(e)}
+            results["code_quality"] = await self.code_analyzer.analyze_repository(
+                repository_data
+            )
 
         return results
 
     async def _combine_analysis_results(
         self,
-        repository_url: str,
-        branch: str,
-        analysis_results: Dict[AnalysisType, Dict],
-        repo_data: Dict,
+        repository_data: Dict[str, Any],
+        analysis_results: Dict[str, Any],
     ) -> AnalysisResult:
         """
-        Combine results from different analyzers into a unified result
+        Combine results from multiple analyzers into a unified AnalysisResult
         """
-        # Extract stack detection results
-        stack_result = analysis_results.get(AnalysisType.STACK_DETECTION, {})
-        dependency_result = analysis_results.get(AnalysisType.DEPENDENCY_ANALYSIS, {})
-        code_quality_result = analysis_results.get(AnalysisType.CODE_QUALITY, {})
+        # Get basic repository info
+        repo_info = repository_data.get("repository", {})
+        repository_url = repo_info.get("url", "")
+        branch = repo_info.get("branch", "main")
 
-        # Create technology stack from stack analyzer
-        if "error" not in stack_result:
-            technology_stack = TechnologyStack(
-                language=stack_result.get("language"),
-                framework=stack_result.get("framework"),
-                database=stack_result.get("database"),
-                build_tool=stack_result.get("build_tool"),
-                package_manager=stack_result.get("package_manager"),
-                runtime_version=stack_result.get("runtime_version"),
-                additional_technologies=stack_result.get("additional_technologies", []),
-                architecture_pattern=stack_result.get("architecture_pattern"),
-                deployment_strategy=stack_result.get("deployment_strategy"),
-            )
-        else:
-            technology_stack = TechnologyStack()
+        # Extract stack analysis
+        stack_result = analysis_results.get("stack", {})
+        technology_stack = stack_result.get("technology_stack")
+        stack_confidence = stack_result.get("confidence_score", 0.0)
 
-        # Calculate overall confidence
-        confidence_scores = []
-        confidence_weights = []
+        # Extract dependency analysis
+        dependency_result = analysis_results.get("dependencies", {})
+        dependencies = dependency_result.get("dependencies", {})
+        dependency_confidence = dependency_result.get("confidence_score", 0.0)
 
-        if "error" not in stack_result:
-            confidence_scores.append(stack_result.get("confidence", 0.0))
-            confidence_weights.append(0.5)  # Stack detection is most important
+        # Extract code quality analysis
+        quality_result = analysis_results.get("code_quality", {})
+        quality_metrics = quality_result.get("quality_metrics", {})
+        quality_confidence = quality_result.get("confidence_score", 0.0)
 
-        if "error" not in dependency_result:
-            confidence_scores.append(dependency_result.get("confidence", 0.0))
-            confidence_weights.append(0.3)  # Dependencies are important
+        # Calculate weighted confidence
+        confidence_scores = [
+            ("stack", stack_confidence, 0.4),
+            ("dependencies", dependency_confidence, 0.3),
+            ("quality", quality_confidence, 0.3),
+        ]
+        overall_confidence = calculate_weighted_confidence(confidence_scores)
 
-        if "error" not in code_quality_result:
-            confidence_scores.append(code_quality_result.get("confidence", 0.0))
-            confidence_weights.append(0.2)  # Code quality is supplementary
-
-        overall_confidence = calculate_weighted_confidence(
-            confidence_scores, confidence_weights
-        )
-
-        # Combine detected files
-        detected_files = []
-        for result in analysis_results.values():
-            if "detected_files" in result and "error" not in result:
-                detected_files.extend(
-                    result["detected_files"]
-                )  # Remove duplicates while preserving order
-        detected_files = list(dict.fromkeys(detected_files))
-
-        # DO NOT collect recommendations/suggestions from analyzers
-        # Only LLM enhancer should generate these
-        recommendations = []  # Will be populated by LLM enhancer only
-        suggestions = []  # Will be populated by LLM enhancer only
-
-        # Create detailed analysis
-        detailed_analysis = {
-            "stack_detection": stack_result,
-            "dependency_analysis": dependency_result,
-            "code_quality": code_quality_result,
-            "repository_stats": {
-                "total_files": repo_data.get("total_files", 0),
-                "analyzed_files": len(detected_files),
-                "file_types": repo_data.get("file_types", {}),
-            },
-        }
-
-        # Determine analysis approach based on actual LLM usage
-        analysis_approach = "rule_based"
-        llm_used = False
-
-        # Check if any engine actually used LLM enhancement
-        if (
-            stack_result
-            and hasattr(stack_result, "llm_enhanced")
-            and stack_result.llm_enhanced
-        ):
-            analysis_approach = "llm_enhanced"
-            llm_used = True
-        elif any(
-            getattr(result, "llm_enhanced", False)
-            for result in analysis_results.values()
-            if result
-        ):
-            analysis_approach = "llm_enhanced"
-            llm_used = True  # Log the approach used
-        logger.info(
-            f"Analysis approach determined: {analysis_approach} (LLM used: {llm_used})"
-        )
-
-        return AnalysisResult(
+        # Create unified result
+        result = AnalysisResult(
             repository_url=repository_url,
             branch=branch,
-            analysis_type=AnalysisType.STACK_DETECTION,  # Primary type
-            technology_stack=technology_stack,
+            technology_stack=technology_stack or TechnologyStack(),
+            dependencies=dependencies,
+            quality_metrics=quality_metrics,
             confidence_score=overall_confidence,
-            confidence_level=ConfidenceLevel.MEDIUM,  # Will be auto-calculated
-            detected_files=detected_files[:50],  # Limit for response size
-            analysis_approach=analysis_approach,
-            processing_time=0.0,  # Will be set by caller
-            detailed_analysis=detailed_analysis,
-            recommendations=recommendations,
-            suggestions=suggestions,
-            quality_metrics=code_quality_result.get("metrics"),
-            security_metrics=(
-                dependency_result.get("security_metrics") if dependency_result else None
-            ),
-            performance_metrics=(
-                code_quality_result.get("performance_metrics")
-                if code_quality_result
-                else None
-            ),
-            dependency_analysis=self._extract_dependency_analysis(dependency_result),
-            llm_used=llm_used,
+            confidence_level=ConfidenceLevel.from_score(overall_confidence),
+            analysis_approach="rule_based",
+            llm_used=False,
+            processing_time=0.0,  # Will be updated later
+            recommendations=[],  # Will be filled by LLM enhancer
+            suggestions=[],  # Will be filled by LLM enhancer
+            insights=[],  # Will be filled by LLM enhancer
         )
+
+        return result
+
+    def _generate_cache_key_from_data(
+        self, repository_data: Dict[str, Any], analysis_types: List[AnalysisType]
+    ) -> str:
+        """
+        Generate cache key from repository data
+        """
+        repo_info = repository_data.get("repository", {})
+        repo_name = repo_info.get("name", "unknown")
+        commit_sha = repo_info.get("latest_commit", "unknown")
+        analysis_type_str = "-".join([t.value for t in analysis_types])
+
+        return f"analysis:{repo_name}:{commit_sha}:{analysis_type_str}"
 
     async def _create_error_result(
-        self, repository_url: str, branch: str, error_message: str
+        self, repository_data: Dict[str, Any], error: str
     ) -> AnalysisResult:
         """
-        Create error result when analysis fails
+        Create an error result when analysis fails
         """
+        repo_info = repository_data.get("repository", {})
+
         return AnalysisResult(
-            repository_url=repository_url,
-            branch=branch,
-            analysis_type=AnalysisType.STACK_DETECTION,
+            repository_url=repo_info.get("url", ""),
+            branch=repo_info.get("branch", "main"),
             technology_stack=TechnologyStack(),
+            dependencies={},
+            quality_metrics={},
             confidence_score=0.0,
-            confidence_level=ConfidenceLevel.VERY_LOW,
-            detected_files=[],
+            confidence_level=ConfidenceLevel.LOW,
             analysis_approach="error",
+            llm_used=False,
             processing_time=0.0,
-            detailed_analysis={"error": error_message},
             recommendations=[],
-            suggestions=[f"Analysis failed: {error_message}"],
+            suggestions=[],
+            insights=[],
+            error_message=error,
         )
-
-    def _generate_cache_key(
-        self, repository_url: str, branch: str, analysis_types: List[AnalysisType]
-    ) -> str:
-        """
-        Generate cache key for analysis results
-        """
-        parsed_url = urlparse(repository_url)
-        repo_path = parsed_url.path.strip("/")
-
-        analysis_type_str = "-".join(sorted([at.value for at in analysis_types]))
-
-        return f"analysis:{repo_path}:{branch}:{analysis_type_str}"
-
-    def _generate_enriched_cache_key(
-        self, enriched_data: Dict[str, Any], analysis_types: List[AnalysisType]
-    ) -> str:
-        """Generate cache key for enriched data analysis"""
-        repo_data = enriched_data.get("repository", {})
-        metadata = enriched_data.get("metadata", {})
-
-        key_parts = [
-            repo_data.get("full_name", "unknown"),
-            metadata.get("branch", "main"),
-            metadata.get("extracted_at", "unknown"),
-            "+".join([at.value for at in analysis_types]),
-        ]
-
-        return f"enriched_analysis:{':'.join(key_parts)}"
 
     async def get_supported_technologies(self) -> Dict[str, List[str]]:
         """
-        Get list of supported technologies across all analyzers
+        Get list of all supported technologies across all analyzers
         """
         return {
-            "languages": await self.stack_analyzer.get_supported_languages(),
-            "frameworks": await self.stack_analyzer.get_supported_frameworks(),
-            "databases": await self.stack_analyzer.get_supported_databases(),
-            "build_tools": await self.stack_analyzer.get_supported_build_tools(),
-            "ecosystems": await self.dependency_analyzer.get_supported_ecosystems(),
+            "languages": ["python", "javascript", "typescript", "java", "go", "rust"],
+            "frameworks": ["react", "vue", "angular", "django", "flask", "express"],
+            "databases": ["postgresql", "mysql", "mongodb", "redis"],
+            "tools": ["docker", "kubernetes", "terraform", "ansible"],
         }
 
     async def health_check(self) -> Dict[str, str]:
         """
         Perform health check on all components
         """
-        health_status = {
-            "engine": "healthy",
-            "stack_analyzer": "healthy",
-            "dependency_analyzer": "healthy",
-            "code_analyzer": "healthy",
-            "llm_enhancer": (
-                "healthy" if self.llm_enhancer.is_available else "unavailable"
-            ),
-            "github_client": "healthy",
-            "cache_manager": "healthy",
-        }  # Test each component
         try:
-            await self.github_client.test_connection()
+            # Check cache manager
+            await self.cache_manager.health_check()
+
+            return {
+                "status": "healthy",
+                "stack_analyzer": "operational",
+                "dependency_analyzer": "operational",
+                "code_analyzer": "operational",
+                "llm_enhancer": "operational",
+                "cache_manager": "operational",
+            }
         except Exception as e:
-            health_status["github_client"] = f"error: {str(e)}"
-
-        try:
-            await self.cache_manager.test_connection()
-        except Exception as e:
-            health_status["cache_manager"] = f"error: {str(e)}"
-
-        return health_status
-
-    def _extract_dependency_analysis(self, dependency_result: Dict):
-        """Extract dependency analysis from result dict"""
-        if not dependency_result or "error" in dependency_result:
-            return None
-
-        # Import here to avoid circular imports
-        from engines.core.models import DependencyAnalysis
-
-        # Check if it's already a DependencyAnalysis object
-        if hasattr(dependency_result, "total_dependencies"):
-            return dependency_result
-
-        # Create DependencyAnalysis from dict
-        try:
-            return DependencyAnalysis(
-                total_dependencies=dependency_result.get("total_dependencies", 0),
-                direct_dependencies=dependency_result.get("direct_dependencies", 0),
-                dev_dependencies=dependency_result.get("dev_dependencies", 0),
-                package_managers=dependency_result.get("package_managers", []),
-                dependencies=dependency_result.get("dependencies", []),
-                security_vulnerabilities=dependency_result.get(
-                    "security_vulnerabilities", 0
-                ),
-                outdated_dependencies=dependency_result.get("outdated_dependencies", 0),
-                dependency_categories=dependency_result.get(
-                    "dependency_categories", {}
-                ),
-                metrics=dependency_result.get("metrics", {}),
-                total_vulnerabilities=dependency_result.get("total_vulnerabilities", 0),
-                critical_vulnerabilities=dependency_result.get(
-                    "critical_vulnerabilities", 0
-                ),
-                high_vulnerabilities=dependency_result.get("high_vulnerabilities", 0),
-                medium_vulnerabilities=dependency_result.get(
-                    "medium_vulnerabilities", 0
-                ),
-                low_vulnerabilities=dependency_result.get("low_vulnerabilities", 0),
-                major_updates_available=dependency_result.get(
-                    "major_updates_available", 0
-                ),
-                license_issues=dependency_result.get("license_issues", 0),
-                incompatible_licenses=dependency_result.get(
-                    "incompatible_licenses", []
-                ),
-                optimization_score=dependency_result.get("optimization_score", 0),
-            )
-        except Exception as e:
-            logger.warning(f"Failed to create DependencyAnalysis object: {e}")
-            return None
-
-
-# Alias for backward compatibility
-TechnologyDetector = UnifiedDetectionEngine
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+            }
