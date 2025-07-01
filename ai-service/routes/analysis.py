@@ -48,6 +48,19 @@ class RepositoryAnalysisRequest(BaseModel):
     track_progress: bool = False
 
 
+class EnrichedDataAnalysisRequest(BaseModel):
+    """Request model for analysis using pre-enriched repository data"""
+
+    repository_data: Dict[str, Any]
+    session_id: str
+    analysis_types: Optional[List[str]] = None  # ["stack", "dependencies", "quality"]
+    force_llm_enhancement: bool = False
+    include_reasoning: bool = True
+    include_recommendations: bool = True
+    include_insights: bool = True
+    explain_null_fields: bool = True
+
+
 class CodeQualityRequest(BaseModel):
     repository_url: str
     branch: str = "main"
@@ -279,6 +292,54 @@ async def analyze_repository(
     except Exception as e:
         logger.error(
             f"Repository analysis failed for {request.repository_url}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/analyze-enriched-data", response_model=ResponseModel[AnalysisResponse])
+async def analyze_enriched_data(
+    request: EnrichedDataAnalysisRequest,
+    auth_user: AuthUser = Depends(validate_internal_request),
+):
+    """
+    Analyze repository using pre-enriched data from the server
+    Used in the WebSocket-based analysis flow
+    """
+    logger.info(f"Enriched data analysis request for session: {request.session_id}")
+
+    try:
+        # Run analysis on enriched data
+        result = await analysis_service.analyze_enriched_data(
+            repository_data=request.repository_data,
+            session_id=request.session_id,
+            analysis_types=request.analysis_types,
+            force_llm=request.force_llm_enhancement,
+            include_reasoning=request.include_reasoning,
+            include_recommendations=request.include_recommendations,
+            include_insights=request.include_insights,
+            explain_null_fields=request.explain_null_fields,
+        )
+
+        logger.info(
+            f"Enriched data analysis completed successfully for session: {request.session_id}"
+        )
+
+        return ResponseModel(
+            success=True,
+            message="Enriched data analysis completed successfully",
+            data=AnalysisResponse(**result),
+        )
+
+    except AnalysisException as e:
+        logger.error(
+            f"Enriched data analysis failed for session {request.session_id}: {e.message}"
+        )
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+    except Exception as e:
+        logger.error(
+            f"Enriched data analysis failed for session {request.session_id}: {str(e)}",
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -535,6 +596,7 @@ async def detailed_health_check():
         raise HTTPException(
             status_code=500, detail=f"Detailed health check failed: {str(e)}"
         )
+
 
 class AnalysisResult:
     """Placeholder class for AnalysisResult"""

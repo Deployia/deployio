@@ -54,6 +54,16 @@ class DockerfileRequest(BaseModel):
     port: int = 3000
 
 
+class GenerationFromAnalysisRequest(BaseModel):
+    """Request model for generating configurations from analysis results"""
+
+    session_id: str
+    analysis_result: Dict[str, Any]
+    config_types: List[str] = ["dockerfile", "docker_compose"]
+    user_preferences: Optional[Dict[str, Any]] = None
+    optimization_level: str = "balanced"
+
+
 # Response Models
 class GeneratedConfigResponse(BaseModel):
     config_type: str
@@ -110,6 +120,75 @@ def validate_internal_request(x_internal_service: Optional[str] = Header(None)):
             status_code=403, detail="Access denied: Internal service only"
         )
     return x_internal_service
+
+
+@router.post(
+    "/generate-from-analysis", response_model=ResponseModel[ConfigGenerationResponse]
+)
+async def generate_from_analysis(
+    request: GenerationFromAnalysisRequest,
+    internal_service: str = Depends(validate_internal_request),
+):
+    """
+    Generate deployment configurations from analysis results
+    Used in the WebSocket-based generation flow
+    """
+    logger.info(f"Generation from analysis request for session: {request.session_id}")
+
+    try:
+        # Import here to avoid circular imports
+        from services.generation_service import generation_service
+
+        # Generate configurations using the generation service
+        result = await generation_service.generate_configurations(
+            analysis_result=request.analysis_result,
+            session_id=request.session_id,
+            config_types=request.config_types,
+            user_preferences=request.user_preferences,
+        )
+
+        # Convert to response format
+        generated_configs = []
+        for config_type, config_data in result["configurations"].items():
+            generated_configs.append(
+                GeneratedConfigResponse(
+                    config_type=config_type,
+                    filename=config_data.get("filename", f"{config_type}.yml"),
+                    content=config_data.get("content", ""),
+                    template_used=config_data.get("template", "standard"),
+                    optimization_level=request.optimization_level,
+                    security_features=config_data.get("security_features", []),
+                    setup_instructions=config_data.get("setup_instructions", []),
+                    usage_notes=config_data.get("usage_notes", []),
+                )
+            )
+
+        response_data = ConfigGenerationResponse(
+            project_id=request.session_id,  # Using session_id as project_id
+            generated_configs=generated_configs,
+            overall_optimization_score=result["metadata"].get(
+                "optimization_score", 0.85
+            ),
+            generation_time=result["metadata"].get("generation_time", 0.0),
+            recommendations=result["metadata"].get("recommendations", []),
+        )
+
+        logger.info(
+            f"Generation from analysis completed successfully for session: {request.session_id}"
+        )
+
+        return ResponseModel(
+            success=True,
+            message="Configurations generated successfully from analysis",
+            data=response_data,
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Generation from analysis failed for session {request.session_id}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 
 @router.post(
