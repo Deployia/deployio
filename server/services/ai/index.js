@@ -6,6 +6,8 @@ const {
 } = require("./aiServiceClient");
 const {
   analyzeRepository,
+  analyzeRepositoryWithWebSocket,
+  generateConfigurations,
   detectTechnologyStack,
   analyzeCodeQuality,
   analyzeDependencies,
@@ -109,6 +111,8 @@ module.exports = {
 
   // Analysis services
   analyzeRepository,
+  analyzeRepositoryWithWebSocket,
+  generateConfigurations,
   detectTechnologyStack,
   analyzeCodeQuality,
   analyzeDependencies,

@@ -8,10 +8,16 @@ const {
 const { getRedisClient } = require("@config/redisClient");
 const logger = require("@config/logger");
 
-// Complete repository analysis
-const analyzeRepository = async (repositoryUrl, options = {}) => {
+// Complete repository analysis with new structure
+const analyzeRepository = async (repositoryData, options = {}) => {
   const redisClient = getRedisClient();
-  const cacheKey = `ai_analysis:${Buffer.from(repositoryUrl).toString(
+
+  // Create cache key from repository data instead of URL
+  const repoIdentifier =
+    repositoryData.repository?.name ||
+    repositoryData.repository?.full_name ||
+    "unknown";
+  const cacheKey = `ai_analysis:${Buffer.from(repoIdentifier).toString(
     "base64"
   )}:${options.branch || "main"}`;
 
@@ -20,7 +26,7 @@ const analyzeRepository = async (repositoryUrl, options = {}) => {
     if (!options.forceRefresh) {
       const cachedResult = await redisClient.get(cacheKey);
       if (cachedResult) {
-        logger.info(`AI repository analysis cache hit for ${repositoryUrl}`);
+        logger.info(`AI repository analysis cache hit for ${repoIdentifier}`);
         return JSON.parse(cachedResult);
       }
     }
@@ -30,12 +36,11 @@ const analyzeRepository = async (repositoryUrl, options = {}) => {
       ? generateAiServiceToken(options.user)
       : generateDemoToken();
 
-    // Call AI service for repository analysis
+    // Call AI service for repository analysis with new structure
     const response = await aiServiceClient.post(
       "/analysis/analyze-repository",
       {
-        repository_url: repositoryUrl,
-        branch: options.branch || "main",
+        repository_data: repositoryData, // NEW: Complete repository data
         analysis_types: options.analysisTypes || [
           "stack",
           "dependencies",
@@ -47,6 +52,7 @@ const analyzeRepository = async (repositoryUrl, options = {}) => {
         include_insights: options.includeInsights !== false,
         explain_null_fields: options.explainNullFields !== false,
         track_progress: options.trackProgress || false,
+        session_id: options.sessionId || `session_${Date.now()}`,
       },
       {
         headers: {
@@ -59,11 +65,11 @@ const analyzeRepository = async (repositoryUrl, options = {}) => {
     // Cache for appropriate duration based on user type
     const cacheTime = options.user ? 3600 : 1800; // 1 hour for users, 30 min for demo
     await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
-    logger.info(`AI repository analysis completed for ${repositoryUrl}`);
+    logger.info(`AI repository analysis completed for ${repoIdentifier}`);
     return result;
   } catch (error) {
     logger.error(
-      `AI repository analysis failed for ${repositoryUrl}:`,
+      `AI repository analysis failed for ${repoIdentifier}:`,
       error.response?.data?.detail || error.message
     );
 
@@ -394,6 +400,117 @@ const getSupportedTechnologies = async () => {
   }
 };
 
+// NEW: WebSocket-based analysis with real-time progress
+const analyzeRepositoryWithWebSocket = async (repositoryData, options = {}) => {
+  const sessionId = options.sessionId || `session_${Date.now()}`;
+
+  try {
+    // Generate appropriate token
+    const token = options.user
+      ? generateAiServiceToken(options.user)
+      : generateDemoToken();
+
+    // Get WebSocket manager (will implement this next)
+    const { getWebSocketManager } = require("@config/webSocketManager");
+    const wsManager = getWebSocketManager();
+
+    // Emit analysis start to client
+    wsManager.to(options.socketId).emit("analysis:started", {
+      sessionId,
+      status: "started",
+      message: "Analysis initiated",
+    });
+
+    // Call AI service for analysis
+    const response = await aiServiceClient.post(
+      "/analysis/analyze-repository",
+      {
+        repository_data: repositoryData,
+        analysis_types: options.analysisTypes || [
+          "stack",
+          "dependencies",
+          "quality",
+        ],
+        force_llm_enhancement: options.forceLlm || false,
+        include_reasoning: options.includeReasoning !== false,
+        include_recommendations: options.includeRecommendations !== false,
+        include_insights: options.includeInsights !== false,
+        session_id: sessionId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = response.data.data;
+
+    // Emit analysis complete to client
+    wsManager.to(options.socketId).emit("analysis:completed", {
+      sessionId,
+      status: "completed",
+      data: result,
+    });
+
+    return result;
+  } catch (error) {
+    // Emit error to client
+    const { getWebSocketManager } = require("@config/webSocketManager");
+    const wsManager = getWebSocketManager();
+
+    wsManager.to(options.socketId).emit("analysis:error", {
+      sessionId,
+      status: "error",
+      error: error.message,
+    });
+
+    throw error;
+  }
+};
+
+// NEW: Configuration generation from analysis results
+const generateConfigurations = async (
+  repositoryData,
+  analysisResults,
+  options = {}
+) => {
+  try {
+    const token = options.user
+      ? generateAiServiceToken(options.user)
+      : generateDemoToken();
+
+    const response = await aiServiceClient.post(
+      "/generators/generate-configs",
+      {
+        session_id: options.sessionId || `session_${Date.now()}`,
+        repository_data: repositoryData,
+        analysis_results: analysisResults,
+        config_types: options.configTypes || [
+          "dockerfile",
+          "github_actions",
+          "docker_compose",
+        ],
+        optimization_level: options.optimizationLevel || "balanced",
+        user_preferences: options.userPreferences || {},
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data.data;
+  } catch (error) {
+    logger.error(
+      `Configuration generation failed:`,
+      error.response?.data?.detail || error.message
+    );
+    throw error;
+  }
+};
+
 // Legacy compatibility for existing controllers
 const analyzeProjectStack = (
   projectId,
@@ -406,6 +523,8 @@ const analyzeProjectStack = (
 
 module.exports = {
   analyzeRepository,
+  analyzeRepositoryWithWebSocket,
+  generateConfigurations,
   detectTechnologyStack,
   analyzeCodeQuality,
   analyzeDependencies,

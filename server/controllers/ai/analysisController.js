@@ -1,5 +1,6 @@
 const project = require("@services/project");
 const ai = require("@services/ai");
+const GitProviderService = require("@services/gitProvider/GitProviderService");
 const logger = require("@config/logger");
 
 /**
@@ -11,15 +12,17 @@ const analyzeRepository = async (req, res) => {
   try {
     const {
       repositoryUrl,
+      repositoryData,
       branch = "main",
       analysisTypes,
       options = {},
     } = req.body;
 
-    if (!repositoryUrl) {
+    // Support both old URL-based and new repository-data-based requests
+    if (!repositoryUrl && !repositoryData) {
       return res.status(400).json({
         success: false,
-        message: "Repository URL is required",
+        message: "Either repositoryUrl or repositoryData is required",
       });
     }
 
@@ -30,9 +33,35 @@ const analyzeRepository = async (req, res) => {
       ...options,
     };
 
-    const result = await ai.analyzeRepository(repositoryUrl, analysisOptions);
+    let result;
 
-    logger.info(`Repository analysis completed for ${repositoryUrl}`, {
+    if (repositoryData) {
+      // NEW: Use repository data directly
+      result = await ai.analyzeRepository(repositoryData, analysisOptions);
+    } else {
+      // NEW: URL-based analysis - we need to fetch repository data from git provider
+      // Extract provider from URL (GitHub, GitLab, etc.)
+      const provider = extractProviderFromUrl(repositoryUrl);
+      
+      if (!provider) {
+        return res.status(400).json({
+          success: false,
+          message: "Could not determine git provider from repository URL. Supported: GitHub, GitLab, Bitbucket, Azure DevOps",
+        });
+      }
+
+      // Fetch repository data from the git provider service
+      const fetchedRepoData = await GitProviderService.fetchRepositoryData(
+        req.user._id,
+        provider,
+        repositoryUrl,
+        branch
+      );
+      
+      result = await ai.analyzeRepository(fetchedRepoData, analysisOptions);
+    }
+
+    logger.info(`Repository analysis completed for ${repositoryUrl || repositoryData?.repository?.full_name}`, {
       analysisApproach: result.analysis_approach,
       confidence: result.confidence_score,
       llmUsed: result.llm_used,
@@ -63,6 +92,12 @@ const analyzeRepository = async (req, res) => {
     } else if (error.code === "ECONNABORTED") {
       statusCode = 408;
       errorMessage = "Analysis request timed out";
+    } else if (error.message.includes("No valid token") || error.message.includes("provider not connected")) {
+      statusCode = 401;
+      errorMessage = "Git provider not connected or token expired. Please reconnect your git provider.";
+    } else if (error.message.includes("Invalid repository URL")) {
+      statusCode = 400;
+      errorMessage = error.message;
     }
 
     res.status(statusCode).json({
@@ -74,295 +109,25 @@ const analyzeRepository = async (req, res) => {
 };
 
 /**
- * @desc Detect technology stack for repository
- * @route POST /api/v1/ai/analysis/stack
- * @access Private
+ * Helper function to extract git provider from repository URL
  */
-const detectTechnologyStack = async (req, res) => {
-  try {
-    const { repositoryUrl, branch = "main", options = {} } = req.body;
-
-    if (!repositoryUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "Repository URL is required",
-      });
-    }
-
-    const analysisOptions = {
-      branch,
-      user: req.user,
-      ...options,
-    };
-
-    const result = await ai.detectTechnologyStack(
-      repositoryUrl,
-      analysisOptions
-    );
-
-    logger.info(`Technology stack detection completed for ${repositoryUrl}`, {
-      primaryLanguage: result.technology_stack?.primary_language,
-      framework: result.technology_stack?.framework,
-      confidence: result.confidence_score,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Technology stack detection completed successfully",
-      data: result,
-    });
-  } catch (error) {
-    logger.error("Error detecting technology stack:", error);
-
-    // Enhanced error handling to pass through AI service errors properly
-    let statusCode = 500;
-    let errorMessage = "Error detecting technology stack";
-
-    if (error.response) {
-      // AI service returned an error response - forward it directly
-      statusCode = error.response.status;
-      errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        errorMessage;
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI analysis service is temporarily unavailable";
-    } else if (error.code === "ECONNABORTED") {
-      statusCode = 408;
-      errorMessage = "Analysis request timed out";
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+function extractProviderFromUrl(repositoryUrl) {
+  if (!repositoryUrl) return null;
+  
+  const url = repositoryUrl.toLowerCase();
+  
+  if (url.includes('github.com')) {
+    return 'github';
+  } else if (url.includes('gitlab.com')) {
+    return 'gitlab';
+  } else if (url.includes('bitbucket.org')) {
+    return 'bitbucket';
+  } else if (url.includes('dev.azure.com') || url.includes('visualstudio.com')) {
+    return 'azuredevops';
   }
-};
-
-/**
- * @desc Analyze code quality for repository
- * @route POST /api/v1/ai/analysis/code-quality
- * @access Private
- */
-const analyzeCodeQuality = async (req, res) => {
-  try {
-    const { repositoryUrl, branch = "main", options = {} } = req.body;
-
-    if (!repositoryUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "Repository URL is required",
-      });
-    }
-
-    const analysisOptions = {
-      branch,
-      user: req.user,
-      ...options,
-    };
-
-    const result = await ai.analyzeCodeQuality(repositoryUrl, analysisOptions);
-
-    logger.info(`Code quality analysis completed for ${repositoryUrl}`, {
-      overallScore: result.quality_metrics?.overall_score,
-      confidence: result.confidence_score,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Code quality analysis completed successfully",
-      data: result,
-    });
-  } catch (error) {
-    logger.error("Error analyzing code quality:", error);
-
-    // Enhanced error handling to pass through AI service errors properly
-    let statusCode = 500;
-    let errorMessage = "Error analyzing code quality";
-
-    if (error.response) {
-      // AI service returned an error response - forward it directly
-      statusCode = error.response.status;
-      errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        errorMessage;
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI analysis service is temporarily unavailable";
-    } else if (error.code === "ECONNABORTED") {
-      statusCode = 408;
-      errorMessage = "Analysis request timed out";
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-/**
- * @desc Analyze dependencies for repository
- * @route POST /api/v1/ai/analysis/dependencies
- * @access Private
- */
-const analyzeDependencies = async (req, res) => {
-  try {
-    const { repositoryUrl, branch = "main", options = {} } = req.body;
-
-    if (!repositoryUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "Repository URL is required",
-      });
-    }
-
-    const analysisOptions = {
-      branch,
-      user: req.user,
-      ...options,
-    };
-
-    const result = await ai.analyzeDependencies(repositoryUrl, analysisOptions);
-
-    logger.info(`Dependency analysis completed for ${repositoryUrl}`, {
-      totalDependencies: result.dependency_analysis?.total_dependencies,
-      vulnerableDependencies:
-        result.dependency_analysis?.vulnerable_dependencies,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Dependency analysis completed successfully",
-      data: result,
-    });
-  } catch (error) {
-    logger.error("Error analyzing dependencies:", error);
-
-    // Enhanced error handling to pass through AI service errors properly
-    let statusCode = 500;
-    let errorMessage = "Error analyzing dependencies";
-
-    if (error.response) {
-      // AI service returned an error response - forward it directly
-      statusCode = error.response.status;
-      errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        errorMessage;
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI analysis service is temporarily unavailable";
-    } else if (error.code === "ECONNABORTED") {
-      statusCode = 408;
-      errorMessage = "Analysis request timed out";
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-/**
- * @desc Get analysis progress for operation
- * @route GET /api/v1/ai/analysis/progress/:operationId
- * @access Private
- */
-const getAnalysisProgress = async (req, res) => {
-  try {
-    const { operationId } = req.params;
-
-    const result = await ai.getAnalysisProgress(operationId, req.user);
-
-    res.status(200).json({
-      success: true,
-      message: "Analysis progress retrieved successfully",
-      data: result,
-    });
-  } catch (error) {
-    logger.error("Error getting analysis progress:", error);
-
-    // Enhanced error handling to pass through AI service errors properly
-    let statusCode = 500;
-    let errorMessage = "Error retrieving analysis progress";
-
-    if (error.response) {
-      statusCode = error.response.status;
-      errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        errorMessage;
-
-      if (statusCode === 404) {
-        errorMessage = "Operation not found";
-      }
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI analysis service is temporarily unavailable";
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-/**
- * @desc Get analysis progress for demo operation (public endpoint)
- * @route GET /api/v1/ai/analysis/demo/progress/:operationId
- * @access Public (Rate Limited)
- */
-const getDemoAnalysisProgress = async (req, res) => {
-  try {
-    const { operationId } = req.params;
-
-    // For demo, we'll use a mock user object
-    const demoUser = { _id: "demo", email: "demo@demo.com" };
-    const result = await ai.getAnalysisProgress(operationId, demoUser);
-
-    res.status(200).json({
-      success: true,
-      message: "Demo analysis progress retrieved successfully",
-      data: result,
-    });
-  } catch (error) {
-    logger.error("Error getting demo analysis progress:", error);
-
-    // Enhanced error handling to pass through AI service errors properly
-    let statusCode = 500;
-    let errorMessage = "Error retrieving analysis progress";
-
-    if (error.response) {
-      statusCode = error.response.status;
-      errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        errorMessage;
-
-      if (statusCode === 404) {
-        errorMessage = "Operation not found";
-      }
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI analysis service is temporarily unavailable";
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
+  
+  return null;
+}
 
 /**
  * @desc Demo analyze repository (public endpoint with IP-based rate limiting)
@@ -390,6 +155,10 @@ const demoAnalyzeRepository = async (req, res) => {
       });
     }
 
+    // For demo, we'll fetch repository data using a basic GitHub client
+    // This doesn't require user authentication
+    const repositoryData = await fetchPublicRepositoryData(repositoryUrl, branch);
+
     // Demo gets full access with enhanced features
     const analysisOptions = {
       branch,
@@ -403,7 +172,7 @@ const demoAnalyzeRepository = async (req, res) => {
       // No user provided for demo - uses demo token
     };
 
-    const result = await ai.analyzeRepository(repositoryUrl, analysisOptions);
+    const result = await ai.analyzeRepository(repositoryData, analysisOptions);
 
     // Add demo branding
     result.demo_mode = true;
@@ -472,28 +241,97 @@ const demoAnalyzeRepository = async (req, res) => {
 };
 
 /**
- * @desc Get supported technologies from AI service
- * @route GET /api/v1/ai/analysis/supported-technologies
- * @access Public
+ * Fetch public repository data for demo (GitHub only for now)
  */
-const getSupportedTechnologies = async (req, res) => {
+async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
+  // For demo, we'll use a simple approach to fetch public repository data
+  // This is a basic implementation that only works with public GitHub repos
+  const axios = require('axios');
+  
   try {
-    const technologies = await ai.getSupportedTechnologies();
-
-    res.status(200).json({
-      success: true,
-      message: "Supported technologies retrieved successfully",
-      data: technologies,
-    });
+    // Parse GitHub URL
+    const match = repositoryUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (!match) {
+      throw new Error("Only public GitHub repositories are supported in demo mode");
+    }
+    
+    const [, owner, repo] = match;
+    const repoName = repo.replace(/\.git$/, '');
+    
+    // Fetch basic repository info
+    const repoResponse = await axios.get(`https://api.github.com/repos/${owner}/${repoName}`);
+    const repository = repoResponse.data;
+    
+    // Fetch file tree
+    const treeResponse = await axios.get(`https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`);
+    const fileTree = treeResponse.data.tree || [];
+    
+    // Fetch key files (package.json, requirements.txt, etc.)
+    const keyFiles = {};
+    const importantFiles = [
+      'package.json', 'requirements.txt', 'pom.xml', 'Gemfile', 
+      'composer.json', 'Dockerfile', 'docker-compose.yml', 'README.md'
+    ];
+    
+    for (const fileName of importantFiles) {
+      try {
+        const fileResponse = await axios.get(`https://api.github.com/repos/${owner}/${repoName}/contents/${fileName}?ref=${branch}`);
+        if (fileResponse.data.content) {
+          keyFiles[fileName] = {
+            content: Buffer.from(fileResponse.data.content, 'base64').toString('utf8'),
+            path: fileName,
+            size: fileResponse.data.size
+          };
+        }
+      } catch (err) {
+        // File doesn't exist, ignore
+      }
+    }
+    
+    return {
+      repository: {
+        name: repository.name,
+        full_name: repository.full_name,
+        description: repository.description,
+        default_branch: repository.default_branch,
+        language: repository.language,
+        private: repository.private,
+        html_url: repository.html_url,
+        clone_url: repository.clone_url,
+        ssh_url: repository.ssh_url,
+        topics: repository.topics || [],
+        stars: repository.stargazers_count || 0,
+        forks: repository.forks_count || 0,
+        created_at: repository.created_at,
+        updated_at: repository.updated_at,
+        owner: {
+          login: repository.owner.login,
+          avatar_url: repository.owner.avatar_url,
+          type: repository.owner.type
+        }
+      },
+      files: keyFiles,
+      file_tree: fileTree.filter(item => item.type === 'blob').map(item => ({
+        path: item.path,
+        size: item.size,
+        type: item.type
+      })),
+      metadata: {
+        provider: 'github',
+        branch,
+        fetched_at: new Date().toISOString(),
+        demo_mode: true
+      }
+    };
   } catch (error) {
-    logger.error("Error getting supported technologies:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error retrieving supported technologies",
-      error: error.message,
-    });
+    if (error.response?.status === 404) {
+      throw new Error("Repository not found or is private");
+    } else if (error.response?.status === 403) {
+      throw new Error("API rate limit exceeded or repository access denied");
+    }
+    throw new Error(`Failed to fetch repository data: ${error.message}`);
   }
-};
+}
 
 /**
  * @desc Check AI service health
@@ -543,147 +381,207 @@ const getDetailedServiceHealth = async (req, res) => {
   }
 };
 
-// Legacy compatibility functions
 /**
- * @desc Legacy: Analyze project technology stack using AI
- * @route POST /api/v1/ai/analysis/stack/:projectId
- * @access Private
- * @deprecated Use analyzeRepository or detectTechnologyStack instead
+ * @desc Get supported technologies from AI service
+ * @route GET /api/v1/ai/analysis/supported-technologies
+ * @access Public
  */
-const analyzeProjectStack = async (req, res) => {
+const getSupportedTechnologies = async (req, res) => {
   try {
-    const { projectId } = req.params;
-    const userId = req.user._id;
-
-    // Get project details
-    const projectData = await project.project.getProjectById(projectId, userId);
-    if (!projectData) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
-
-    if (!projectData.repositoryUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "Project does not have a repository URL configured",
-      });
-    }
-
-    const result = await ai.analyzeProjectStack(
-      projectId,
-      projectData.repositoryUrl,
-      projectData.branch || "main",
-      req.user
-    );
-
-    logger.info(`AI stack analysis completed for project ${projectId}`, {
-      primaryLanguage: result.technology_stack?.primary_language,
-      framework: result.technology_stack?.framework,
-      confidence: result.confidence_score,
-    });
+    const technologies = await ai.getSupportedTechnologies();
 
     res.status(200).json({
       success: true,
-      message: "Project analyzed successfully",
-      data: {
-        project: projectData,
-        analysis: result,
-      },
+      message: "Supported technologies retrieved successfully",
+      data: technologies,
     });
   } catch (error) {
-    logger.error("Error analyzing project stack:", error);
-
-    if (
-      error.message.includes("not found") ||
-      error.message.includes("Access denied")
-    ) {
-      return res.status(404).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
+    logger.error("Error getting supported technologies:", error);
     res.status(500).json({
       success: false,
-      message: "Error analyzing project",
+      message: "Error retrieving supported technologies",
       error: error.message,
     });
   }
 };
 
 /**
- * @desc Legacy: Run full AI analysis on a project
- * @route POST /api/v1/ai/analysis/full/:projectId
+ * @desc Generate configurations from analysis results
+ * @route POST /api/v1/ai/analysis/generate-configs
  * @access Private
- * @deprecated Use individual analysis endpoints instead
  */
-const runFullAnalysis = async (req, res) => {
+const generateConfigurations = async (req, res) => {
   try {
-    const { projectId } = req.params;
-    const userId = req.user._id;
+    const {
+      repositoryData,
+      analysisResults,
+      configTypes,
+      options = {},
+    } = req.body;
 
-    // Get project details
-    const projectData = await project.project.getProjectById(projectId, userId);
-    if (!projectData) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
-
-    if (!projectData.repositoryUrl) {
+    if (!repositoryData || !analysisResults) {
       return res.status(400).json({
         success: false,
-        message: "Project does not have a repository URL configured",
+        message: "Repository data and analysis results are required",
       });
     }
 
-    // Run comprehensive AI analysis using new endpoints
-    const analysisOptions = {
-      branch: projectData.branch || "main",
+    const generationOptions = {
       user: req.user,
-      analysisTypes: ["stack", "dependencies", "quality"],
-      includeRecommendations: true,
-      includeInsights: true,
+      sessionId: options.sessionId || `session_${Date.now()}`,
+      configTypes: configTypes || [
+        "dockerfile",
+        "github_actions",
+        "docker_compose",
+      ],
+      optimizationLevel: options.optimizationLevel || "balanced",
+      userPreferences: options.userPreferences || {},
+      ...options,
     };
 
-    const result = await ai.analyzeRepository(
-      projectData.repositoryUrl,
-      analysisOptions
+    const result = await ai.generateConfigurations(
+      repositoryData,
+      analysisResults,
+      generationOptions
     );
 
-    logger.info(`Full AI analysis completed for project ${projectId}`);
+    logger.info(`Configuration generation completed`, {
+      configTypes: generationOptions.configTypes,
+      optimizationLevel: generationOptions.optimizationLevel,
+    });
 
     res.status(200).json({
       success: true,
-      message: "Full AI analysis completed successfully",
-      data: {
-        projectId,
-        project: projectData,
-        analysis: result,
-        timestamp: new Date().toISOString(),
-      },
+      message: "Configuration generation completed successfully",
+      data: result,
     });
   } catch (error) {
-    logger.error("Error running full AI analysis:", error);
-    res.status(500).json({
+    logger.error("Error generating configurations:", error);
+
+    let statusCode = 500;
+    let errorMessage = "Error generating configurations";
+
+    if (error.response) {
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+      statusCode = 503;
+      errorMessage = "AI service is temporarily unavailable";
+    } else if (error.code === "ECONNABORTED") {
+      statusCode = 408;
+      errorMessage = "Configuration generation request timed out";
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error running full AI analysis",
-      error: error.message,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+/**
+ * @desc Complete analysis-to-generation pipeline
+ * @route POST /api/v1/ai/analysis/complete-pipeline
+ * @access Private
+ */
+const completeAnalysisGenerationPipeline = async (req, res) => {
+  try {
+    const {
+      repositoryData,
+      analysisTypes,
+      configTypes,
+      options = {},
+    } = req.body;
+
+    if (!repositoryData) {
+      return res.status(400).json({
+        success: false,
+        message: "Repository data is required",
+      });
+    }
+
+    const sessionId = options.sessionId || `session_${Date.now()}`;
+
+    // Step 1: Analyze repository
+    const analysisOptions = {
+      user: req.user,
+      sessionId,
+      analysisTypes: analysisTypes || ["stack", "dependencies", "quality"],
+      ...options,
+    };
+
+    logger.info(`Starting complete pipeline for session: ${sessionId}`);
+
+    const analysisResult = await ai.analyzeRepository(
+      repositoryData,
+      analysisOptions
+    );
+
+    // Step 2: Generate configurations
+    const generationOptions = {
+      user: req.user,
+      sessionId,
+      configTypes: configTypes || [
+        "dockerfile",
+        "github_actions",
+        "docker_compose",
+      ],
+      optimizationLevel: options.optimizationLevel || "balanced",
+      userPreferences: options.userPreferences || {},
+    };
+
+    const generationResult = await ai.generateConfigurations(
+      repositoryData,
+      analysisResult,
+      generationOptions
+    );
+
+    const pipelineResult = {
+      sessionId,
+      analysis: analysisResult,
+      generation: generationResult,
+      timestamp: new Date().toISOString(),
+    };
+
+    logger.info(`Complete pipeline completed for session: ${sessionId}`);
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Complete analysis and generation pipeline completed successfully",
+      data: pipelineResult,
+    });
+  } catch (error) {
+    logger.error("Error in complete pipeline:", error);
+
+    let statusCode = 500;
+    let errorMessage = "Error in complete analysis and generation pipeline";
+
+    if (error.response) {
+      statusCode = error.response.status;
+      errorMessage =
+        error.response.data?.detail ||
+        error.response.data?.message ||
+        errorMessage;
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      message: errorMessage,
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
 
 module.exports = {
-  // New API endpoints
+  // Core API endpoints
   analyzeRepository,
-  detectTechnologyStack,
-  analyzeCodeQuality,
-  analyzeDependencies,
-  getAnalysisProgress,
-  getDemoAnalysisProgress,
+  generateConfigurations,
+  completeAnalysisGenerationPipeline,
 
   // Public endpoints
   demoAnalyzeRepository,
@@ -692,8 +590,4 @@ module.exports = {
   // Health checks
   checkServiceHealth,
   getDetailedServiceHealth,
-
-  // Legacy compatibility (deprecated)
-  analyzeProjectStack,
-  runFullAnalysis,
 };

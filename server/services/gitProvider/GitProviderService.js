@@ -535,6 +535,127 @@ class GitProviderService {
       throw new Error(`Failed to update provider info: ${error.message}`);
     }
   }
+
+  /**
+   * Fetch repository data for AI analysis
+   * This method fetches comprehensive repository data including files and structure
+   */
+  static async fetchRepositoryData(userId, provider, repositoryUrl, branch = "main") {
+    try {
+      // Parse repository URL to get owner and repo
+      const parsedUrl = this._parseRepositoryUrl(repositoryUrl);
+      const { owner, repo } = parsedUrl;
+      
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (!this._hasValidGitProviderToken(user, provider)) {
+        throw new Error("No valid token for provider");
+      }
+
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(provider, token);
+
+      // Get basic repository info
+      const repository = await providerInstance.getRepository(owner, repo);
+      
+      // Get repository structure (files and content)
+      const structure = await providerInstance.getRepositoryStructure(owner, repo, branch);
+      
+      // Get branches
+      const branches = await providerInstance.getBranches(owner, repo);
+
+      // Update last used timestamp
+      this._updateProviderLastUsed(user, provider);
+      await user.save();
+
+      // Format the data for AI service
+      const repositoryData = {
+        repository: {
+          name: repository.name,
+          full_name: repository.fullName,
+          description: repository.description,
+          default_branch: repository.defaultBranch,
+          language: repository.language,
+          private: repository.private,
+          html_url: repository.htmlUrl,
+          clone_url: repository.cloneUrl,
+          ssh_url: repository.sshUrl,
+          topics: repository.topics || [],
+          stars: repository.stars || 0,
+          forks: repository.forks || 0,
+          created_at: repository.createdAt,
+          updated_at: repository.lastUpdated,
+          owner: {
+            login: repository.owner?.login,
+            avatar_url: repository.owner?.avatar,
+            type: repository.owner?.type
+          }
+        },
+        files: structure.files || {},
+        structure: structure.structure || {},
+        branches: branches.map(branch => ({
+          name: branch.name,
+          sha: branch.sha,
+          protected: branch.protected
+        })),
+        metadata: {
+          provider,
+          branch,
+          fetched_at: new Date().toISOString(),
+          analysis_timestamp: structure.analysisTimestamp || new Date()
+        }
+      };
+
+      return repositoryData;
+    } catch (error) {
+      throw new Error(`Failed to fetch repository data: ${error.message}`);
+    }
+  }
+
+  /**
+   * Parse repository URL to extract owner and repo name
+   */
+  static _parseRepositoryUrl(repositoryUrl) {
+    try {
+      // Handle different URL formats
+      // https://github.com/owner/repo
+      // https://github.com/owner/repo.git
+      // git@github.com:owner/repo.git
+      
+      let cleanUrl = repositoryUrl;
+      
+      // Convert SSH to HTTPS format for parsing
+      if (repositoryUrl.startsWith('git@')) {
+        cleanUrl = repositoryUrl
+          .replace('git@', 'https://')
+          .replace('.com:', '.com/')
+          .replace('.git', '');
+      }
+      
+      // Remove .git suffix if present
+      cleanUrl = cleanUrl.replace(/\.git$/, '');
+      
+      const url = new URL(cleanUrl);
+      const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+      
+      if (pathParts.length < 2) {
+        throw new Error('Invalid repository URL format');
+      }
+      
+      const owner = pathParts[0];
+      const repo = pathParts[1];
+      
+      return { owner, repo };
+    } catch (error) {
+      throw new Error(`Invalid repository URL: ${repositoryUrl}`);
+    }
+  }
 }
 
 module.exports = GitProviderService;

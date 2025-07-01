@@ -8,6 +8,7 @@ const LogStreamingNamespace = require("./namespaces/LogStreamingNamespace");
 const MetricsNamespace = require("./namespaces/MetricsNamespace");
 const ChatNamespace = require("./namespaces/ChatNamespace");
 const BuildLogsNamespace = require("./namespaces/BuildLogsNamespace");
+const AINamespace = require("./namespaces/AINamespace");
 
 /**
  * WebSocket Initialization Module
@@ -38,6 +39,7 @@ function initializeWebSockets(server, options = {}) {
       logStreaming: true,
       metrics: true, // New metrics streaming
       agentBridge: true, // NEW: Agent bridge for remote log streaming - ENABLED
+      ai: true, // NEW: AI analysis and generation - ENABLED
       chat: false, // Future: Real-time chat
       buildLogs: false, // Future: Build log streaming
     },
@@ -146,6 +148,32 @@ function setupNamespaces(features) {
         error: error.message,
       });
     }
+  }
+
+  // AI namespace - AI analysis and configuration generation
+  if (features.ai) {
+    try {
+      AINamespace.initialize();
+      logger.info("✓ AI namespace initialized", {
+        namespace: "/ai",
+        requireAuth: true,
+        requireVerified: true,
+        features: [
+          "repository-analysis",
+          "config-generation",
+          "real-time-progress",
+        ],
+      });
+    } catch (error) {
+      logger.error("✗ Failed to initialize AI namespace", {
+        error: error.message,
+      });
+    }
+  } else {
+    logger.debug("AI namespace disabled", {
+      namespace: "/ai",
+      status: "disabled_in_config",
+    });
   }
 
   // Agent bridge namespace - NEW IMPLEMENTATION

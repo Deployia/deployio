@@ -51,6 +51,18 @@ router.post(
   ai.analysis.analyzeRepository
 );
 router.post(
+  "/generate-configs",
+  protect,
+  userRateLimit,
+  ai.analysis.generateConfigurations
+);
+router.post(
+  "/complete-pipeline",
+  protect,
+  userRateLimit,
+  ai.analysis.completeAnalysisGenerationPipeline
+);
+router.post(
   "/stack",
   protect,
   userRateLimit,
