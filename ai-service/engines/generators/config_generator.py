@@ -7,7 +7,7 @@ import logging
 import yaml
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-from engines.core.models import TechnologyStack, AnalysisResult
+from models.analysis_models import AnalysisResult, TechnologyStack, BuildConfiguration, DeploymentConfiguration
 
 logger = logging.getLogger(__name__)
 

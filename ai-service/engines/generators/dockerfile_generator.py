@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
-from ..core.models import TechnologyStack, AnalysisResult
+from models.analysis_models import AnalysisResult, TechnologyStack, BuildConfiguration
 
 logger = logging.getLogger(__name__)
 

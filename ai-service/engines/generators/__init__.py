@@ -1,7 +1,13 @@
 """
-Configuration Generators
+Configuration Generators Package
+
+This package contains generators that create deployment configurations
+from analyzed repository data. All generators consume the unified
+AnalysisResult model from the new architecture.
 """
 
-# Placeholder init file - generators will be implemented next
+from .dockerfile_generator import DockerfileGenerator
+from .config_generator import ConfigurationGenerator
+from .pipeline_generator import PipelineGenerator
 
-__all__ = []
+__all__ = ['DockerfileGenerator', 'ConfigurationGenerator', 'PipelineGenerator']

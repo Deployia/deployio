@@ -8,7 +8,7 @@ import yaml
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
-from ..core.models import TechnologyStack, AnalysisResult
+from models.analysis_models import AnalysisResult, TechnologyStack, BuildConfiguration, DeploymentConfiguration
 
 logger = logging.getLogger(__name__)
 
