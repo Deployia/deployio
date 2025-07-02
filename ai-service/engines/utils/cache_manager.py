@@ -1,278 +1,329 @@
 """
-Cache Manager - Clean Redis caching interface
-Efficient caching for analysis results
+Cache Manager
+
+Redis-based caching system for analysis results and intermediate data.
+Provides efficient caching with TTL support and cache invalidation.
 """
 
+import os
 import json
+import hashlib
+import asyncio
 import logging
-from typing import Any, Optional
-from config.redis_client import get_redis_client
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timedelta
+
+try:
+    import redis.asyncio as redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    logging.warning("Redis not available. Caching will be disabled.")
+
+from models.analysis_models import AnalysisResult
 
 logger = logging.getLogger(__name__)
 
 
 class CacheManager:
     """
-    Clean cache management for analysis results
-
-    Features:
-    - JSON serialization/deserialization
-    - TTL management
-    - Error handling and fallback
-    - Key namespacing
+    Redis-based cache manager for analysis results and repository data.
+    Provides efficient caching with TTL support and automatic cleanup.
     """
-
-    def __init__(self, namespace: str = "ai_analysis"):
-        self.namespace = namespace
-        self.redis_client = None
-
-    async def _get_client(self):
-        """Get async Redis client with error handling"""
-        if not self.redis_client:
-            try:
-                self.redis_client = await get_redis_client()
-            except Exception as e:
-                logger.warning(f"Redis client unavailable: {e}")
-                return None
-        return self.redis_client
-
-    def _make_key(self, key: str) -> str:
-        """Create namespaced cache key"""
-        return f"{self.namespace}:{key}"
-
-    async def get(self, key: str) -> Optional[Any]:
-        """
-        Get value from cache
-
-        Args:
-            key: Cache key
-
-        Returns:
-            Cached value or None if not found/error
-        """
+    
+    def __init__(self):
+        self.redis_client: Optional[redis.Redis] = None
+        self.cache_ttl = int(os.getenv('CACHE_TTL', 3600))  # 1 hour default
+        self.enabled = REDIS_AVAILABLE and os.getenv('REDIS_URL') is not None
+        
+        if self.enabled:
+            self._initialize_redis()
+        else:
+            logger.warning("Cache manager disabled - Redis not available or not configured")
+    
+    def _initialize_redis(self):
+        """Initialize Redis connection."""
         try:
-            client = await self._get_client()
-            if not client:
-                return None
-
-            cached_data = await client.get(self._make_key(key))
+            redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+            self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            logger.info("Redis cache manager initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize Redis: {e}")
+            self.enabled = False
+    
+    def _generate_cache_key(self, repository_url: str, analysis_type: str = "full") -> str:
+        """Generate a unique cache key for repository analysis."""
+        # Create hash from repository URL and analysis type
+        key_string = f"{repository_url}:{analysis_type}"
+        hash_key = hashlib.md5(key_string.encode()).hexdigest()
+        return f"analysis:{hash_key}"
+    
+    async def get_analysis_result(
+        self,
+        repository_url: str,
+        analysis_type: str = "full"
+    ) -> Optional[AnalysisResult]:
+        """
+        Retrieve cached analysis result.
+        
+        Args:
+            repository_url: Repository URL
+            analysis_type: Type of analysis (full, stack, dependencies, code)
+            
+        Returns:
+            Cached analysis result or None if not found
+        """
+        if not self.enabled:
+            return None
+            
+        try:
+            cache_key = self._generate_cache_key(repository_url, analysis_type)
+            cached_data = await self.redis_client.get(cache_key)
+            
+            if cached_data:
+                logger.info(f"Cache hit for {repository_url}")
+                data = json.loads(cached_data)
+                return AnalysisResult.parse_obj(data)
+            
+            logger.debug(f"Cache miss for {repository_url}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve from cache: {e}")
+            return None
+    
+    async def store_analysis_result(
+        self,
+        repository_url: str,
+        analysis_result: AnalysisResult,
+        analysis_type: str = "full",
+        ttl: Optional[int] = None
+    ) -> bool:
+        """
+        Store analysis result in cache.
+        
+        Args:
+            repository_url: Repository URL
+            analysis_result: Analysis result to cache
+            analysis_type: Type of analysis
+            ttl: Time to live in seconds (optional)
+            
+        Returns:
+            True if stored successfully, False otherwise
+        """
+        if not self.enabled:
+            return False
+            
+        try:
+            cache_key = self._generate_cache_key(repository_url, analysis_type)
+            cache_ttl = ttl or self.cache_ttl
+            
+            # Convert to dict and add metadata
+            data = analysis_result.dict()
+            data['_cached_at'] = datetime.utcnow().isoformat()
+            data['_cache_version'] = "1.0"
+            
+            # Store with TTL
+            await self.redis_client.setex(
+                cache_key,
+                cache_ttl,
+                json.dumps(data, default=str)
+            )
+            
+            logger.info(f"Cached analysis result for {repository_url} (TTL: {cache_ttl}s)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to store in cache: {e}")
+            return False
+    
+    async def invalidate_repository_cache(self, repository_url: str) -> int:
+        """
+        Invalidate all cached analysis results for a repository.
+        
+        Args:
+            repository_url: Repository URL
+            
+        Returns:
+            Number of keys invalidated
+        """
+        if not self.enabled:
+            return 0
+            
+        try:
+            # Find all cache keys for this repository
+            pattern = f"analysis:*{hashlib.md5(repository_url.encode()).hexdigest()[:8]}*"
+            keys = await self.redis_client.keys(pattern)
+            
+            if keys:
+                deleted = await self.redis_client.delete(*keys)
+                logger.info(f"Invalidated {deleted} cache entries for {repository_url}")
+                return deleted
+            
+            return 0
+            
+        except Exception as e:
+            logger.error(f"Failed to invalidate cache: {e}")
+            return 0
+    
+    async def get_repository_metadata(self, repository_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Get cached repository metadata (file structure, basic info).
+        
+        Args:
+            repository_url: Repository URL
+            
+        Returns:
+            Cached metadata or None if not found
+        """
+        if not self.enabled:
+            return None
+            
+        try:
+            metadata_key = f"metadata:{hashlib.md5(repository_url.encode()).hexdigest()}"
+            cached_data = await self.redis_client.get(metadata_key)
+            
             if cached_data:
                 return json.loads(cached_data)
-
+            
+            return None
+            
         except Exception as e:
-            logger.debug(f"Cache get failed for key {key}: {e}")
-
-        return None
-
-    async def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
+            logger.error(f"Failed to retrieve metadata from cache: {e}")
+            return None
+    
+    async def store_repository_metadata(
+        self,
+        repository_url: str,
+        metadata: Dict[str, Any],
+        ttl: Optional[int] = None
+    ) -> bool:
         """
-        Set value in cache
-
+        Store repository metadata in cache.
+        
         Args:
-            key: Cache key
-            value: Value to cache (will be JSON serialized)
-            ttl: Time to live in seconds (default: 1 hour)
-
+            repository_url: Repository URL
+            metadata: Metadata to cache
+            ttl: Time to live in seconds
+            
         Returns:
-            True if successful, False otherwise
+            True if stored successfully, False otherwise
         """
+        if not self.enabled:
+            return False
+            
         try:
-            client = await self._get_client()
-            if not client:
-                return False
-
-            # Convert complex objects to serializable format
-            serializable_value = self._make_serializable(value)
-            json_data = json.dumps(serializable_value, default=str)
-
-            await client.set(self._make_key(key), json_data, ex=ttl)
-            logger.debug(f"Cached data for key {key} (TTL: {ttl}s)")
+            metadata_key = f"metadata:{hashlib.md5(repository_url.encode()).hexdigest()}"
+            cache_ttl = ttl or (self.cache_ttl * 2)  # Metadata lasts longer
+            
+            # Add cache metadata
+            metadata['_cached_at'] = datetime.utcnow().isoformat()
+            
+            await self.redis_client.setex(
+                metadata_key,
+                cache_ttl,
+                json.dumps(metadata, default=str)
+            )
+            
+            logger.debug(f"Cached metadata for {repository_url}")
             return True
-
+            
         except Exception as e:
-            logger.warning(f"Cache set failed for key {key}: {e}")
+            logger.error(f"Failed to store metadata in cache: {e}")
             return False
-
-    async def delete(self, key: str) -> bool:
+    
+    async def get_cache_stats(self) -> Dict[str, Any]:
         """
-        Delete value from cache
-
-        Args:
-            key: Cache key to delete
-
+        Get cache statistics and health information.
+        
         Returns:
-            True if successful, False otherwise
+            Cache statistics dictionary
         """
+        if not self.enabled:
+            return {"enabled": False, "reason": "Redis not available or configured"}
+            
         try:
-            client = await self._get_client()
-            if not client:
-                return False
-
-            await client.delete(self._make_key(key))
-            logger.debug(f"Deleted cache key {key}")
-            return True
-
-        except Exception as e:
-            logger.warning(f"Cache delete failed for key {key}: {e}")
-            return False
-
-    async def exists(self, key: str) -> bool:
-        """
-        Check if key exists in cache
-
-        Args:
-            key: Cache key to check
-
-        Returns:
-            True if key exists, False otherwise
-        """
-        try:
-            client = await self._get_client()
-            if not client:
-                return False
-
-            exists = await client.exists(self._make_key(key))
-            return bool(exists)
-
-        except Exception as e:
-            logger.debug(f"Cache exists check failed for key {key}: {e}")
-            return False
-
-    async def clear_namespace(self) -> int:
-        """
-        Clear all keys in this namespace
-
-        Returns:
-            Number of keys deleted
-        """
-        try:
-            client = await self._get_client()
-            if not client:
-                return 0
-
-            pattern = f"{self.namespace}:*"
-            keys = await client.keys(pattern)
-
-            if keys:
-                deleted = await client.delete(*keys)
-                logger.info(f"Cleared {deleted} keys from namespace {self.namespace}")
-                return deleted
-
-        except Exception as e:
-            logger.warning(f"Cache namespace clear failed: {e}")
-
-        return 0
-
-    async def get_stats(self) -> dict:
-        """
-        Get cache statistics for this namespace
-
-        Returns:
-            Dictionary with cache stats
-        """
-        try:
-            client = await self._get_client()
-            if not client:
-                return {"status": "unavailable"}
-
-            pattern = f"{self.namespace}:*"
-            keys = await client.keys(pattern)
-
+            info = await self.redis_client.info()
+            
+            # Count our cache keys
+            analysis_keys = await self.redis_client.keys("analysis:*")
+            metadata_keys = await self.redis_client.keys("metadata:*")
+            
             return {
-                "status": "available",
-                "namespace": self.namespace,
-                "key_count": len(keys),
-                "sample_keys": keys[:5] if keys else [],
+                "enabled": True,
+                "redis_version": info.get("redis_version"),
+                "memory_used": info.get("used_memory_human"),
+                "total_keys": info.get("db0", {}).get("keys", 0),
+                "analysis_cache_entries": len(analysis_keys),
+                "metadata_cache_entries": len(metadata_keys),
+                "cache_ttl": self.cache_ttl,
+                "uptime": info.get("uptime_in_seconds")
             }
-
+            
         except Exception as e:
-            logger.warning(f"Cache stats failed: {e}")
-            return {"status": "error", "error": str(e)}
-
-    async def test_connection(self) -> bool:
+            logger.error(f"Failed to get cache stats: {e}")
+            return {"enabled": False, "error": str(e)}
+    
+    async def cleanup_expired_cache(self) -> int:
         """
-        Test cache connection
-
+        Manually cleanup expired cache entries.
+        
         Returns:
-            True if cache is available, False otherwise
+            Number of entries cleaned up
         """
+        if not self.enabled:
+            return 0
+            
         try:
-            client = await self._get_client()
-            if not client:
-                return False
-
-            # Test with a simple ping
-            await client.ping()
-            return True
-
+            # Redis automatically handles TTL expiration,
+            # but we can cleanup entries with old cache versions
+            all_keys = await self.redis_client.keys("analysis:*")
+            cleaned = 0
+            
+            for key in all_keys:
+                try:
+                    data = await self.redis_client.get(key)
+                    if data:
+                        parsed = json.loads(data)
+                        # Check cache version - cleanup old versions
+                        if parsed.get('_cache_version') != "1.0":
+                            await self.redis_client.delete(key)
+                            cleaned += 1
+                except Exception:
+                    # If we can't parse the data, it's corrupted - delete it
+                    await self.redis_client.delete(key)
+                    cleaned += 1
+            
+            if cleaned > 0:
+                logger.info(f"Cleaned up {cleaned} invalid cache entries")
+            
+            return cleaned
+            
         except Exception as e:
-            logger.debug(f"Cache connection test failed: {e}")
-            return False
-
-    def _make_serializable(self, value: Any) -> Any:
+            logger.error(f"Failed to cleanup cache: {e}")
+            return 0
+    
+    async def health_check(self) -> bool:
         """
-        Convert complex objects to JSON-serializable format
-
-        Args:
-            value: Value to make serializable
-
+        Check if cache is healthy and accessible.
+        
         Returns:
-            JSON-serializable version of the value
+            True if cache is healthy, False otherwise
         """
-        if hasattr(value, "__dict__"):
-            # Handle dataclass or custom objects
-            if hasattr(value, "__dataclass_fields__"):
-                # It's a dataclass
-                from dataclasses import asdict
-
-                return asdict(value)
-            else:
-                # Custom object - try to convert to dict
-                return {
-                    k: self._make_serializable(v) for k, v in value.__dict__.items()
-                }
-        elif isinstance(value, (list, tuple)):
-            return [self._make_serializable(item) for item in value]
-        elif isinstance(value, dict):
-            return {k: self._make_serializable(v) for k, v in value.items()}
-        elif hasattr(value, "value"):
-            # Handle enums
-            return value.value
-        else:
-            # Primitive type or already serializable
-            return value
-
-
-# Convenience functions for common cache operations
-async def cache_analysis_result(
-    repository_url: str, branch: str, analysis_type: str, result: Any, ttl: int = 3600
-) -> bool:
-    """Cache analysis result with standardized key format"""
-    cache = CacheManager("analysis")
-    key = f"{repository_url.replace('/', '_')}:{branch}:{analysis_type}"
-    return await cache.set(key, result, ttl)
-
-
-async def get_cached_analysis(
-    repository_url: str, branch: str, analysis_type: str
-) -> Optional[Any]:
-    """Get cached analysis result with standardized key format"""
-    cache = CacheManager("analysis")
-    key = f"{repository_url.replace('/', '_')}:{branch}:{analysis_type}"
-    return await cache.get(key)
-
-
-async def cache_repository_data(
-    repository_url: str, branch: str, data: Any, ttl: int = 1800  # 30 minutes
-) -> bool:
-    """Cache repository data (shorter TTL as it can change more frequently)"""
-    cache = CacheManager("repo_data")
-    key = f"{repository_url.replace('/', '_')}:{branch}"
-    return await cache.set(key, data, ttl)
-
-
-async def get_cached_repository_data(repository_url: str, branch: str) -> Optional[Any]:
-    """Get cached repository data"""
-    cache = CacheManager("repo_data")
-    key = f"{repository_url.replace('/', '_')}:{branch}"
-    return await cache.get(key)
+        if not self.enabled:
+            return False
+            
+        try:
+            # Simple ping test
+            await self.redis_client.ping()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Cache health check failed: {e}")
+            return False
+    
+    async def close(self):
+        """Close Redis connection."""
+        if self.redis_client:
+            await self.redis_client.close()
+            logger.info("Cache manager connection closed")

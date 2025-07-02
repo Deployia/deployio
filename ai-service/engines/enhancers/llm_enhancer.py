@@ -1,618 +1,545 @@
 """
-Simplified LLM Enhancer - Focused on orchestrating enhancement process
-Uses modular LLM services for clean separation of concerns
+LLM Enhancement Engine
+
+Centralized enhancement system that takes rule-based analysis results and
+enhances them with AI-generated insights, explanations, and recommendations.
 """
 
+import os
+import asyncio
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, List, Optional, Any
+from openai import AsyncOpenAI
 
-from engines.core.models import AnalysisResult, TechnologyStack, LLMEnhancementResult
-from engines.core.llm import LLMClientManager, LLMAPIClient, LLMRequest, LLMProvider
-from engines.core.llm.response_parser import LLMResponseParser
-from .prompt_templates import PromptTemplates
+from models.analysis_models import (
+    AnalysisResult, TechnologyStack, DependencyAnalysis, CodeAnalysis,
+    BuildConfiguration, DeploymentConfiguration
+)
+from models.common_models import InsightModel, ConfidenceLevel
 
 logger = logging.getLogger(__name__)
 
 
 class LLMEnhancer:
     """
-    Simplified LLM Enhancer focused on orchestration
-
-    Responsibilities:
-    - Orchestrate the three-step enhancement process
-    - Coordinate between different LLM services
-    - Merge enhancement results with original analysis
-    - Calculate confidence boosts
-
-    NOT responsible for:
-    - LLM client management (delegated to LLMClientManager)
-    - API calls (delegated to LLMAPIClient)
-    - Response parsing (delegated to LLMResponseParser)
-    - Prompt generation (delegated to PromptTemplates)
+    Centralized LLM enhancement system that enriches rule-based analysis
+    with AI-generated insights, explanations, and recommendations.
     """
-
+    
     def __init__(self):
-        # Initialize modular LLM services
-        self.client_manager = LLMClientManager()
-        self.api_client = LLMAPIClient(self.client_manager)
-        self.prompt_templates = PromptTemplates()
-        self.response_parser = LLMResponseParser()
-
-        # Configuration
-        self.max_tokens = 4000
-        self.temperature = 0.1
-
-        logger.info("LLMEnhancer initialized with modular services")
-
-    @property
-    def is_available(self) -> bool:
-        """Check if any LLM providers are available for enhancement."""
-        return bool(self.client_manager.get_available_providers())
-
+        self.client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        self.model = "gpt-4o-mini"
+        
     async def enhance_analysis(
         self,
         analysis_result: AnalysisResult,
-        repository_data: Dict[str, Any],
-        enhancement_type: str = "comprehensive",
-    ) -> LLMEnhancementResult:
+        repository_data: Dict[str, Any]
+    ) -> AnalysisResult:
         """
-        Main entry point for LLM enhancement
-
+        Main enhancement method that orchestrates all enhancement tasks.
+        
         Args:
-            analysis_result: Current analysis results
-            repository_data: Full repository data structure from GitHub client
-            enhancement_type: Type of enhancement (three_step, comprehensive, etc.)        Returns:
-            LLMEnhancementResult with enhanced analysis
+            analysis_result: Rule-based analysis results
+            repository_data: Repository file contents and metadata
+            
+        Returns:
+            Enhanced analysis result with AI-generated insights
         """
         try:
-            logger.info(
-                f"Starting modular LLM enhancement for {analysis_result.repository_url}"
+            logger.info("Starting LLM enhancement process")
+            
+            # Create enhancement tasks
+            tasks = []
+            
+            # Only enhance if confidence is medium or lower
+            if analysis_result.confidence != ConfidenceLevel.HIGH:
+                tasks.extend([
+                    self._enhance_technology_stack(
+                        analysis_result.technology_stack,
+                        repository_data
+                    ),
+                    self._enhance_dependencies(
+                        analysis_result.dependency_analysis,
+                        repository_data
+                    ),
+                    self._enhance_code_analysis(
+                        analysis_result.code_analysis,
+                        repository_data
+                    ),
+                    self._enhance_build_config(
+                        analysis_result.build_configuration,
+                        repository_data
+                    ),
+                    self._generate_deployment_insights(
+                        analysis_result,
+                        repository_data
+                    )
+                ])
+            
+            # Generate overall insights and recommendations
+            tasks.append(
+                self._generate_overall_insights(analysis_result, repository_data)
             )
-
-            # Extract repository files from repository_data structure
-            repository_files = (
-                repository_data.get("key_files", {}) if repository_data else {}
-            )
-
-            # Check if LLM services are available
-            if not self.client_manager.get_available_providers():
-                logger.warning(
-                    "No LLM providers available, falling back to rule-based enhancement"
-                )
-                logger.error(
-                    f"FALLBACK TRIGGERED: No LLM providers available for {analysis_result.repository_url}"
-                )
-                return await self._rule_based_enhancement(
-                    analysis_result, repository_files
-                )
-
-            # Choose enhancement strategy
-            if enhancement_type == "three_step":
-                enhanced_result = await self._three_step_enhancement(
-                    analysis_result, repository_files
-                )
-            elif enhancement_type == "comprehensive":
-                enhanced_result = await self._comprehensive_enhancement(
-                    analysis_result, repository_files
-                )
-            else:
-                logger.warning(
-                    f"Unknown enhancement type: {enhancement_type}, using three_step"
-                )
-                enhanced_result = await self._three_step_enhancement(
-                    analysis_result, repository_files
-                )
-
-            # Mark as LLM enhanced if successful
-            if enhanced_result:
-                enhanced_result.llm_enhanced = True
-                logger.info(
-                    f"LLM enhancement completed successfully with confidence improvement: {enhanced_result.confidence_improvement}"
-                )
-                return enhanced_result
-            else:
-                logger.warning("LLM enhancement failed, falling back to rule-based")
-                return await self._rule_based_enhancement(
-                    analysis_result, repository_files
-                )
-
+            
+            # Execute all enhancement tasks concurrently
+            if tasks:
+                enhanced_results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Process results and handle exceptions
+                for i, result in enumerate(enhanced_results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Enhancement task {i} failed: {result}")
+                        continue
+                        
+                    # Apply enhancements to analysis result
+                    if i < len(tasks) - 1:  # Individual component enhancements
+                        await self._apply_enhancement_result(analysis_result, result, i)
+                    else:  # Overall insights
+                        analysis_result.insights = result
+            
+            # Update confidence level if we made significant enhancements
+            if analysis_result.confidence == ConfidenceLevel.LOW:
+                analysis_result.confidence = ConfidenceLevel.MEDIUM
+                
+            logger.info("LLM enhancement completed successfully")
+            return analysis_result
+            
         except Exception as e:
             logger.error(f"LLM enhancement failed: {e}")
-            logger.error(
-                f"FALLBACK TRIGGERED: LLM enhancement exception for {analysis_result.repository_url} - {str(e)}"
-            )
-            return await self._rule_based_enhancement(analysis_result, repository_files)
-
-    async def _three_step_enhancement(
-        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
-    ) -> Optional[LLMEnhancementResult]:
-        """
-        Three-step enhancement process:
-        1. Rule-based foundation (already done)
-        2. LLM technology detection
-        3. LLM optimization and insights
-        """
-        try:
-            logger.info("Starting three-step LLM enhancement process")
-
-            # STEP 1: Use existing rule-based analysis as foundation
-            logger.info("Step 1: Using rule-based analysis as foundation")
-
-            # STEP 2: LLM technology detection
-            logger.info("Step 2: LLM technology detection")
-            tech_data = await self._detect_technologies(
-                analysis_result, repository_files
-            )
-            if not tech_data:
-                logger.warning("Technology detection failed")
-                return None
-
-            # STEP 3: LLM optimization and insights
-            logger.info("Step 3: LLM optimization and insights")
-            optimization_data = await self._generate_optimization_insights(
-                analysis_result, tech_data
-            )
-            if not optimization_data:
-                logger.warning("Optimization insights generation failed")
-                # Still return tech detection results
-                return self._create_enhancement_result(analysis_result, tech_data, {})
-
-            # Combine results
-            final_result = self._create_enhancement_result(
-                analysis_result, tech_data, optimization_data
-            )
-            logger.info("Three-step enhancement completed successfully")
-            return final_result
-
-        except Exception as e:
-            logger.error(f"Three-step enhancement failed: {e}")
-            return None
-
-    async def _comprehensive_enhancement(
-        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
-    ) -> Optional[LLMEnhancementResult]:
-        """
-        Comprehensive enhancement in a single LLM call
-        """
-        try:
-            logger.info("Starting comprehensive LLM enhancement")
-
-            # Prepare context
-            context = self._prepare_analysis_context(analysis_result, repository_files)
-
-            # Generate comprehensive prompt
-            prompt = self.prompt_templates.get_comprehensive_analysis_prompt(context)
-
-            # Make LLM request
-            request = LLMRequest(
-                prompt=prompt,
-                model=self.client_manager.config.groq_model,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                provider_preference=LLMProvider.GROQ,
-            )
-
-            response = await self.api_client.call_llm(request)
-            if not response or not response.success:
-                logger.error("Comprehensive analysis LLM call failed")
-                return None
-
-            # Parse comprehensive response
-            parsed_data = self.response_parser.parse_comprehensive_response(
-                response.content
-            )
-
-            # Create result
-            result = self._create_comprehensive_result(analysis_result, parsed_data)
-            logger.info("Comprehensive enhancement completed successfully")
-            return result
-
-        except Exception as e:
-            logger.error(f"Comprehensive enhancement failed: {e}")
-            return None
-
-    async def _detect_technologies(
-        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
-    ) -> Optional[Dict[str, Any]]:
-        """Technology detection using LLM"""
-        try:
-            # Prepare context
-            context = self._prepare_analysis_context(analysis_result, repository_files)
-
-            # Generate technology detection prompt
-            prompt = self.prompt_templates.get_technology_detection_prompt(context)
-
-            # Make LLM request
-            request = LLMRequest(
-                prompt=prompt,
-                model=self.client_manager.config.groq_model,
-                max_tokens=2000,
-                temperature=self.temperature,
-                provider_preference=LLMProvider.GROQ,
-            )
-
-            response = await self.api_client.call_llm(request)
-            if not response or not response.success:
-                logger.error("Technology detection LLM call failed")
-                return None
-
-            # Parse technology detection response
-            fallback_data = {
-                "language": analysis_result.technology_stack.language,
-                "framework": analysis_result.technology_stack.framework,
-                "confidence": analysis_result.confidence_score,
-            }
-
-            tech_data = self.response_parser.parse_technology_detection(
-                response.content, fallback_data
-            )
-
-            # logger.debug(
-            #     f"Technology detection successful: {tech_data.get('language')} / {tech_data.get('framework')}"
-            # )
-            return tech_data
-
-        except Exception as e:
-            logger.error(f"Technology detection failed: {e}")
-            return None
-
-    async def _generate_optimization_insights(
-        self, analysis_result: AnalysisResult, tech_data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        """Generate optimization insights using LLM"""
-        try:
-            # Prepare enhanced context
-            context = {
-                "technology_data": tech_data,
-                "original_analysis": {
-                    "confidence": analysis_result.confidence_score,
-                    "detected_files": analysis_result.detected_files,
-                },
-            }
-
-            # Generate optimization prompt
-            prompt = self.prompt_templates.get_optimization_prompt(context)
-
-            # Make LLM request
-            request = LLMRequest(
-                prompt=prompt,
-                model=self.client_manager.config.groq_model,
-                max_tokens=2000,
-                temperature=self.temperature,
-                provider_preference=LLMProvider.GROQ,
-            )
-
-            response = await self.api_client.call_llm(request)
-            if not response or not response.success:
-                logger.error("Optimization insights LLM call failed")
-                return None  # Parse optimization response
-            optimization_data = self.response_parser.parse_optimization_response(
-                response.content
-            )
-
-            # logger.debug(
-            #     f"Optimization insights generated: {len(optimization_data.get('recommendations', []))} recommendations"
-            # )
-            return optimization_data
-        except Exception as e:
-            logger.error(f"Optimization insights generation failed: {e}")
-            return None
-
-    def _prepare_analysis_context(
-        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
+            # Return original result if enhancement fails
+            return analysis_result
+    
+    async def _enhance_technology_stack(
+        self,
+        tech_stack: TechnologyStack,
+        repository_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Prepare comprehensive context for LLM analysis with all analyzer results"""
-        # Get important files (extended list)
-        key_files = {}
-        important_files = [
-            "package.json",
-            "requirements.txt",
-            "pyproject.toml",
-            "pipfile",
-            "pom.xml",
-            "build.gradle",
-            "composer.json",
-            "cargo.toml",
-            "go.mod",
-            "gemfile",
-            "dockerfile",
-            "docker-compose.yml",
-            ".dockerignore",
-            "readme.md",
-            "main.py",
-            "app.py",
-            "index.js",
-            "server.js",
-            "app.js",
-            ".gitignore",
-            "config.py",
-            "settings.py",
-            "webpack.config.js",
-            "vite.config.js",
-            "tsconfig.json",
-            "babel.config.js",
-            "eslint.config.js",
-        ]
+        """Enhance technology stack with missing details and explanations."""
+        try:
+            # Prepare context for LLM
+            context = self._prepare_tech_context(tech_stack, repository_data)
+            
+            prompt = f"""
+            Analyze this repository's technology stack and enhance the analysis:
 
-        for filename, content in repository_files.items():
-            file_lower = filename.lower()
-            if any(imp_file in file_lower for imp_file in important_files):
-                # Ensure content is a string and limit size for context window
-                if content is not None:
-                    content_str = (
-                        str(content) if not isinstance(content, str) else content
-                    )
-                    key_files[filename] = content_str[:3000]
-                else:
-                    key_files[filename] = ""
+            Current Analysis:
+            {context}
 
-        # Extract full analyzer context
-        stack_context = {}
-        if analysis_result.technology_stack:
-            stack_context = {
-                "language": getattr(analysis_result.technology_stack, "language", None),
-                "framework": getattr(
-                    analysis_result.technology_stack, "framework", None
-                ),
-                "database": getattr(analysis_result.technology_stack, "database", None),
-                "build_tool": getattr(
-                    analysis_result.technology_stack, "build_tool", None
-                ),
-                "package_manager": getattr(
-                    analysis_result.technology_stack, "package_manager", None
-                ),
-                "runtime_version": getattr(
-                    analysis_result.technology_stack, "runtime_version", None
-                ),
-                "additional_technologies": getattr(
-                    analysis_result.technology_stack, "additional_technologies", []
-                ),
-                "architecture_pattern": getattr(
-                    analysis_result.technology_stack, "architecture_pattern", None
-                ),
-                "deployment_strategy": getattr(
-                    analysis_result.technology_stack, "deployment_strategy", None
-                ),
+            Repository Files:
+            {self._get_relevant_files_summary(repository_data, ['package.json', 'requirements.txt', 'pom.xml', 'README.md'])}
+
+            Please provide:
+            1. Missing technologies that weren't detected
+            2. Version information if available
+            3. Brief explanations for detected technologies
+            4. Architecture insights
+            5. Any missing build or deployment configurations
+
+            Respond in JSON format with the enhanced data.
+            """
+            
+            response = await self._call_llm(prompt)
+            return self._parse_enhancement_response(response)
+            
+        except Exception as e:
+            logger.error(f"Technology stack enhancement failed: {e}")
+            return {}
+    
+    async def _enhance_dependencies(
+        self,
+        dep_analysis: DependencyAnalysis,
+        repository_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Enhance dependency analysis with security insights and recommendations."""
+        try:
+            context = {
+                "total_dependencies": dep_analysis.total_dependencies,
+                "production_count": dep_analysis.production_dependencies,
+                "dev_count": dep_analysis.dev_dependencies,
+                "security_score": dep_analysis.security_score,
+                "vulnerabilities": len(dep_analysis.vulnerabilities)
             }
+            
+            prompt = f"""
+            Analyze this repository's dependencies and provide security insights:
 
-        # Extract dependency context
-        dependency_context = {}
-        if analysis_result.dependency_analysis:
-            if hasattr(analysis_result.dependency_analysis, "__dict__"):
-                dependency_context = {
-                    "total_dependencies": getattr(
-                        analysis_result.dependency_analysis, "total_dependencies", 0
-                    ),
-                    "security_vulnerabilities": getattr(
-                        analysis_result.dependency_analysis,
-                        "security_vulnerabilities",
-                        0,
-                    ),
-                    "outdated_dependencies": getattr(
-                        analysis_result.dependency_analysis, "outdated_dependencies", 0
-                    ),
-                    "package_managers": getattr(
-                        analysis_result.dependency_analysis, "package_managers", []
-                    ),
-                    "optimization_score": getattr(
-                        analysis_result.dependency_analysis, "optimization_score", 0
-                    ),
-                }
-            elif isinstance(analysis_result.dependency_analysis, dict):
-                dependency_context = analysis_result.dependency_analysis
+            Current Analysis:
+            {context}
 
-        # Extract code quality context
-        quality_context = {}
-        if analysis_result.quality_metrics:
-            quality_context = analysis_result.quality_metrics
+            Dependencies:
+            {self._get_relevant_files_summary(repository_data, ['package.json', 'requirements.txt', 'pom.xml', 'build.gradle'])}
 
-        # Prepare comprehensive context
-        return {
-            "repository_info": {
-                "url": analysis_result.repository_url,
-                "branch": getattr(analysis_result, "branch", "main"),
-                "analysis_approach": analysis_result.analysis_approach,
-            },
-            "rule_based_analysis": {
-                "confidence_score": analysis_result.confidence_score,
-                "stack_detection": stack_context,
-                "dependency_analysis": dependency_context,
-                "code_quality": quality_context,
-            },
-            "file_previews": key_files,
-            "detected_files": analysis_result.detected_files[:20],  # Limit for context
-            "existing_insights": getattr(analysis_result, "insights", []),
-        }
+            Please provide:
+            1. Security recommendations
+            2. Dependency optimization suggestions
+            3. Alternative package suggestions if applicable
+            4. Update strategies
+            5. Risk assessment
 
-    def _create_enhancement_result(
+            Focus on actionable insights for developers.
+            """
+            
+            response = await self._call_llm(prompt)
+            return self._parse_enhancement_response(response)
+            
+        except Exception as e:
+            logger.error(f"Dependency enhancement failed: {e}")
+            return {}
+    
+    async def _enhance_code_analysis(
+        self,
+        code_analysis: CodeAnalysis,
+        repository_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Enhance code analysis with architectural insights and recommendations."""
+        try:
+            context = {
+                "quality_score": code_analysis.quality_score,
+                "complexity_score": code_analysis.complexity_score,
+                "maintainability_score": code_analysis.maintainability_score,
+                "patterns_detected": code_analysis.patterns_detected,
+                "code_smells": len(code_analysis.code_smells)
+            }
+            
+            prompt = f"""
+            Analyze this repository's code quality and architecture:
+
+            Current Analysis:
+            {context}
+
+            Code Structure:
+            {self._get_code_structure_summary(repository_data)}
+
+            Please provide:
+            1. Architectural improvement suggestions
+            2. Code quality enhancement recommendations
+            3. Design pattern optimization advice
+            4. Refactoring priorities
+            5. Best practices alignment
+
+            Focus on practical, implementable improvements.
+            """
+            
+            response = await self._call_llm(prompt)
+            return self._parse_enhancement_response(response)
+            
+        except Exception as e:
+            logger.error(f"Code analysis enhancement failed: {e}")
+            return {}
+    
+    async def _enhance_build_config(
+        self,
+        build_config: BuildConfiguration,
+        repository_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Enhance build configuration with missing commands and optimizations."""
+        try:
+            context = {
+                "build_commands": build_config.build_commands,
+                "start_commands": build_config.start_commands,
+                "test_commands": build_config.test_commands,
+                "entry_points": build_config.entry_points,
+                "ports": build_config.ports
+            }
+            
+            prompt = f"""
+            Analyze this repository's build configuration and suggest improvements:
+
+            Current Configuration:
+            {context}
+
+            Build Files:
+            {self._get_relevant_files_summary(repository_data, ['package.json', 'Makefile', 'docker-compose.yml', 'Dockerfile'])}
+
+            Please provide:
+            1. Missing build commands
+            2. Optimization suggestions
+            3. Additional scripts that could be beneficial
+            4. Build performance improvements
+            5. Environment-specific configurations
+
+            Focus on practical build and deployment improvements.
+            """
+            
+            response = await self._call_llm(prompt)
+            return self._parse_enhancement_response(response)
+            
+        except Exception as e:
+            logger.error(f"Build config enhancement failed: {e}")
+            return {}
+    
+    async def _generate_deployment_insights(
         self,
         analysis_result: AnalysisResult,
-        tech_data: Dict[str, Any],
-        optimization_data: Dict[str, Any],
-    ) -> LLMEnhancementResult:
-        """Create final enhancement result from tech detection and optimization data"""  # Create enhanced technology stack
-        enhanced_stack = TechnologyStack(
-            language=tech_data.get(
-                "language", analysis_result.technology_stack.language
-            ),
-            framework=tech_data.get(
-                "framework", analysis_result.technology_stack.framework
-            ),
-            database=tech_data.get(
-                "database", analysis_result.technology_stack.database
-            ),
-            additional_technologies=tech_data.get(
-                "additional_technologies",
-                analysis_result.technology_stack.additional_technologies,
-            ),
-            architecture_pattern=tech_data.get(
-                "architecture_pattern",
-                analysis_result.technology_stack.architecture_pattern,
-            ),
-            deployment_strategy=optimization_data.get("deployment_strategy"),
-            confidence=tech_data.get("confidence", 0.0),  # Set LLM confidence
-        )
-
-        # Calculate confidence boost
-        base_confidence_boost = (
-            tech_data.get("confidence", 0) - analysis_result.confidence_score
-        )
-        optimization_boost = optimization_data.get("confidence_boost", 0)
-        total_confidence_boost = max(
-            0, min(0.4, base_confidence_boost + optimization_boost)
-        )  # Combine reasoning
-        tech_reasoning = tech_data.get("reasoning", "")
-        opt_reasoning = optimization_data.get("reasoning", "")
-        combined_reasoning = f"{tech_reasoning}. {opt_reasoning}".strip(". ")
-
-        return LLMEnhancementResult(
-            enhanced_stack=enhanced_stack,
-            reasoning=combined_reasoning or "LLM enhancement applied",
-            suggestions=optimization_data.get("additional_insights", []),
-            recommendations=optimization_data.get("recommendations", []),
-            insights=[],  # Will be populated from tech_data insights
-            confidence_improvement=total_confidence_boost,
-            llm_enhanced=True,
-            llm_provider="openai",
-            processing_time=0.0,
-        )
-
-    def _create_comprehensive_result(
-        self, analysis_result: AnalysisResult, parsed_data: Dict[str, Any]
-    ) -> LLMEnhancementResult:
-        """Create enhancement result from comprehensive analysis"""
-        # # Log the parsed LLM response for debugging
-        # logger.debug(f"Parsed LLM response: {parsed_data}")
-
-        tech_stack_data = parsed_data.get("technology_stack", {})
-        # Always prefer LLM's detected values if present
-        enhanced_stack = TechnologyStack(
-            language=tech_stack_data.get(
-                "language", analysis_result.technology_stack.language
-            ),
-            framework=tech_stack_data.get(
-                "framework", analysis_result.technology_stack.framework
-            ),
-            database=tech_stack_data.get(
-                "database", analysis_result.technology_stack.database
-            ),
-            additional_technologies=tech_stack_data.get("additional_technologies", []),
-            architecture_pattern=tech_stack_data.get("architecture_pattern"),
-            deployment_strategy=tech_stack_data.get("deployment_strategy", None),
-            confidence=parsed_data.get("confidence", 0.0),
-        )
-
-        confidence_improvement = max(
-            0, min(0.4, parsed_data.get("confidence_boost", 0.1))
-        )
-
-        # Null field explanations: if a field is null but mentioned in reasoning, add an explanation
-        null_field_explanations = parsed_data.get("null_field_explanations", {})
-        for field_name in ["database", "architecture_pattern", "deployment_strategy"]:
-            if getattr(enhanced_stack, field_name, None) is None:
-                # Try to extract explanation from reasoning if available
-                reasoning = parsed_data.get("reasoning", "")
-                if (
-                    field_name in reasoning.lower()
-                    and field_name not in null_field_explanations
-                ):
-                    null_field_explanations[field_name] = (
-                        "Mentioned in reasoning but not detected in files."
-                    )
-
-        # Log the final merged result for debugging
-        # logger.debug(
-        #     f"Final merged enhancement result: stack={enhanced_stack}, insights={parsed_data.get('insights', [])}, suggestions={parsed_data.get('suggestions', [])}"
-        # )
-
-        return LLMEnhancementResult(
-            enhanced_stack=enhanced_stack,
-            reasoning=parsed_data.get("reasoning", "Comprehensive LLM analysis"),
-            suggestions=parsed_data.get("additional_insights", []),
-            recommendations=parsed_data.get("recommendations", []),
-            insights=[],  # Will be populated from parsed_data insights
-            confidence_improvement=confidence_improvement,
-            llm_enhanced=True,
-            llm_provider="openai",
-            processing_time=0.0,
-        )
-
-    async def _rule_based_enhancement(
-        self, analysis_result: AnalysisResult, repository_files: Dict[str, str]
-    ) -> LLMEnhancementResult:
-        """Fallback rule-based enhancement when LLM is unavailable"""
-        logger.info("Performing rule-based enhancement fallback")
-
-        # Simple rule-based recommendations based on detected technology
-        recommendations = []
-        language = analysis_result.technology_stack.language
-
-        if language == "javascript" or language == "node.js":
-            recommendations.extend(
-                [
-                    {
-                        "type": "performance",
-                        "priority": "medium",
-                        "suggestion": "Use PM2 for process management in production",
-                        "reason": "Better process management and monitoring",
-                    },
-                    {
-                        "type": "security",
-                        "priority": "high",
-                        "suggestion": "Implement helmet.js for security headers",
-                        "reason": "Protect against common web vulnerabilities",
-                    },
-                ]
-            )
-        elif language == "python":
-            recommendations.extend(
-                [
-                    {
-                        "type": "performance",
-                        "priority": "medium",
-                        "suggestion": "Use Gunicorn with multiple workers for WSGI apps",
-                        "reason": "Better performance and concurrency",
-                    },
-                    {
-                        "type": "monitoring",
-                        "priority": "medium",
-                        "suggestion": "Add health check endpoints",
-                        "reason": "Enable proper monitoring and load balancer integration",
-                    },
-                ]
-            )
-
-        return LLMEnhancementResult(
-            enhanced_stack=analysis_result.technology_stack,
-            reasoning="Rule-based enhancement applied (LLM unavailable)",
-            suggestions=["Rule-based analysis completed"],
-            recommendations=recommendations,
-            insights=[],
-            confidence_improvement=0.05,  # Small boost for rule-based enhancement
-            llm_enhanced=False,
-            llm_provider=None,
-            processing_time=0.0,
-        )
-
-    async def health_check(self) -> Dict[str, Any]:
-        """Perform health check on modular LLM services"""
+        repository_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate deployment-specific insights and recommendations."""
         try:
-            # Check LLM services
-            llm_health = await self.api_client.health_check()
+            context = {
+                "technologies": analysis_result.technology_stack.languages + 
+                             analysis_result.technology_stack.frameworks,
+                "databases": analysis_result.technology_stack.databases,
+                "ports": analysis_result.build_configuration.ports,
+                "environment_vars": analysis_result.build_configuration.environment_variables
+            }
+            
+            prompt = f"""
+            Analyze this repository for deployment insights:
 
-            return {
-                "modular_enhancer": {
-                    "status": "healthy",
-                    "services_initialized": True,
-                    "llm_services": llm_health,
-                }
-            }
+            Technology Stack:
+            {context}
+
+            Docker/Deployment Files:
+            {self._get_relevant_files_summary(repository_data, ['Dockerfile', 'docker-compose.yml', '.env', 'deploy.yml'])}
+
+            Please provide deployment insights including:
+            1. Recommended deployment strategies
+            2. Containerization recommendations
+            3. Environment configuration suggestions
+            4. Scaling considerations
+            5. Monitoring and health check recommendations
+
+            Focus on practical deployment guidance.
+            """
+            
+            response = await self._call_llm(prompt)
+            return self._parse_enhancement_response(response)
+            
         except Exception as e:
-            logger.error(f"Health check failed: {e}")
-            return {
-                "modular_enhancer": {
-                    "status": "unhealthy",
-                    "error": str(e),
-                    "services_initialized": False,
-                }
+            logger.error(f"Deployment insights generation failed: {e}")
+            return {}
+    
+    async def _generate_overall_insights(
+        self,
+        analysis_result: AnalysisResult,
+        repository_data: Dict[str, Any]
+    ) -> List[InsightModel]:
+        """Generate overall insights and recommendations for the repository."""
+        try:
+            # Prepare comprehensive context
+            context = {
+                "technology_stack": {
+                    "languages": analysis_result.technology_stack.languages,
+                    "frameworks": analysis_result.technology_stack.frameworks,
+                    "databases": analysis_result.technology_stack.databases
+                },
+                "quality_metrics": {
+                    "code_quality": analysis_result.code_analysis.quality_score,
+                    "security_score": analysis_result.dependency_analysis.security_score,
+                    "complexity": analysis_result.code_analysis.complexity_score
+                },
+                "architecture": analysis_result.code_analysis.patterns_detected
             }
+            
+            prompt = f"""
+            Provide comprehensive insights for this repository:
+
+            Analysis Summary:
+            {context}
+
+            README Content:
+            {self._get_readme_summary(repository_data)}
+
+            Generate 3-5 key insights covering:
+            1. Overall project assessment
+            2. Technology choices evaluation
+            3. Security and quality recommendations
+            4. Development workflow suggestions
+            5. Future improvement roadmap
+
+            Each insight should be actionable and specific to this project.
+            Return as a JSON array of insights with title, description, type, and priority.
+            """
+            
+            response = await self._call_llm(prompt)
+            insights_data = self._parse_enhancement_response(response)
+            
+            # Convert to InsightModel objects
+            insights = []
+            if isinstance(insights_data, list):
+                for insight_data in insights_data:
+                    try:
+                        insight = InsightModel(
+                            title=insight_data.get('title', 'General Insight'),
+                            description=insight_data.get('description', ''),
+                            type=insight_data.get('type', 'recommendation'),
+                            priority=insight_data.get('priority', 'medium'),
+                            confidence=0.8  # LLM-generated insights have medium-high confidence
+                        )
+                        insights.append(insight)
+                    except Exception as e:
+                        logger.warning(f"Failed to create insight model: {e}")
+                        continue
+            
+            return insights
+            
+        except Exception as e:
+            logger.error(f"Overall insights generation failed: {e}")
+            return []
+    
+    async def _call_llm(self, prompt: str) -> str:
+        """Make an LLM API call with proper error handling."""
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert software architect and DevOps engineer. Provide accurate, actionable insights for software projects. Always respond in valid JSON format when requested."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            logger.error(f"LLM API call failed: {e}")
+            raise
+    
+    def _parse_enhancement_response(self, response: str) -> Dict[str, Any]:
+        """Parse LLM response and extract enhancement data."""
+        try:
+            import json
+            # Try to extract JSON from the response
+            if response.startswith('```json'):
+                response = response.replace('```json', '').replace('```', '').strip()
+            elif response.startswith('```'):
+                response = response.replace('```', '').strip()
+                
+            return json.loads(response)
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse LLM response as JSON: {e}")
+            # Return empty dict if parsing fails
+            return {}
+    
+    def _prepare_tech_context(self, tech_stack: TechnologyStack, repository_data: Dict[str, Any]) -> str:
+        """Prepare technology stack context for LLM."""
+        return f"""
+        Languages: {', '.join(tech_stack.languages)}
+        Frameworks: {', '.join(tech_stack.frameworks)}
+        Databases: {', '.join(tech_stack.databases)}
+        Package Managers: {', '.join(tech_stack.package_managers)}
+        Build Tools: {', '.join(tech_stack.build_tools)}
+        """
+    
+    def _get_relevant_files_summary(self, repository_data: Dict[str, Any], filenames: List[str]) -> str:
+        """Extract relevant file contents for LLM context."""
+        summary = []
+        files = repository_data.get('files', {})
+        
+        for filename in filenames:
+            for file_path, content in files.items():
+                if filename in file_path.lower():
+                    # Truncate large files
+                    truncated_content = content[:1000] + "..." if len(content) > 1000 else content
+                    summary.append(f"\n{file_path}:\n{truncated_content}")
+                    break
+        
+        return '\n'.join(summary) if summary else "No relevant files found"
+    
+    def _get_code_structure_summary(self, repository_data: Dict[str, Any]) -> str:
+        """Generate a summary of the code structure."""
+        files = repository_data.get('files', {})
+        structure = []
+        
+        # Count files by type
+        file_types = {}
+        for file_path in files.keys():
+            ext = file_path.split('.')[-1] if '.' in file_path else 'no_ext'
+            file_types[ext] = file_types.get(ext, 0) + 1
+        
+        structure.append(f"File types: {dict(sorted(file_types.items()))}")
+        
+        # Sample directory structure
+        directories = set()
+        for file_path in files.keys():
+            parts = file_path.split('/')
+            for i in range(1, len(parts)):
+                directories.add('/'.join(parts[:i]))
+        
+        structure.append(f"Directory structure depth: {len(directories)} directories")
+        
+        return '\n'.join(structure)
+    
+    def _get_readme_summary(self, repository_data: Dict[str, Any]) -> str:
+        """Extract README content for context."""
+        files = repository_data.get('files', {})
+        
+        for file_path, content in files.items():
+            if 'readme' in file_path.lower():
+                # Return first 500 characters of README
+                return content[:500] + "..." if len(content) > 500 else content
+        
+        return "No README found"
+    
+    async def _apply_enhancement_result(
+        self,
+        analysis_result: AnalysisResult,
+        enhancement_data: Dict[str, Any],
+        task_index: int
+    ):
+        """Apply enhancement results to the analysis result object."""
+        try:
+            # Map task index to component enhancement
+            if task_index == 0:  # Technology stack
+                await self._apply_tech_enhancements(analysis_result.technology_stack, enhancement_data)
+            elif task_index == 1:  # Dependencies
+                await self._apply_dependency_enhancements(analysis_result.dependency_analysis, enhancement_data)
+            elif task_index == 2:  # Code analysis
+                await self._apply_code_enhancements(analysis_result.code_analysis, enhancement_data)
+            elif task_index == 3:  # Build config
+                await self._apply_build_enhancements(analysis_result.build_configuration, enhancement_data)
+            elif task_index == 4:  # Deployment insights
+                await self._apply_deployment_enhancements(analysis_result.deployment_configuration, enhancement_data)
+                
+        except Exception as e:
+            logger.warning(f"Failed to apply enhancement result for task {task_index}: {e}")
+    
+    async def _apply_tech_enhancements(self, tech_stack: TechnologyStack, data: Dict[str, Any]):
+        """Apply technology stack enhancements."""
+        if 'missing_technologies' in data:
+            # Add missing technologies detected by LLM
+            missing = data['missing_technologies']
+            tech_stack.languages.extend(missing.get('languages', []))
+            tech_stack.frameworks.extend(missing.get('frameworks', []))
+            tech_stack.databases.extend(missing.get('databases', []))
+    
+    async def _apply_dependency_enhancements(self, dep_analysis: DependencyAnalysis, data: Dict[str, Any]):
+        """Apply dependency analysis enhancements."""
+        if 'recommendations' in data:
+            # Add LLM-generated recommendations to insights
+            recommendations = data['recommendations']
+            for rec in recommendations:
+                if isinstance(rec, str):
+                    dep_analysis.recommendations.append(rec)
+    
+    async def _apply_code_enhancements(self, code_analysis: CodeAnalysis, data: Dict[str, Any]):
+        """Apply code analysis enhancements."""
+        if 'architectural_suggestions' in data:
+            # Add architectural suggestions
+            suggestions = data['architectural_suggestions']
+            for suggestion in suggestions:
+                if isinstance(suggestion, str):
+                    code_analysis.recommendations.append(suggestion)
+    
+    async def _apply_build_enhancements(self, build_config: BuildConfiguration, data: Dict[str, Any]):
+        """Apply build configuration enhancements."""
+        if 'missing_commands' in data:
+            missing = data['missing_commands']
+            build_config.build_commands.extend(missing.get('build', []))
+            build_config.start_commands.extend(missing.get('start', []))
+            build_config.test_commands.extend(missing.get('test', []))
+    
+    async def _apply_deployment_enhancements(self, deploy_config: DeploymentConfiguration, data: Dict[str, Any]):
+        """Apply deployment configuration enhancements."""
+        if 'deployment_strategies' in data:
+            strategies = data['deployment_strategies']
+            if isinstance(strategies, list):
+                deploy_config.deployment_strategies.extend(strategies)
