@@ -1,8 +1,7 @@
 """
-Core Engine Components
+Core Package - Detector and utilities
 """
 
-from .detector import UnifiedDetectionEngine
-from .models import *  # noqa: F403, F401
+from .detector import UnifiedDetector
 
-__all__ = ["UnifiedDetectionEngine"]
+__all__ = ["UnifiedDetector"]
