@@ -341,16 +341,14 @@ class LLMEnhancer:
                 }
             }
         except Exception as e:
-            logger.error(f"LLM enhancer health check failed: {e}")            return {
+            logger.error(f"LLM enhancer health check failed: {e}")            
+            return {
                 "llm_enhancer_orchestrator": {
                     "status": "unhealthy",
                     "error": str(e),
                 }
             }                
-            logger.info("LLM enhancement completed successfully")
-            return analysis_result
             
         except Exception as e:
             logger.error(f"LLM enhancement failed: {e}")
             # Return original result if enhancement fails
-            return analysis_result
