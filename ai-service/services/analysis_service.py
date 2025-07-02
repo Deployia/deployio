@@ -1,679 +1,411 @@
 """
-Analysis Service - Business logic for repository analysis
-Clean separation of concerns following service architecture pattern
+Analysis Service
+
+Main service that orchestrates the repository analysis pipeline.
+Handles request validation, caching, analysis execution, and response formatting.
 """
 
+import asyncio
 import logging
+from typing import Dict, Any, Optional, List
 from datetime import datetime
-from typing import Dict, List, Optional, Any
 
-from engines.core.detector import UnifiedDetectionEngine
-from engines.core.models import AnalysisType, AnalysisResult
-from exceptions import (
-    AnalysisException,
-    AnalysisTimeoutException,
-    LLMServiceException,
-    RateLimitExceededException,
-    InsufficientDataException,
+from engines.core.detector import UnifiedDetector
+from engines.utils.cache_manager import CacheManager
+from engines.utils.validators import RequestValidator
+from models.analysis_models import AnalysisRequest, AnalysisResult
+from models.response_models import (
+    AnalysisResponse, AnalysisStatus, ProgressUpdate, ErrorResponse
 )
 
-# Configure logger
 logger = logging.getLogger(__name__)
 
 
 class AnalysisService:
     """
-    Main analysis service handling all analysis operations
-    Serves as blueprint for other services in the DeployIO AI Service
-
-    This service encapsulates:
-    - Repository analysis workflows
-    - Technology stack detection
-    - Code quality assessment
-    - Dependency analysis
-    - Insight generation
-    - Progress tracking integration
+    Main analysis service that orchestrates the repository analysis pipeline.
+    Provides high-level interface for repository analysis with caching, validation,
+    and progress tracking.
     """
-
+    
     def __init__(self):
-        self.detection_engine = UnifiedDetectionEngine()
-        logger.info("Analysis service initialized")
-
+        self.detector = UnifiedDetector()
+        self.cache_manager = CacheManager()
+        self.validator = RequestValidator()
+        
+        # Track active analysis sessions
+        self.active_analyses: Dict[str, Dict[str, Any]] = {}
+        
     async def analyze_repository(
         self,
-        repository_data: Dict[str, Any],
-        session_id: Optional[str] = None,
-        analysis_types: Optional[List[str]] = None,
-        progress_callback=None,
-        force_llm: bool = False,
-        include_reasoning: bool = True,
-        include_recommendations: bool = True,
-        include_insights: bool = True,
-        explain_null_fields: bool = True,
-    ) -> Dict[str, Any]:
+        request_data: Dict[str, Any],
+        progress_callback: Optional[callable] = None
+    ) -> AnalysisResponse:
         """
-        Analyze repository using repository data from the server
-
+        Main entry point for repository analysis.
+        
         Args:
-            repository_data: Repository data from server (files, structure, metadata)
-            session_id: Session ID for progress tracking (optional)
-            analysis_types: Specific analysis types to run
-            progress_callback: Async callback for progress updates
-            force_llm: Force LLM enhancement even for simple cases
-            include_reasoning: Include detailed reasoning in response
-            include_recommendations: Include actionable recommendations
-            include_insights: Include analysis insights
-            explain_null_fields: Explain why certain fields are null/empty
-
+            request_data: Raw request data
+            progress_callback: Optional callback for progress updates
+            
         Returns:
-            Comprehensive analysis result with insights, reasoning, and metadata
+            Analysis response with results or error information
         """
-        session_info = f"session: {session_id}" if session_id else "direct call"
-        logger.info(f"Starting repository analysis for {session_info}")
-
+        analysis_id = self._generate_analysis_id()
+        start_time = datetime.utcnow()
+        
         try:
-            # Progress update
-            if progress_callback:
-                await progress_callback(10, "Processing repository data...")
-
-            # Convert analysis types
-            engine_analysis_types = self._convert_analysis_types(analysis_types)
-            logger.debug(f"Analysis types: {engine_analysis_types}")
-
-            # Progress update
-            if progress_callback:
-                await progress_callback(20, "Analyzing technology stack...")
-
-            # Core analysis using repository data
-            result = await self.detection_engine.analyze_repository(
-                repository_data=repository_data,
-                analysis_types=engine_analysis_types,
-                force_llm=force_llm,
-            )
-
-            logger.info(
-                f"Core analysis completed with confidence: {result.confidence_score}"
-            )
-
-            # Progress update
-            if progress_callback:
-                await progress_callback(
-                    70, "Generating insights and recommendations..."
+            logger.info(f"Starting analysis {analysis_id}")
+            
+            # Initialize progress tracking
+            self.active_analyses[analysis_id] = {
+                'status': AnalysisStatus.STARTING,
+                'start_time': start_time,
+                'progress': 0,
+                'current_step': 'Validating request'
+            }
+            
+            await self._update_progress(analysis_id, progress_callback, 5, "Validating request")
+            
+            # Validate request
+            is_valid, analysis_request, validation_errors = self.validator.validate_analysis_request(request_data)
+            if not is_valid:
+                await self._update_progress(analysis_id, progress_callback, 100, "Validation failed", AnalysisStatus.FAILED)
+                return self._create_error_response(
+                    analysis_id,
+                    "Validation failed",
+                    validation_errors,
+                    start_time
                 )
-
-            # Process and enhance the analysis result
-            analysis_data = await self._process_analysis_result(
-                result=result,
-                repository_url=repository_data.get("repository", {}).get("url", ""),
-                branch=repository_data.get("repository", {}).get("branch", "main"),
-                include_reasoning=include_reasoning,
-                include_insights=include_insights,
-                include_recommendations=include_recommendations,
-                explain_null_fields=explain_null_fields,
-                analysis_id=session_id,
-            )
-
-            # Final progress update
-            if progress_callback:
-                await progress_callback(100, "Repository analysis completed!")
-
-            logger.info(
-                f"Repository analysis completed successfully for {session_info}"
-            )
-            return analysis_data
-
-        except Exception as e:
-            logger.error(
-                f"Repository analysis failed for {session_info}: {str(e)}",
-                exc_info=True,
-            )
-            if progress_callback:
-                await progress_callback(-1, f"Analysis failed: {str(e)}")
-            # Convert generic errors to analysis exceptions
-            raise AnalysisException(f"Repository analysis failed: {str(e)}", 500)
-
-    async def analyze_technology_stack(
-        self,
-        repository_url: str,
-        branch: str = "main",
-        include_reasoning: bool = True,
-        explain_null_fields: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Focused technology stack detection
-
-        Returns:
-            Technology stack analysis with insights and reasoning
-        """
-        logger.info(f"Starting technology stack analysis for {repository_url}")
-
-        try:
-            # Core stack detection
-            result = await self.detection_engine.analyze_repository(
-                repository_url=repository_url,
-                branch=branch,
-                analysis_types=[AnalysisType.STACK_DETECTION],
-                force_llm=False,
-            )
-
-            logger.info(f"Stack detection completed for {repository_url}")
-
-            # Process result for stack detection
-            return await self._process_analysis_result(
-                result=result,
-                repository_url=repository_url,
-                branch=branch,
-                include_reasoning=include_reasoning,
-                include_insights=True,
-                include_recommendations=False,
-                explain_null_fields=explain_null_fields,
-                mode="stack",
-            )
-
-        except (
-            AnalysisTimeoutException,
-            LLMServiceException,
-            RateLimitExceededException,
-            InsufficientDataException,
-        ):
-            # Re-raise analysis exceptions with proper status codes
-            raise
-        except Exception as e:
-            logger.error(
-                f"Technology stack analysis failed for {repository_url}: {str(e)}",
-                exc_info=True,
-            )
-            # Convert generic errors to analysis exceptions
-            raise AnalysisException(f"Technology stack analysis failed: {str(e)}", 500)
-
-    async def analyze_code_quality(
-        self,
-        repository_url: str,
-        branch: str = "main",
-        include_reasoning: bool = True,
-        explain_null_fields: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Focused code quality assessment
-
-        Returns:
-            Code quality analysis with metrics and recommendations
-        """
-        logger.info(f"Starting code quality analysis for {repository_url}")
-
-        try:
-            # Core quality analysis
-            result = await self.detection_engine.analyze_repository(
-                repository_url=repository_url,
-                branch=branch,
-                analysis_types=[AnalysisType.CODE_QUALITY],
-                force_llm=False,
-            )
-
-            logger.info(f"Code quality analysis completed for {repository_url}")
-
-            # Process result for code quality
-            return await self._process_analysis_result(
-                result=result,
-                repository_url=repository_url,
-                branch=branch,
-                include_reasoning=include_reasoning,
-                include_insights=True,
-                include_recommendations=True,
-                explain_null_fields=explain_null_fields,
-                mode="quality",
-            )
-
-        except (
-            AnalysisTimeoutException,
-            LLMServiceException,
-            RateLimitExceededException,
-            InsufficientDataException,
-        ):
-            # Re-raise analysis exceptions with proper status codes
-            raise
-        except Exception as e:
-            logger.error(
-                f"Code quality analysis failed for {repository_url}: {str(e)}",
-                exc_info=True,
-            )
-            # Convert generic errors to analysis exceptions
-            raise AnalysisException(f"Code quality analysis failed: {str(e)}", 500)
-
-    async def analyze_dependencies(
-        self,
-        repository_url: str,
-        branch: str = "main",
-        include_reasoning: bool = True,
-        explain_null_fields: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Focused dependency analysis
-
-        Returns:
-            Dependency analysis with security insights and recommendations
-        """
-        logger.info(f"Starting dependency analysis for {repository_url}")
-
-        try:
-            # Core dependency analysis
-            result = await self.detection_engine.analyze_repository(
-                repository_url=repository_url,
-                branch=branch,
-                analysis_types=[AnalysisType.DEPENDENCY_ANALYSIS],
-                force_llm=False,
-            )
-
-            logger.info(f"Dependency analysis completed for {repository_url}")
-
-            # Process result for dependencies
-            return await self._process_analysis_result(
-                result=result,
-                repository_url=repository_url,
-                branch=branch,
-                include_reasoning=include_reasoning,
-                include_insights=True,
-                include_recommendations=True,
-                explain_null_fields=explain_null_fields,
-                mode="dependencies",
-            )
-
-        except (
-            AnalysisTimeoutException,
-            LLMServiceException,
-            RateLimitExceededException,
-            InsufficientDataException,
-        ):
-            # Re-raise analysis exceptions with proper status codes
-            raise
-        except Exception as e:
-            logger.error(
-                f"Dependency analysis failed for {repository_url}: {str(e)}",
-                exc_info=True,
-            )
-            # Convert generic errors to analysis exceptions
-            raise AnalysisException(f"Dependency analysis failed: {str(e)}", 500)
-
-    async def get_supported_technologies(self) -> Dict[str, Any]:
-        """
-        Get list of supported technologies and frameworks
-
-        Returns:
-            Dictionary of supported technologies organized by category
-        """
-        logger.debug("Retrieving supported technologies")
-
-        try:
-            result = await self.detection_engine.get_supported_technologies()
-            logger.info("Successfully retrieved supported technologies")
-            return result
-        except Exception as e:
-            logger.error(
-                f"Failed to get supported technologies: {str(e)}", exc_info=True
-            )
-            raise Exception(f"Failed to get supported technologies: {str(e)}")
-
-    async def get_health_status(self) -> Dict[str, Any]:
-        """
-        Get health status of analysis service and dependencies
-
-        Returns:
-            Health status information including engine status
-        """
-        logger.debug("Checking analysis service health")
-
-        try:
-            # Check detection engine health
-            engine_status = await self.detection_engine.health_check()
-
-            health_data = {
-                "service": "analysis_service",
-                "status": "healthy",
-                "detection_engine": engine_status,
-                "timestamp": datetime.now().isoformat(),
-            }
-
-            logger.info("Analysis service health check completed successfully")
-            return health_data
-
-        except Exception as e:
-            logger.error(
-                f"Analysis service health check failed: {str(e)}", exc_info=True
-            )
-            return {
-                "service": "analysis_service",
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-            }
-
-    # Private helper methods
-
-    def _convert_analysis_types(
-        self, analysis_types: Optional[List[str]]
-    ) -> Optional[List[AnalysisType]]:
-        """Convert string analysis types to AnalysisType enums"""
-        if not analysis_types:
-            return None
-
-        type_mapping = {
-            "stack": AnalysisType.STACK_DETECTION,
-            "dependencies": AnalysisType.DEPENDENCY_ANALYSIS,
-            "quality": AnalysisType.CODE_QUALITY,
-            "security": AnalysisType.SECURITY_SCAN,
-        }
-
-        result = []
-        for type_str in analysis_types:
-            if type_str in type_mapping:
-                result.append(type_mapping[type_str])
-            else:
-                logger.warning(f"Unknown analysis type: {type_str}")
-
-        return result if result else None
-
-    async def _process_analysis_result(
-        self,
-        result: AnalysisResult,
-        repository_url: str,
-        branch: str,
-        include_reasoning: bool = True,
-        include_insights: bool = True,
-        include_recommendations: bool = True,
-        explain_null_fields: bool = True,
-        analysis_id: Optional[str] = None,
-        mode: str = "full",
-    ) -> Dict[str, Any]:
-        """
-        Process and enhance the raw analysis result
-
-        Args:
-            result: Raw analysis result from detection engine
-            repository_url: Repository URL being analyzed
-            branch: Git branch being analyzed
-            include_reasoning: Whether to include detailed reasoning
-            include_insights: Whether to generate insights
-            include_recommendations: Whether to include recommendations
-            explain_null_fields: Whether to explain null/empty fields
-            analysis_id: Optional analysis ID for progress tracking
-            mode: Analysis mode (full, stack, quality, dependencies)
-
-        Returns:
-            Processed analysis result with insights, reasoning, and metadata
-        """
-
-        logger.debug(f"Processing analysis result for mode: {mode}")
-
-        # Base response structure
-        response_data = {
-            "repository_url": repository_url,
-            "repository_name": result.repository_name or "unknown",
-            "branch": branch,
-            "analysis_approach": result.analysis_approach,
-            "processing_time": result.processing_time,
-            "confidence_score": result.confidence_score,
-            "confidence_level": self._get_confidence_level(result.confidence_score),
-            "analysis_id": analysis_id,
-        }
-
-        # Add core data based on mode
-        if mode in ["full", "stack"]:
-            response_data.update(
-                {
-                    "technology_stack": self._convert_technology_stack(
-                        result.technology_stack
-                    ),
-                    "detected_files": result.detected_files,
-                }
-            )
-
-        if mode in ["full", "quality"] and result.quality_metrics:
-            # Convert dataclass to dict if needed
-            if hasattr(result.quality_metrics, "__dict__"):
-                response_data["quality_metrics"] = result.quality_metrics.__dict__
-            else:
-                response_data["quality_metrics"] = result.quality_metrics
-
-        if mode in ["full", "dependencies"]:
-            # Always include dependency_analysis as a dict for response model compatibility
-            if result.dependency_analysis is not None:
-                # Convert dataclass to dict if needed
-                if hasattr(result.dependency_analysis, "__dict__"):
-                    response_data["dependency_analysis"] = (
-                        result.dependency_analysis.__dict__
+            
+            await self._update_progress(analysis_id, progress_callback, 10, "Checking cache")
+            
+            # Check cache if enabled
+            cached_result = None
+            if analysis_request.options.cache_enabled:
+                cached_result = await self.cache_manager.get_analysis_result(
+                    analysis_request.repository_url,
+                    'full'  # For now, we only cache full analyses
+                )
+                
+                if cached_result:
+                    logger.info(f"Cache hit for {analysis_request.repository_url}")
+                    await self._update_progress(analysis_id, progress_callback, 100, "Retrieved from cache", AnalysisStatus.COMPLETED)
+                    
+                    # Clean up tracking
+                    self.active_analyses.pop(analysis_id, None)
+                    
+                    return AnalysisResponse(
+                        analysis_id=analysis_id,
+                        status=AnalysisStatus.COMPLETED,
+                        result=cached_result,
+                        execution_time=(datetime.utcnow() - start_time).total_seconds(),
+                        cached=True,
+                        timestamp=datetime.utcnow()
                     )
-                else:
-                    response_data["dependency_analysis"] = result.dependency_analysis
-            else:
-                response_data["dependency_analysis"] = {}
-
-        if mode == "full":
-            response_data.update(
-                {
-                    "security_metrics": result.security_metrics,
-                    "llm_used": result.llm_used,
-                    "llm_confidence": getattr(result, "llm_confidence", 0.0),
-                    "llm_reasoning": getattr(result, "llm_reasoning", None),
-                }
+            
+            await self._update_progress(analysis_id, progress_callback, 15, "Preparing analysis")
+            
+            # Execute analysis
+            try:
+                self.active_analyses[analysis_id]['status'] = AnalysisStatus.ANALYZING
+                
+                # Create progress callback for the detector
+                detector_progress_callback = lambda progress, step: asyncio.create_task(
+                    self._update_progress(analysis_id, progress_callback, 15 + (progress * 0.8), step, AnalysisStatus.ANALYZING)
+                )
+                
+                # Run the analysis
+                result = await self.detector.analyze_repository(
+                    analysis_request,
+                    progress_callback=detector_progress_callback
+                )
+                
+                await self._update_progress(analysis_id, progress_callback, 95, "Finalizing results")
+                
+                # Cache the result if caching is enabled
+                if analysis_request.options.cache_enabled and result:
+                    await self.cache_manager.store_analysis_result(
+                        analysis_request.repository_url,
+                        result,
+                        'full'
+                    )
+                
+                await self._update_progress(analysis_id, progress_callback, 100, "Analysis completed", AnalysisStatus.COMPLETED)
+                
+                # Clean up tracking
+                self.active_analyses.pop(analysis_id, None)
+                
+                return AnalysisResponse(
+                    analysis_id=analysis_id,
+                    status=AnalysisStatus.COMPLETED,
+                    result=result,
+                    execution_time=(datetime.utcnow() - start_time).total_seconds(),
+                    cached=False,
+                    timestamp=datetime.utcnow()
+                )
+                
+            except Exception as e:
+                logger.error(f"Analysis execution failed for {analysis_id}: {e}")
+                await self._update_progress(analysis_id, progress_callback, 100, f"Analysis failed: {str(e)}", AnalysisStatus.FAILED)
+                
+                return self._create_error_response(
+                    analysis_id,
+                    "Analysis execution failed",
+                    [str(e)],
+                    start_time
+                )
+                
+        except Exception as e:
+            logger.error(f"Unexpected error in analysis {analysis_id}: {e}")
+            await self._update_progress(analysis_id, progress_callback, 100, f"Unexpected error: {str(e)}", AnalysisStatus.FAILED)
+            
+            return self._create_error_response(
+                analysis_id,
+                "Unexpected error occurred",
+                [str(e)],
+                start_time
             )
-
-        # Add recommendations if requested
-        if include_recommendations:
-            response_data.update(
-                {
-                    "recommendations": result.recommendations or [],
-                    "suggestions": self._normalize_suggestions_service(
-                        result.suggestions
-                    ),
+        
+        finally:
+            # Ensure cleanup
+            self.active_analyses.pop(analysis_id, None)
+    
+    async def get_analysis_status(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the current status of an analysis.
+        
+        Args:
+            analysis_id: Analysis identifier
+            
+        Returns:
+            Analysis status information or None if not found
+        """
+        analysis_info = self.active_analyses.get(analysis_id)
+        if not analysis_info:
+            return None
+        
+        return {
+            'analysis_id': analysis_id,
+            'status': analysis_info['status'],
+            'progress': analysis_info['progress'],
+            'current_step': analysis_info['current_step'],
+            'start_time': analysis_info['start_time'],
+            'elapsed_time': (datetime.utcnow() - analysis_info['start_time']).total_seconds()
+        }
+    
+    async def cancel_analysis(self, analysis_id: str) -> bool:
+        """
+        Cancel an active analysis.
+        
+        Args:
+            analysis_id: Analysis identifier
+            
+        Returns:
+            True if cancelled successfully, False if not found
+        """
+        if analysis_id not in self.active_analyses:
+            return False
+        
+        try:
+            # Mark as cancelled
+            self.active_analyses[analysis_id]['status'] = AnalysisStatus.FAILED
+            self.active_analyses[analysis_id]['current_step'] = 'Cancelled by user'
+            
+            # Clean up after a short delay
+            await asyncio.sleep(1)
+            self.active_analyses.pop(analysis_id, None)
+            
+            logger.info(f"Analysis {analysis_id} cancelled")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel analysis {analysis_id}: {e}")
+            return False
+    
+    async def validate_repository_data(self, repository_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate and sanitize repository data.
+        
+        Args:
+            repository_data: Raw repository data
+            
+        Returns:
+            Validation result with sanitized data or errors
+        """
+        try:
+            # Validate the data
+            is_valid, errors = self.validator.validate_repository_data(repository_data)
+            
+            if not is_valid:
+                return {
+                    'valid': False,
+                    'errors': errors,
+                    'sanitized_data': None
                 }
-            )  # Generate insights if requested
-        if include_insights:
-            # Use LLM-generated insights ONLY
-            if hasattr(result, "insights") and result.insights:
-                # Convert insight objects to dicts if needed
-                insights = []
-                for insight in result.insights:
-                    if hasattr(insight, "__dict__"):
-                        insight_dict = {
-                            "category": insight.category,
-                            "title": insight.title,
-                            "description": insight.description,
-                            "reasoning": insight.reasoning,
-                            "confidence": insight.confidence,
-                            "evidence": insight.evidence or [],
-                            "recommendations": insight.recommendations or [],
-                            "severity": getattr(insight, "severity", None),
-                            "tags": getattr(insight, "tags", []),
-                        }
-                        insights.append(insight_dict)
-                    else:
-                        insights.append(insight)
-                response_data["insights"] = insights
-            else:
-                # Only include insights if LLM provided them
-                response_data["insights"] = []
-            logger.debug(
-                f"Generated {len(response_data['insights'])} insights"
-            )  # Add reasoning if requested (LLM-only, no hardcoded fallbacks)
-        if include_reasoning:
-            if hasattr(result, "llm_reasoning") and result.llm_reasoning:
-                response_data["reasoning"] = result.llm_reasoning
-            # No fallback reasoning - if LLM didn't provide it, we don't include it        # Explain null fields if requested (LLM-only, no hardcoded fallbacks)
-        if explain_null_fields:
-            if (
-                hasattr(result, "llm_null_explanations")
-                and result.llm_null_explanations
-            ):
-                response_data["null_field_explanations"] = result.llm_null_explanations
-            # Only include null field explanations if provided by LLM
-
-        # Ensure all response fields are properly populated
-        response_data = self._ensure_complete_response(response_data, mode)
-
-        logger.debug("Analysis result processing completed")
-        return response_data
-
-    def _convert_technology_stack(self, technology_stack) -> Dict[str, Any]:
-        """Convert technology stack to dict format"""
-        if hasattr(technology_stack, "__dict__"):
+            
+            # Sanitize the data
+            sanitized_data = self.validator.sanitize_repository_data(repository_data)
+            
             return {
-                "language": getattr(technology_stack, "language", None),
-                "framework": getattr(technology_stack, "framework", None),
-                "database": getattr(technology_stack, "database", None),
-                "build_tool": getattr(technology_stack, "build_tool", None),
-                "package_manager": getattr(technology_stack, "package_manager", None),
-                "runtime_version": getattr(technology_stack, "runtime_version", None),
-                "additional_technologies": getattr(
-                    technology_stack, "additional_technologies", []
-                ),
-                "architecture_pattern": getattr(
-                    technology_stack, "architecture_pattern", None
-                ),
-                "deployment_strategy": getattr(
-                    technology_stack, "deployment_strategy", None
-                ),
+                'valid': True,
+                'errors': [],
+                'sanitized_data': sanitized_data,
+                'file_count': len(sanitized_data['files']),
+                'total_size': sum(len(content.encode('utf-8')) for content in sanitized_data['files'].values())
             }
-        elif isinstance(technology_stack, dict):
-            return technology_stack
-        else:
-            logger.warning(f"Unknown technology stack format: {type(technology_stack)}")
-            return {}
-
-    def _get_confidence_level(self, confidence_score: float) -> str:
-        """Convert confidence score to human-readable level"""
-        if confidence_score >= 0.8:
-            return "high"
-        elif confidence_score >= 0.6:
-            return "medium"
-        elif confidence_score >= 0.4:
-            return "low"
-        else:
-            return "very_low"
-
-    def _ensure_complete_response(
-        self, response_data: Dict[str, Any], mode: str
-    ) -> Dict[str, Any]:
-        """Ensure response has no null fields and all required data"""
-
-        # Ensure basic fields are always present
-        if (
-            "technology_stack" not in response_data
-            or not response_data["technology_stack"]
-        ):
-            response_data["technology_stack"] = {
-                "language": None,
-                "framework": None,
-                "database": None,
-                "build_tool": None,
-                "package_manager": None,
-                "runtime_version": None,
-                "additional_technologies": [],
-                "architecture_pattern": None,
-                "deployment_strategy": None,
+            
+        except Exception as e:
+            logger.error(f"Repository data validation failed: {e}")
+            return {
+                'valid': False,
+                'errors': [f"Validation error: {str(e)}"],
+                'sanitized_data': None
             }
-
-        # Ensure dependency analysis is properly formatted
-        if mode in ["full", "dependencies"]:
-            if (
-                "dependency_analysis" not in response_data
-                or not response_data["dependency_analysis"]
-            ):
-                response_data["dependency_analysis"] = {
-                    "total_dependencies": 0,
-                    "direct_dependencies": 0,
-                    "dev_dependencies": 0,
-                    "package_managers": [],
-                    "security_vulnerabilities": 0,
-                    "outdated_dependencies": 0,
-                    "optimization_score": 0,
-                    "ecosystems": [],
-                    "critical_vulnerabilities": 0,
-                    "high_vulnerabilities": 0,
-                    "medium_vulnerabilities": 0,
-                    "low_vulnerabilities": 0,
-                    "license_issues": 0,
-                    "major_updates_available": 0,
-                }
-
-        # Ensure quality metrics are present
-        if mode in ["full", "quality"]:
-            if (
-                "quality_metrics" not in response_data
-                or not response_data["quality_metrics"]
-            ):
-                response_data["quality_metrics"] = {
-                    "overall_score": 0,
-                    "maintainability": 0,
-                    "complexity": 0,
-                    "test_coverage": 0,
-                    "code_duplication": 0,
-                    "technical_debt": 0,
-                }
-
-        # Ensure lists are never null
-        list_fields = ["recommendations", "suggestions", "insights", "detected_files"]
-        for field in list_fields:
-            if field not in response_data or response_data[field] is None:
-                response_data[field] = []
-
-        # Ensure numeric fields are never null
-        numeric_fields = ["confidence_score", "processing_time"]
-        for field in numeric_fields:
-            if field not in response_data or response_data[field] is None:
-                response_data[field] = 0.0
-
-        # Ensure string fields are never null
-        string_fields = [
-            "repository_url",
-            "branch",
-            "analysis_approach",
-            "confidence_level",
-        ]
-        for field in string_fields:
-            if field not in response_data or response_data[field] is None:
-                response_data[field] = "unknown"
-
-        # Fix specific field issues
-        if response_data["analysis_approach"] == "unknown":
-            response_data["analysis_approach"] = "rule_based"
-
-        if response_data["confidence_level"] == "unknown":
-            if response_data["confidence_score"] >= 0.8:
-                response_data["confidence_level"] = "high"
-            elif response_data["confidence_score"] >= 0.6:
-                response_data["confidence_level"] = "medium"
-            elif response_data["confidence_score"] >= 0.4:
-                response_data["confidence_level"] = "low"
-            else:
-                response_data["confidence_level"] = "very_low"
-
-        return response_data
-
-    def _normalize_suggestions_service(self, suggestions) -> list:
-        """Ensure suggestions is a list of dicts with expected fields for API response"""
-        if not suggestions:
-            return []
-        normalized = []
-        for item in suggestions:
-            if isinstance(item, dict):
-                # Only keep allowed fields
-                norm = {
-                    "type": item.get("type"),
-                    "priority": item.get("priority"),
-                    "suggestion": item.get("suggestion")
-                    or item.get("title")
-                    or str(item),
-                    "reason": item.get("reason") or item.get("description"),
-                }
-                # Remove None fields
-                norm = {k: v for k, v in norm.items() if v is not None}
-                normalized.append(norm)
-            elif isinstance(item, str):
-                normalized.append({"suggestion": item})
-            else:
-                normalized.append({"suggestion": str(item)})
-        return normalized
-
-
-# Singleton instance for use across the application
-analysis_service = AnalysisService()
+    
+    async def get_service_health(self) -> Dict[str, Any]:
+        """
+        Get service health and status information.
+        
+        Returns:
+            Service health information
+        """
+        try:
+            # Check cache health
+            cache_healthy = await self.cache_manager.health_check()
+            cache_stats = await self.cache_manager.get_cache_stats()
+            
+            # Check detector health
+            detector_healthy = True  # UnifiedDetector doesn't have health check yet
+            
+            # Active analyses count
+            active_count = len(self.active_analyses)
+            
+            return {
+                'service_healthy': cache_healthy and detector_healthy,
+                'cache': {
+                    'healthy': cache_healthy,
+                    'stats': cache_stats
+                },
+                'detector': {
+                    'healthy': detector_healthy
+                },
+                'active_analyses': active_count,
+                'analysis_details': list(self.active_analyses.keys()) if active_count > 0 else []
+            }
+            
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            return {
+                'service_healthy': False,
+                'error': str(e),
+                'cache': {'healthy': False},
+                'detector': {'healthy': False},
+                'active_analyses': 0
+            }
+    
+    async def cleanup_cache(self) -> Dict[str, Any]:
+        """
+        Clean up expired cache entries.
+        
+        Returns:
+            Cleanup results
+        """
+        try:
+            cleaned_count = await self.cache_manager.cleanup_expired_cache()
+            
+            return {
+                'success': True,
+                'cleaned_entries': cleaned_count,
+                'message': f"Cleaned up {cleaned_count} expired cache entries"
+            }
+            
+        except Exception as e:
+            logger.error(f"Cache cleanup failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'cleaned_entries': 0
+            }
+    
+    async def _update_progress(
+        self,
+        analysis_id: str,
+        progress_callback: Optional[callable],
+        progress: int,
+        step: str,
+        status: AnalysisStatus = AnalysisStatus.ANALYZING
+    ):
+        """Update analysis progress and notify callback."""
+        try:
+            # Update internal tracking
+            if analysis_id in self.active_analyses:
+                self.active_analyses[analysis_id].update({
+                    'status': status,
+                    'progress': progress,
+                    'current_step': step
+                })
+            
+            # Call progress callback if provided
+            if progress_callback:
+                progress_update = ProgressUpdate(
+                    analysis_id=analysis_id,
+                    progress=progress,
+                    status=status,
+                    current_step=step,
+                    timestamp=datetime.utcnow()
+                )
+                
+                # Handle both sync and async callbacks
+                if asyncio.iscoroutinefunction(progress_callback):
+                    await progress_callback(progress_update)
+                else:
+                    progress_callback(progress_update)
+                    
+        except Exception as e:
+            logger.warning(f"Failed to update progress for {analysis_id}: {e}")
+    
+    def _generate_analysis_id(self) -> str:
+        """Generate a unique analysis ID."""
+        import uuid
+        return f"analysis_{uuid.uuid4().hex[:8]}"
+    
+    def _create_error_response(
+        self,
+        analysis_id: str,
+        error_message: str,
+        error_details: List[str],
+        start_time: datetime
+    ) -> AnalysisResponse:
+        """Create an error response."""
+        error_response = ErrorResponse(
+            error_type="AnalysisError",
+            message=error_message,
+            details=error_details,
+            timestamp=datetime.utcnow()
+        )
+        
+        return AnalysisResponse(
+            analysis_id=analysis_id,
+            status=AnalysisStatus.FAILED,
+            result=None,
+            error=error_response,
+            execution_time=(datetime.utcnow() - start_time).total_seconds(),
+            cached=False,
+            timestamp=datetime.utcnow()
+        )
+    
+    async def close(self):
+        """Clean up service resources."""
+        try:
+            # Cancel all active analyses
+            for analysis_id in list(self.active_analyses.keys()):
+                await self.cancel_analysis(analysis_id)
+            
+            # Close cache manager
+            await self.cache_manager.close()
+            
+            logger.info("Analysis service closed successfully")
+            
+        except Exception as e:
+            logger.error(f"Error closing analysis service: {e}")

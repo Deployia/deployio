@@ -9,7 +9,8 @@ from fastapi import FastAPI
 from config.redis_client import get_redis_client
 from config.settings import settings
 from middleware import setup_exception_handlers
-from routes import create_routes
+from routes.analysis_routes import create_analysis_routes
+from routes.generator_routes import create_generator_routes
 from websockets.manager import ai_websocket_manager
 
 # Setup logging (optional, for consistency)
@@ -46,7 +47,8 @@ app = FastAPI(lifespan=lifespan)
 setup_exception_handlers(app)
 
 # Include routes
-app.include_router(create_routes())
+app.include_router(create_analysis_routes())
+app.include_router(create_generator_routes())
 
 
 if __name__ == "__main__":
