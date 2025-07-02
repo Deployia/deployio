@@ -4,14 +4,9 @@ FastAPI AI Service - Modular Microservice with Robust WebSocket Initialization
 
 import time
 import logging
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from config.redis_client import get_redis_client
-from config.settings import settings
+from config import create_app
 from middleware import setup_exception_handlers
-from routes.analysis_routes import create_analysis_routes
-from routes.generator_routes import create_generator_routes
-from websockets.manager import ai_websocket_manager
+from routes import create_routes
 
 # Setup logging (optional, for consistency)
 logger = logging.getLogger(__name__)
@@ -19,39 +14,17 @@ logger = logging.getLogger(__name__)
 # Server start time for uptime calculation
 server_start = time.time()
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    await get_redis_client()  # Only Redis for caching AI results
-    if settings.websocket_enabled:
-        try:
-            success = await ai_websocket_manager.initialize()
-            if success:
-                logger.info("WebSocket connection to server established")
-            else:
-                logger.error("Failed to connect to server WebSocket")
-        except Exception as e:
-            logger.error(f"WebSocket initialization error: {e}")
-    yield
-    # Shutdown
-    if settings.websocket_enabled:
-        await ai_websocket_manager.disconnect()
-
-
-# Create FastAPI app with lifespan
-app = FastAPI(lifespan=lifespan)
-
+# Create FastAPI app with all config and lifespan
+app = create_app()
 
 # Setup exception handlers
 setup_exception_handlers(app)
 
-# Include routes
-app.include_router(create_analysis_routes())
-app.include_router(create_generator_routes())
+# Register all routes using the new clean structure
+app.include_router(create_routes())
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000, ws='none')
+    uvicorn.run(app, host="0.0.0.0", port=8000, ws="none")
