@@ -9,7 +9,6 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from services.analysis_service import AnalysisService
@@ -58,7 +57,7 @@ def create_analysis_routes() -> APIRouter:
     Returns:
         Configured FastAPI router
     """
-    router = APIRouter(prefix="/service/v1", tags=["analysis"])
+    router = APIRouter()
 
     @router.post("/analyze-repository", response_model=AnalysisResponse)
     async def analyze_repository(
@@ -245,40 +244,6 @@ def create_analysis_routes() -> APIRouter:
                 detail={
                     "error": "Validation failed",
                     "message": str(e),
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-            )
-
-    @router.get("/health")
-    async def get_service_health(
-        service: AnalysisService = Depends(get_analysis_service),
-    ):
-        """
-        Get service health and status information.
-
-        Args:
-            service: Analysis service dependency
-
-        Returns:
-            Service health information
-        """
-        try:
-            health = await service.get_service_health()
-
-            # Set appropriate status code based on health
-            status_code = 200 if health.get("service_healthy", False) else 503
-
-            return JSONResponse(
-                status_code=status_code,
-                content={"health": health, "timestamp": datetime.utcnow().isoformat()},
-            )
-
-        except Exception as e:
-            logger.error(f"Health check error: {e}")
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "health": {"service_healthy": False, "error": str(e)},
                     "timestamp": datetime.utcnow().isoformat(),
                 },
             )

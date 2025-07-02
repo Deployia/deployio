@@ -12,13 +12,6 @@ from .common_models import (
     SuggestionModel,
     AnalysisStatus,
 )
-from .analysis_models import (
-    TechnologyStack,
-    DependencyAnalysis,
-    CodeAnalysis,
-    BuildConfiguration,
-    DeploymentConfiguration,
-)
 
 T = TypeVar("T")
 
@@ -175,15 +168,6 @@ class AnalysisResponse(BaseModel):
     warnings: List[str] = []
 
 
-class HealthResponse(BaseModel):
-    """Health check response"""
-
-    status: str = "healthy"
-    version: str = "2.0.0"
-    services: Dict[str, Any] = {}
-    timestamp: datetime = datetime.now()
-
-
 class ProgressUpdate(BaseModel):
     analysis_id: str
     progress: int
@@ -195,3 +179,16 @@ class ProgressUpdate(BaseModel):
 class HelloResponse(BaseModel):
     message: str
     uptime: float
+
+
+class HealthResponse(BaseModel):
+    service: str
+    status: str
+    timestamp: float
+    version: str
+    uptime: float
+    responseTime: float
+    memory: Dict[str, Any]
+    cpu: Dict[str, Any]
+    disk: Dict[str, Any]
+    services: Dict[str, Any]
