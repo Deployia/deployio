@@ -31,11 +31,10 @@ def get_analysis_service() -> AnalysisService:
 
 # Request models for API endpoints
 class AnalyzeRepositoryRequest(BaseModel):
-    """Request model for repository analysis."""
+    """Request model for repository analysis - expects repository data from server."""
 
-    repository_url: Optional[str] = Field(default=None, description="Repository URL to analyze")
-    repository_data: Optional[Dict[str, Any]] = Field(
-        default=None, description="Repository data with files and metadata"
+    repository_data: Dict[str, Any] = Field(
+        ..., description="Complete repository data with files and metadata from GitProviderService"
     )
     analysis_types: Optional[list] = Field(
         default=[AnalysisType.FULL], description="Types of analysis to perform"
@@ -94,18 +93,17 @@ def create_analysis_routes() -> APIRouter:
             Complete analysis results or error information
         """
         try:
-            logger.info(f"Received analysis request for: {request.repository_url or 'repository_data'}")
+            logger.info(f"Received analysis request for repository: {request.repository_data.get('repository', {}).get('name', 'unknown')}")
 
-            # Validate that either repository_url or repository_data is provided
-            if not request.repository_url and not request.repository_data:
+            # Repository data is required and should come from the server's GitProviderService
+            if not request.repository_data:
                 raise HTTPException(
                     status_code=400,
-                    detail="Either repository_url or repository_data must be provided"
+                    detail="Repository data is required. The server should fetch repository data using GitProviderService and send it to the AI service."
                 )
 
             # Convert request to dict for service
             request_data = {
-                "repository_url": request.repository_url,
                 "repository_data": request.repository_data,
                 "analysis_types": request.analysis_types or [AnalysisType.FULL],
                 "generate_configs": request.generate_configs,
@@ -123,18 +121,19 @@ def create_analysis_routes() -> APIRouter:
             result = await service.analyze_repository(request_data)
 
             # Log completion
+            repo_name = request.repository_data.get('repository', {}).get('name', 'unknown')
             if hasattr(result, 'status') and result.status == AnalysisStatus.COMPLETED:
                 logger.info(
-                    f"Analysis completed for {request.repository_url or 'repository_data'} in {result.execution_time:.2f}s"
+                    f"Analysis completed for {repo_name} in {result.execution_time:.2f}s"
                 )
             elif isinstance(result, AnalysisResponse):
                 configs_generated = result.configurations is not None
                 logger.info(
-                    f"Unified analysis completed for {request.repository_url or 'repository_data'} - Configs: {configs_generated}"
+                    f"Unified analysis completed for {repo_name} - Configs: {configs_generated}"
                 )
             else:
                 logger.warning(
-                    f"Analysis failed for {request.repository_url or 'repository_data'}: {getattr(result, 'error', 'Unknown error')}"
+                    f"Analysis failed for {repo_name}: {getattr(result, 'error', 'Unknown error')}"
                 )
 
             return result

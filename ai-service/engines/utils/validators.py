@@ -473,3 +473,48 @@ class RequestValidator:
         except Exception as e:
             logger.warning(f"Failed to clean content: {e}")
             return content
+    
+    @classmethod
+    def validate_config_types(cls, config_types: List[str]) -> Tuple[bool, List[str]]:
+        """
+        Validate requested configuration types.
+        
+        Args:
+            config_types: List of configuration type strings
+            
+        Returns:
+            Tuple of (is_valid, error_messages)
+        """
+        errors = []
+        
+        try:
+            if not isinstance(config_types, list):
+                errors.append("Configuration types must be a list")
+                return False, errors
+            
+            if not config_types:
+                errors.append("At least one configuration type must be specified when generate_configs is true")
+                return False, errors
+            
+            # Valid configuration types
+            valid_types = [
+                "dockerfile", "docker_compose", "github_actions", "gitlab_ci", 
+                "kubernetes", "azure_pipelines", "jenkins", "terraform"
+            ]
+            
+            # Check each type
+            for config_type in config_types:
+                if not isinstance(config_type, str):
+                    errors.append(f"Configuration type must be a string, got {type(config_type)}")
+                elif config_type not in valid_types:
+                    errors.append(f"Invalid configuration type '{config_type}'. Valid types: {', '.join(valid_types)}")
+            
+            # Check for duplicates
+            if len(config_types) != len(set(config_types)):
+                errors.append("Duplicate configuration types are not allowed")
+            
+            return len(errors) == 0, errors
+            
+        except Exception as e:
+            logger.error(f"Configuration types validation failed: {e}")
+            return False, [f"Configuration types validation error: {str(e)}"]
