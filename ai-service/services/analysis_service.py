@@ -39,20 +39,20 @@ class AnalysisService:
         self, request_data: Dict[str, Any], progress_callback: Optional[callable] = None
     ) -> AnalysisResponse:
         """
-        Main entry point for repository analysis.
+        Unified entry point for repository analysis with optional configuration generation.
 
         Args:
-            request_data: Raw request data
+            request_data: Raw request data including analysis options and config generation flags
             progress_callback: Optional callback for progress updates
 
         Returns:
-            Analysis response with results or error information
+            Unified analysis response with results and configurations if requested
         """
         analysis_id = self._generate_analysis_id()
         start_time = datetime.utcnow()
 
         try:
-            logger.info(f"Starting analysis {analysis_id}")
+            logger.info(f"Starting unified analysis {analysis_id}")
 
             # Initialize progress tracking
             self.active_analyses[analysis_id] = {
@@ -78,8 +78,12 @@ class AnalysisService:
                     "Validation failed",
                     AnalysisStatus.FAILED,
                 )
-                return self._create_error_response(
-                    analysis_id, "Validation failed", validation_errors, start_time
+                return AnalysisResponse(
+                    analysis_id=analysis_id,
+                    status=AnalysisStatus.FAILED,
+                    error="Validation failed: " + "; ".join(validation_errors),
+                    execution_time=(datetime.utcnow() - start_time).total_seconds(),
+                    timestamp=datetime.utcnow(),
                 )
 
             await self._update_progress(
@@ -88,14 +92,12 @@ class AnalysisService:
 
             # Check cache if enabled
             cached_result = None
-            if analysis_request.options.cache_enabled:
-                cached_result = await self.cache_manager.get_analysis_result(
-                    analysis_request.repository_url,
-                    "full",  # For now, we only cache full analyses
-                )
+            if analysis_request.options.get("cache_enabled", True):
+                cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
+                cached_result = await self.cache_manager.get(cache_key)
 
                 if cached_result:
-                    logger.info(f"Cache hit for {analysis_request.repository_url}")
+                    logger.info(f"Cache hit for unified analysis {analysis_id}")
                     await self._update_progress(
                         analysis_id,
                         progress_callback,
@@ -110,7 +112,8 @@ class AnalysisService:
                     return AnalysisResponse(
                         analysis_id=analysis_id,
                         status=AnalysisStatus.COMPLETED,
-                        result=cached_result,
+                        analysis=cached_result.get("analysis"),
+                        configurations=cached_result.get("configurations"),
                         execution_time=(datetime.utcnow() - start_time).total_seconds(),
                         cached=True,
                         timestamp=datetime.utcnow(),
@@ -120,7 +123,7 @@ class AnalysisService:
                 analysis_id, progress_callback, 15, "Preparing analysis"
             )
 
-            # Execute analysis
+            # Execute unified analysis
             try:
                 self.active_analyses[analysis_id]["status"] = AnalysisStatus.ANALYZING
 
@@ -129,26 +132,40 @@ class AnalysisService:
                     self._update_progress(
                         analysis_id,
                         progress_callback,
-                        15 + (progress * 0.8),
+                        15 + (progress * 0.7),  # Analysis takes 70% of progress
                         step,
                         AnalysisStatus.ANALYZING,
                     )
                 )
 
-                # Run the analysis
+                # Check if configurations are requested
+                generate_configs = request_data.get("generate_configs", False)
+                
+                # Use the unified analysis method
                 result = await self.detector.analyze_repository(
-                    analysis_request, progress_callback=detector_progress_callback
+                    analysis_request, 
+                    generate_configs=generate_configs,
+                    progress_callback=detector_progress_callback
                 )
+                
+                # Extract analysis and configurations from unified result
+                analysis_result = result.get("analysis")
+                configurations = result.get("configurations")
 
                 await self._update_progress(
                     analysis_id, progress_callback, 95, "Finalizing results"
                 )
 
+                # Prepare unified result
+                unified_result = {
+                    "analysis": analysis_result,
+                    "configurations": configurations
+                }
+
                 # Cache the result if caching is enabled
-                if analysis_request.options.cache_enabled and result:
-                    await self.cache_manager.store_analysis_result(
-                        analysis_request.repository_url, result, "full"
-                    )
+                if analysis_request.options.get("cache_enabled", True):
+                    cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
+                    await self.cache_manager.set(cache_key, unified_result, ttl=3600)
 
                 await self._update_progress(
                     analysis_id,
@@ -164,7 +181,8 @@ class AnalysisService:
                 return AnalysisResponse(
                     analysis_id=analysis_id,
                     status=AnalysisStatus.COMPLETED,
-                    result=result,
+                    analysis=analysis_result.dict() if hasattr(analysis_result, 'dict') else analysis_result,
+                    configurations=configurations,
                     execution_time=(datetime.utcnow() - start_time).total_seconds(),
                     cached=False,
                     timestamp=datetime.utcnow(),
@@ -180,8 +198,12 @@ class AnalysisService:
                     AnalysisStatus.FAILED,
                 )
 
-                return self._create_error_response(
-                    analysis_id, "Analysis execution failed", [str(e)], start_time
+                return AnalysisResponse(
+                    analysis_id=analysis_id,
+                    status=AnalysisStatus.FAILED,
+                    error=str(e),
+                    execution_time=(datetime.utcnow() - start_time).total_seconds(),
+                    timestamp=datetime.utcnow(),
                 )
 
         except Exception as e:
@@ -194,8 +216,12 @@ class AnalysisService:
                 AnalysisStatus.FAILED,
             )
 
-            return self._create_error_response(
-                analysis_id, "Unexpected error occurred", [str(e)], start_time
+            return AnalysisResponse(
+                analysis_id=analysis_id,
+                status=AnalysisStatus.FAILED,
+                error=str(e),
+                execution_time=(datetime.utcnow() - start_time).total_seconds(),
+                timestamp=datetime.utcnow(),
             )
 
         finally:

@@ -60,15 +60,27 @@ class RequestValidator:
         errors = []
         
         try:
-            # Validate required fields
-            if not request_data.get('repository_url'):
-                errors.append("Repository URL is required")
+            # Validate that either repository_url or repository_data is provided
+            has_url = request_data.get('repository_url')
+            has_data = request_data.get('repository_data')
             
-            # Validate repository URL
-            if request_data.get('repository_url'):
+            if not has_url and not has_data:
+                errors.append("Either repository_url or repository_data must be provided")
+            
+            if has_url and has_data:
+                errors.append("Provide either repository_url or repository_data, not both")
+            
+            # Validate repository URL if provided
+            if has_url:
                 url_valid, url_errors = cls.validate_repository_url(request_data['repository_url'])
                 if not url_valid:
                     errors.extend(url_errors)
+            
+            # Validate repository data if provided
+            if has_data:
+                data_valid, data_errors = cls.validate_repository_data(request_data['repository_data'])
+                if not data_valid:
+                    errors.extend(data_errors)
             
             # Validate analysis types
             analysis_types = request_data.get('analysis_types', [])
@@ -76,6 +88,14 @@ class RequestValidator:
                 type_valid, type_errors = cls.validate_analysis_types(analysis_types)
                 if not type_valid:
                     errors.extend(type_errors)
+            
+            # Validate configuration generation options
+            if request_data.get('generate_configs'):
+                config_types = request_data.get('config_types', [])
+                if config_types:
+                    config_valid, config_errors = cls.validate_config_types(config_types)
+                    if not config_valid:
+                        errors.extend(config_errors)
             
             # Validate options
             options = request_data.get('options', {})

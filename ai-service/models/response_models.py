@@ -121,51 +121,43 @@ class DeploymentConfigurationResponse(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
-    """Complete analysis response model"""
-
-    # Basic information
-    repository_name: str
-    repository_url: str
-    branch: str
-    analysis_id: Optional[str] = None
-    session_id: Optional[str] = None
-
-    # Core analysis results
-    technology_stack: TechnologyStackResponse
-    dependency_analysis: Optional[DependencyAnalysisResponse] = None
-    code_analysis: Optional[CodeAnalysisResponse] = None
-
-    # Generator-ready configuration
-    build_configuration: BuildConfigurationResponse
-    deployment_configuration: DeploymentConfigurationResponse
+    """Unified analysis response containing all analysis data and optional configurations"""
 
     # Analysis metadata
-    confidence_score: float
-    confidence_level: str
-    analysis_approach: str
-    processing_time: float
-    analysis_types: List[str]
+    analysis_id: Optional[str] = None
+    session_id: Optional[str] = None
+    status: AnalysisStatus = AnalysisStatus.COMPLETED
 
-    # Enhanced insights
-    insights: List[InsightModel] = []
-    recommendations: List[RecommendationModel] = []
-    suggestions: List[SuggestionModel] = []
-    reasoning: str = ""
-    null_field_explanations: Dict[str, str] = {}
+    # Repository information
+    repository_name: str = ""
+    repository_url: str = ""
+    branch: str = "main"
 
-    # LLM enhancement data
-    llm_enhanced: bool = False
-    llm_provider: Optional[str] = None
-    llm_confidence: float = 0.0
-    llm_reasoning: Optional[str] = None
+    # Core analysis results
+    analysis: Optional[Dict[str, Any]] = None  # Contains AnalysisResult data
+    configurations: Optional[Dict[str, Any]] = None  # Contains generated configs if requested
 
-    # Timing
-    created_at: datetime
-    completed_at: Optional[datetime] = None
+    # Execution metadata
+    execution_time: float = 0.0
+    cached: bool = False
+    timestamp: datetime = datetime.now()
 
     # Error handling
-    error_message: Optional[str] = None
+    error: Optional[str] = None
     warnings: List[str] = []
+
+
+# Legacy response models for backward compatibility
+class LegacyAnalysisResponse(BaseModel):
+    """Legacy analysis response for backward compatibility"""
+
+    analysis_id: str
+    status: AnalysisStatus
+    result: Optional[Dict[str, Any]] = None
+    execution_time: float = 0.0
+    cached: bool = False
+    timestamp: datetime
+    error: Optional[str] = None
 
 
 class ProgressUpdate(BaseModel):

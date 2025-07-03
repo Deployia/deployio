@@ -59,6 +59,19 @@ class SuggestionModel(BaseModel):
     reason: str
 
 
+class ConfigurationType(Enum):
+    """Types of configurations that can be generated"""
+
+    DOCKERFILE = "dockerfile"
+    DOCKER_COMPOSE = "docker_compose"
+    GITHUB_ACTIONS = "github_actions"
+    GITLAB_CI = "gitlab_ci"
+    KUBERNETES = "kubernetes"
+    AZURE_PIPELINES = "azure_pipelines"
+    JENKINS = "jenkins"
+    TERRAFORM = "terraform"
+
+
 class AnalysisStatus(Enum):
     """Status of the analysis process"""
 

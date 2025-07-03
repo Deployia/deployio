@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 
 from services.analysis_service import AnalysisService
-from models.response_models import AnalysisResponse
+from models.response_models import AnalysisResponse, ErrorResponse
 from models.common_models import AnalysisStatus, AnalysisType
 
 logger = logging.getLogger(__name__)
@@ -33,12 +33,21 @@ def get_analysis_service() -> AnalysisService:
 class AnalyzeRepositoryRequest(BaseModel):
     """Request model for repository analysis."""
 
-    repository_url: str = Field(..., description="Repository URL to analyze")
+    repository_url: Optional[str] = Field(default=None, description="Repository URL to analyze")
+    repository_data: Optional[Dict[str, Any]] = Field(
+        default=None, description="Repository data with files and metadata"
+    )
     analysis_types: Optional[list] = Field(
         default=[AnalysisType.FULL], description="Types of analysis to perform"
     )
+    generate_configs: bool = Field(
+        default=False, description="Whether to generate configurations"
+    )
+    config_types: Optional[list] = Field(
+        default=None, description="Types of configurations to generate"
+    )
     options: Optional[Dict[str, Any]] = Field(
-        default_factory=dict, description="Analysis options"
+        default=None, description="Analysis and generation options"
     )
 
 
@@ -85,12 +94,22 @@ def create_analysis_routes() -> APIRouter:
             Complete analysis results or error information
         """
         try:
-            logger.info(f"Received analysis request for: {request.repository_url}")
+            logger.info(f"Received analysis request for: {request.repository_url or 'repository_data'}")
+
+            # Validate that either repository_url or repository_data is provided
+            if not request.repository_url and not request.repository_data:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Either repository_url or repository_data must be provided"
+                )
 
             # Convert request to dict for service
             request_data = {
                 "repository_url": request.repository_url,
+                "repository_data": request.repository_data,
                 "analysis_types": request.analysis_types or [AnalysisType.FULL],
+                "generate_configs": request.generate_configs,
+                "config_types": request.config_types or ["dockerfile", "docker_compose", "github_actions"],
                 "options": request.options or {},
             }
 
@@ -100,17 +119,22 @@ def create_analysis_routes() -> APIRouter:
             if "include_llm_enhancement" not in request_data["options"]:
                 request_data["options"]["include_llm_enhancement"] = True
 
-            # Execute analysis
+            # Execute unified analysis (with optional configuration generation)
             result = await service.analyze_repository(request_data)
 
             # Log completion
-            if result.status == AnalysisStatus.COMPLETED:
+            if hasattr(result, 'status') and result.status == AnalysisStatus.COMPLETED:
                 logger.info(
-                    f"Analysis completed for {request.repository_url} in {result.execution_time:.2f}s"
+                    f"Analysis completed for {request.repository_url or 'repository_data'} in {result.execution_time:.2f}s"
+                )
+            elif isinstance(result, AnalysisResponse):
+                configs_generated = result.configurations is not None
+                logger.info(
+                    f"Unified analysis completed for {request.repository_url or 'repository_data'} - Configs: {configs_generated}"
                 )
             else:
                 logger.warning(
-                    f"Analysis failed for {request.repository_url}: {result.error}"
+                    f"Analysis failed for {request.repository_url or 'repository_data'}: {getattr(result, 'error', 'Unknown error')}"
                 )
 
             return result

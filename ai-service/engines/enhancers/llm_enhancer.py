@@ -31,6 +31,7 @@ class LLMEnhancer:
         self.generator_enhancer = GeneratorEnhancer()
         
         logger.info("LLMEnhancer orchestrator initialized with modular enhancers")    
+    
     @property
     def is_available(self) -> bool:
         """Check if any enhancement services are available."""
@@ -151,7 +152,7 @@ class LLMEnhancer:
             return enhanced_result
             
         except Exception as e:
-            logger.error(f"LLM enhancement orchestration failed: {e}")
+            logger.error(f"LLM enhancement error: {e}")
             # Return original result on failure
             return analysis_result
     
@@ -173,24 +174,70 @@ class LLMEnhancer:
             Dictionary containing generated configurations
         """
         try:
-            logger.info("Starting configuration generation orchestration")
+            logger.info("Starting configuration generation with LLM enhancement")
             
             if not self.generator_enhancer.is_available:
-                logger.warning("Generator enhancer not available")
-                return {"error": "Configuration generation service unavailable"}
+                logger.warning("No LLM generator services available")
+                return {"error": "LLM generation service unavailable"}
             
             options = generation_options or {}
             
-            # Generate all configurations
-            configurations = await self.generator_enhancer.generate_all_configurations(
-                analysis_result, repository_data, options
-            )
+            # Determine which configurations to generate
+            generate_dockerfile = options.get("dockerfile", True)
+            generate_compose = options.get("docker_compose", True)
+            generate_ci_cd = options.get("ci_cd_pipeline", True)
             
-            logger.info("Configuration generation orchestration completed")
+            # Create generation tasks
+            generation_tasks = []
+            
+            if generate_dockerfile:
+                generation_tasks.append(
+                    self.generator_enhancer.generate_dockerfile(
+                        analysis_result, repository_data, options
+                    )
+                )
+                
+            if generate_compose:
+                generation_tasks.append(
+                    self.generator_enhancer.generate_docker_compose(
+                        analysis_result, repository_data, options
+                    )
+                )
+                
+            if generate_ci_cd:
+                generation_tasks.append(
+                    self.generator_enhancer.generate_ci_cd_pipeline(
+                        analysis_result, repository_data, options
+                    )
+                )
+            
+            # Execute generation tasks in parallel
+            configurations = {}
+            if generation_tasks:
+                results = await asyncio.gather(*generation_tasks, return_exceptions=True)
+                
+                # Process successful results
+                for i, result in enumerate(results):
+                    if isinstance(result, Dict):
+                        configurations.update(result)
+                    elif isinstance(result, Exception):
+                        logger.warning(f"Configuration generation failed: {result}")
+            
+            # Generate deployment recommendations
+            if options.get("generate_recommendations", True):
+                try:
+                    recommendations = await self.generator_enhancer.generate_deployment_recommendations(
+                        analysis_result, repository_data, configurations
+                    )
+                    configurations["recommendations"] = recommendations
+                except Exception as rec_error:
+                    logger.warning(f"Failed to generate recommendations: {rec_error}")
+            
+            logger.info(f"Generated {len(configurations)} configurations successfully")
             return configurations
             
         except Exception as e:
-            logger.error(f"Configuration generation orchestration failed: {e}")
+            logger.error(f"Configuration generation error: {e}")
             return {"error": str(e)}
     
     async def generate_specific_configuration(
@@ -204,98 +251,95 @@ class LLMEnhancer:
         Generate a specific type of configuration.
         
         Args:
-            config_type: Type of configuration (dockerfile, compose, github_actions, kubernetes)
+            config_type: Type of configuration to generate
             analysis_result: Analysis results
-            repository_data: Repository files and metadata
+            repository_data: Repository data
             options: Generation options
             
         Returns:
-            Dictionary containing generated configuration
+            Generated configuration
         """
         try:
-            logger.info(f"Generating {config_type} configuration")
+            logger.info(f"Generating specific configuration: {config_type}")
             
             if not self.generator_enhancer.is_available:
-                return {"error": "Generator enhancer not available"}
+                logger.warning("No LLM generator services available")
+                return {"error": "LLM generation service unavailable"}
+                
+            result = {}
             
             if config_type == "dockerfile":
-                return await self.generator_enhancer.generate_dockerfile(
+                result = await self.generator_enhancer.generate_dockerfile(
                     analysis_result, repository_data, options
                 )
             elif config_type == "docker_compose":
-                return await self.generator_enhancer.generate_docker_compose(
+                result = await self.generator_enhancer.generate_docker_compose(
                     analysis_result, repository_data, options
                 )
-            elif config_type == "github_actions":
-                return await self.generator_enhancer.generate_github_actions(
+            elif config_type == "ci_cd_pipeline":
+                result = await self.generator_enhancer.generate_ci_cd_pipeline(
                     analysis_result, repository_data, options
                 )
             elif config_type == "kubernetes":
-                return await self.generator_enhancer.generate_kubernetes_manifests(
+                result = await self.generator_enhancer.generate_kubernetes_manifests(
                     analysis_result, repository_data, options
                 )
             else:
-                return {"error": f"Unsupported configuration type: {config_type}"}
+                logger.warning(f"Unknown configuration type: {config_type}")
+                result = {"error": f"Unknown configuration type: {config_type}"}
                 
+            return result
+            
         except Exception as e:
-            logger.error(f"Configuration generation failed for {config_type}: {e}")
+            logger.error(f"Specific configuration generation error: {e}")
             return {"error": str(e)}
     
     def _needs_enhancement(self, analysis_result: AnalysisResult) -> bool:
-        """Determine if analysis result needs LLM enhancement."""
-        # Check confidence level
-        if analysis_result.confidence == ConfidenceLevel.LOW:
-            return True
-        
-        # Check if confidence score is below threshold
-        if hasattr(analysis_result, 'confidence_score') and analysis_result.confidence_score < 0.75:
-            return True
-        
-        # Check for incomplete technology stack
-        tech_stack = analysis_result.technology_stack
-        if not tech_stack.languages or not tech_stack.frameworks:
-            return True
-        
-        return False
+        """Determine if any part of the analysis needs enhancement."""
+        return (self._needs_technology_enhancement(analysis_result) or 
+                self._needs_dependency_enhancement(analysis_result) or
+                self._needs_code_quality_enhancement(analysis_result))
     
     def _needs_technology_enhancement(self, analysis_result: AnalysisResult) -> bool:
-        """Check if technology stack needs enhancement."""
-        tech_stack = analysis_result.technology_stack
-        
-        # Missing core technologies
-        if not tech_stack.languages or not tech_stack.frameworks:
+        """Determine if technology stack analysis needs enhancement."""
+        if not analysis_result.technology_stack:
             return True
-        
-        # Missing version information
-        if not hasattr(tech_stack, 'versions') or not tech_stack.versions:
+            
+        # Check for low confidence in technology detection
+        if analysis_result.confidence_scores.get('technology_stack', 0) < 0.7:
             return True
-        
+            
+        # Check for incomplete framework detection
+        if any(tech.get('confidence', 1.0) < 0.6 for tech in analysis_result.technology_stack):
+            return True
+            
         return False
     
     def _needs_dependency_enhancement(self, analysis_result: AnalysisResult) -> bool:
-        """Check if dependency analysis needs enhancement."""
-        if not analysis_result.dependency_analysis:
+        """Determine if dependency analysis needs enhancement."""
+        if not analysis_result.dependencies:
             return True
-        
-        dep_analysis = analysis_result.dependency_analysis
-        
-        # Missing security analysis
-        if not hasattr(dep_analysis, 'vulnerabilities') or not dep_analysis.vulnerabilities:
+            
+        # Check for low confidence in dependency analysis
+        if analysis_result.confidence_scores.get('dependencies', 0) < 0.7:
             return True
-        
+            
+        # Check if dependency analysis is incomplete
+        if analysis_result.dependencies and 'unknown_dependencies' in analysis_result.dependencies:
+            if analysis_result.dependencies.get('unknown_dependencies', 0) > 0:
+                return True
+                
         return False
     
     def _needs_code_quality_enhancement(self, analysis_result: AnalysisResult) -> bool:
-        """Check if code quality analysis needs enhancement."""
-        if not analysis_result.code_analysis:
+        """Determine if code quality analysis needs enhancement."""
+        if not analysis_result.code_quality:
             return True
-        
-        code_analysis = analysis_result.code_analysis
-        
-        # Missing quality metrics
-        if not hasattr(code_analysis, 'quality_score') or code_analysis.quality_score == 0:
+            
+        # Check for low confidence in code quality analysis
+        if analysis_result.confidence_scores.get('code_quality', 0) < 0.6:
             return True
-        
+            
         return False
     
     def _update_confidence_after_enhancement(
@@ -303,52 +347,48 @@ class LLMEnhancer:
         enhanced_result: AnalysisResult, 
         original_result: AnalysisResult
     ):
-        """Update confidence level after successful enhancement."""
-        # If we successfully enhanced, boost confidence
-        if enhanced_result != original_result:
-            if enhanced_result.confidence == ConfidenceLevel.LOW:
-                enhanced_result.confidence = ConfidenceLevel.MEDIUM
-            elif enhanced_result.confidence == ConfidenceLevel.MEDIUM:
-                enhanced_result.confidence = ConfidenceLevel.HIGH
-            
-            # Also boost numerical confidence score if present
-            if hasattr(enhanced_result, 'confidence_score'):
-                enhanced_result.confidence_score = min(
-                    1.0, enhanced_result.confidence_score + 0.2
-                )
+        """Update confidence scores after enhancement."""
+        # Update confidence scores for enhanced sections
+        if enhanced_result.technology_stack != original_result.technology_stack:
+            enhanced_result.confidence_scores['technology_stack'] = min(0.9, 
+                enhanced_result.confidence_scores.get('technology_stack', 0) + 0.2)
+                
+        if enhanced_result.dependencies != original_result.dependencies:
+            enhanced_result.confidence_scores['dependencies'] = min(0.9,
+                enhanced_result.confidence_scores.get('dependencies', 0) + 0.2)
+                
+        if enhanced_result.code_quality != original_result.code_quality:
+            enhanced_result.confidence_scores['code_quality'] = min(0.9,
+                enhanced_result.confidence_scores.get('code_quality', 0) + 0.2)
+                
+        # Update overall confidence
+        enhanced_result.confidence = sum(enhanced_result.confidence_scores.values()) / len(enhanced_result.confidence_scores)
     
     async def health_check(self) -> Dict[str, Any]:
-        """Perform health check on all enhancer components."""
+        """Check the health of LLM enhancement services."""
+        analyzer_health = {"status": "unavailable"}
+        generator_health = {"status": "unavailable"}
+        
         try:
-            # Check both enhancers
-            analyzer_health = await self.analyzer_enhancer.health_check()
-            generator_health = await self.generator_enhancer.health_check()
-            
-            overall_status = "healthy"
-            if (analyzer_health.get("analyzer_enhancer", {}).get("status") != "healthy" and
-                generator_health.get("generator_enhancer", {}).get("status") != "healthy"):
-                overall_status = "unhealthy"
-            elif (analyzer_health.get("analyzer_enhancer", {}).get("status") != "healthy" or
-                  generator_health.get("generator_enhancer", {}).get("status") != "healthy"):
-                overall_status = "degraded"
-            
-            return {
-                "llm_enhancer_orchestrator": {
-                    "status": overall_status,
-                    "analyzer_enhancer": analyzer_health,
-                    "generator_enhancer": generator_health,
-                    "services_available": self.is_available,
+            if self.analyzer_enhancer.is_available:
+                analyzer_health = {
+                    "status": "available",
+                    "providers": self.analyzer_enhancer.client_manager.get_available_providers()
                 }
-            }
         except Exception as e:
-            logger.error(f"LLM enhancer health check failed: {e}")            
-            return {
-                "llm_enhancer_orchestrator": {
-                    "status": "unhealthy",
-                    "error": str(e),
-                }
-            }                
+            analyzer_health["error"] = str(e)
             
+        try:
+            if self.generator_enhancer.is_available:
+                generator_health = {
+                    "status": "available",
+                    "providers": self.generator_enhancer.client_manager.get_available_providers()
+                }
         except Exception as e:
-            logger.error(f"LLM enhancement failed: {e}")
-            # Return original result if enhancement fails
+            generator_health["error"] = str(e)
+            
+        return {
+            "analyzer_enhancer": analyzer_health,
+            "generator_enhancer": generator_health,
+            "overall_status": "available" if self.is_available else "unavailable"
+        }

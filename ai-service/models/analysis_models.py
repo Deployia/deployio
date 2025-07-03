@@ -14,19 +14,29 @@ from .common_models import ConfidenceLevel, AnalysisType, InsightModel, Recommen
 # ============= Request Models =============
 
 class AnalysisRequest(BaseModel):
-    """Single unified request model for all analysis"""
-    repository_data: Dict[str, Any]
+    """Single unified request model for all analysis and configuration generation"""
+    repository_url: Optional[str] = None
+    repository_data: Optional[Dict[str, Any]] = None
     session_id: Optional[str] = None
     analysis_types: List[AnalysisType] = [
         AnalysisType.STACK_DETECTION,
         AnalysisType.DEPENDENCY_ANALYSIS, 
         AnalysisType.CODE_ANALYSIS
     ]
+    # Configuration generation options
+    generate_configs: bool = False
+    config_types: List[str] = ["dockerfile", "docker_compose", "github_actions"]
+    # LLM enhancement options
     force_llm_enhancement: bool = False
     include_reasoning: bool = True
     include_recommendations: bool = True
     include_insights: bool = True
     explain_null_fields: bool = True
+    # Progress and caching
+    track_progress: bool = False
+    cache_enabled: bool = True
+    # Additional options
+    options: Dict[str, Any] = {}
 
 
 # ============= Core Analysis Models =============

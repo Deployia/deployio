@@ -14,6 +14,7 @@ from ..analyzers.dependency_analyzer import DependencyAnalyzer
 from ..analyzers.code_analyzer import CodeAnalyzer
 from ..enhancers.llm_enhancer import LLMEnhancer
 from ..utils.cache_manager import CacheManager
+from .generator import UnifiedGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -38,36 +39,66 @@ class UnifiedDetector:
         # Initialize enhancer
         self.llm_enhancer = LLMEnhancer()
         
+        # Initialize generator for configuration generation
+        self.generator = UnifiedGenerator()
+        
         # Initialize cache
         self.cache_manager = CacheManager()
         
         logger.info("UnifiedDetector initialized with clean architecture")
     
-    async def analyze_repository(self, request: AnalysisRequest) -> AnalysisResult:
+    async def analyze_repository(
+        self, 
+        request: AnalysisRequest, 
+        generate_configs: bool = False,
+        progress_callback: Optional[callable] = None
+    ) -> Dict[str, Any]:
         """
-        Perform complete repository analysis
+        Unified repository analysis with optional configuration generation
         
         Args:
             request: Analysis request with repository data and options
+            generate_configs: Whether to generate configurations after analysis
+            progress_callback: Optional callback for progress updates
             
         Returns:
-            AnalysisResult: Complete analysis with all components
+            Dict containing analysis results and optionally configurations
         """
         start_time = time.time()
         
         repository_data = request.repository_data
         repo_name = repository_data.get("repository", {}).get("name", "unknown")
         
-        logger.info(f"Starting analysis for repository: {repo_name}")
+        logger.info(f"Starting unified analysis for repository: {repo_name}")
         
         try:
-            # Step 1: Check cache
+            # Step 1: Check cache for analysis
             cache_key = self._generate_cache_key(request)
             cached_result = await self.cache_manager.get(cache_key)
             
             if cached_result and not request.force_llm_enhancement:
                 logger.info(f"Cache hit for {repo_name}")
+                # If we have cached analysis but need configs, generate them
+                if generate_configs and "configurations" not in cached_result:
+                    if progress_callback:
+                        await progress_callback(50, "Generating configurations from cached analysis")
+                    
+                    config_types = getattr(request, 'config_types', ["dockerfile", "docker_compose", "github_actions"])
+                    configs = await self.generator.generate_configurations(
+                        cached_result.get("analysis", cached_result),
+                        repository_data,
+                        config_types,
+                        request.options
+                    )
+                    
+                    return {
+                        "analysis": cached_result.get("analysis", cached_result),
+                        "configurations": configs
+                    }
                 return cached_result
+            
+            if progress_callback:
+                await progress_callback(10, "Initializing analysis")
             
             # Step 2: Initialize result
             result = AnalysisResult(
@@ -78,8 +109,14 @@ class UnifiedDetector:
                 analysis_types=request.analysis_types,
             )
             
+            if progress_callback:
+                await progress_callback(20, "Performing rule-based analysis")
+            
             # Step 3: Rule-based analysis
             await self._perform_rule_based_analysis(result, repository_data, request.analysis_types)
+            
+            if progress_callback:
+                await progress_callback(40, "Calculating confidence scores")
             
             # Step 4: Calculate confidence
             confidence_score = self._calculate_overall_confidence(result)
@@ -88,25 +125,70 @@ class UnifiedDetector:
             
             # Step 5: LLM enhancement (if needed)
             if self._should_enhance_with_llm(result, request):
+                if progress_callback:
+                    await progress_callback(50, f"Enhancing analysis with LLM (confidence: {confidence_score:.2f})")
+                
                 logger.info(f"Enhancing {repo_name} with LLM (confidence: {confidence_score:.2f})")
                 await self._enhance_with_llm(result, repository_data, request)
             
-            # Step 6: Finalize result
+            if progress_callback:
+                await progress_callback(70, "Finalizing analysis results")
+            
+            # Step 6: Finalize analysis result
             result.processing_time = time.time() - start_time
             result.completed_at = time.time()
             
-            # Step 7: Cache result
-            await self.cache_manager.set(cache_key, result)
+            # Step 7: Generate configurations if requested
+            configurations = None
+            if generate_configs:
+                if progress_callback:
+                    await progress_callback(80, "Generating deployment configurations")
+                
+                config_types = getattr(request, 'config_types', ["dockerfile", "docker_compose", "github_actions"])
+                logger.info(f"Generating configurations for {repo_name}: {config_types}")
+                
+                configurations = await self.generator.generate_configurations(
+                    result,
+                    repository_data,
+                    config_types,
+                    request.options
+                )
             
-            logger.info(f"Analysis completed for {repo_name} in {result.processing_time:.2f}s")
-            return result
+            if progress_callback:
+                await progress_callback(95, "Caching results")
+            
+            # Step 8: Cache the unified result
+            unified_result = {
+                "analysis": result,
+                "configurations": configurations
+            }
+            
+            await self.cache_manager.set(cache_key, unified_result, ttl=3600)
+            
+            if progress_callback:
+                await progress_callback(100, "Analysis completed successfully")
+            
+            logger.info(f"Analysis completed for {repo_name} in {time.time() - start_time:.2f}s")
+            
+            return unified_result
             
         except Exception as e:
             logger.error(f"Analysis failed for {repo_name}: {str(e)}", exc_info=True)
+            
             # Return partial result with error
-            result.error_message = str(e)
-            result.processing_time = time.time() - start_time
-            return result
+            error_result = {
+                "analysis": {
+                    "error_message": str(e),
+                    "processing_time": time.time() - start_time,
+                    "repository_name": repo_name
+                },
+                "configurations": None
+            }
+            
+            if progress_callback:
+                await progress_callback(100, f"Analysis failed: {str(e)}")
+            
+            return error_result
     
     async def _perform_rule_based_analysis(
         self, 

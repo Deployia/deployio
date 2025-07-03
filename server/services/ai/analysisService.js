@@ -46,13 +46,19 @@ const analyzeRepository = async (repositoryData, options = {}) => {
           "dependencies",
           "quality",
         ],
-        force_llm_enhancement: options.forceLlm || false,
-        include_reasoning: options.includeReasoning !== false,
-        include_recommendations: options.includeRecommendations !== false,
-        include_insights: options.includeInsights !== false,
-        explain_null_fields: options.explainNullFields !== false,
-        track_progress: options.trackProgress || false,
-        session_id: options.sessionId || `session_${Date.now()}`,
+        generate_configs: options.generateConfigs || false,
+        config_types: options.configTypes || ["dockerfile", "docker_compose", "github_actions"],
+        options: {
+          force_llm_enhancement: options.forceLlm || false,
+          include_reasoning: options.includeReasoning !== false,
+          include_recommendations: options.includeRecommendations !== false,
+          include_insights: options.includeInsights !== false,
+          explain_null_fields: options.explainNullFields !== false,
+          track_progress: options.trackProgress || false,
+          session_id: options.sessionId || `session_${Date.now()}`,
+          cache_enabled: !options.forceRefresh,
+          include_llm_enhancement: true
+        }
       },
       {
         headers: {
@@ -60,7 +66,7 @@ const analyzeRepository = async (repositoryData, options = {}) => {
         },
       }
     );
-    const result = response.data.data; // Extract the actual data from the response
+    const result = response.data; // Get the full response data
 
     // Cache for appropriate duration based on user type
     const cacheTime = options.user ? 3600 : 1800; // 1 hour for users, 30 min for demo
