@@ -11,7 +11,7 @@ const router = express.Router();
 // Rate limiting configurations
 const demoRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Only 2 requests per 15 minutes for demo (very heavy rate limiting)
+  max: 15, // Only 2 requests per 15 minutes for demo (very heavy rate limiting)
   message: {
     success: false,
     message:

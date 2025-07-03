@@ -20,23 +20,38 @@ class RepositoryDataFetcher {
       const parsedRepo = this._parseRepositoryUrl(repositoryUrl);
       const { owner, repo } = parsedRepo;
 
+      // Log parsed values for debugging
+      logger.info("Parsed repository info", {
+        repositoryUrl,
+        owner,
+        repo,
+        branch,
+      });
+
       // Configure axios for GitHub API
       const axiosConfig = this.githubToken
         ? { headers: { Authorization: `token ${this.githubToken}` } }
         : {};
 
+      // Log the URLs being fetched
+      const repoInfoUrl = `https://api.github.com/repos/${owner}/${repo}`;
+      const branchInfoUrl = `https://api.github.com/repos/${owner}/${repo}/branches/${branch}`;
+      logger.info("Fetching repo info", { repoInfoUrl });
+      logger.info("Fetching branch info", { branchInfoUrl });
+
       // Fetch basic repository info
-      const repoResponse = await axios.get(
-        `https://api.github.com/repos/${owner}/${repo}`,
-        axiosConfig
-      );
+      const repoResponse = await axios.get(repoInfoUrl, axiosConfig);
       const repository = repoResponse.data;
 
-      // Fetch comprehensive file tree
-      const treeResponse = await axios.get(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-        axiosConfig
-      );
+      // Fetch branch info to get commit SHA
+      const branchResponse = await axios.get(branchInfoUrl, axiosConfig);
+      const commitSha = branchResponse.data.commit.sha;
+      logger.info("Fetched branch commit SHA", { commitSha });
+
+      // Fetch comprehensive file tree using commit SHA
+      const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${commitSha}?recursive=1`;
+      logger.info("Fetching repo tree", { treeUrl });
+      const treeResponse = await axios.get(treeUrl, axiosConfig);
       const fileTree = treeResponse.data.tree || [];
 
       // Get comprehensive file content for analysis
@@ -219,10 +234,12 @@ class RepositoryDataFetcher {
         const matchingFiles = fileTree.filter(
           (item) =>
             item.type === "blob" &&
-            item.path.includes(basePattern.replace("*.yml", "").replace("*.yaml", "")) &&
+            item.path.includes(
+              basePattern.replace("*.yml", "").replace("*.yaml", "")
+            ) &&
             (item.path.endsWith(".yml") || item.path.endsWith(".yaml"))
         );
-        matchingFiles.forEach(f => filesToFetch.add(f.path));
+        matchingFiles.forEach((f) => filesToFetch.add(f.path));
       } else {
         // Exact and partial matches
         const exactMatch = fileTree.find(
@@ -249,15 +266,28 @@ class RepositoryDataFetcher {
           item.path.includes("build.gradle")) &&
         !filesToFetch.has(item.path)
     );
-    additionalConfigFiles.forEach(f => filesToFetch.add(f.path));
+    additionalConfigFiles.forEach((f) => filesToFetch.add(f.path));
 
     // Add representative source files for code analysis
     const sourceFileExtensions = [
-      ".js", ".ts", ".jsx", ".tsx", ".vue",
-      ".py", ".java", ".go", ".rs", ".php",
-      ".rb", ".swift", ".kt", ".cs", ".cpp", ".c"
+      ".js",
+      ".ts",
+      ".jsx",
+      ".tsx",
+      ".vue",
+      ".py",
+      ".java",
+      ".go",
+      ".rs",
+      ".php",
+      ".rb",
+      ".swift",
+      ".kt",
+      ".cs",
+      ".cpp",
+      ".c",
     ];
-    
+
     const sourceFiles = fileTree
       .filter(
         (item) =>
@@ -276,7 +306,7 @@ class RepositoryDataFetcher {
       })
       .slice(0, 15); // Increased limit for better analysis
 
-    sourceFiles.forEach(f => filesToFetch.add(f.path));
+    sourceFiles.forEach((f) => filesToFetch.add(f.path));
 
     // Convert to array and limit total files
     const uniqueFiles = Array.from(filesToFetch).slice(0, 50);
@@ -345,11 +375,20 @@ class RepositoryDataFetcher {
    */
   _isImportantSourceFile(filePath) {
     const importantPatterns = [
-      "index", "main", "app", "server", "api",
-      "config", "routes", "models", "controllers",
-      "services", "components", "utils"
+      "index",
+      "main",
+      "app",
+      "server",
+      "api",
+      "config",
+      "routes",
+      "models",
+      "controllers",
+      "services",
+      "components",
+      "utils",
     ];
-    return importantPatterns.some(pattern => 
+    return importantPatterns.some((pattern) =>
       filePath.toLowerCase().includes(pattern)
     );
   }

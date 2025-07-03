@@ -7,7 +7,10 @@ import logging
 import yaml
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-from models.analysis_models import AnalysisResult, TechnologyStack, BuildConfiguration, DeploymentConfiguration
+from models.analysis_models import (
+    AnalysisResult,
+    TechnologyStack,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -490,7 +493,7 @@ class ConfigurationGenerator:
         )
 
         # Language-specific suggestions
-        primary_lang = tech_stack.primary_language.lower()
+        primary_lang = tech_stack.language.lower() if tech_stack.language else "unknown"
         if primary_lang == "python":
             suggestions.append(
                 {

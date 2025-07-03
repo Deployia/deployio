@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
-from models.analysis_models import AnalysisResult, TechnologyStack, BuildConfiguration
+from models.analysis_models import AnalysisResult, TechnologyStack
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class DockerfileGenerator:
                     stack = analysis.get("technology_stack")
                     if isinstance(stack, dict):
                         # Convert dict to TechnologyStack object
-                        from engines.core.models import TechnologyStack
+                        from models.analysis_models import TechnologyStack
 
                         stack = TechnologyStack(
                             language=stack.get("language", "unknown"),
@@ -126,7 +126,7 @@ class DockerfileGenerator:
         self, stack: TechnologyStack, base_image_preference: Optional[str] = None
     ) -> DockerfileConfig:
         """Create Dockerfile configuration based on technology stack"""
-        primary_lang = stack.primary_language.lower()
+        primary_lang = stack.language.lower() if stack.language else "unknown"
 
         # Base configuration
         base_image = base_image_preference or self.base_images.get(
