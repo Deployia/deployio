@@ -8,10 +8,9 @@ Coordinates between AnalyzerEnhancer, GeneratorEnhancer, and manages the overall
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any, Optional
 
 from models.analysis_models import AnalysisResult
-from models.common_models import ConfidenceLevel
 from .analyzer_enhancer import AnalyzerEnhancer
 from .generator_enhancer import GeneratorEnhancer
 
@@ -28,15 +27,35 @@ class LLMEnhancer:
     """
 
     def __init__(self):
+        from config.settings import Settings
+
+        self.settings = Settings()
         self.analyzer_enhancer = AnalyzerEnhancer()
         self.generator_enhancer = GeneratorEnhancer()
+        logger.info("LLMEnhancer orchestrator initialized with modular enhancers")
+
+    async def async_init(self):
+        """Async initialization for LLM clients and health check."""
+        try:
+            await self.analyzer_enhancer.client_manager.initialize()
+            await self.generator_enhancer.client_manager.initialize()
+            analyzer_health = await self.analyzer_enhancer.client_manager.health_check()
+            generator_health = (
+                await self.generator_enhancer.client_manager.health_check()
+            )
+            logger.info(f"LLMEnhancer: Analyzer LLM health: {analyzer_health}")
+            logger.info(f"LLMEnhancer: Generator LLM health: {generator_health}")
+            logger.info(
+                f"LLMEnhancer: LLM clients initialized. Available providers: {self.analyzer_enhancer.client_manager.get_available_providers()}"
+            )
+        except Exception as e:
+            logger.error(f"LLMEnhancer: Failed to initialize LLM clients: {e}")
+        # --- END LLM Client Initialization ---
 
         # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
         # from ..utils.cache_manager import CacheManager
         # self.cache_manager = CacheManager()
         # --- END CACHE DISABLED ---
-
-        logger.info("LLMEnhancer orchestrator initialized with modular enhancers")
 
     @property
     def is_available(self) -> bool:

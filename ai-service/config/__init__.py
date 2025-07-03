@@ -12,6 +12,9 @@ from .redis_client import get_redis_client
 from .settings import settings
 from .logging import setup_logging, get_logger
 from websockets.manager import ai_websocket_manager
+from engines.core.detector import UnifiedDetector
+from engines.core.generator import UnifiedGenerator
+from engines.enhancers.llm_enhancer import LLMEnhancer
 
 # Setup logging configuration
 setup_logging(debug=settings.debug)
@@ -30,11 +33,33 @@ def create_app() -> FastAPI:
             try:
                 success = await ai_websocket_manager.initialize()
                 if success:
-                    logger.info("WebSocket connection to server established")
+                    logger.info("WebSocket connection established")
                 else:
-                    logger.error("Failed to connect to server WebSocket")
+                    logger.error("WebSocket connection failed")
             except Exception as e:
-                logger.error(f"WebSocket initialization error: {e}")
+                logger.error(f"WebSocket init error: {e}")
+
+        # --- ENGINE HEALTH CHECK ---
+        try:
+            detector = UnifiedDetector()
+            generator = UnifiedGenerator()
+            llm_enhancer = LLMEnhancer()
+            await llm_enhancer.async_init()
+            llm_health = await llm_enhancer.health_check()
+            engine_ready = all(
+                [
+                    detector is not None,
+                    generator is not None,
+                    llm_health.get("overall_status") == "available",
+                ]
+            )
+            logger.info(
+                f"ENGINE READY: {engine_ready} | LLM Health: {llm_health.get('overall_status')}"
+            )
+        except Exception as e:
+            logger.error(f"ENGINE NOT READY: {e}")
+        # --- END ENGINE HEALTH CHECK ---
+
         yield
         # Shutdown
         if settings.websocket_enabled:
