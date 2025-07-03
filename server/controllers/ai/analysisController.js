@@ -547,15 +547,10 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
     // Wait for all file fetches to complete
     const fileResults = await Promise.all(filePromises);
 
-    // Build key_files object with proper structure
+    // Build files object with content strings only (as expected by AI service validator)
     fileResults.forEach((result) => {
       if (result) {
-        keyFiles[result.path] = {
-          content: result.content,
-          path: result.path,
-          size: result.size,
-          encoding: "utf-8", // Add encoding info
-        };
+        keyFiles[result.path] = result.content; // Send only the content string
       }
     });
 
@@ -708,177 +703,6 @@ const getSupportedTechnologies = async (req, res) => {
   }
 };
 
-/**
- * @desc Generate configurations from analysis results
- * @route POST /api/v1/ai/analysis/generate-configs
- * @access Private
- */
-const generateConfigurations = async (req, res) => {
-  try {
-    const {
-      repositoryData,
-      analysisResults,
-      configTypes,
-      options = {},
-    } = req.body;
-
-    if (!repositoryData || !analysisResults) {
-      return res.status(400).json({
-        success: false,
-        message: "Repository data and analysis results are required",
-      });
-    }
-
-    const generationOptions = {
-      user: req.user,
-      sessionId: options.sessionId || `session_${Date.now()}`,
-      configTypes: configTypes || [
-        "dockerfile",
-        "github_actions",
-        "docker_compose",
-      ],
-      optimizationLevel: options.optimizationLevel || "balanced",
-      userPreferences: options.userPreferences || {},
-      ...options,
-    };
-
-    const result = await ai.generateConfigurations(
-      repositoryData,
-      analysisResults,
-      generationOptions
-    );
-
-    logger.info(`Configuration generation completed`, {
-      configTypes: generationOptions.configTypes,
-      optimizationLevel: generationOptions.optimizationLevel,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Configuration generation completed successfully",
-      data: result,
-    });
-  } catch (error) {
-    logger.error("Error generating configurations:");
-
-    let statusCode = 500;
-    let errorMessage = "Error generating configurations";
-
-    if (error.response) {
-      statusCode = error.response.status;
-      errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        errorMessage;
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI service is temporarily unavailable";
-    } else if (error.code === "ECONNABORTED") {
-      statusCode = 408;
-      errorMessage = "Configuration generation request timed out";
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-/**
- * @desc Complete analysis-to-generation pipeline
- * @route POST /api/v1/ai/analysis/complete-pipeline
- * @access Private
- */
-const completeAnalysisGenerationPipeline = async (req, res) => {
-  try {
-    const {
-      repositoryData,
-      analysisTypes,
-      configTypes,
-      options = {},
-    } = req.body;
-
-    if (!repositoryData) {
-      return res.status(400).json({
-        success: false,
-        message: "Repository data is required",
-      });
-    }
-
-    const sessionId = options.sessionId || `session_${Date.now()}`;
-
-    // Step 1: Analyze repository
-    const analysisOptions = {
-      user: req.user,
-      sessionId,
-      analysisTypes: analysisTypes || ["stack", "dependencies", "quality"],
-      ...options,
-    };
-
-    logger.info(`Starting complete pipeline for session: ${sessionId}`);
-
-    const analysisResult = await ai.analyzeRepository(
-      repositoryData,
-      analysisOptions
-    );
-
-    // Step 2: Generate configurations
-    const generationOptions = {
-      user: req.user,
-      sessionId,
-      configTypes: configTypes || [
-        "dockerfile",
-        "github_actions",
-        "docker_compose",
-      ],
-      optimizationLevel: options.optimizationLevel || "balanced",
-      userPreferences: options.userPreferences || {},
-    };
-
-    const generationResult = await ai.generateConfigurations(
-      repositoryData,
-      analysisResult,
-      generationOptions
-    );
-
-    const pipelineResult = {
-      sessionId,
-      analysis: analysisResult,
-      generation: generationResult,
-      timestamp: new Date().toISOString(),
-    };
-
-    logger.info(`Complete pipeline completed for session: ${sessionId}`);
-
-    res.status(200).json({
-      success: true,
-      message:
-        "Complete analysis and generation pipeline completed successfully",
-      data: pipelineResult,
-    });
-  } catch (error) {
-    logger.error("Error in complete pipeline:", error);
-
-    let statusCode = 500;
-    let errorMessage = "Error in complete analysis and generation pipeline";
-
-    if (error.response) {
-      statusCode = error.response.status;
-      errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        errorMessage;
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
 
 /**
  * @desc Demo complete pipeline (authenticated users only, heavy rate limited)
@@ -1118,8 +942,6 @@ const getDemoAnalysisProgress = async (req, res) => {
 module.exports = {
   // Core API endpoints
   analyzeRepository,
-  generateConfigurations,
-  completeAnalysisGenerationPipeline,
 
   // Public endpoints
   demoAnalyzeRepository,

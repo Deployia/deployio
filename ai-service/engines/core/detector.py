@@ -197,80 +197,124 @@ class UnifiedDetector:
         analysis_types: List[AnalysisType]
     ):
         """Perform rule-based analysis with all analyzers"""
+        logger.info(f"Starting rule-based analysis for {result.repository_name}")
+        logger.debug(f"Analysis types requested: {[t.value for t in analysis_types]}")
         
         # Stack analysis (always performed)
         if AnalysisType.STACK_DETECTION in analysis_types:
+            logger.info("Performing stack detection analysis...")
+            start_time = time.time()
             stack_result = await self.stack_analyzer.analyze(repository_data)
+            analysis_time = time.time() - start_time
+            
             result.technology_stack = stack_result.technology_stack
             result.build_configuration = stack_result.build_configuration
             result.deployment_configuration = stack_result.deployment_configuration
             
             # Add insights from stack analysis
+            insights_added = 0
             for insight in stack_result.insights:
                 result.add_insight(insight)
+                insights_added += 1
+            
+            logger.info(f"Stack analysis completed in {analysis_time:.2f}s - found {len(stack_result.technology_stack.languages)} languages, {insights_added} insights")
         
         # Dependency analysis
         if AnalysisType.DEPENDENCY_ANALYSIS in analysis_types:
+            logger.info("Performing dependency analysis...")
+            start_time = time.time()
             dependency_result = await self.dependency_analyzer.analyze(repository_data)
+            analysis_time = time.time() - start_time
+            
             result.dependency_analysis = dependency_result.dependency_analysis
             
             # Add insights from dependency analysis
+            insights_added = 0
             for insight in dependency_result.insights:
                 result.add_insight(insight)
+                insights_added += 1
+            
+            deps_count = len(dependency_result.dependency_analysis.dependencies) if dependency_result.dependency_analysis else 0
+            logger.info(f"Dependency analysis completed in {analysis_time:.2f}s - found {deps_count} dependencies, {insights_added} insights")
         
         # Code analysis
         if AnalysisType.CODE_ANALYSIS in analysis_types:
+            logger.info("Performing code quality analysis...")
+            start_time = time.time()
             code_result = await self.code_analyzer.analyze(repository_data)
+            analysis_time = time.time() - start_time
+            
             result.code_analysis = code_result.code_analysis
             
             # Add insights from code analysis
+            insights_added = 0
             for insight in code_result.insights:
                 result.add_insight(insight)
+                insights_added += 1
+            
+            logger.info(f"Code analysis completed in {analysis_time:.2f}s - {insights_added} insights added")
         
         result.analysis_approach = "rule_based"
-        logger.info(f"Rule-based analysis completed for {result.repository_name}")
+        total_insights = len(result.insights)
+        logger.info(f"Rule-based analysis completed for {result.repository_name} - total insights: {total_insights}")
     
     def _calculate_overall_confidence(self, result: AnalysisResult) -> float:
         """Calculate overall confidence score from all analysis components"""
+        logger.debug(f"Calculating confidence for {result.repository_name}")
         confidences = []
         
         # Technology stack confidence
         if result.technology_stack and result.technology_stack.confidence > 0:
             confidences.append(result.technology_stack.confidence)
+            logger.debug(f"Technology stack confidence: {result.technology_stack.confidence:.2f}")
         
         # Dependency analysis confidence (if available)
         if result.dependency_analysis and result.dependency_analysis.health_score > 0:
             confidences.append(result.dependency_analysis.health_score)
+            logger.debug(f"Dependency health score: {result.dependency_analysis.health_score:.2f}")
         
         # Code analysis confidence (if available)
         if result.code_analysis and result.code_analysis.quality_score > 0:
             confidences.append(result.code_analysis.quality_score)
+            logger.debug(f"Code quality score: {result.code_analysis.quality_score:.2f}")
         
         # Calculate weighted average
         if confidences:
-            return sum(confidences) / len(confidences)
+            overall_confidence = sum(confidences) / len(confidences)
+            logger.info(f"Overall confidence calculated: {overall_confidence:.2f} (from {len(confidences)} components)")
+            return overall_confidence
         else:
+            logger.warning("No confidence scores available, using default low confidence")
             return 0.3  # Low confidence if no analysis succeeded
     
     def _should_enhance_with_llm(self, result: AnalysisResult, request: AnalysisRequest) -> bool:
         """Determine if LLM enhancement is needed"""
+        logger.debug(f"Evaluating LLM enhancement for {result.repository_name}")
+        logger.debug(f"Current confidence: {result.confidence_score:.2f}")
+        logger.debug(f"Current insights count: {len(result.insights)}")
+        logger.debug(f"Current recommendations count: {len(result.recommendations)}")
         
         # Force enhancement if requested
         if request.force_llm_enhancement:
+            logger.info("LLM enhancement forced by request")
             return True
         
         # Enhance if confidence is low
         if result.confidence_score < 0.75:
+            logger.info(f"LLM enhancement triggered by low confidence: {result.confidence_score:.2f} < 0.75")
             return True
         
         # Enhance if reasoning/insights are requested and missing
         if request.include_insights and len(result.insights) < 3:
+            logger.info(f"LLM enhancement triggered by insufficient insights: {len(result.insights)} < 3")
             return True
         
         # Enhance if recommendations are requested and missing
         if request.include_recommendations and len(result.recommendations) == 0:
+            logger.info("LLM enhancement triggered by missing recommendations")
             return True
         
+        logger.info("LLM enhancement not needed - rule-based analysis sufficient")
         return False
     
     async def _enhance_with_llm(
@@ -280,22 +324,40 @@ class UnifiedDetector:
         request: AnalysisRequest
     ):
         """Enhance analysis result with LLM"""
+        logger.info(f"Starting LLM enhancement for {result.repository_name}")
+        start_time = time.time()
+        
         try:
+            logger.debug("Calling LLM enhancer...")
             enhanced_result = await self.llm_enhancer.enhance_analysis(
                 result, 
                 repository_data,
                 request
             )
             
+            enhancement_time = time.time() - start_time
+            logger.info(f"LLM enhancement completed in {enhancement_time:.2f}s")
+            
             # Merge enhanced data
             if enhanced_result.enhanced_stack:
+                logger.debug("Merging enhanced technology stack data...")
                 # Update technology stack with enhanced data
                 self._merge_technology_stack(result, enhanced_result.enhanced_stack)
             
             # Add LLM insights and recommendations
+            insights_before = len(result.insights)
+            recommendations_before = len(result.recommendations)
+            suggestions_before = len(result.suggestions)
+            
             result.insights.extend(enhanced_result.insights)
             result.recommendations.extend(enhanced_result.recommendations)
             result.suggestions.extend(enhanced_result.suggestions)
+            
+            insights_added = len(result.insights) - insights_before
+            recommendations_added = len(result.recommendations) - recommendations_before
+            suggestions_added = len(result.suggestions) - suggestions_before
+            
+            logger.info(f"LLM enhancement added {insights_added} insights, {recommendations_added} recommendations, {suggestions_added} suggestions")
             
             # Update metadata
             result.llm_enhanced = True
@@ -305,14 +367,17 @@ class UnifiedDetector:
             result.analysis_approach = "llm_enhanced"
             
             # Recalculate confidence
+            old_confidence = result.confidence_score
             if enhanced_result.llm_confidence > result.confidence_score:
                 result.confidence_score = enhanced_result.llm_confidence
                 result.confidence_level = get_confidence_level(result.confidence_score)
+                logger.info(f"Confidence improved from {old_confidence:.2f} to {result.confidence_score:.2f}")
             
-            logger.info(f"LLM enhancement completed for {result.repository_name}")
+            logger.info(f"LLM enhancement completed successfully for {result.repository_name}")
             
         except Exception as e:
-            logger.warning(f"LLM enhancement failed for {result.repository_name}: {str(e)}")
+            enhancement_time = time.time() - start_time
+            logger.error(f"LLM enhancement failed for {result.repository_name} after {enhancement_time:.2f}s: {str(e)}", exc_info=True)
             result.add_warning(f"LLM enhancement failed: {str(e)}")
     
     def _merge_technology_stack(self, result: AnalysisResult, enhanced_stack):

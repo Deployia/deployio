@@ -6,28 +6,8 @@ const {
 } = require("./aiServiceClient");
 const {
   analyzeRepository,
-  analyzeRepositoryWithWebSocket,
-  generateConfigurations,
-  detectTechnologyStack,
-  analyzeCodeQuality,
-  analyzeDependencies,
-  getAnalysisProgress,
   getSupportedTechnologies,
-  analyzeProjectStack, // Legacy compatibility
 } = require("./analysisService");
-const {
-  generateDockerfile,
-  generatePipeline,
-  generateCompose,
-  generateKubernetes,
-} = require("./generationService");
-const {
-  optimizePerformance,
-  optimizeSecurity,
-  optimizeCosts,
-  generateRecommendations,
-  analyzeOptimization,
-} = require("./optimizationService");
 const { getRedisClient } = require("@config/redisClient");
 const logger = require("@config/logger");
 
@@ -111,29 +91,8 @@ module.exports = {
 
   // Analysis services
   analyzeRepository,
-  analyzeRepositoryWithWebSocket,
-  generateConfigurations,
-  detectTechnologyStack,
-  analyzeCodeQuality,
-  analyzeDependencies,
-  getAnalysisProgress,
+ 
   getSupportedTechnologies,
-  analyzeProjectStack, // Legacy compatibility
-
-  // Generation services
-  generateDockerfile,
-  generatePipeline,
-  generateCompose,
-  generateKubernetes,
-  generateEnvironmentConfig, // Legacy compatibility
-  generateBuildOptimization, // Legacy compatibility
-
-  // Optimization services
-  optimizePerformance,
-  optimizeSecurity,
-  optimizeCosts,
-  generateRecommendations,
-  analyzeOptimization,
 
   // Utilities
   invalidateAiCache,

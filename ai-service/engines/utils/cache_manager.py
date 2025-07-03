@@ -51,6 +51,60 @@ class CacheManager:
             logger.error(f"Failed to initialize Redis: {e}")
             self.enabled = False
     
+    async def get(self, key: str) -> Optional[Any]:
+        """
+        Generic cache retrieval method.
+        
+        Args:
+            key: Cache key
+            
+        Returns:
+            Cached value or None if not found
+        """
+        if not self.enabled:
+            return None
+            
+        try:
+            cached_data = await self.redis_client.get(key)
+            
+            if cached_data:
+                logger.debug(f"Cache hit for key: {key}")
+                return json.loads(cached_data)
+            
+            logger.debug(f"Cache miss for key: {key}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve from cache for key {key}: {e}")
+            return None
+    
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+        """
+        Generic cache storage method.
+        
+        Args:
+            key: Cache key
+            value: Value to cache
+            ttl: Time to live in seconds
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.enabled:
+            return False
+            
+        try:
+            ttl = ttl or self.cache_ttl
+            serialized_data = json.dumps(value, default=str)
+            
+            await self.redis_client.setex(key, ttl, serialized_data)
+            logger.debug(f"Cached data for key: {key} (TTL: {ttl}s)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cache data for key {key}: {e}")
+            return False
+    
     def _generate_cache_key(self, repository_url: str, analysis_type: str = "full") -> str:
         """Generate a unique cache key for repository analysis."""
         # Create hash from repository URL and analysis type
@@ -327,3 +381,57 @@ class CacheManager:
         if self.redis_client:
             await self.redis_client.close()
             logger.info("Cache manager connection closed")
+    
+    async def get(self, key: str) -> Optional[Any]:
+        """
+        Generic cache retrieval method.
+        
+        Args:
+            key: Cache key
+            
+        Returns:
+            Cached value or None if not found
+        """
+        if not self.enabled:
+            return None
+            
+        try:
+            cached_data = await self.redis_client.get(key)
+            
+            if cached_data:
+                logger.debug(f"Cache hit for key: {key}")
+                return json.loads(cached_data)
+            
+            logger.debug(f"Cache miss for key: {key}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve from cache for key {key}: {e}")
+            return None
+    
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+        """
+        Generic cache storage method.
+        
+        Args:
+            key: Cache key
+            value: Value to cache
+            ttl: Time to live in seconds
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.enabled:
+            return False
+            
+        try:
+            ttl = ttl or self.cache_ttl
+            serialized_data = json.dumps(value, default=str)
+            
+            await self.redis_client.setex(key, ttl, serialized_data)
+            logger.debug(f"Cached data for key: {key} (TTL: {ttl}s)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cache data for key {key}: {e}")
+            return False

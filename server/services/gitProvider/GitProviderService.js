@@ -928,15 +928,10 @@ class GitProviderService {
 
       const fileResults = await Promise.all(filePromises);
 
-      // Build key_files object
+      // Build key_files object with content strings only
       fileResults.forEach((result) => {
         if (result) {
-          key_files[result.path] = {
-            content: result.content,
-            path: result.path,
-            size: result.size,
-            encoding: "utf-8",
-          };
+          key_files[result.path] = result.content; // Send only the content string
         }
       });
 
@@ -983,12 +978,12 @@ class GitProviderService {
           branch
         );
         return {
-          key_files: basicStructure.files || {}, // Keep internal naming for now
+          key_files: basicStructure.files || {}, // Internal structure for file content strings
           file_tree: basicStructure.structure?.files || [],
         };
       } catch (fallbackError) {
         return {
-          key_files: {}, // Keep internal naming for now
+          key_files: {}, // Internal structure for file content strings
           file_tree: [],
         };
       }

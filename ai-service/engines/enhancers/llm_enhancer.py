@@ -7,6 +7,7 @@ Coordinates between AnalyzerEnhancer, GeneratorEnhancer, and manages the overall
 
 import asyncio
 import logging
+import time
 from typing import Dict, List, Optional, Any
 
 from models.analysis_models import AnalysisResult
@@ -55,8 +56,11 @@ class LLMEnhancer:
         Returns:
             Enhanced analysis result with AI-generated insights
         """
+        repo_name = analysis_result.repository_name
+        start_time = time.time()
+        
         try:
-            logger.info("Starting modular LLM enhancement orchestration")
+            logger.info(f"Starting LLM enhancement orchestration for {repo_name}")
             
             if not self.is_available:
                 logger.warning("No LLM enhancement services available")
@@ -67,15 +71,17 @@ class LLMEnhancer:
             
             # Determine enhancement strategy based on confidence level
             needs_enhancement = self._needs_enhancement(analysis_result)
+            logger.debug(f"Enhancement needed: {needs_enhancement}")
             
             if needs_enhancement and self.analyzer_enhancer.is_available:
-                logger.info("Orchestrating analysis enhancements")
+                logger.info(f"Orchestrating analysis enhancements for {repo_name}")
                 
                 # Create enhancement tasks based on what needs improvement
                 enhancement_tasks = []
                 
                 # Technology stack enhancement
                 if self._needs_technology_enhancement(analysis_result):
+                    logger.debug("Scheduling technology stack enhancement")
                     enhancement_tasks.append(
                         self.analyzer_enhancer.enhance_technology_stack(
                             enhanced_result, repository_data
@@ -84,6 +90,7 @@ class LLMEnhancer:
                 
                 # Dependency analysis enhancement
                 if self._needs_dependency_enhancement(analysis_result):
+                    logger.debug("Scheduling dependency analysis enhancement")
                     enhancement_tasks.append(
                         self.analyzer_enhancer.enhance_dependency_analysis(
                             enhanced_result, repository_data
@@ -92,6 +99,7 @@ class LLMEnhancer:
                 
                 # Code quality enhancement
                 if self._needs_code_quality_enhancement(analysis_result):
+                    logger.debug("Scheduling code quality enhancement")
                     enhancement_tasks.append(
                         self.analyzer_enhancer.enhance_code_quality(
                             enhanced_result, repository_data
@@ -100,12 +108,16 @@ class LLMEnhancer:
                 
                 # Execute enhancement tasks
                 if enhancement_tasks:
+                    logger.info(f"Executing {len(enhancement_tasks)} enhancement tasks for {repo_name}")
+                    
                     # Run the most important enhancement first, then others
                     primary_enhancement = enhancement_tasks[0]
+                    logger.debug("Running primary enhancement task...")
                     enhanced_result = await primary_enhancement
                     
                     # Run remaining enhancements with updated result
                     if len(enhancement_tasks) > 1:
+                        logger.debug(f"Running {len(enhancement_tasks) - 1} additional enhancement tasks...")
                         remaining_tasks = []
                         for task_func in enhancement_tasks[1:]:
                             # Re-create tasks with updated result
@@ -130,29 +142,40 @@ class LLMEnhancer:
                         
                         # Execute remaining tasks in parallel
                         if remaining_tasks:
+                            logger.debug("Executing additional enhancement tasks in parallel...")
                             results = await asyncio.gather(*remaining_tasks, return_exceptions=True)
                             
                             # Apply results that succeeded
+                            successful_enhancements = 0
                             for result in results:
                                 if isinstance(result, AnalysisResult):
                                     enhanced_result = result
+                                    successful_enhancements += 1
                                 elif isinstance(result, Exception):
                                     logger.warning(f"Enhancement task failed: {result}")
+                            
+                            logger.info(f"Completed {successful_enhancements}/{len(remaining_tasks)} additional enhancement tasks")
                 
                 # Generate comprehensive insights as final step
                 if options.get("generate_insights", True):
+                    logger.debug("Generating comprehensive insights...")
                     enhanced_result = await self.analyzer_enhancer.generate_comprehensive_insights(
                         enhanced_result, repository_data
                     )
             
             # Update confidence level based on enhancements
+            old_confidence = analysis_result.confidence_score
             self._update_confidence_after_enhancement(enhanced_result, analysis_result)
+            new_confidence = enhanced_result.confidence_score
             
-            logger.info("LLM enhancement orchestration completed successfully")
+            enhancement_time = time.time() - start_time
+            logger.info(f"LLM enhancement completed for {repo_name} in {enhancement_time:.2f}s - confidence: {old_confidence:.2f} → {new_confidence:.2f}")
+            
             return enhanced_result
             
         except Exception as e:
-            logger.error(f"LLM enhancement error: {e}")
+            enhancement_time = time.time() - start_time
+            logger.error(f"LLM enhancement error for {repo_name} after {enhancement_time:.2f}s: {e}", exc_info=True)
             # Return original result on failure
             return analysis_result
     
