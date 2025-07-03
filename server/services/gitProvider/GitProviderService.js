@@ -3,6 +3,7 @@
 
 const User = require("@models/User");
 const GitProviderFactory = require("@services/gitProviders/ProviderFactory");
+const RepositoryDataFetcher = require("./RepositoryDataFetcher");
 
 class GitProviderService {
   /**
@@ -714,8 +715,7 @@ class GitProviderService {
   }
 
   /**
-   * Get comprehensive repository data similar to demo fetch
-   * This ensures we get enough files and content for accurate analysis
+   * Get comprehensive repository data using the centralized fetcher
    */
   static async _getComprehensiveRepositoryData(
     providerInstance,
@@ -724,266 +724,44 @@ class GitProviderService {
     branch
   ) {
     try {
-      // Get file tree first
-      const treeData = await providerInstance.getRepositoryTree(
-        owner,
-        repo,
-        branch
+      const repositoryUrl = `https://github.com/${owner}/${repo}`;
+      const fetcher = new RepositoryDataFetcher();
+      
+      // Use the centralized fetcher for consistent data extraction
+      const repositoryData = await fetcher.fetchRepositoryData(
+        repositoryUrl,
+        branch,
+        false // Not a public-only fetch
       );
-      const fileTree = treeData.files || [];
-
-      // Define important files for analysis (same as demo)
-      const importantFilePatterns = [
-        // Package managers
-        "package.json",
-        "package-lock.json",
-        "yarn.lock",
-        "requirements.txt",
-        "setup.py",
-        "pyproject.toml",
-        "Pipfile",
-        "pom.xml",
-        "build.gradle",
-        "build.gradle.kts",
-        "composer.json",
-        "Gemfile",
-        "Gemfile.lock",
-        "Cargo.toml",
-        "go.mod",
-        "go.sum",
-
-        // Docker & deployment
-        "Dockerfile",
-        "docker-compose.yml",
-        "docker-compose.yaml",
-        ".dockerignore",
-
-        // Configuration files
-        "tsconfig.json",
-        "webpack.config.js",
-        "vite.config.js",
-        "rollup.config.js",
-        "next.config.js",
-        "nuxt.config.js",
-        "vue.config.js",
-        "angular.json",
-        ".eslintrc.js",
-        ".eslintrc.json",
-        "babel.config.js",
-        "jest.config.js",
-
-        // Environment & config
-        ".env",
-        ".env.example",
-        "config.json",
-        "app.json",
-
-        // Documentation
-        "README.md",
-        "CHANGELOG.md",
-        "LICENSE",
-
-        // Framework specific
-        "manifest.json",
-        "index.html",
-        "main.py",
-        "app.py",
-        "server.js",
-        "index.js",
-        "manage.py",
-        "settings.py",
-
-        // Common source file patterns for analysis
-        "src/index.js",
-        "src/index.ts",
-        "src/main.js",
-        "src/main.ts",
-        "src/App.js",
-        "src/App.tsx",
-        "src/App.vue",
-        "app/main.py",
-        "app/__init__.py",
-        "main.go",
-        "cmd/main.go",
-        "src/main.java",
-        "index.php",
-        "app.php",
-      ];
-
-      // Find files matching important patterns
-      const filesToFetch = [];
-
-      // Direct file matches
-      for (const pattern of importantFilePatterns) {
-        const matchingFiles = fileTree.filter(
-          (file) =>
-            file.path === pattern ||
-            file.path.endsWith("/" + pattern) ||
-            (pattern.includes(".") && file.path.includes(pattern))
-        );
-        filesToFetch.push(...matchingFiles.map((f) => f.path));
-      }
-
-      // Also look for nested package.json files (important for monorepos)
-      const additionalPackageFiles = fileTree.filter(
-        (file) =>
-          file.path.includes("package.json") &&
-          !filesToFetch.includes(file.path)
-      );
-      filesToFetch.push(...additionalPackageFiles.map((f) => f.path));
-
-      // Also look for nested requirements.txt, setup.py, etc.
-      const additionalConfigFiles = fileTree.filter(
-        (file) =>
-          (file.path.includes("requirements.txt") ||
-            file.path.includes("setup.py") ||
-            file.path.includes("Dockerfile") ||
-            file.path.includes("docker-compose")) &&
-          !filesToFetch.includes(file.path)
-      );
-      filesToFetch.push(...additionalConfigFiles.map((f) => f.path));
-
-      // Also include some representative source files for code analysis
-      const sourceFileExtensions = [
-        ".js",
-        ".ts",
-        ".jsx",
-        ".tsx",
-        ".py",
-        ".java",
-        ".php",
-        ".go",
-        ".rs",
-      ];
-      const sourceFiles = fileTree.filter(
-        (file) =>
-          sourceFileExtensions.some((ext) => file.path.endsWith(ext)) &&
-          (file.size || 0) < 50000 && // Limit to files under 50KB
-          !filesToFetch.includes(file.path)
-      );
-
-      // Add up to 10 representative source files
-      const representativeSourceFiles = sourceFiles
-        .sort((a, b) => {
-          // Prefer root level files and common patterns
-          const aRoot = !a.path.includes("/");
-          const bRoot = !b.path.includes("/");
-          if (aRoot && !bRoot) return -1;
-          if (!aRoot && bRoot) return 1;
-
-          // Prefer main/index files
-          const aMain =
-            a.path.includes("index") ||
-            a.path.includes("main") ||
-            a.path.includes("app");
-          const bMain =
-            b.path.includes("index") ||
-            b.path.includes("main") ||
-            b.path.includes("app");
-          if (aMain && !bMain) return -1;
-          if (!aMain && bMain) return 1;
-
-          return a.path.localeCompare(b.path);
-        })
-        .slice(0, 10);
-
-      filesToFetch.push(...representativeSourceFiles.map((f) => f.path));
-
-      // Remove duplicates and limit to reasonable number
-      const uniqueFiles = [...new Set(filesToFetch)].slice(0, 40); // Increased limit to accommodate source files
-
-      // Fetch content for all identified key files using getRepositoryContent
-      const key_files = {};
-      const filePromises = uniqueFiles.map(async (filePath) => {
-        try {
-          const fileContent = await providerInstance.getRepositoryContent(
-            owner,
-            repo,
-            filePath,
-            branch
-          );
-          // getRepositoryContent should return an array, find the file
-          const file = Array.isArray(fileContent)
-            ? fileContent.find((f) => f.name === filePath.split("/").pop())
-            : fileContent;
-
-          if (file && file.content && file.type === "file") {
-            // Decode base64 content
-            const content = Buffer.from(file.content, "base64").toString(
-              "utf-8"
-            );
-            return {
-              path: filePath,
-              content: content,
-              size: file.size || 0,
-              encoding: "utf-8",
-            };
-          }
-        } catch (error) {
-          // Silently skip files that can't be fetched
-          console.debug(`Could not fetch ${filePath}:`, error.message);
-          return null;
-        }
-      });
-
-      const fileResults = await Promise.all(filePromises);
-
-      // Build key_files object with content strings only
-      fileResults.forEach((result) => {
-        if (result) {
-          key_files[result.path] = result.content; // Send only the content string
-        }
-      });
-
-      // Enhanced file tree with more metadata
-      const enhancedFileTree = fileTree
-        .filter((item) => item.type === "blob" && item.size < 1000000) // Filter files under 1MB
-        .map((item) => ({
-          path: item.path,
-          size: item.size || 0,
-          type: "blob",
-        }))
-        .sort((a, b) => {
-          // Sort by importance - config files first
-          const aImportant = importantFilePatterns.some((pattern) =>
-            a.path.includes(pattern.replace("*", ""))
-          );
-          const bImportant = importantFilePatterns.some((pattern) =>
-            b.path.includes(pattern.replace("*", ""))
-          );
-
-          if (aImportant && !bImportant) return -1;
-          if (!aImportant && bImportant) return 1;
-          return 0;
-        });
-
-      console.log(
-        `GitProviderService: Fetched ${
-          Object.keys(key_files).length
-        } key files:`,
-        Object.keys(key_files)
-      );
-
+      
       return {
-        key_files,
-        file_tree: enhancedFileTree,
+        key_files: repositoryData.files,
+        file_tree: repositoryData.file_tree,
       };
     } catch (error) {
-      // Fallback to basic structure
       console.error("Error fetching comprehensive repository data:", error);
+      
+      // Fallback to basic structure if comprehensive fetch fails
       try {
-        const basicStructure = await providerInstance.getRepositoryStructure(
+        const treeData = await providerInstance.getRepositoryTree(
           owner,
           repo,
           branch
         );
+        const fileTree = treeData.files || [];
+        
         return {
-          key_files: basicStructure.files || {}, // Internal structure for file content strings
-          file_tree: basicStructure.structure?.files || [],
+          key_files: {},
+          file_tree: fileTree.map(item => ({
+            path: item.path,
+            size: item.size || 0,
+            type: item.type || "blob",
+          })),
         };
       } catch (fallbackError) {
+        console.error("Fallback repository data fetch also failed:", fallbackError);
         return {
-          key_files: {}, // Internal structure for file content strings
+          key_files: {},
           file_tree: [],
         };
       }

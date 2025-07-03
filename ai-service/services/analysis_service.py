@@ -13,7 +13,6 @@ from datetime import datetime
 from engines.core.detector import UnifiedDetector
 from engines.utils.cache_manager import CacheManager
 from engines.utils.validators import RequestValidator
-from models.analysis_models import AnalysisRequest, AnalysisResult
 from models.common_models import AnalysisStatus
 from models.response_models import AnalysisResponse, ProgressUpdate, ErrorResponse
 
@@ -128,26 +127,27 @@ class AnalysisService:
                 self.active_analyses[analysis_id]["status"] = AnalysisStatus.ANALYZING
 
                 # Create progress callback for the detector
-                detector_progress_callback = lambda progress, step: asyncio.create_task(
-                    self._update_progress(
-                        analysis_id,
-                        progress_callback,
-                        15 + (progress * 0.7),  # Analysis takes 70% of progress
-                        step,
-                        AnalysisStatus.ANALYZING,
-                    )
-                )
+                def detector_progress_callback(progress, step):
+                    return asyncio.create_task(
+                                    self._update_progress(
+                                        analysis_id,
+                                        progress_callback,
+                                        15 + (progress * 0.7),  # Analysis takes 70% of progress
+                                        step,
+                                        AnalysisStatus.ANALYZING,
+                                    )
+                                )
 
                 # Check if configurations are requested
                 generate_configs = request_data.get("generate_configs", False)
-                
+
                 # Use the unified analysis method
                 result = await self.detector.analyze_repository(
-                    analysis_request, 
+                    analysis_request,
                     generate_configs=generate_configs,
-                    progress_callback=detector_progress_callback
+                    progress_callback=detector_progress_callback,
                 )
-                
+
                 # Extract analysis and configurations from unified result
                 analysis_result = result.get("analysis")
                 configurations = result.get("configurations")
@@ -159,7 +159,7 @@ class AnalysisService:
                 # Prepare unified result
                 unified_result = {
                     "analysis": analysis_result,
-                    "configurations": configurations
+                    "configurations": configurations,
                 }
 
                 # Cache the result if caching is enabled
@@ -181,7 +181,11 @@ class AnalysisService:
                 return AnalysisResponse(
                     analysis_id=analysis_id,
                     status=AnalysisStatus.COMPLETED,
-                    analysis=analysis_result.dict() if hasattr(analysis_result, 'dict') else analysis_result,
+                    analysis=(
+                        analysis_result.to_dict()
+                        if hasattr(analysis_result, "to_dict")
+                        else analysis_result
+                    ),
                     configurations=configurations,
                     execution_time=(datetime.utcnow() - start_time).total_seconds(),
                     cached=False,

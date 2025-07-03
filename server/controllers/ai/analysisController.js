@@ -1,6 +1,7 @@
 require("dotenv").config();
 const ai = require("@services/ai");
 const GitProviderService = require("@services/gitProvider/GitProviderService");
+const RepositoryDataFetcher = require("@services/gitProvider/RepositoryDataFetcher");
 const logger = require("@config/logger");
 
 /**
@@ -291,343 +292,15 @@ const demoAnalyzeRepository = async (req, res) => {
 };
 
 /**
- * Fetch comprehensive public repository data for demo (GitHub only)
- * Optimized to fetch sufficient data for accurate AI analysis
+ * Fetch comprehensive public repository data using centralized fetcher
  */
 async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
-  const axios = require("axios");
-  const githubToken = process.env.GITHUB_TOKEN;
-  const axiosConfig = githubToken
-    ? { headers: { Authorization: `token ${githubToken}` } }
-    : {};
-
   try {
-    // Parse GitHub URL
-    const match = repositoryUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-    if (!match) {
-      throw new Error(
-        "Only public GitHub repositories are supported in demo mode"
-      );
-    }
-
-    const [, owner, repo] = match;
-    const repoName = repo.replace(/\.git$/, "");
-
-    // Fetch basic repository info
-    const repoResponse = await axios.get(
-      `https://api.github.com/repos/${owner}/${repoName}`,
-      axiosConfig
-    );
-    const repository = repoResponse.data;
-
-    // Fetch file tree with recursive=1 for full structure
-    const treeResponse = await axios.get(
-      `https://api.github.com/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`,
-      axiosConfig
-    );
-    const fileTree = treeResponse.data.tree || [];
-
-    // Comprehensive list of important files for analysis
-    const keyFiles = {};
-    const importantFilePatterns = [
-      // Package managers
-      "package.json",
-      "package-lock.json",
-      "yarn.lock",
-      "requirements.txt",
-      "setup.py",
-      "pyproject.toml",
-      "Pipfile",
-      "pom.xml",
-      "build.gradle",
-      "build.gradle.kts",
-      "composer.json",
-      "Gemfile",
-      "Gemfile.lock",
-      "Cargo.toml",
-      "go.mod",
-      "go.sum",
-
-      // Docker & deployment
-      "Dockerfile",
-      "docker-compose.yml",
-      "docker-compose.yaml",
-      ".dockerignore",
-
-      // Configuration files
-      "tsconfig.json",
-      "webpack.config.js",
-      "vite.config.js",
-      "rollup.config.js",
-      "next.config.js",
-      "nuxt.config.js",
-      "vue.config.js",
-      "angular.json",
-      ".eslintrc.js",
-      ".eslintrc.json",
-      "babel.config.js",
-      "jest.config.js",
-
-      // Environment & config
-      ".env",
-      ".env.example",
-      "config.json",
-      "app.json",
-
-      // Documentation
-      "README.md",
-      "CHANGELOG.md",
-      "LICENSE",
-
-      // CI/CD
-      ".github/workflows/*.yml",
-      ".github/workflows/*.yaml",
-      ".gitlab-ci.yml",
-      "azure-pipelines.yml",
-
-      // Framework specific
-      "manifest.json",
-      "index.html",
-      "main.py",
-      "app.py",
-      "server.js",
-      "index.js",
-      "manage.py",
-      "settings.py",
-
-      // Common source file patterns for analysis
-      "src/index.js",
-      "src/index.ts",
-      "src/main.js",
-      "src/main.ts",
-      "src/App.js",
-      "src/App.tsx",
-      "src/App.vue",
-      "app/main.py",
-      "app/__init__.py",
-      "main.go",
-      "cmd/main.go",
-      "src/main.java",
-      "index.php",
-      "app.php",
-    ];
-
-    // First, get all files matching important patterns
-    const filesToFetch = [];
-
-    // Direct file matches
-    for (const pattern of importantFilePatterns) {
-      if (pattern.includes("*")) {
-        // Handle wildcard patterns like .github/workflows/*.yml
-        const basePattern = pattern.replace("*", "");
-        const matchingFiles = fileTree.filter(
-          (item) =>
-            item.type === "blob" &&
-            item.path.includes(basePattern.replace("*.yml", "")) &&
-            (item.path.endsWith(".yml") || item.path.endsWith(".yaml"))
-        );
-        filesToFetch.push(...matchingFiles.map((f) => f.path));
-      } else {
-        // Exact file matches
-        const file = fileTree.find(
-          (item) =>
-            item.type === "blob" &&
-            (item.path === pattern || item.path.endsWith("/" + pattern))
-        );
-        if (file) {
-          filesToFetch.push(file.path);
-        }
-      }
-    }
-
-    // Also look for nested package.json files (important for monorepos)
-    const additionalPackageFiles = fileTree.filter(
-      (item) =>
-        item.type === "blob" &&
-        item.path.includes("package.json") &&
-        !filesToFetch.includes(item.path)
-    );
-    filesToFetch.push(...additionalPackageFiles.map((f) => f.path));
-
-    // Also look for nested requirements.txt, setup.py, etc.
-    const additionalConfigFiles = fileTree.filter(
-      (item) =>
-        item.type === "blob" &&
-        (item.path.includes("requirements.txt") ||
-          item.path.includes("setup.py") ||
-          item.path.includes("Dockerfile") ||
-          item.path.includes("docker-compose")) &&
-        !filesToFetch.includes(item.path)
-    );
-    filesToFetch.push(...additionalConfigFiles.map((f) => f.path));
-
-    // Also include some representative source files for code analysis
-    const sourceFileExtensions = [
-      ".js",
-      ".ts",
-      ".jsx",
-      ".tsx",
-      ".py",
-      ".java",
-      ".php",
-      ".go",
-      ".rs",
-    ];
-    const sourceFiles = fileTree.filter(
-      (item) =>
-        item.type === "blob" &&
-        sourceFileExtensions.some((ext) => item.path.endsWith(ext)) &&
-        item.size < 50000 && // Limit to files under 50KB
-        !filesToFetch.includes(item.path)
-    );
-
-    // Add up to 10 representative source files
-    const representativeSourceFiles = sourceFiles
-      .sort((a, b) => {
-        // Prefer root level files and common patterns
-        const aRoot = !a.path.includes("/");
-        const bRoot = !b.path.includes("/");
-        if (aRoot && !bRoot) return -1;
-        if (!aRoot && bRoot) return 1;
-
-        // Prefer main/index files
-        const aMain =
-          a.path.includes("index") ||
-          a.path.includes("main") ||
-          a.path.includes("app");
-        const bMain =
-          b.path.includes("index") ||
-          b.path.includes("main") ||
-          b.path.includes("app");
-        if (aMain && !bMain) return -1;
-        if (!aMain && bMain) return 1;
-
-        return a.path.localeCompare(b.path);
-      })
-      .slice(0, 10);
-
-    filesToFetch.push(...representativeSourceFiles.map((f) => f.path));
-
-    // Remove duplicates and limit to reasonable number
-    const uniqueFiles = [...new Set(filesToFetch)].slice(0, 40); // Increased limit to accommodate source files
-
-    logger.info(
-      `Fetching ${uniqueFiles.length} key files for repository analysis`,
-      {
-        repositoryUrl,
-        files: uniqueFiles,
-      }
-    );
-
-    // Fetch content for all identified key files
-    const filePromises = uniqueFiles.map(async (filePath) => {
-      try {
-        const fileResponse = await axios.get(
-          `https://api.github.com/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
-          axiosConfig
-        );
-
-        if (fileResponse.data.content) {
-          const content = Buffer.from(
-            fileResponse.data.content,
-            "base64"
-          ).toString("utf8");
-          return {
-            path: filePath,
-            content: content,
-            size: fileResponse.data.size,
-          };
-        }
-      } catch (err) {
-        logger.debug(`Could not fetch ${filePath}: ${err.message}`);
-        return null;
-      }
-    });
-
-    // Wait for all file fetches to complete
-    const fileResults = await Promise.all(filePromises);
-
-    // Build files object with content strings only (as expected by AI service validator)
-    fileResults.forEach((result) => {
-      if (result) {
-        keyFiles[result.path] = result.content; // Send only the content string
-      }
-    });
-
-    // Enhanced file tree with more metadata
-    const enhancedFileTree = fileTree
-      .filter((item) => item.type === "blob" && item.size < 1000000) // Filter files under 1MB
-      .map((item) => ({
-        path: item.path,
-        size: item.size,
-        type: item.type,
-        url: item.url,
-      }))
-      .sort((a, b) => {
-        // Sort by importance - config files first
-        const aImportant = importantFilePatterns.some((pattern) =>
-          a.path.includes(pattern.replace("*", ""))
-        );
-        const bImportant = importantFilePatterns.some((pattern) =>
-          b.path.includes(pattern.replace("*", ""))
-        );
-
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return 0;
-      });
-
-    const repositoryData = {
-      repository: {
-        name: repository.name,
-        full_name: repository.full_name,
-        description: repository.description,
-        default_branch: repository.default_branch,
-        language: repository.language,
-        private: repository.private,
-        html_url: repository.html_url,
-        clone_url: repository.clone_url,
-        ssh_url: repository.ssh_url,
-        topics: repository.topics || [],
-        stars: repository.stargazers_count || 0,
-        forks: repository.forks_count || 0,
-        created_at: repository.created_at,
-        updated_at: repository.updated_at,
-        owner: {
-          login: repository.owner.login,
-          avatar_url: repository.owner.avatar_url,
-          type: repository.owner.type,
-        },
-      },
-      files: keyFiles, // Changed from 'key_files' to 'files' to match AI service validator
-      file_tree: enhancedFileTree,
-      metadata: {
-        provider: "github",
-        branch,
-        fetched_at: new Date().toISOString(),
-        demo_mode: true,
-        total_files: fileTree.length,
-        analyzed_files: Object.keys(keyFiles).length,
-      },
-      // Add repository URL for generators
-      repository_url: repositoryUrl,
-    };
-
-    logger.info(`Successfully fetched comprehensive repository data`, {
-      repositoryUrl,
-      totalFiles: fileTree.length,
-      keyFiles: Object.keys(keyFiles).length,
-      fileTree: enhancedFileTree.length,
-    });
-
-    return repositoryData;
+    const fetcher = new RepositoryDataFetcher();
+    return await fetcher.fetchRepositoryData(repositoryUrl, branch, true);
   } catch (error) {
-    if (error.response?.status === 404) {
-      throw new Error("Repository not found or is private");
-    } else if (error.response?.status === 403) {
-      throw new Error("API rate limit exceeded or repository access denied");
-    }
-    throw new Error(`Failed to fetch repository data: ${error.message}`);
+    logger.error(`Failed to fetch public repository data: ${error.message}`);
+    throw error;
   }
 }
 
@@ -714,9 +387,8 @@ const demoCompletePipeline = async (req, res) => {
     const {
       repositoryUrl,
       branch = "main",
-      analysisTypes = ["stack", "dependencies", "code"], // Fixed: Use 'code' instead of 'quality'
+      analysisTypes = ["stack", "dependencies", "code"],
       configTypes = ["dockerfile", "github_actions", "docker_compose"],
-      autoApprove = true, // Auto-approve for demo
     } = req.body;
 
     if (!repositoryUrl) {
@@ -726,7 +398,7 @@ const demoCompletePipeline = async (req, res) => {
       });
     }
 
-    // For demo, we'll fetch repository data using the public GitHub client
+    // Fetch repository data using centralized fetcher
     const repositoryData = await fetchPublicRepositoryData(
       repositoryUrl,
       branch
@@ -734,55 +406,28 @@ const demoCompletePipeline = async (req, res) => {
 
     const sessionId = `demo_${Date.now()}_${req.user.id}`;
 
-    // Get WebSocket namespace for progress broadcasting
-    const webSocketManager = require("@config/webSocketManager");
-    const aiNamespace = webSocketManager.getNamespace("/ai");
-
-    // Broadcast initial progress
-    if (aiNamespace) {
-      aiNamespace.emit("ai:progress", {
-        sessionId,
-        progress: 10,
-        step_name: "Initializing",
-        message: "Starting demo pipeline...",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Step 1: Unified analysis and configuration generation
+    // Unified analysis and configuration generation options
     const analysisOptions = {
       user: null, // Force demo token usage
       sessionId,
       branch,
-      analysisTypes, // Use the corrected analysis types
+      analysisTypes,
       generateConfigs: true, // Enable configuration generation
-      configTypes, // Pass config types for generation
+      configTypes,
       forceLlm: true, // Enable LLM enhancement for demo
       includeReasoning: true,
       includeRecommendations: true,
       includeInsights: true,
       explainNullFields: true,
       trackProgress: true,
-      demoMode: true, // Flag for demo operations
+      demoMode: true,
     };
 
-    logger.info(`Starting demo complete pipeline for session: ${sessionId}`, {
+    logger.info(`Starting demo unified pipeline for session: ${sessionId}`, {
       repositoryUrl,
       userId: req.user.id,
       clientIp: req.ip,
-      demoMode: true,
     });
-
-    // Broadcast analysis start
-    if (aiNamespace) {
-      aiNamespace.emit("ai:progress", {
-        sessionId,
-        progress: 20,
-        step_name: "Repository Analysis",
-        message: "Analyzing repository structure and dependencies...",
-        timestamp: new Date().toISOString(),
-      });
-    }
 
     // Call unified analysis with configuration generation
     const result = await ai.analyzeRepository(repositoryData, analysisOptions);
@@ -792,42 +437,14 @@ const demoCompletePipeline = async (req, res) => {
       hasConfigurations: !!result.configurations,
     });
 
-    // Step 2: Auto-approve (for demo purposes)  
-    if (autoApprove) {
-      logger.info(`Auto-approving analysis for demo session: ${sessionId}`);
-
-      if (aiNamespace) {
-        aiNamespace.emit("ai:progress", {
-          sessionId,
-          progress: 90,
-          step_name: "Auto Approval",
-          message: "Automatically approving analysis results...",
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }
-
-    // Broadcast completion
-    if (aiNamespace) {
-      aiNamespace.emit("ai:progress", {
-        sessionId,
-        progress: 100,
-        step_name: "Complete",
-        message: "Demo pipeline completed successfully!",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const pipelineResult = {
       sessionId,
-      analysis: result.analysis || result, // Handle both unified and legacy response formats
-      generation: result.configurations ? { configurations: result.configurations } : null,
+      analysis: result.analysis || result,
+      configurations: result.configurations || null,
       timestamp: new Date().toISOString(),
       demo_mode: true,
-      auto_approved: autoApprove,
       demo_features: [
         "Full AI-powered analysis with LLM enhancement",
-        "Automatic approval workflow",
         "Complete configuration generation",
         "Docker, GitHub Actions, and Docker Compose configs",
         "Real-time progress tracking via WebSocket",
@@ -835,38 +452,14 @@ const demoCompletePipeline = async (req, res) => {
       ],
     };
 
-    logger.info(`Demo complete pipeline completed for session: ${sessionId}`, {
-      hasAnalysis: !!pipelineResult.analysis,
-      hasConfigurations: !!pipelineResult.generation,
-      userId: req.user.id,
-    });
-
     res.status(200).json({
       success: true,
-      message: "Demo complete pipeline completed successfully",
+      message: "Demo pipeline completed successfully",
       data: pipelineResult,
     });
   } catch (error) {
-    logger.error("Error in demo complete pipeline:");
+    logger.error("Error in demo complete pipeline:", error);
 
-    // Get WebSocket namespace for error broadcasting
-    const webSocketManager = require("@config/webSocketManager");
-    const aiNamespace = webSocketManager.getNamespace("/ai");
-    const sessionId = `demo_${Date.now()}_${req.user?.id}`;
-
-    // Broadcast error
-    if (aiNamespace && req.user?.id) {
-      aiNamespace.emit("ai:progress", {
-        sessionId,
-        progress: 0,
-        step_name: "Error",
-        message: "Demo pipeline failed",
-        error: true,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Enhanced error handling
     let statusCode = error.status || 500;
     let errorMessage = error.message || "Error in demo complete pipeline";
 
@@ -874,26 +467,6 @@ const demoCompletePipeline = async (req, res) => {
       errorMessage =
         error.responseData.detail || error.responseData.message || errorMessage;
       statusCode = error.responseData.status || statusCode;
-    }
-
-    // Add specific context for common errors
-    if (statusCode === 404 && errorMessage.toLowerCase().includes("branch")) {
-      errorMessage = `Branch '${branch}' not found in repository`;
-    } else if (statusCode === 404) {
-      errorMessage = "Repository not found or not accessible";
-    } else if (statusCode === 403) {
-      errorMessage = "Repository is private or access is restricted";
-    } else if (statusCode === 422) {
-      errorMessage = "Invalid repository URL or unsupported repository format";
-    } else if (statusCode === 429) {
-      errorMessage = "Demo rate limit exceeded. Please try again later";
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI analysis service is temporarily unavailable";
-    } else if (error.code === "ECONNABORTED") {
-      statusCode = 408;
-      errorMessage =
-        "Analysis request timed out. Repository might be too large";
     }
 
     res.status(statusCode).json({
