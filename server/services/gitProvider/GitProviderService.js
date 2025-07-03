@@ -422,7 +422,7 @@ class GitProviderService {
             type: repository.owner?.type,
           },
         },
-        key_files: repositoryStructure.key_files,
+        files: repositoryStructure.key_files, // Changed from 'key_files' to 'files'
         file_tree: repositoryStructure.file_tree,
         metadata: {
           branch: branch,
@@ -653,7 +653,7 @@ class GitProviderService {
             type: repository.owner?.type,
           },
         },
-        key_files: structure.key_files,
+        files: structure.key_files, // Changed from 'key_files' to 'files'
         file_tree: structure.file_tree,
         metadata: {
           provider,
@@ -983,12 +983,12 @@ class GitProviderService {
           branch
         );
         return {
-          key_files: basicStructure.files || {},
+          key_files: basicStructure.files || {}, // Keep internal naming for now
           file_tree: basicStructure.structure?.files || [],
         };
       } catch (fallbackError) {
         return {
-          key_files: {},
+          key_files: {}, // Keep internal naming for now
           file_tree: [],
         };
       }

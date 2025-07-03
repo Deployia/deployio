@@ -475,56 +475,8 @@ const analyzeRepositoryWithWebSocket = async (repositoryData, options = {}) => {
   }
 };
 
-// NEW: Configuration generation from analysis results
-const generateConfigurations = async (
-  repositoryData,
-  analysisResults,
-  options = {}
-) => {
-  try {
-    const token = options.user
-      ? generateAiServiceToken(options.user)
-      : generateDemoToken();
-
-    const response = await aiServiceClient.post(
-      "/generators/generate-configs",
-      {
-        session_id: options.sessionId || `session_${Date.now()}`,
-        repository_data: repositoryData,
-        analysis_results: analysisResults,
-        config_types: options.configTypes || [
-          "dockerfile",
-          "github_actions",
-          "docker_compose",
-        ],
-        optimization_level: options.optimizationLevel || "balanced",
-        user_preferences: options.userPreferences || {},
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    return response.data.data;
-  } catch (error) {
-    logger.error(
-      `Configuration generation failed:`,
-      error.response?.data?.detail || error.message
-    );
-    throw error;
-  }
-};
-
 module.exports = {
   analyzeRepository,
-  analyzeRepositoryWithWebSocket,
-  generateConfigurations,
-  detectTechnologyStack,
-  analyzeCodeQuality,
-  analyzeDependencies,
-  getAnalysisProgress,
   getSupportedTechnologies,
   checkAiServiceHealth,
   getDetailedAiServiceHealth,

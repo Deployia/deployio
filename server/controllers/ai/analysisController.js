@@ -171,7 +171,7 @@ const demoAnalyzeRepository = async (req, res) => {
     const {
       repositoryUrl,
       branch = "main",
-      analysisTypes = ["stack", "dependencies", "quality"],
+      analysisTypes = ["stack", "dependencies", "code"], // Fixed: Use 'code' instead of 'quality'
       forceLlm = true,
       includeReasoning = true,
       includeRecommendations = true,
@@ -604,7 +604,7 @@ async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
           type: repository.owner.type,
         },
       },
-      key_files: keyFiles,
+      files: keyFiles, // Changed from 'key_files' to 'files' to match AI service validator
       file_tree: enhancedFileTree,
       metadata: {
         provider: "github",
@@ -890,7 +890,7 @@ const demoCompletePipeline = async (req, res) => {
     const {
       repositoryUrl,
       branch = "main",
-      analysisTypes = ["stack", "dependencies", "quality"],
+      analysisTypes = ["stack", "dependencies", "code"], // Fixed: Use 'code' instead of 'quality'
       configTypes = ["dockerfile", "github_actions", "docker_compose"],
       autoApprove = true, // Auto-approve for demo
     } = req.body;
@@ -925,13 +925,14 @@ const demoCompletePipeline = async (req, res) => {
       });
     }
 
-    // Step 1: Analyze repository with demo-specific options
+    // Step 1: Unified analysis and configuration generation
     const analysisOptions = {
-      // Don't pass user for demo - this forces demo token generation
       user: null, // Force demo token usage
       sessionId,
       branch,
-      analysisTypes,
+      analysisTypes, // Use the corrected analysis types
+      generateConfigs: true, // Enable configuration generation
+      configTypes, // Pass config types for generation
       forceLlm: true, // Enable LLM enhancement for demo
       includeReasoning: true,
       includeRecommendations: true,
@@ -959,70 +960,28 @@ const demoCompletePipeline = async (req, res) => {
       });
     }
 
-    const analysisResult = await ai.analyzeRepository(
-      repositoryData,
-      analysisOptions
-    );
+    // Call unified analysis with configuration generation
+    const result = await ai.analyzeRepository(repositoryData, analysisOptions);
 
-    logger.info(`Demo analysis completed for session: ${sessionId}`, {
-      analysisResult,
+    logger.info(`Demo unified pipeline completed for session: ${sessionId}`, {
+      hasAnalysis: !!result.analysis,
+      hasConfigurations: !!result.configurations,
     });
 
-    // Broadcast analysis complete
-    if (aiNamespace) {
-      aiNamespace.emit("ai:progress", {
-        sessionId,
-        progress: 50,
-        step_name: "Analysis Complete",
-        message: "Repository analysis completed successfully",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Step 2: Auto-approve (for demo purposes)
+    // Step 2: Auto-approve (for demo purposes)  
     if (autoApprove) {
       logger.info(`Auto-approving analysis for demo session: ${sessionId}`);
 
       if (aiNamespace) {
         aiNamespace.emit("ai:progress", {
           sessionId,
-          progress: 60,
+          progress: 90,
           step_name: "Auto Approval",
           message: "Automatically approving analysis results...",
           timestamp: new Date().toISOString(),
         });
       }
     }
-
-    // Step 3: Generate configurations
-    if (aiNamespace) {
-      aiNamespace.emit("ai:progress", {
-        sessionId,
-        progress: 70,
-        step_name: "Configuration Generation",
-        message: "Generating deployment configurations...",
-        timestamp: new Date().toISOString(),
-      });
-    }
-    const generationOptions = {
-      // Don't pass user for demo - this forces demo token generation
-      user: null, // Force demo token usage
-      sessionId,
-      configTypes,
-      optimizationLevel: "balanced",
-      userPreferences: {
-        platform: "docker",
-        cicd: "github_actions",
-        deployment: "containerized",
-      },
-      demoMode: true, // Flag for demo operations
-    };
-
-    const generationResult = await ai.generateConfigurations(
-      repositoryData,
-      analysisResult,
-      generationOptions
-    );
 
     // Broadcast completion
     if (aiNamespace) {
@@ -1037,8 +996,8 @@ const demoCompletePipeline = async (req, res) => {
 
     const pipelineResult = {
       sessionId,
-      analysis: analysisResult,
-      generation: generationResult,
+      analysis: result.analysis || result, // Handle both unified and legacy response formats
+      generation: result.configurations ? { configurations: result.configurations } : null,
       timestamp: new Date().toISOString(),
       demo_mode: true,
       auto_approved: autoApprove,
@@ -1048,14 +1007,13 @@ const demoCompletePipeline = async (req, res) => {
         "Complete configuration generation",
         "Docker, GitHub Actions, and Docker Compose configs",
         "Real-time progress tracking via WebSocket",
-        "Real-time progress tracking",
         "Production-ready deployment files",
       ],
     };
 
     logger.info(`Demo complete pipeline completed for session: ${sessionId}`, {
-      analysisConfidence: analysisResult.confidence_score,
-      generatedConfigs: Object.keys(generationResult.configurations || {}),
+      hasAnalysis: !!pipelineResult.analysis,
+      hasConfigurations: !!pipelineResult.generation,
       userId: req.user.id,
     });
 

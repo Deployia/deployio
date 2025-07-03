@@ -63,23 +63,18 @@ const AnalysisDemo = () => {
     },
     {
       icon: FaChartLine,
-      label: "Quality Analysis",
-      description: "Evaluating code quality and security",
+      label: "Code Analysis",
+      description: "Evaluating code quality and architecture patterns",
     },
     {
       icon: FaCog,
-      label: "Auto Approval",
-      description: "Automatically approving analysis results",
-    },
-    {
-      icon: FaCloudUploadAlt,
       label: "Generating Configs",
-      description: "Creating deployment configurations",
+      description: "Creating deployment configurations with LLM enhancement",
     },
     {
       icon: FaRocket,
       label: "Complete",
-      description: "Analysis and configuration generation completed",
+      description: "Unified analysis and configuration generation completed",
     },
   ];
 
@@ -102,12 +97,12 @@ const AnalysisDemo = () => {
           "Repository Analysis": 1,
           "Detecting Stack": 1,
           "AI Enhancement": 2,
-          "Quality Analysis": 3,
+          "Code Analysis": 3,
+          "Quality Analysis": 3, // Fallback mapping
           "Analysis Complete": 3,
-          "Auto Approval": 4,
-          "Configuration Generation": 5,
-          "Generating Configs": 5,
-          Complete: 6,
+          "Configuration Generation": 4,
+          "Generating Configs": 4,
+          Complete: 5,
         };
 
         const stepIndex =
@@ -295,7 +290,7 @@ const AnalysisDemo = () => {
         {
           repositoryUrl: normalizedUrl,
           branch: branch || "main",
-          analysisTypes: ["stack", "dependencies", "quality"],
+          analysisTypes: ["stack", "dependencies", "code"], // Fixed: Use 'code' instead of 'quality'
           configTypes: ["dockerfile", "github_actions", "docker_compose"],
           autoApprove: true,
         },
@@ -317,8 +312,22 @@ const AnalysisDemo = () => {
 
         // Extract analysis and generation results
         const pipelineData = response.data.data;
-        setAnalysisResults(pipelineData.analysis);
-        setGenerationResults(pipelineData.generation);
+        
+        // Handle both unified and separate response structures
+        if (pipelineData.analysis) {
+          setAnalysisResults(pipelineData.analysis);
+        } else if (pipelineData.data?.analysis) {
+          setAnalysisResults(pipelineData.data.analysis);
+        } else {
+          // Fallback: use the response as analysis results
+          setAnalysisResults(pipelineData);
+        }
+
+        if (pipelineData.generation?.configurations) {
+          setGenerationResults(pipelineData.generation);
+        } else if (pipelineData.configurations) {
+          setGenerationResults({ configurations: pipelineData.configurations });
+        }
 
         // Store operation ID for future reference
         if (pipelineData.sessionId) {
@@ -341,6 +350,16 @@ const AnalysisDemo = () => {
       // The backend now forwards AI service errors properly
       if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.status === 400) {
+        if (err.response.data?.message?.includes("analysis type")) {
+          errorMessage = "Invalid analysis configuration. Please refresh the page and try again.";
+        } else if (err.response.data?.message?.includes("Repository data")) {
+          errorMessage = "Repository data validation failed. Please try a different repository.";
+        } else {
+          errorMessage = err.response.data?.message || "Invalid request. Please check the repository URL.";
+        }
       } else if (err.response?.status === 404) {
         if (err.response.data?.message?.includes("Branch")) {
           errorMessage = `Branch '${branch}' not found in repository. Try 'main' or 'master' instead.`;
@@ -351,6 +370,9 @@ const AnalysisDemo = () => {
       } else if (err.response?.status === 403) {
         errorMessage =
           "Repository is private or access is restricted. Please use a public repository.";
+      } else if (err.response?.status === 422) {
+        errorMessage =
+          "Repository format not supported. Please try a different repository.";
       } else if (err.response?.status === 429) {
         errorMessage =
           "Rate limit exceeded. Please wait a moment and try again.";
@@ -526,9 +548,9 @@ const AnalysisDemo = () => {
               </h1>
 
               <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-                Experience our full AI-powered workflow: repository analysis,
-                automatic approval, and complete configuration generation for
-                production-ready deployment.
+                Experience our unified AI-powered workflow: comprehensive repository analysis 
+                with automatic LLM enhancement, followed by intelligent configuration generation 
+                for production-ready deployment—all in a single request.
               </p>
             </motion.div>
 
