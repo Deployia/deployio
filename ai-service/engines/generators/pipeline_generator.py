@@ -150,7 +150,7 @@ class PipelineGenerator:
         config.jobs = self._create_jobs(stack, platform, options)
 
         # Set environment variables
-        config.environment_variables = self._get_environment_variables(stack)
+        config.environment_variables = self._get_environment_variables(stack, options)
 
         # Set required secrets
         config.secrets = self._get_required_secrets(stack, options)

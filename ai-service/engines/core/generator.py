@@ -79,19 +79,20 @@ class UnifiedGenerator:
             )
             logger.debug(f"Generation options: {options}")
 
-            # Generate cache key
-            cache_key = self._generate_cache_key(
-                analysis_result.repository_name, analysis_result.branch, config_types
-            )
+            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
+            # # Generate cache key
+            # cache_key = self._generate_cache_key(
+            #     analysis_result.repository_name, analysis_result.branch, config_types
+            # )
 
-            # Check cache first (unless force refresh)
-            if not options.get("force_refresh"):
-                logger.debug("Checking cache for existing configurations...")
-                cached_result = await self.cache_manager.get(cache_key)
-                if cached_result:
-                    logger.info(f"Cache hit for {repo_name} configurations")
-                    return cached_result
-                logger.debug("No cached configurations found")
+            # # Check cache first (unless force refresh)
+            # if not options.get("force_refresh"):
+            #     logger.debug("Checking cache for existing configurations...")
+            #     cached_result = await self.cache_manager.get(cache_key)
+            #     if cached_result:
+            #         logger.info(f"Cache hit for {repo_name} configurations")
+            #         return cached_result
+            #     logger.debug("No cached configurations found")
 
             # Step 1: Generate base configurations with rule-based generators
             logger.info(
@@ -118,11 +119,11 @@ class UnifiedGenerator:
                 "llm_enhanced": True,
             }
 
-            # Cache the results
-            logger.debug("Caching generated configurations...")
-            await self.cache_manager.set(
-                cache_key, enhanced_configs, ttl=options.get("cache_ttl", 3600)
-            )
+            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
+            # logger.debug("Caching generated configurations...")
+            # await self.cache_manager.set(
+            #     cache_key, enhanced_configs, ttl=options.get("cache_ttl", 3600)
+            # )
 
             logger.info(
                 f"Configuration generation completed for {repo_name} in {generation_time:.2f}s"
@@ -192,7 +193,8 @@ class UnifiedGenerator:
             try:
                 compose_config = (
                     await self.config_generator._generate_docker_compose_config(
-                        analysis_result, options.get("optimization_level", "balanced")
+                        analysis_result.technology_stack,
+                        options.get("optimization_level", "balanced"),
                     )
                 )
                 base_configs["docker_compose"] = compose_config

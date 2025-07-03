@@ -13,7 +13,9 @@ from ..analyzers.stack_analyzer import StackAnalyzer
 from ..analyzers.dependency_analyzer import DependencyAnalyzer
 from ..analyzers.code_analyzer import CodeAnalyzer
 from ..enhancers.llm_enhancer import LLMEnhancer
-from ..utils.cache_manager import CacheManager
+
+# --- CACHE DISABLED FOR ENGINE DEBUGGING ---
+# from ..utils.cache_manager import CacheManager
 from .generator import UnifiedGenerator
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,8 @@ class UnifiedDetector:
         self.generator = UnifiedGenerator()
 
         # Initialize cache
-        self.cache_manager = CacheManager()
+        # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
+        # self.cache_manager = CacheManager()
 
         logger.info("UnifiedDetector initialized with clean architecture")
 
@@ -73,35 +76,35 @@ class UnifiedDetector:
 
         try:
             # Step 1: Check cache for analysis
-            cache_key = self._generate_cache_key(request)
-            cached_result = await self.cache_manager.get(cache_key)
+            # cache_key = self._generate_cache_key(request)
+            # cached_result = await self.cache_manager.get(cache_key)
 
-            if cached_result and not request.force_llm_enhancement:
-                logger.info(f"Cache hit for {repo_name}")
-                # If we have cached analysis but need configs, generate them
-                if generate_configs and "configurations" not in cached_result:
-                    if progress_callback:
-                        await progress_callback(
-                            50, "Generating configurations from cached analysis"
-                        )
+            # if cached_result and not request.force_llm_enhancement:
+            #     logger.info(f"Cache hit for {repo_name}")
+            #     # If we have cached analysis but need configs, generate them
+            #     if generate_configs and "configurations" not in cached_result:
+            #         if progress_callback:
+            #             await progress_callback(
+            #                 50, "Generating configurations from cached analysis"
+            #             )
 
-                    config_types = getattr(
-                        request,
-                        "config_types",
-                        ["dockerfile", "docker_compose", "github_actions"],
-                    )
-                    configs = await self.generator.generate_configurations(
-                        cached_result.get("analysis", cached_result),
-                        repository_data,
-                        config_types,
-                        request.options,
-                    )
+            #         config_types = getattr(
+            #             request,
+            #             "config_types",
+            #             ["dockerfile", "docker_compose", "github_actions"],
+            #         )
+            #         configs = await self.generator.generate_configurations(
+            #             cached_result.get("analysis", cached_result),
+            #             repository_data,
+            #             config_types,
+            #             request.options,
+            #         )
 
-                    return {
-                        "analysis": cached_result.get("analysis", cached_result),
-                        "configurations": configs,
-                    }
-                return cached_result
+            #         return {
+            #             "analysis": cached_result.get("analysis", cached_result),
+            #             "configurations": configs,
+            #         }
+            #     return cached_result
 
             if progress_callback:
                 await progress_callback(10, "Initializing analysis")
@@ -176,7 +179,7 @@ class UnifiedDetector:
             # Step 8: Cache the unified result
             unified_result = {"analysis": result, "configurations": configurations}
 
-            await self.cache_manager.set(cache_key, unified_result, ttl=3600)
+            # await self.cache_manager.set(cache_key, unified_result, ttl=3600)
 
             if progress_callback:
                 await progress_callback(100, "Analysis completed successfully")
