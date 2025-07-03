@@ -217,7 +217,7 @@ class UnifiedDetector:
                 result.add_insight(insight)
                 insights_added += 1
             
-            logger.info(f"Stack analysis completed in {analysis_time:.2f}s - found {len(stack_result.technology_stack.languages)} languages, {insights_added} insights")
+            logger.info(f"Stack analysis completed in {analysis_time:.2f}s - detected {stack_result.technology_stack.language or 'unknown'} language, {insights_added} insights")
         
         # Dependency analysis
         if AnalysisType.DEPENDENCY_ANALYSIS in analysis_types:

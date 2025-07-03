@@ -66,7 +66,15 @@ const analyzeRepository = async (repositoryData, options = {}) => {
         },
       }
     );
-    const result = response.data; // Get the full response data
+    const result = response.data; // Get the full AnalysisResponse
+    
+    // Log the analysis structure for debugging
+    logger.debug("Analysis response structure:", {
+      hasAnalysis: !!result.analysis,
+      hasConfigurations: !!result.configurations,
+      status: result.status,
+      executionTime: result.execution_time
+    });
 
     // Cache for appropriate duration based on user type
     const cacheTime = options.user ? 3600 : 1800; // 1 hour for users, 30 min for demo
