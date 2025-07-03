@@ -290,100 +290,33 @@ const AnalysisDemo = () => {
         {
           repositoryUrl: normalizedUrl,
           branch: branch || "main",
-          analysisTypes: ["stack", "dependencies", "code"], // Fixed: Use 'code' instead of 'quality'
+          analysisTypes: ["stack", "dependencies", "code"],
           configTypes: ["dockerfile", "github_actions", "docker_compose"],
           autoApprove: true,
         },
         {
-          timeout: 120000, // 2 minute timeout for complete pipeline
+          timeout: 120000,
         }
       );
 
-      if (response.data.success) {
-        // Clean up progress tracking
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-        }
-        if (progressPollingRef.current) {
-          clearInterval(progressPollingRef.current);
-        }
-
-        setCurrentStep(progressSteps.length - 1);
-
-        // Extract analysis and generation results
-        const pipelineData = response.data.data;
-        
-        // Handle both unified and separate response structures
-        if (pipelineData.analysis) {
-          setAnalysisResults(pipelineData.analysis);
-        } else if (pipelineData.data?.analysis) {
-          setAnalysisResults(pipelineData.data.analysis);
-        } else {
-          // Fallback: use the response as analysis results
-          setAnalysisResults(pipelineData);
-        }
-
-        if (pipelineData.generation?.configurations) {
-          setGenerationResults(pipelineData.generation);
-        } else if (pipelineData.configurations) {
-          setGenerationResults({ configurations: pipelineData.configurations });
-        }
-
-        // Store operation ID for future reference
-        if (pipelineData.sessionId) {
-          setOperationId(pipelineData.sessionId);
-
-          // Subscribe to WebSocket progress updates for this session
-          if (socketRef.current) {
-            socketRef.current.emit("subscribe_analysis", {
-              sessionId: pipelineData.sessionId,
-            });
-          }
-        }
-      }
+      // --- Handle new API response structure ---
+      let data = response.data;
+      if (data && data.data) data = data.data;
+      // For backward compatibility, check both direct and nested
+      setAnalysisResults(data.analysis || data.analysisResults || null);
+      setGenerationResults(
+        data.configurations || data.generationResults || null
+      );
+      // Optionally handle other fields (timestamp, demo_mode, etc.)
     } catch (err) {
       console.error("Analysis error:", err);
-
       // Enhanced error handling with forwarded AI service errors
       let errorMessage = "Failed to analyze repository. Please try again.";
-
-      // The backend now forwards AI service errors properly
       if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       } else if (err.response?.data?.error) {
         errorMessage = err.response.data.error;
-      } else if (err.response?.status === 400) {
-        if (err.response.data?.message?.includes("analysis type")) {
-          errorMessage = "Invalid analysis configuration. Please refresh the page and try again.";
-        } else if (err.response.data?.message?.includes("Repository data")) {
-          errorMessage = "Repository data validation failed. Please try a different repository.";
-        } else {
-          errorMessage = err.response.data?.message || "Invalid request. Please check the repository URL.";
-        }
-      } else if (err.response?.status === 404) {
-        if (err.response.data?.message?.includes("Branch")) {
-          errorMessage = `Branch '${branch}' not found in repository. Try 'main' or 'master' instead.`;
-        } else {
-          errorMessage =
-            "Repository not found. Please check the URL and ensure it's publicly accessible.";
-        }
-      } else if (err.response?.status === 403) {
-        errorMessage =
-          "Repository is private or access is restricted. Please use a public repository.";
-      } else if (err.response?.status === 422) {
-        errorMessage =
-          "Repository format not supported. Please try a different repository.";
-      } else if (err.response?.status === 429) {
-        errorMessage =
-          "Rate limit exceeded. Please wait a moment and try again.";
-      } else if (err.response?.status >= 500) {
-        errorMessage =
-          "Analysis service is temporarily unavailable. Please try again later.";
-      } else if (err.code === "ECONNABORTED") {
-        errorMessage =
-          "Analysis timed out. The repository might be too large or complex.";
       }
-
       setError(errorMessage);
     } finally {
       setIsAnalyzing(false);
@@ -548,9 +481,10 @@ const AnalysisDemo = () => {
               </h1>
 
               <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-                Experience our unified AI-powered workflow: comprehensive repository analysis 
-                with automatic LLM enhancement, followed by intelligent configuration generation 
-                for production-ready deployment—all in a single request.
+                Experience our unified AI-powered workflow: comprehensive
+                repository analysis with automatic LLM enhancement, followed by
+                intelligent configuration generation for production-ready
+                deployment—all in a single request.
               </p>
             </motion.div>
 

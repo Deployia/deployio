@@ -96,50 +96,65 @@ class DependencyAnalyzer(BaseAnalyzer):
     async def analyze(
         self, repository_data: Dict[str, Any]
     ) -> DependencyAnalyzerResult:
-        """Analyze project dependencies"""
+        """Analyze project dependencies (multi-folder aware)"""
 
         result = DependencyAnalyzerResult()
 
         try:
             # Log available files for debugging
-            key_files = repository_data.get("key_files", {})
+            files = (
+                repository_data.get("files") or repository_data.get("key_files") or {}
+            )
             file_tree = repository_data.get("file_tree", [])
             logger.info(
-                f"Dependency analyzer: Found {len(key_files)} key files and {len(file_tree)} in file tree"
+                f"Dependency analyzer: Found {len(files)} key files and {len(file_tree)} in file tree"
             )
 
-            # Log which dependency files we have
+            # Find all files matching each supported dependency filename (e.g. any **/package.json)
             dependency_files = []
-            for file_name in self.package_parsers.keys():
-                if self._check_file_exists(repository_data, file_name):
-                    has_content = bool(
-                        self._extract_file_content(repository_data, file_name)
-                    )
-                    dependency_files.append(
-                        f"{file_name}{'(with content)' if has_content else '(no content)'}"
-                    )
-
+            for dep_filename in self.package_parsers.keys():
+                for file_path in files.keys():
+                    if (
+                        file_path.endswith(f"/{dep_filename}")
+                        or file_path == dep_filename
+                    ):
+                        has_content = bool(files[file_path])
+                        dependency_files.append(
+                            f"{file_path}{'(with content)' if has_content else '(no content)'}"
+                        )
             logger.info(f"Dependency files found: {dependency_files}")
 
-            # Find and parse all package files
+            # --- CLEANED: Only log a summary of file counts and empty files if any ---
+            file_count = len(files)
+            empty_files = [k for k, v in files.items() if not v]
+            logger.info(
+                f"Dependency analyzer: Received {file_count} key files for analysis"
+            )
+            if empty_files:
+                logger.warning(
+                    f"Dependency analyzer: {len(empty_files)} key files have empty content: {empty_files}"
+                )
+            # ------------------------------------------------
+
+            # Parse all found dependency files
             dependencies = []
             package_managers = []
-
-            for file_name, parser in self.package_parsers.items():
-                if self._check_file_exists(repository_data, file_name):
-                    file_content = self._extract_file_content(
-                        repository_data, file_name
-                    )
-                    if file_content:
-                        parsed_deps, manager = parser(file_content)
-                        dependencies.extend(parsed_deps)
-                        if manager not in package_managers:
-                            package_managers.append(manager)
+            for dep_filename, parser in self.package_parsers.items():
+                for file_path in files.keys():
+                    if (
+                        file_path.endswith(f"/{dep_filename}")
+                        or file_path == dep_filename
+                    ):
+                        file_content = files[file_path]
+                        if file_content:
+                            parsed_deps, manager = parser(file_content)
+                            dependencies.extend(parsed_deps)
+                            if manager not in package_managers:
+                                package_managers.append(manager)
 
             # Analyze dependencies
             analysis = self._analyze_dependencies(dependencies)
-            analysis.package_managers = package_managers
-
+            result.dependency_analysis = analysis
             # Generate insights
             insights = self._generate_dependency_insights(analysis, dependencies)
 

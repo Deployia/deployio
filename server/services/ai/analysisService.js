@@ -38,6 +38,23 @@ const analyzeRepository = async (repositoryData, options = {}) => {
       ? generateAiServiceToken(options.user)
       : generateDemoToken();
 
+    // --- CLEANED: Only log a summary of file counts and empty files if any ---
+    if (repositoryData.files) {
+      const fileCount = Object.keys(repositoryData.files).length;
+      const emptyFiles = Object.entries(repositoryData.files)
+        .filter(([_, content]) => !content)
+        .map(([filename]) => filename);
+      logger.info(`AI analysis: Sending ${fileCount} key files to AI service`);
+      if (emptyFiles.length > 0) {
+        logger.warn(
+          `AI analysis: ${emptyFiles.length} key files have empty content`,
+          emptyFiles
+        );
+      }
+    } else {
+      logger.warn("AI analysis: No files field present in repositoryData");
+    }
+
     // Call AI service for repository analysis with new structure
     const response = await aiServiceClient.post(
       "/analysis/analyze-repository",
