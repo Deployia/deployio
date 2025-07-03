@@ -59,27 +59,4 @@ router.post(
   ai.analysis.analyzeRepository
 );
 
-// router.post(
-//   "/stack",
-//   protect,
-//   userRateLimit,
-//   ai.analysis.detectTechnologyStack
-// );
-// router.post(
-//   "/code-quality",
-//   protect,
-//   userRateLimit,
-//   ai.analysis.analyzeCodeQuality
-// );
-// router.post(
-//   "/dependencies",
-//   protect,
-//   userRateLimit,
-//   ai.analysis.analyzeDependencies
-// );
-// router.get("/progress/:operationId", protect, ai.analysis.getAnalysisProgress);
-
-// // HEALTH CHECK ENDPOINTS
-// router.get("/health/detailed", protect, ai.analysis.getDetailedServiceHealth);
-
 module.exports = router;

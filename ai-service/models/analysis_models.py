@@ -307,14 +307,15 @@ class AnalysisResult:
     def to_dict(self) -> Dict[str, Any]:
         """Convert AnalysisResult to dictionary for API response"""
         from dataclasses import asdict
+        import datetime
 
         # Convert the dataclass to dict
         result_dict = asdict(self)
 
         # Convert datetime objects to ISO strings
-        if self.created_at:
+        if self.created_at and isinstance(self.created_at, datetime.datetime):
             result_dict["created_at"] = self.created_at.isoformat()
-        if self.completed_at:
+        if self.completed_at and isinstance(self.completed_at, datetime.datetime):
             result_dict["completed_at"] = self.completed_at.isoformat()
 
         # Convert enum values to strings

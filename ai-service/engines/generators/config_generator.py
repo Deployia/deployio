@@ -137,14 +137,16 @@ class ConfigurationGenerator:
         services["app"] = app_service
 
         # Add database if detected
-        if stack.databases:
-            for db in stack.databases:
+        databases = getattr(stack, "databases", [])
+        if databases:
+            for db in databases:
                 db_service = self._generate_database_service(db, deployment_target)
                 services[db["name"]] = db_service
                 app_service["depends_on"].append(db["name"])
 
         # Add cache if Redis is detected
-        if any(dep.get("name") == "redis" for dep in stack.dependencies):
+        dependencies = getattr(stack, "dependencies", [])
+        if any(dep.get("name") == "redis" for dep in dependencies):
             services["redis"] = {
                 "image": "redis:7-alpine",
                 "ports": ["6379:6379"],
@@ -259,8 +261,9 @@ class ConfigurationGenerator:
         }
 
         # Add database environment variables
-        if stack.databases:
-            for db in stack.databases:
+        databases = getattr(stack, "databases", [])
+        if databases:
+            for db in databases:
                 db_name = db.get("name", "postgres").upper()
                 env_vars.update(
                     {
@@ -275,7 +278,8 @@ class ConfigurationGenerator:
                 )
 
         # Add Redis if detected
-        if any(dep.get("name") == "redis" for dep in stack.dependencies):
+        dependencies = getattr(stack, "dependencies", [])
+        if any(dep.get("name") == "redis" for dep in dependencies):
             env_vars.update({"REDIS_HOST": "localhost", "REDIS_PORT": "6379"})
 
         content = "\n".join([f"{key}={value}" for key, value in env_vars.items()])

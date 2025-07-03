@@ -126,7 +126,7 @@ const getSupportedTechnologies = async () => {
 
     // Call AI service
     const response = await aiServiceClient.get(
-      "/analysis/supported-technologies",
+      "/analysis/technologies",
       {
         headers: {
           Authorization: `Bearer ${token}`,

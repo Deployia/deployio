@@ -84,8 +84,10 @@ const analyzeRepository = async (req, res) => {
         repositoryUrl || repositoryData?.repository?.full_name
       }`,
       {
-        analysisApproach: result.analysis?.analysis_approach || result.analysis_approach,
-        confidence: result.analysis?.confidence_score || result.confidence_score,
+        analysisApproach:
+          result.analysis?.analysis_approach || result.analysis_approach,
+        confidence:
+          result.analysis?.confidence_score || result.confidence_score,
         llmUsed: result.analysis?.llm_used || result.llm_used,
         configsGenerated: !!result.configurations,
       }
@@ -93,7 +95,7 @@ const analyzeRepository = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: generateConfigs 
+      message: generateConfigs
         ? "Repository analysis and configuration generation completed successfully"
         : "Repository analysis completed successfully",
       data: result,
@@ -160,148 +162,6 @@ function extractProviderFromUrl(repositoryUrl) {
   }
 
   return null;
-}
-
-/**
- * @desc Demo analyze repository (public endpoint with IP-based rate limiting)
- * @route POST /api/v1/ai/analysis/demo
- * @access Public (Rate Limited by IP)
- */
-const demoAnalyzeRepository = async (req, res) => {
-  try {
-    const {
-      repositoryUrl,
-      branch = "main",
-      analysisTypes = ["stack", "dependencies", "code"], // Fixed: Use 'code' instead of 'quality'
-      forceLlm = true,
-      includeReasoning = true,
-      includeRecommendations = true,
-      includeInsights = true,
-      explainNullFields = true,
-      trackProgress = true,
-      generateConfigs = true, // Enable configs for demo to show full potential
-      configTypes = ["dockerfile", "docker_compose", "github_actions"],
-    } = req.body;
-
-    if (!repositoryUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "Repository URL is required",
-      });
-    }
-
-    // For demo, we'll fetch comprehensive repository data using GitHub API
-    const repositoryData = await fetchPublicRepositoryData(
-      repositoryUrl,
-      branch
-    );
-
-    // Demo gets full access with enhanced features and configuration generation
-    const analysisOptions = {
-      branch,
-      analysisTypes,
-      forceLlm, // Enable LLM enhancement for demo
-      includeReasoning,
-      includeRecommendations, // Full recommendations for demo
-      includeInsights,
-      explainNullFields,
-      trackProgress,
-      generateConfigs, // NEW: Enable configuration generation for demo
-      configTypes, // NEW: Specify configuration types
-      // No user provided for demo - uses demo token
-    };
-
-    const result = await ai.analyzeRepository(repositoryData, analysisOptions);
-
-    // Add demo branding and enhanced features
-    result.demo_mode = true;
-    result.demo_features = [
-      "Full AI-powered analysis with LLM enhancement",
-      "Complete technology stack detection with versions",
-      "Comprehensive dependency analysis with security insights",
-      "Code quality assessment with actionable recommendations",
-      "Real-time progress tracking and detailed reasoning",
-      "Intelligent configuration generation (Dockerfile, Docker Compose, CI/CD)",
-      "Production-ready deployment insights",
-      "Architecture recommendations and best practices",
-    ];
-
-    // Add configuration generation metadata if present
-    if (result.configurations) {
-      result.demo_features.push(
-        "Auto-generated deployment configurations",
-        "Optimized Docker containers",
-        "Complete CI/CD pipeline setup"
-      );
-    }
-
-    logger.info("Demo repository analysis completed", {
-      repositoryUrl,
-      analysisTypes,
-      configGenerated: !!result.configurations,
-      confidence: result.analysis?.confidence_score || result.confidence_score,
-      llmUsed: result.analysis?.llm_used || result.llm_used,
-      clientIp: req.ip,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Demo analysis completed successfully with full feature showcase",
-      data: result,
-    });
-  } catch (error) {
-    logger.error("Error in demo repository analysis:", error);
-
-    // Enhanced error handling to pass through AI service errors properly
-    let statusCode = error.status || 500;
-    let errorMessage = error.message || "Error analyzing repository";
-
-    // Handle clean error objects from service layer
-    if (error.responseData) {
-      errorMessage =
-        error.responseData.detail || error.responseData.message || errorMessage;
-      statusCode = error.responseData.status || statusCode;
-    }
-
-    // Add specific context for common errors
-    if (statusCode === 404 && errorMessage.toLowerCase().includes("branch")) {
-      errorMessage = `Branch '${branch}' not found in repository`;
-    } else if (statusCode === 404) {
-      errorMessage = "Repository not found or not accessible";
-    } else if (statusCode === 403) {
-      errorMessage = "Repository is private or access is restricted";
-    } else if (statusCode === 422) {
-      errorMessage = "Invalid repository URL or unsupported repository format";
-    } else if (statusCode === 429) {
-      errorMessage = "Analysis rate limit exceeded. Please try again later";
-    } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-      statusCode = 503;
-      errorMessage = "AI analysis service is temporarily unavailable";
-    } else if (error.code === "ECONNABORTED") {
-      statusCode = 408;
-      errorMessage =
-        "Analysis request timed out. Repository might be too large";
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      message: errorMessage,
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-/**
- * Fetch comprehensive public repository data using centralized fetcher
- */
-async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
-  try {
-    const fetcher = new RepositoryDataFetcher();
-    return await fetcher.fetchRepositoryData(repositoryUrl, branch, true);
-  } catch (error) {
-    logger.error(`Failed to fetch public repository data: ${error.message}`);
-    throw error;
-  }
 }
 
 /**
@@ -376,7 +236,6 @@ const getSupportedTechnologies = async (req, res) => {
   }
 };
 
-
 /**
  * @desc Demo complete pipeline (authenticated users only, heavy rate limited)
  * @route POST /api/v1/ai/analysis/demo/complete-pipeline
@@ -389,6 +248,7 @@ const demoCompletePipeline = async (req, res) => {
       branch = "main",
       analysisTypes = ["stack", "dependencies", "code"],
       configTypes = ["dockerfile", "github_actions", "docker_compose"],
+      // autoApprove is ignored but accepted for compatibility
     } = req.body;
 
     if (!repositoryUrl) {
@@ -412,7 +272,7 @@ const demoCompletePipeline = async (req, res) => {
       sessionId,
       branch,
       analysisTypes,
-      generateConfigs: true, // Enable configuration generation
+      generateConfigs: true, // Always enable config generation for demo
       configTypes,
       forceLlm: true, // Enable LLM enhancement for demo
       includeReasoning: true,
@@ -437,6 +297,7 @@ const demoCompletePipeline = async (req, res) => {
       hasConfigurations: !!result.configurations,
     });
 
+    // Always return unified structure: { analysis, configurations, ... }
     const pipelineResult = {
       sessionId,
       analysis: result.analysis || result,
@@ -512,12 +373,24 @@ const getDemoAnalysisProgress = async (req, res) => {
   }
 };
 
+/**
+ * Fetch comprehensive public repository data using centralized fetcher
+ */
+async function fetchPublicRepositoryData(repositoryUrl, branch = "main") {
+  try {
+    const fetcher = new RepositoryDataFetcher();
+    return await fetcher.fetchRepositoryData(repositoryUrl, branch, true);
+  } catch (error) {
+    logger.error(`Failed to fetch public repository data: ${error.message}`);
+    throw error;
+  }
+}
+
 module.exports = {
   // Core API endpoints
   analyzeRepository,
 
   // Public endpoints
-  demoAnalyzeRepository,
   getSupportedTechnologies,
 
   // Health checks

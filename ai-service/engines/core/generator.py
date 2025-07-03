@@ -93,7 +93,6 @@ class UnifiedGenerator:
                     return cached_result
                 logger.debug("No cached configurations found")
 
-
             # Step 1: Generate base configurations with rule-based generators
             logger.info(
                 "Step 1: Generating base configurations with rule-based generators"
@@ -266,7 +265,11 @@ class UnifiedGenerator:
 
         base_generation_time = time.time() - generation_start
         successful_configs = len(
-            [c for c in base_configs.values() if not c.get("error")]
+            [
+                c
+                for c in base_configs.values()
+                if isinstance(c, dict) and not c.get("error")
+            ]
         )
         logger.info(
             f"Base configuration generation completed in {base_generation_time:.2f}s - {successful_configs}/{len(config_types)} successful"

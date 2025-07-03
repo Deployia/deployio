@@ -101,7 +101,7 @@ class PipelineGenerator:
             if isinstance(analysis, dict):
                 stack_data = analysis.get("technology_stack", {})
                 # Create a simple TechnologyStack for fallback
-                from ..core.models import TechnologyStack
+                # from ..core.models import TechnologyStack  # (removed, use models.analysis_models)
 
                 fallback_stack = TechnologyStack(
                     language=stack_data.get("language", "unknown"),
@@ -120,7 +120,7 @@ class PipelineGenerator:
             stack = analysis.get("technology_stack")
             if isinstance(stack, dict):
                 # Convert dict to TechnologyStack object
-                from ..core.models import TechnologyStack
+                # from ..core.models import TechnologyStack  # (removed, use models.analysis_models)
 
                 stack = TechnologyStack(
                     language=stack.get("language"),
@@ -186,7 +186,12 @@ class PipelineGenerator:
 
     def _create_build_job(self, stack: TechnologyStack, platform: str) -> PipelineJob:
         """Create build job based on technology stack"""
-        primary_lang = stack.primary_language.lower()
+        # Use .language instead of .primary_language
+        primary_lang = getattr(stack, "language", None)
+        if primary_lang:
+            primary_lang = primary_lang.lower()
+        else:
+            primary_lang = "unknown"
 
         if platform == "github-actions":
             runs_on = "ubuntu-latest"
@@ -316,7 +321,12 @@ class PipelineGenerator:
 
     def _create_test_job(self, stack: TechnologyStack, platform: str) -> PipelineJob:
         """Create test job"""
-        primary_lang = stack.primary_language.lower()
+        # Use .language instead of .primary_language
+        primary_lang = getattr(stack, "language", None)
+        if primary_lang:
+            primary_lang = primary_lang.lower()
+        else:
+            primary_lang = "unknown"
 
         steps = [
             PipelineStep(
@@ -389,7 +399,13 @@ class PipelineGenerator:
                     if platform == "github-actions"
                     else "security-scan"
                 ),
-                parameters={"languages": stack.primary_language.lower()},
+                parameters={
+                    "languages": (
+                        stack.language.lower()
+                        if getattr(stack, "language", None)
+                        else "unknown"
+                    )
+                },
             ),
         ]
 
@@ -494,13 +510,21 @@ class PipelineGenerator:
 
         return yaml.dump(gitlab_config, default_flow_style=False)
 
-    def _get_environment_variables(self, stack: TechnologyStack) -> Dict[str, str]:
-        """Get environment variables based on technology stack"""
+    def _get_environment_variables(
+        self, stack: TechnologyStack, options: Dict[str, Any]
+    ) -> Dict[str, str]:
+        """Get environment variables for the pipeline"""
         env_vars = {}
+        # Use .language instead of .primary_language
+        primary_lang = getattr(stack, "language", None)
+        if primary_lang:
+            primary_lang = primary_lang.lower()
+        else:
+            primary_lang = "unknown"
 
-        if stack.primary_language.lower() == "node":
+        if primary_lang == "node":
             env_vars["NODE_ENV"] = "production"
-        elif stack.primary_language.lower() == "python":
+        elif primary_lang == "python":
             env_vars["PYTHONUNBUFFERED"] = "1"
 
         return env_vars
@@ -518,8 +542,14 @@ class PipelineGenerator:
 
     def _generate_fallback_pipeline(self, stack: TechnologyStack, platform: str) -> str:
         """Generate basic fallback pipeline"""
+        # Use .language instead of .primary_language
+        language = getattr(stack, "language", None)
+        if language:
+            language = language.title()
+        else:
+            language = "Application"
         if platform == "github-actions":
-            return f"""name: {stack.primary_language.title()} CI
+            return f"""name: {language} CI
 on:
   push:
     branches: [ main ]
@@ -534,9 +564,8 @@ jobs:
       run: echo \"Please configure your build steps\"
     - name: Test
       run: echo \"Please configure your test steps\"
-# Technology Stack: {stack.primary_language}
-# Frameworks: {', '.join(stack.frameworks)}
+# Technology Stack: {language}
 # Please customize this workflow for your specific needs
 """
         else:
-            return f"# Please configure your {platform} pipeline for {stack.primary_language}"
+            return f"# Please configure your {platform} pipeline for {language}"

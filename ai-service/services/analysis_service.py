@@ -85,38 +85,49 @@ class AnalysisService:
                     timestamp=datetime.utcnow(),
                 )
 
-            await self._update_progress(
-                analysis_id, progress_callback, 10, "Checking cache"
-            )
+            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
+            # await self._update_progress(
+            #     analysis_id, progress_callback, 10, "Checking cache"
+            # )
 
-            # Check cache if enabled
-            cached_result = None
-            if analysis_request.options.get("cache_enabled", True):
-                cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
-                cached_result = await self.cache_manager.get(cache_key)
+            # # Check cache if enabled
+            # cached_result = None
+            # if analysis_request.options.get("cache_enabled", True):
+            #     cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
+            #     cached_result = await self.cache_manager.get(cache_key)
 
-                if cached_result:
-                    logger.info(f"Cache hit for unified analysis {analysis_id}")
-                    await self._update_progress(
-                        analysis_id,
-                        progress_callback,
-                        100,
-                        "Retrieved from cache",
-                        AnalysisStatus.COMPLETED,
-                    )
+            #     if cached_result:
+            #         logger.info(f"Cache hit for unified analysis {analysis_id}")
+            #         await self._update_progress(
+            #             analysis_id,
+            #             progress_callback,
+            #             100,
+            #             "Retrieved from cache",
+            #             AnalysisStatus.COMPLETED,
+            #         )
 
-                    # Clean up tracking
-                    self.active_analyses.pop(analysis_id, None)
+            #         # Clean up tracking
+            #         self.active_analyses.pop(analysis_id, None)
 
-                    return AnalysisResponse(
-                        analysis_id=analysis_id,
-                        status=AnalysisStatus.COMPLETED,
-                        analysis=cached_result.get("analysis"),
-                        configurations=cached_result.get("configurations"),
-                        execution_time=(datetime.utcnow() - start_time).total_seconds(),
-                        cached=True,
-                        timestamp=datetime.utcnow(),
-                    )
+            #         # Ensure cached_result is a dict, not a string or model
+            #         analysis = cached_result.get("analysis")
+            #         if hasattr(analysis, "to_dict"):
+            #             analysis = analysis.to_dict()
+            #         elif isinstance(analysis, str):
+            #             import json
+            #             try:
+            #                 analysis = json.loads(analysis)
+            #             except Exception:
+            #                 pass
+            #         return AnalysisResponse(
+            #             analysis_id=analysis_id,
+            #             status=AnalysisStatus.COMPLETED,
+            #             analysis=analysis,
+            #             configurations=cached_result.get("configurations"),
+            #             execution_time=(datetime.utcnow() - start_time).total_seconds(),
+            #             cached=True,
+            #             timestamp=datetime.utcnow(),
+            #         )
 
             await self._update_progress(
                 analysis_id, progress_callback, 15, "Preparing analysis"
@@ -129,14 +140,14 @@ class AnalysisService:
                 # Create progress callback for the detector
                 def detector_progress_callback(progress, step):
                     return asyncio.create_task(
-                                    self._update_progress(
-                                        analysis_id,
-                                        progress_callback,
-                                        15 + (progress * 0.7),  # Analysis takes 70% of progress
-                                        step,
-                                        AnalysisStatus.ANALYZING,
-                                    )
-                                )
+                        self._update_progress(
+                            analysis_id,
+                            progress_callback,
+                            15 + (progress * 0.7),  # Analysis takes 70% of progress
+                            step,
+                            AnalysisStatus.ANALYZING,
+                        )
+                    )
 
                 # Check if configurations are requested
                 generate_configs = request_data.get("generate_configs", False)
@@ -162,10 +173,14 @@ class AnalysisService:
                     "configurations": configurations,
                 }
 
-                # Cache the result if caching is enabled
-                if analysis_request.options.get("cache_enabled", True):
-                    cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
-                    await self.cache_manager.set(cache_key, unified_result, ttl=3600)
+                # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
+                # if analysis_request.options.get("cache_enabled", True):
+                #     cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
+                #     # Always store as dict, not model
+                #     to_cache = unified_result.copy()
+                #     if hasattr(to_cache["analysis"], "to_dict"):
+                #         to_cache["analysis"] = to_cache["analysis"].to_dict()
+                #     await self.cache_manager.set(cache_key, to_cache, ttl=3600)
 
                 await self._update_progress(
                     analysis_id,
