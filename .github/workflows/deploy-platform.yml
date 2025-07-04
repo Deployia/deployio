@@ -1,24 +1,7 @@
 name: Deploy Platform
 
 on:
-  push:
-    branches: []
-    paths:
-      - "ai_service/**"
-      - "client/**"
-      - "config/**"
-      - "controllers/**"
-      - "middleware/**"
-      - "models/**"
-      - "routes/**"
-      - "services/**"
-      - "templates/**"
-      - "utils/**"
-      - "app.js"
-      - "docker-compose.yml"
-      - "Dockerfile"
-      - "package.json"
-      - "server.js"
+  workflow_dispatch:
 
 env:
   NODE_VERSION: "20"

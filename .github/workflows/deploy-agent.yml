@@ -1,11 +1,6 @@
 name: Deploy DeployIO Agent
 
 on:
-  push:
-    branches: []
-    paths:
-      - "deployio-agent/**"
-      - ".github/workflows/deploy-agent.yml"
   workflow_dispatch:
 
 jobs:
