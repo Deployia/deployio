@@ -6,7 +6,7 @@ Focuses on improving technology stack, dependency analysis, and code quality ins
 """
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from engines.llm.client_manager import LLMClientManager
 from engines.llm.models import LLMRequest, LLMProvider
 from engines.prompts.analysis_prompts import AnalysisPrompts
@@ -16,6 +16,7 @@ from models.analysis_models import (
     DependencyAnalysis,
     CodeAnalysis,
 )
+from ..utils.result_processor import AnalysisResultProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +235,7 @@ class AnalyzerEnhancer:
             logger.info("Generating comprehensive project insights with LLM")
 
             # Generate comprehensive insights prompt
-            prompt_data = self.prompts.comprehensive_project_insights(
+            prompt_data = self.prompts.comprehensive_insights(
                 analysis_result, repository_data
             )
 
@@ -255,20 +256,24 @@ class AnalyzerEnhancer:
             )
 
             if response and response.success:
-                # Parse and apply insights
-                insights = self._parse_comprehensive_insights(response.content)
-                analysis_result = self._apply_comprehensive_insights(
-                    analysis_result, insights
+                # Parse and apply comprehensive enhancements using the new processor
+                enhancements = self._parse_comprehensive_insights(response.content)
+
+                # Use the result processor for comprehensive enhancement
+                enhanced_result = AnalysisResultProcessor.ensure_comprehensive_result(
+                    analysis_result, enhancements
                 )
 
                 logger.info("Comprehensive insights generation completed successfully")
+                return enhanced_result
             else:
                 logger.warning("Comprehensive insights generation failed")
 
         except Exception as e:
             logger.error(f"Comprehensive insights generation error: {e}")
 
-        return analysis_result
+        # If LLM fails, ensure basic completeness using the processor
+        return AnalysisResultProcessor.ensure_comprehensive_result(analysis_result)
 
     def _parse_technology_enhancement(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for technology stack enhancements."""

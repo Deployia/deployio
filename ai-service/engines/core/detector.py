@@ -146,7 +146,11 @@ class UnifiedDetector:
                 logger.info(
                     f"Enhancing {repo_name} with LLM (confidence: {confidence_score:.2f})"
                 )
-                await self._enhance_with_llm(result, repository_data, request)
+                enhanced_result = await self._enhance_with_llm(
+                    result, repository_data, request
+                )
+                # Ensure the enhanced result is used for downstream steps and returned to the UI
+                result = enhanced_result
 
             if progress_callback:
                 await progress_callback(70, "Finalizing analysis results")
@@ -315,11 +319,14 @@ class UnifiedDetector:
                 f"Code quality score: {result.code_analysis.quality_score:.2f}"
             )
 
-        # Calculate weighted average
+        # Calculate weighted average - deliberately conservative to trigger LLM enhancement
         if confidences:
-            overall_confidence = sum(confidences) / len(confidences)
+            # Use weighted average but cap at 0.8 to ensure LLM enhancement
+            raw_confidence = sum(confidences) / len(confidences)
+            # Apply penalty to ensure LLM enhancement is triggered
+            overall_confidence = min(0.8, raw_confidence * 0.85)
             logger.info(
-                f"Overall confidence calculated: {overall_confidence:.2f} (from {len(confidences)} components)"
+                f"Overall confidence calculated: {overall_confidence:.2f} (from {len(confidences)} components, raw: {raw_confidence:.2f})"
             )
             return overall_confidence
         else:

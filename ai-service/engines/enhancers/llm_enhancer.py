@@ -112,95 +112,56 @@ class LLMEnhancer:
             if needs_enhancement and self.analyzer_enhancer.is_available:
                 logger.info(f"Orchestrating analysis enhancements for {repo_name}")
 
-                # Create enhancement tasks based on what needs improvement
-                enhancement_tasks = []
+                # Create enhancement task functions (not coroutines yet)
+                enhancement_task_funcs = []
 
                 # Technology stack enhancement
                 if self._needs_technology_enhancement(analysis_result):
                     logger.debug("Scheduling technology stack enhancement")
-                    enhancement_tasks.append(
-                        self.analyzer_enhancer.enhance_technology_stack(
-                            enhanced_result, repository_data
-                        )
+                    enhancement_task_funcs.append(
+                        self.analyzer_enhancer.enhance_technology_stack
                     )
 
                 # Dependency analysis enhancement
                 if self._needs_dependency_enhancement(analysis_result):
                     logger.debug("Scheduling dependency analysis enhancement")
-                    enhancement_tasks.append(
-                        self.analyzer_enhancer.enhance_dependency_analysis(
-                            enhanced_result, repository_data
-                        )
+                    enhancement_task_funcs.append(
+                        self.analyzer_enhancer.enhance_dependency_analysis
                     )
 
                 # Code quality enhancement
                 if self._needs_code_quality_enhancement(analysis_result):
                     logger.debug("Scheduling code quality enhancement")
-                    enhancement_tasks.append(
-                        self.analyzer_enhancer.enhance_code_quality(
-                            enhanced_result, repository_data
-                        )
+                    enhancement_task_funcs.append(
+                        self.analyzer_enhancer.enhance_code_quality
                     )
 
                 # Execute enhancement tasks
-                if enhancement_tasks:
+                if enhancement_task_funcs:
                     logger.info(
-                        f"Executing {len(enhancement_tasks)} enhancement tasks for {repo_name}"
+                        f"Executing {len(enhancement_task_funcs)} enhancement tasks for {repo_name}"
                     )
 
                     # Run the most important enhancement first, then others
-                    primary_enhancement = enhancement_tasks[0]
+                    primary_enhancement_func = enhancement_task_funcs[0]
                     logger.debug("Running primary enhancement task...")
-                    enhanced_result = await primary_enhancement
+                    enhanced_result = await primary_enhancement_func(
+                        enhanced_result, repository_data
+                    )
 
                     # Run remaining enhancements with updated result
-                    if len(enhancement_tasks) > 1:
+                    if len(enhancement_task_funcs) > 1:
                         logger.debug(
-                            f"Running {len(enhancement_tasks) - 1} additional enhancement tasks..."
+                            f"Running {len(enhancement_task_funcs) - 1} additional enhancement tasks..."
                         )
-                        remaining_tasks = []
-                        for task_func in enhancement_tasks[1:]:
-                            # Re-create tasks with updated result
-                            if "technology_stack" in str(task_func):
-                                remaining_tasks.append(
-                                    self.analyzer_enhancer.enhance_technology_stack(
-                                        enhanced_result, repository_data
-                                    )
-                                )
-                            elif "dependency" in str(task_func):
-                                remaining_tasks.append(
-                                    self.analyzer_enhancer.enhance_dependency_analysis(
-                                        enhanced_result, repository_data
-                                    )
-                                )
-                            elif "code_quality" in str(task_func):
-                                remaining_tasks.append(
-                                    self.analyzer_enhancer.enhance_code_quality(
-                                        enhanced_result, repository_data
-                                    )
-                                )
-
-                        # Execute remaining tasks in parallel
-                        if remaining_tasks:
-                            logger.debug(
-                                "Executing additional enhancement tasks in parallel..."
+                        remaining_funcs = enhancement_task_funcs[1:]
+                        for func in remaining_funcs:
+                            enhanced_result = await func(
+                                enhanced_result, repository_data
                             )
-                            results = await asyncio.gather(
-                                *remaining_tasks, return_exceptions=True
-                            )
-
-                            # Apply results that succeeded
-                            successful_enhancements = 0
-                            for result in results:
-                                if isinstance(result, AnalysisResult):
-                                    enhanced_result = result
-                                    successful_enhancements += 1
-                                elif isinstance(result, Exception):
-                                    logger.warning(f"Enhancement task failed: {result}")
-
-                            logger.info(
-                                f"Completed {successful_enhancements}/{len(remaining_tasks)} additional enhancement tasks"
-                            )
+                        logger.info(
+                            f"Completed {len(remaining_funcs)}/{len(remaining_funcs)} additional enhancement tasks"
+                        )
 
                 # Generate comprehensive insights as final step
                 if options.get("generate_insights", True):
@@ -218,7 +179,7 @@ class LLMEnhancer:
 
             enhancement_time = time.time() - start_time
             logger.info(
-                f"LLM enhancement completed for {repo_name} in {enhancement_time:.2f}s - confidence: {old_confidence:.2f} → {new_confidence:.2f}"
+                f"LLM enhancement completed for {repo_name} in {enhancement_time:.2f}s - confidence: {old_confidence:.2f} -> {new_confidence:.2f}"
             )
 
             # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
@@ -424,27 +385,21 @@ class LLMEnhancer:
     def _update_confidence_after_enhancement(
         self, enhanced_result: AnalysisResult, original_result: AnalysisResult
     ):
-        """Update confidence scores after enhancement."""
-        # Update confidence scores for enhanced sections
+        """Update confidence score after enhancement (single float, not dict)."""
+        # If any of the main sections were enhanced, bump the confidence
+        enhanced = False
         if enhanced_result.technology_stack != original_result.technology_stack:
-            enhanced_result.confidence_scores["technology_stack"] = min(
-                0.9, enhanced_result.confidence_scores.get("technology_stack", 0) + 0.2
+            enhanced = True
+        if enhanced_result.dependency_analysis != original_result.dependency_analysis:
+            enhanced = True
+        if enhanced_result.code_analysis != original_result.code_analysis:
+            enhanced = True
+        if enhanced:
+            enhanced_result.confidence_score = min(
+                0.95, getattr(enhanced_result, "confidence_score", 0.0) + 0.15
             )
-
-        if enhanced_result.dependencies != original_result.dependencies:
-            enhanced_result.confidence_scores["dependencies"] = min(
-                0.9, enhanced_result.confidence_scores.get("dependencies", 0) + 0.2
-            )
-
-        if enhanced_result.code_quality != original_result.code_quality:
-            enhanced_result.confidence_scores["code_quality"] = min(
-                0.9, enhanced_result.confidence_scores.get("code_quality", 0) + 0.2
-            )
-
-        # Update overall confidence
-        enhanced_result.confidence = sum(
-            enhanced_result.confidence_scores.values()
-        ) / len(enhanced_result.confidence_scores)
+        # else, leave as is
+        return
 
     async def health_check(self) -> Dict[str, Any]:
         """Check the health of LLM enhancement services."""

@@ -274,6 +274,9 @@ class AnalysisResult:
     error_message: Optional[str] = None
     warnings: List[str] = field(default_factory=list)
 
+    # ===== Metadata and Additional Information =====
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
     def add_insight(self, insight: InsightModel):
         """Add an insight to the analysis result"""
         self.insights.append(insight)
