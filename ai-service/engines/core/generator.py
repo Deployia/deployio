@@ -65,90 +65,57 @@ class UnifiedGenerator:
         start_time = time.time()
 
         repo_name = analysis_result.repository_name
-        logger.info(f"Starting configuration generation for repository: {repo_name}")
+        config_types = config_types or ["dockerfile", "docker-compose", "pipeline"]
+        options = options or {}
+        logger.debug(f"Generation options: {options}")
 
-        try:
-            # Set defaults
-            if config_types is None:
-                config_types = ["dockerfile", "docker_compose", "github_actions"]
+        # Generate cache key
+        cache_key = self._generate_cache_key(
+            analysis_result.repository_name, analysis_result.branch, config_types
+        )
 
-            if options is None:
-                options = {"optimization_level": "balanced"}
+        # Check cache first (unless force refresh)
+        if not options.get("force_refresh"):
+            logger.debug("Checking cache for existing configurations...")
+            cached_result = await self.cache_manager.get(cache_key)
+            if cached_result:
+                logger.info(f"Cache hit for {repo_name} configurations")
+                return cached_result
+            logger.debug("No cached configurations found")
 
-            logger.info(
-                f"Generating {len(config_types)} configuration types: {config_types}"
-            )
-            logger.debug(f"Generation options: {options}")
+        # Step 1: Generate base configurations with rule-based generators
+        logger.info("Step 1: Generating base configurations with rule-based generators")
+        base_configs = await self._generate_base_configurations(
+            analysis_result, repository_data, config_types, options
+        )
 
-            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-            # # Generate cache key
-            # cache_key = self._generate_cache_key(
-            #     analysis_result.repository_name, analysis_result.branch, config_types
-            # )
+        # Step 2: Enhance with LLM for high-quality results
+        logger.info("Step 2: Enhancing configurations with LLM")
+        enhanced_configs = await self._enhance_configurations(
+            base_configs, analysis_result, repository_data, options
+        )
 
-            # # Check cache first (unless force refresh)
-            # if not options.get("force_refresh"):
-            #     logger.debug("Checking cache for existing configurations...")
-            #     cached_result = await self.cache_manager.get(cache_key)
-            #     if cached_result:
-            #         logger.info(f"Cache hit for {repo_name} configurations")
-            #         return cached_result
-            #     logger.debug("No cached configurations found")
+        # Add metadata
+        generation_time = time.time() - start_time
+        enhanced_configs["metadata"] = {
+            "generated_at": time.time(),
+            "processing_time": generation_time,
+            "repository_name": repo_name,
+            "branch": analysis_result.branch,
+            "config_types": config_types,
+            "llm_enhanced": True,
+        }
 
-            # Step 1: Generate base configurations with rule-based generators
-            logger.info(
-                "Step 1: Generating base configurations with rule-based generators"
-            )
-            base_configs = await self._generate_base_configurations(
-                analysis_result, repository_data, config_types, options
-            )
+        # Cache the result
+        logger.debug("Caching generated configurations...")
+        await self.cache_manager.set(
+            cache_key, enhanced_configs, ttl=options.get("cache_ttl", 3600)
+        )
 
-            # Step 2: Enhance with LLM for high-quality results
-            logger.info("Step 2: Enhancing configurations with LLM")
-            enhanced_configs = await self._enhance_configurations(
-                base_configs, analysis_result, repository_data, options
-            )
-
-            # Add metadata
-            generation_time = time.time() - start_time
-            enhanced_configs["metadata"] = {
-                "generated_at": time.time(),
-                "processing_time": generation_time,
-                "repository_name": repo_name,
-                "branch": analysis_result.branch,
-                "config_types": config_types,
-                "llm_enhanced": True,
-            }
-
-            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-            # logger.debug("Caching generated configurations...")
-            # await self.cache_manager.set(
-            #     cache_key, enhanced_configs, ttl=options.get("cache_ttl", 3600)
-            # )
-
-            logger.info(
-                f"Configuration generation completed for {repo_name} in {generation_time:.2f}s"
-            )
-            return enhanced_configs
-
-        except Exception as e:
-            generation_time = time.time() - start_time
-            logger.error(
-                f"Error generating configurations for {repo_name} after {generation_time:.2f}s: {e}",
-                exc_info=True,
-            )
-            return {
-                "error": str(e),
-                "metadata": {
-                    "generated_at": time.time(),
-                    "processing_time": generation_time,
-                    "repository_name": repo_name,
-                    "branch": analysis_result.branch,
-                    "config_types": config_types or [],
-                    "llm_enhanced": False,
-                    "success": False,
-                },
-            }
+        logger.info(
+            f"Configuration generation completed for {repo_name} in {generation_time:.2f}s"
+        )
+        return enhanced_configs
 
     async def _generate_base_configurations(
         self,

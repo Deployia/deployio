@@ -36,6 +36,12 @@ class LLMEnhancer:
         self.generator_enhancer = GeneratorEnhancer(client_manager=self.client_manager)
         logger.info("LLMEnhancer orchestrator initialized with modular enhancers")
 
+        # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
+        from ..utils.cache_manager import CacheManager
+
+        self.cache_manager = CacheManager()
+        # --- END CACHE DISABLED ---
+
     async def async_init(self):
         """Async initialization for LLM clients and health check."""
         try:
@@ -55,8 +61,9 @@ class LLMEnhancer:
         # --- END LLM Client Initialization ---
 
         # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-        # from ..utils.cache_manager import CacheManager
-        # self.cache_manager = CacheManager()
+        from ..utils.cache_manager import CacheManager
+
+        self.cache_manager = CacheManager()
         # --- END CACHE DISABLED ---
 
     @property
@@ -98,11 +105,13 @@ class LLMEnhancer:
 
             # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
             # # Check cache for existing enhancement
-            # cache_key = self._generate_cache_key(analysis_result, repository_data, options)
-            # cached_result = await self.cache_manager.get(cache_key)
-            # if cached_result:
-            #     logger.info(f"Cache hit for LLM enhancement: {cache_key}")
-            #     return cached_result
+            cache_key = self._generate_cache_key(
+                analysis_result, repository_data, options
+            )
+            cached_result = await self.cache_manager.get(cache_key)
+            if cached_result:
+                logger.info(f"Cache hit for LLM enhancement: {cache_key}")
+                return cached_result
             # --- END CACHE DISABLED ---
 
             # Determine enhancement strategy based on confidence level
@@ -184,7 +193,7 @@ class LLMEnhancer:
 
             # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
             # # Cache the enhanced result
-            # await self.cache_manager.set(cache_key, enhanced_result, ttl=3600)
+            await self.cache_manager.set(cache_key, enhanced_result, ttl=3600)
             # --- END CACHE DISABLED ---
 
             return enhanced_result

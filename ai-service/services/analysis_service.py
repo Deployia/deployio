@@ -85,49 +85,49 @@ class AnalysisService:
                     timestamp=datetime.utcnow(),
                 )
 
-            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-            # await self._update_progress(
-            #     analysis_id, progress_callback, 10, "Checking cache"
-            # )
+            await self._update_progress(
+                analysis_id, progress_callback, 10, "Checking cache"
+            )
 
             # # Check cache if enabled
-            # cached_result = None
-            # if analysis_request.options.get("cache_enabled", True):
-            #     cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
-            #     cached_result = await self.cache_manager.get(cache_key)
+            cached_result = None
+            if analysis_request.options.get("cache_enabled", True):
+                cache_key = f"unified_analysis:{analysis_request.repository_url or 'data'}:{analysis_request.session_id}"
+                cached_result = await self.cache_manager.get(cache_key)
 
-            #     if cached_result:
-            #         logger.info(f"Cache hit for unified analysis {analysis_id}")
-            #         await self._update_progress(
-            #             analysis_id,
-            #             progress_callback,
-            #             100,
-            #             "Retrieved from cache",
-            #             AnalysisStatus.COMPLETED,
-            #         )
+                if cached_result:
+                    logger.info(f"Cache hit for unified analysis {analysis_id}")
+                    await self._update_progress(
+                        analysis_id,
+                        progress_callback,
+                        100,
+                        "Retrieved from cache",
+                        AnalysisStatus.COMPLETED,
+                    )
 
-            #         # Clean up tracking
-            #         self.active_analyses.pop(analysis_id, None)
+                    # Clean up tracking
+                    self.active_analyses.pop(analysis_id, None)
 
-            #         # Ensure cached_result is a dict, not a string or model
-            #         analysis = cached_result.get("analysis")
-            #         if hasattr(analysis, "to_dict"):
-            #             analysis = analysis.to_dict()
-            #         elif isinstance(analysis, str):
-            #             import json
-            #             try:
-            #                 analysis = json.loads(analysis)
-            #             except Exception:
-            #                 pass
-            #         return AnalysisResponse(
-            #             analysis_id=analysis_id,
-            #             status=AnalysisStatus.COMPLETED,
-            #             analysis=analysis,
-            #             configurations=cached_result.get("configurations"),
-            #             execution_time=(datetime.utcnow() - start_time).total_seconds(),
-            #             cached=True,
-            #             timestamp=datetime.utcnow(),
-            #         )
+                    # Ensure cached_result is a dict, not a string or model
+                    analysis = cached_result.get("analysis")
+                    if hasattr(analysis, "to_dict"):
+                        analysis = analysis.to_dict()
+                    elif isinstance(analysis, str):
+                        import json
+
+                        try:
+                            analysis = json.loads(analysis)
+                        except Exception:
+                            pass
+                    return AnalysisResponse(
+                        analysis_id=analysis_id,
+                        status=AnalysisStatus.COMPLETED,
+                        analysis=analysis,
+                        configurations=cached_result.get("configurations"),
+                        execution_time=(datetime.utcnow() - start_time).total_seconds(),
+                        cached=True,
+                        timestamp=datetime.utcnow(),
+                    )
 
             await self._update_progress(
                 analysis_id, progress_callback, 15, "Preparing analysis"

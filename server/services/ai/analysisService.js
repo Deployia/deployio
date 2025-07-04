@@ -5,13 +5,12 @@ const {
   checkAiServiceHealth,
   getDetailedAiServiceHealth,
 } = require("./aiServiceClient");
-// const { getRedisClient } = require("@config/redisClient");
+const { getRedisClient } = require("@config/redisClient");
 const logger = require("@config/logger");
 
 // Complete repository analysis with new structure
 const analyzeRepository = async (repositoryData, options = {}) => {
-  // --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-  // const redisClient = getRedisClient();
+  const redisClient = getRedisClient();
 
   // Create cache key from repository data instead of URL
   const repoIdentifier =
@@ -23,15 +22,14 @@ const analyzeRepository = async (repositoryData, options = {}) => {
   )}:${options.branch || "main"}`;
 
   try {
-    // --- CACHE DISABLED FOR ENGINE DEBUGGING ---
     // Check cache first (if not forced refresh)
-    // if (!options.forceRefresh) {
-    //   const cachedResult = await redisClient.get(cacheKey);
-    //   if (cachedResult) {
-    //     logger.info(`AI repository analysis cache hit for ${repoIdentifier}`);
-    //     return JSON.parse(cachedResult);
-    //   }
-    // }
+    if (!options.forceRefresh) {
+      const cachedResult = await redisClient.get(cacheKey);
+      if (cachedResult) {
+        logger.info(`AI repository analysis cache hit for ${repoIdentifier}`);
+        return JSON.parse(cachedResult);
+      }
+    }
 
     // Generate appropriate token
     const token = options.user
@@ -99,10 +97,9 @@ const analyzeRepository = async (repositoryData, options = {}) => {
       executionTime: result.execution_time,
     });
 
-    // --- CACHE DISABLED FOR ENGINE DEBUGGING ---
     // Cache for appropriate duration based on user type
-    // const cacheTime = options.user ? 3600 : 1800; // 1 hour for users, 30 min for demo
-    // await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
+    const cacheTime = options.user ? 3600 : 1800; // 1 hour for users, 30 min for demo
+    await redisClient.setEx(cacheKey, cacheTime, JSON.stringify(result));
     logger.info(`AI repository analysis completed for ${repoIdentifier}`);
     return result;
   } catch (error) {
@@ -135,17 +132,15 @@ const analyzeRepository = async (repositoryData, options = {}) => {
 
 // Get supported technologies from AI service
 const getSupportedTechnologies = async () => {
-  // --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-  // const redisClient = getRedisClient();
-  // const cacheKey = "ai_supported_technologies";
+  const redisClient = getRedisClient();
+  const cacheKey = "ai_supported_technologies";
 
   try {
-    // --- CACHE DISABLED FOR ENGINE DEBUGGING ---
     // Check cache first
-    // const cachedResult = await redisClient.get(cacheKey);
-    // if (cachedResult) {
-    //   return JSON.parse(cachedResult);
-    // }
+    const cachedResult = await redisClient.get(cacheKey);
+    if (cachedResult) {
+      return JSON.parse(cachedResult);
+    }
 
     // Use demo token for this public endpoint
     const token = generateDemoToken();
@@ -157,8 +152,7 @@ const getSupportedTechnologies = async () => {
       },
     });
     const result = response.data.data; // Cache for 24 hours
-    // --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-    // await redisClient.setEx(cacheKey, 86400, JSON.stringify(result));
+    await redisClient.setEx(cacheKey, 86400, JSON.stringify(result));
 
     return result;
   } catch (error) {

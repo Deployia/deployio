@@ -100,6 +100,8 @@ const analyzeRepository = async (req, res) => {
         : "Repository analysis completed successfully",
       data: result,
     });
+    // Optionally, you could add cache status info to the response for debugging
+    // res.set('X-Cache', result.cached ? 'HIT' : 'MISS');
   } catch (error) {
     logger.error("Error analyzing repository:", error);
 

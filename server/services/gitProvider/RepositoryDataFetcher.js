@@ -5,6 +5,7 @@
 
 const axios = require("axios");
 const logger = require("@config/logger");
+const { getRedisClient } = require("@config/redisClient");
 
 class RepositoryDataFetcher {
   constructor() {
@@ -15,18 +16,17 @@ class RepositoryDataFetcher {
    * Fetch comprehensive repository data with enhanced file content extraction
    */
   async fetchRepositoryData(repositoryUrl, branch = "main", isPublic = false) {
+    const redisClient = getRedisClient();
+    const cacheKey = `repo_data:${Buffer.from(repositoryUrl).toString(
+      "base64"
+    )}:${branch}`;
+    // Check Redis cache first
+    const cached = await redisClient.get(cacheKey);
+    if (cached) return JSON.parse(cached);
     try {
       // Parse repository URL
       const parsedRepo = this._parseRepositoryUrl(repositoryUrl);
       const { owner, repo } = parsedRepo;
-
-      // Log parsed values for debugging
-      logger.info("Parsed repository info", {
-        repositoryUrl,
-        owner,
-        repo,
-        branch,
-      });
 
       // Configure axios for GitHub API
       const axiosConfig = this.githubToken
@@ -98,6 +98,9 @@ class RepositoryDataFetcher {
         },
         repository_url: repositoryUrl,
       };
+
+      // Cache in Redis for 10 minutes
+      await redisClient.setEx(cacheKey, 600, JSON.stringify(repositoryData));
 
       logger.info(
         `Successfully fetched comprehensive repository data for ${repository.full_name}`,

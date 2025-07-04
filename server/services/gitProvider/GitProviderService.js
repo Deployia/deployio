@@ -4,6 +4,7 @@
 const User = require("@models/User");
 const GitProviderFactory = require("@services/gitProviders/ProviderFactory");
 const RepositoryDataFetcher = require("./RepositoryDataFetcher");
+const { getRedisClient } = require("@config/redisClient");
 
 class GitProviderService {
   /**
@@ -367,40 +368,34 @@ class GitProviderService {
     repoFullName,
     branch = "main"
   ) {
+    const redisClient = getRedisClient();
+    const cacheKey = `repo_data:${provider}:${Buffer.from(
+      repoFullName
+    ).toString("base64")}:${branch}`;
+    // Check Redis cache first
+    const cached = await redisClient.get(cacheKey);
+    if (cached) return JSON.parse(cached);
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
         `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
       );
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      if (!this._hasValidGitProviderToken(user, provider)) {
-        throw new Error("No valid token for provider");
-      }
-
+      if (!user) throw new Error("User not found");
+      if (!this._hasValidGitProviderToken(user, provider))
+        throw new Error("No valid token");
       const token = this._getGitProviderToken(user, provider);
       const providerInstance = GitProviderFactory.createProvider(
         provider,
         token
       );
-
-      // Extract owner and repo from fullName
       const [owner, repo] = repoFullName.split("/");
-
-      // Fetch repository data using the provider
       const repository = await providerInstance.getRepository(owner, repo);
-
-      // Get comprehensive repository structure with key files
       const repositoryStructure = await this._getComprehensiveRepositoryData(
         providerInstance,
         owner,
         repo,
         branch
       );
-
-      // Prepare repository data for AI service in the expected format
       const repositoryData = {
         repository: {
           name: repository.name,
@@ -423,7 +418,7 @@ class GitProviderService {
             type: repository.owner?.type,
           },
         },
-        files: repositoryStructure.key_files, // Changed from 'key_files' to 'files'
+        files: repositoryStructure.key_files,
         file_tree: repositoryStructure.file_tree,
         metadata: {
           branch: branch,
@@ -432,15 +427,13 @@ class GitProviderService {
           total_files: repositoryStructure.file_tree.length,
           analyzed_files: Object.keys(repositoryStructure.key_files).length,
         },
-        // Add repository URL for generators
         repository_url:
           repository.htmlUrl || `https://github.com/${repoFullName}`,
       };
-
-      // Update last used timestamp
       this._updateProviderLastUsed(user, provider);
       await user.save();
-
+      // Cache in Redis for 10 minutes
+      await redisClient.setEx(cacheKey, 600, JSON.stringify(repositoryData));
       return repositoryData;
     } catch (error) {
       throw new Error(`Failed to get repository data: ${error.message}`);
@@ -726,21 +719,21 @@ class GitProviderService {
     try {
       const repositoryUrl = `https://github.com/${owner}/${repo}`;
       const fetcher = new RepositoryDataFetcher();
-      
+
       // Use the centralized fetcher for consistent data extraction
       const repositoryData = await fetcher.fetchRepositoryData(
         repositoryUrl,
         branch,
         false // Not a public-only fetch
       );
-      
+
       return {
         key_files: repositoryData.files,
         file_tree: repositoryData.file_tree,
       };
     } catch (error) {
       console.error("Error fetching comprehensive repository data:", error);
-      
+
       // Fallback to basic structure if comprehensive fetch fails
       try {
         const treeData = await providerInstance.getRepositoryTree(
@@ -749,17 +742,20 @@ class GitProviderService {
           branch
         );
         const fileTree = treeData.files || [];
-        
+
         return {
           key_files: {},
-          file_tree: fileTree.map(item => ({
+          file_tree: fileTree.map((item) => ({
             path: item.path,
             size: item.size || 0,
             type: item.type || "blob",
           })),
         };
       } catch (fallbackError) {
-        console.error("Fallback repository data fetch also failed:", fallbackError);
+        console.error(
+          "Fallback repository data fetch also failed:",
+          fallbackError
+        );
         return {
           key_files: {},
           file_tree: [],
