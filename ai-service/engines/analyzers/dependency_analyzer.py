@@ -681,23 +681,24 @@ class DependencyAnalyzer(BaseAnalyzer):
     def _calculate_dependency_confidence(
         self, analysis: DependencyAnalysis, package_managers: List[str]
     ) -> float:
-        """Calculate confidence in dependency analysis"""
+        """Calculate confidence in dependency analysis - deliberately conservative to trigger LLM enhancement"""
 
         confidence = 0.0
 
-        # Base confidence from having package managers
+        # Base confidence from having package managers (reduced)
         if package_managers:
-            confidence += 0.5
-
-        # Boost for having dependencies
-        if analysis.total_dependencies > 0:
             confidence += 0.3
 
-        # Boost for successful parsing
-        if analysis.total_dependencies > 0 and package_managers:
+        # Boost for having dependencies (reduced)
+        if analysis.total_dependencies > 0:
             confidence += 0.2
 
-        return min(1.0, confidence)
+        # Boost for successful parsing (reduced)
+        if analysis.total_dependencies > 0 and package_managers:
+            confidence += 0.15
+
+        # Cap at 0.7 to ensure LLM enhancement is triggered
+        return min(0.7, confidence)
 
     def _generate_dependency_insights(
         self, analysis: DependencyAnalysis, dependencies: List[DependencyInfo]

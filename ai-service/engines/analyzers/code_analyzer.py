@@ -496,25 +496,26 @@ class CodeAnalyzer(BaseAnalyzer):
     def _calculate_code_confidence(
         self, analysis: CodeAnalysis, code_files: List[str]
     ) -> float:
-        """Calculate confidence in code analysis"""
+        """Calculate confidence in code analysis - deliberately conservative to trigger LLM enhancement"""
 
         confidence = 0.0
 
-        # Base confidence from having files to analyze
+        # Base confidence from having files to analyze (reduced)
         if code_files:
-            confidence += 0.6
+            confidence += 0.4
 
-        # Boost for having enough files
+        # Boost for having enough files (reduced)
         if len(code_files) >= 5:
-            confidence += 0.2
+            confidence += 0.15
         elif len(code_files) >= 2:
             confidence += 0.1
 
-        # Boost for having meaningful analysis
+        # Boost for having meaningful analysis (reduced)
         if analysis.total_lines > 100:
-            confidence += 0.2
+            confidence += 0.1
 
-        return min(1.0, confidence)
+        # Cap at 0.7 to ensure LLM enhancement is triggered
+        return min(0.7, confidence)
 
     def _generate_code_insights(
         self, analysis: CodeAnalysis, code_files: List[str]

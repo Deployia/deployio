@@ -682,17 +682,21 @@ class StackAnalyzer(BaseAnalyzer):
     def _calculate_confidence(
         self, lang_confidence: float, framework_confidence: float
     ) -> float:
-        """Calculate overall confidence score"""
+        """Calculate overall confidence score - deliberately conservative to trigger LLM enhancement"""
 
-        # Weight language detection more heavily
+        # Deliberately lower confidence to ensure LLM enhancement is triggered
+        # Weight language detection more heavily but keep scores lower
         if lang_confidence > 0 and framework_confidence > 0:
-            return (lang_confidence * 0.6) + (framework_confidence * 0.4)
+            confidence = (lang_confidence * 0.5) + (framework_confidence * 0.3)
         elif lang_confidence > 0:
-            return lang_confidence * 0.8  # Penalize missing framework
+            confidence = lang_confidence * 0.6  # Penalize missing framework more
         elif framework_confidence > 0:
-            return framework_confidence * 0.5  # Penalize missing language
+            confidence = framework_confidence * 0.4  # Penalize missing language more
         else:
-            return 0.0
+            confidence = 0.0
+
+        # Cap at 0.75 to ensure LLM enhancement is almost always triggered
+        return min(0.75, confidence)
 
     def _generate_insights(
         self,

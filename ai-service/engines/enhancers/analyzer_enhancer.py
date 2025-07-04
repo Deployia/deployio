@@ -70,8 +70,10 @@ class AnalyzerEnhancer:
 
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )
@@ -120,14 +122,16 @@ class AnalyzerEnhancer:
             logger.info("Enhancing dependency analysis with LLM")
 
             # Generate dependency analysis enhancement prompt
-            prompt_data = self.prompts.dependency_analysis_enhancement(
+            prompt_data = self.prompts.dependency_enhancement(
                 analysis_result, repository_data
             )
 
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )
@@ -180,8 +184,10 @@ class AnalyzerEnhancer:
 
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )
@@ -234,8 +240,10 @@ class AnalyzerEnhancer:
 
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens
                 * 2,  # More tokens for comprehensive insights
                 temperature=self.temperature,

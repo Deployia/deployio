@@ -13,20 +13,18 @@ class AnalysisPrompts(BasePrompts):
     """
     Prompt templates for analysis enhancement tasks.
     """
-    
+
     @classmethod
     def technology_stack_enhancement(
-        cls,
-        analysis_result: Any,
-        repository_data: Dict[str, Any]
+        cls, analysis_result: Any, repository_data: Dict[str, Any]
     ) -> Dict[str, str]:
         """
         Generate prompts for technology stack enhancement.
-        
+
         Args:
             analysis_result: Current analysis results
             repository_data: Repository data with files and metadata
-            
+
         Returns:
             Dictionary with system and user prompts
         """
@@ -37,24 +35,23 @@ class AnalysisPrompts(BasePrompts):
                 "Framework and library analysis",
                 "Build tool and package manager detection",
                 "Architecture pattern recognition",
-                "Technology compatibility and best practices"
+                "Technology compatibility and best practices",
             ],
             guidelines=[
                 "Analyze file contents and dependencies to identify technologies",
                 "Consider both explicit and implicit technology indicators",
                 "Evaluate technology choices for appropriateness and modernity",
                 "Identify missing or additional technologies not detected by rules",
-                "Provide confidence scores for all identifications"
-            ]
+                "Provide confidence scores for all identifications",
+            ],
         )
-        
+
         repository_context = cls.format_repository_context(repository_data)
         analysis_summary = cls.format_analysis_summary(analysis_result)
         file_contents = cls.format_file_contents(
-            repository_data.get('key_files', {}),
-            max_files=12
+            repository_data.get("key_files", {}), max_files=12
         )
-        
+
         user_prompt = f"""
 {repository_context}
 
@@ -107,56 +104,61 @@ Expected JSON structure:
     ]
 }}
 """
-        
-        return {
-            "system": system_prompt,
-            "user": user_prompt
-        }
-    
+
+        return {"system": system_prompt, "user": user_prompt}
+
     @classmethod
     def dependency_enhancement(
-        cls,
-        analysis_result: Any,
-        repository_data: Dict[str, Any]
+        cls, analysis_result: Any, repository_data: Dict[str, Any]
     ) -> Dict[str, str]:
         """Generate prompts for dependency analysis enhancement."""
-        
+
         system_prompt = cls.create_system_prompt(
             role="Security Expert and Dependency Analyst",
             expertise=[
                 "Dependency security analysis",
-                "Package vulnerability assessment", 
+                "Package vulnerability assessment",
                 "Dependency optimization strategies",
                 "License compliance analysis",
-                "Supply chain security best practices"
+                "Supply chain security best practices",
             ],
             guidelines=[
                 "Analyze dependencies for security vulnerabilities",
                 "Assess dependency health and maintenance status",
                 "Identify outdated or deprecated packages",
                 "Recommend security improvements and alternatives",
-                "Consider dependency tree complexity and optimization"
-            ]
+                "Consider dependency tree complexity and optimization",
+            ],
         )
-        
+
         repository_context = cls.format_repository_context(repository_data)
         analysis_summary = cls.format_analysis_summary(analysis_result)
-        
+
         # Focus on dependency-related files
         dep_files = {}
-        key_files = repository_data.get('key_files', {})
+        key_files = repository_data.get("key_files", {})
         dep_file_patterns = [
-            'package.json', 'package-lock.json', 'yarn.lock',
-            'requirements.txt', 'setup.py', 'pyproject.toml', 'Pipfile',
-            'pom.xml', 'build.gradle', 'composer.json', 'Gemfile', 'Cargo.toml', 'go.mod'
+            "package.json",
+            "package-lock.json",
+            "yarn.lock",
+            "requirements.txt",
+            "setup.py",
+            "pyproject.toml",
+            "Pipfile",
+            "pom.xml",
+            "build.gradle",
+            "composer.json",
+            "Gemfile",
+            "Cargo.toml",
+            "go.mod",
         ]
-        
+
         for filename, content in key_files.items():
             if any(pattern in filename for pattern in dep_file_patterns):
                 dep_files[filename] = content
-        
+
         file_contents = cls.format_file_contents(dep_files, max_files=8)
-        
+
         user_prompt = f"""
 {repository_context}
 
@@ -224,54 +226,59 @@ Expected JSON structure:
     ]
 }}
 """
-        
-        return {
-            "system": system_prompt,
-            "user": user_prompt
-        }
-    
+
+        return {"system": system_prompt, "user": user_prompt}
+
+    @classmethod
+    def dependency_analysis_enhancement(
+        cls, analysis_result: Any, repository_data: Dict[str, Any]
+    ) -> Dict[str, str]:
+        """Alias for dependency_enhancement method for backward compatibility."""
+        return cls.dependency_enhancement(analysis_result, repository_data)
+
     @classmethod
     def code_quality_enhancement(
-        cls,
-        analysis_result: Any,
-        repository_data: Dict[str, Any]
+        cls, analysis_result: Any, repository_data: Dict[str, Any]
     ) -> Dict[str, str]:
         """Generate prompts for code quality analysis enhancement."""
-        
+
         system_prompt = cls.create_system_prompt(
             role="Senior Code Architect and Quality Expert",
             expertise=[
                 "Code quality assessment and metrics",
-                "Design pattern recognition", 
+                "Design pattern recognition",
                 "Architecture evaluation",
                 "Maintainability analysis",
-                "Code smell detection and refactoring strategies"
+                "Code smell detection and refactoring strategies",
             ],
             guidelines=[
                 "Analyze code structure and patterns for quality indicators",
                 "Identify architectural strengths and weaknesses",
                 "Recommend specific improvements for maintainability",
                 "Assess code complexity and suggest simplifications",
-                "Evaluate testing patterns and coverage adequacy"
-            ]
+                "Evaluate testing patterns and coverage adequacy",
+            ],
         )
-        
+
         repository_context = cls.format_repository_context(repository_data)
         analysis_summary = cls.format_analysis_summary(analysis_result)
-        
+
         # Focus on source code files
         source_files = {}
-        key_files = repository_data.get('key_files', {})
-        source_extensions = ['.js', '.ts', '.py', '.java', '.go', '.rs', '.php', '.rb']
-        config_files = ['tsconfig.json', 'eslint', 'babel', 'webpack', 'vite']
-        
+        key_files = repository_data.get("key_files", {})
+        source_extensions = [".js", ".ts", ".py", ".java", ".go", ".rs", ".php", ".rb"]
+        config_files = ["tsconfig.json", "eslint", "babel", "webpack", "vite"]
+
         for filename, content in key_files.items():
-            if (any(filename.endswith(ext) for ext in source_extensions) or
-                any(config in filename for config in config_files)):
+            if any(filename.endswith(ext) for ext in source_extensions) or any(
+                config in filename for config in config_files
+            ):
                 source_files[filename] = content
-        
-        file_contents = cls.format_file_contents(source_files, max_files=10, max_length=1200)
-        
+
+        file_contents = cls.format_file_contents(
+            source_files, max_files=10, max_length=1200
+        )
+
         user_prompt = f"""
 {repository_context}
 
@@ -333,20 +340,15 @@ Expected JSON structure:
     ]
 }}
 """
-        
-        return {
-            "system": system_prompt,
-            "user": user_prompt
-        }
-    
+
+        return {"system": system_prompt, "user": user_prompt}
+
     @classmethod
     def comprehensive_insights(
-        cls,
-        analysis_result: Any,
-        repository_data: Dict[str, Any]
+        cls, analysis_result: Any, repository_data: Dict[str, Any]
     ) -> Dict[str, str]:
         """Generate prompts for comprehensive project insights."""
-        
+
         system_prompt = cls.create_system_prompt(
             role="Senior Technical Consultant and Project Analyst",
             expertise=[
@@ -354,27 +356,25 @@ Expected JSON structure:
                 "Technology strategy and roadmapping",
                 "Development workflow optimization",
                 "Deployment and DevOps best practices",
-                "Project scalability and performance analysis"
+                "Project scalability and performance analysis",
             ],
             guidelines=[
                 "Provide holistic assessment of the entire project",
                 "Consider scalability, maintainability, and performance",
                 "Evaluate development and deployment workflows",
                 "Identify strategic technology decisions and their implications",
-                "Recommend actionable improvements with clear priorities"
-            ]
+                "Recommend actionable improvements with clear priorities",
+            ],
         )
-        
+
         repository_context = cls.format_repository_context(repository_data)
         analysis_summary = cls.format_analysis_summary(analysis_result)
-        
+
         # Get overview of all files
         file_contents = cls.format_file_contents(
-            repository_data.get('key_files', {}),
-            max_files=15,
-            max_length=1000
+            repository_data.get("key_files", {}), max_files=15, max_length=1000
         )
-        
+
         user_prompt = f"""
 {repository_context}
 
@@ -435,8 +435,5 @@ Expected JSON structure:
     ]
 }}
 """
-        
-        return {
-            "system": system_prompt,
-            "user": user_prompt
-        }
+
+        return {"system": system_prompt, "user": user_prompt}

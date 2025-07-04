@@ -12,8 +12,6 @@ from .redis_client import get_redis_client
 from .settings import settings
 from .logging import setup_logging, get_logger
 from websockets.manager import ai_websocket_manager
-from engines.core.detector import UnifiedDetector
-from engines.core.generator import UnifiedGenerator
 from engines.enhancers.llm_enhancer import LLMEnhancer
 
 # Setup logging configuration
@@ -41,18 +39,11 @@ def create_app() -> FastAPI:
 
         # --- ENGINE HEALTH CHECK ---
         try:
-            detector = UnifiedDetector()
-            generator = UnifiedGenerator()
+            # Only check LLM health during startup - avoid duplicate engine initialization logs
             llm_enhancer = LLMEnhancer()
             await llm_enhancer.async_init()
             llm_health = await llm_enhancer.health_check()
-            engine_ready = all(
-                [
-                    detector is not None,
-                    generator is not None,
-                    llm_health.get("overall_status") == "available",
-                ]
-            )
+            engine_ready = llm_health.get("overall_status") == "available"
             logger.info(
                 f"ENGINE READY: {engine_ready} | LLM Health: {llm_health.get('overall_status')}"
             )

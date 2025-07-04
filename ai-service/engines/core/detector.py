@@ -384,7 +384,7 @@ class UnifiedDetector:
         try:
             logger.debug("Calling LLM enhancer...")
             enhanced_result = await self.llm_enhancer.enhance_analysis(
-                result, repository_data, request
+                result, repository_data, request.options
             )
 
             enhancement_time = time.time() - start_time
