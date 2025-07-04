@@ -13,6 +13,7 @@ from ..analyzers.stack_analyzer import StackAnalyzer
 from ..analyzers.dependency_analyzer import DependencyAnalyzer
 from ..analyzers.code_analyzer import CodeAnalyzer
 from ..enhancers.llm_enhancer import LLMEnhancer
+from engines.llm.shared_client_manager import shared_llm_client_manager
 
 # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
 # from ..utils.cache_manager import CacheManager
@@ -39,7 +40,7 @@ class UnifiedDetector:
         self.code_analyzer = CodeAnalyzer()
 
         # Initialize enhancer
-        self.llm_enhancer = LLMEnhancer()
+        self.llm_enhancer = LLMEnhancer(client_manager=shared_llm_client_manager)
 
         # Initialize generator for configuration generation
         self.generator = UnifiedGenerator()

@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 from models.analysis_models import AnalysisResult
 from .analyzer_enhancer import AnalyzerEnhancer
 from .generator_enhancer import GeneratorEnhancer
+from engines.llm.shared_client_manager import shared_llm_client_manager
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,13 @@ class LLMEnhancer:
     - GeneratorEnhancer: For configuration generation
     """
 
-    def __init__(self):
+    def __init__(self, client_manager=None):
         from config.settings import Settings
 
         self.settings = Settings()
-        self.analyzer_enhancer = AnalyzerEnhancer()
-        self.generator_enhancer = GeneratorEnhancer()
+        self.client_manager = client_manager or shared_llm_client_manager
+        self.analyzer_enhancer = AnalyzerEnhancer(client_manager=self.client_manager)
+        self.generator_enhancer = GeneratorEnhancer(client_manager=self.client_manager)
         logger.info("LLMEnhancer orchestrator initialized with modular enhancers")
 
     async def async_init(self):
@@ -261,13 +263,14 @@ class LLMEnhancer:
 
             options = generation_options or {}
 
-            # Determine which configurations to generate
+            # Only use supported config types
             generate_dockerfile = options.get("dockerfile", True)
             generate_compose = options.get("docker_compose", True)
-            generate_ci_cd = options.get("ci_cd_pipeline", True)
+            generate_github_actions = options.get("github_actions", True)
 
             # Create generation tasks
             generation_tasks = []
+            config_names = []
 
             if generate_dockerfile:
                 generation_tasks.append(
@@ -275,6 +278,7 @@ class LLMEnhancer:
                         analysis_result, repository_data, options
                     )
                 )
+                config_names.append("dockerfile")
 
             if generate_compose:
                 generation_tasks.append(
@@ -282,13 +286,15 @@ class LLMEnhancer:
                         analysis_result, repository_data, options
                     )
                 )
+                config_names.append("docker_compose")
 
-            if generate_ci_cd:
+            if generate_github_actions:
                 generation_tasks.append(
-                    self.generator_enhancer.generate_ci_cd_pipeline(
+                    self.generator_enhancer.generate_github_actions(
                         analysis_result, repository_data, options
                     )
                 )
+                config_names.append("github_actions")
 
             # Execute generation tasks in parallel
             configurations = {}
@@ -298,23 +304,9 @@ class LLMEnhancer:
                 )
 
                 # Process successful results
-                for i, result in enumerate(results):
-                    if isinstance(result, Dict):
-                        configurations.update(result)
-                    elif isinstance(result, Exception):
-                        logger.warning(f"Configuration generation failed: {result}")
+                for name, result in zip(config_names, results):
+                    configurations[name] = result
 
-            # Generate deployment recommendations
-            if options.get("generate_recommendations", True):
-                try:
-                    recommendations = await self.generator_enhancer.generate_deployment_recommendations(
-                        analysis_result, repository_data, configurations
-                    )
-                    configurations["recommendations"] = recommendations
-                except Exception as rec_error:
-                    logger.warning(f"Failed to generate recommendations: {rec_error}")
-
-            logger.info(f"Generated {len(configurations)} configurations successfully")
             return configurations
 
         except Exception as e:
@@ -385,50 +377,48 @@ class LLMEnhancer:
 
     def _needs_technology_enhancement(self, analysis_result: AnalysisResult) -> bool:
         """Determine if technology stack analysis needs enhancement."""
-        if not analysis_result.technology_stack:
+        tech_stack = getattr(analysis_result, "technology_stack", None)
+        if not tech_stack:
             return True
-
-        # Check for low confidence in technology detection
-        if analysis_result.confidence_scores.get("technology_stack", 0) < 0.7:
+        # If it's a list, check all; if not, check single
+        if isinstance(tech_stack, list):
+            if any(tech.get("confidence", 1.0) < 0.6 for tech in tech_stack):
+                return True
+        else:
+            if getattr(tech_stack, "confidence", 1.0) < 0.6:
+                return True
+        if getattr(analysis_result, "confidence_score", 1.0) < 0.7:
             return True
-
-        # Check for incomplete framework detection
-        if any(
-            tech.get("confidence", 1.0) < 0.6
-            for tech in analysis_result.technology_stack
-        ):
-            return True
-
         return False
 
     def _needs_dependency_enhancement(self, analysis_result: AnalysisResult) -> bool:
         """Determine if dependency analysis needs enhancement."""
-        if not analysis_result.dependencies:
+        if not getattr(analysis_result, "dependencies", None):
             return True
-
-        # Check for low confidence in dependency analysis
-        if analysis_result.confidence_scores.get("dependencies", 0) < 0.7:
+        if getattr(analysis_result, "confidence_score", 1.0) < 0.7:
             return True
-
-        # Check if dependency analysis is incomplete
         if (
-            analysis_result.dependencies
+            getattr(analysis_result, "dependencies", None)
             and "unknown_dependencies" in analysis_result.dependencies
         ):
             if analysis_result.dependencies.get("unknown_dependencies", 0) > 0:
                 return True
-
         return False
 
     def _needs_code_quality_enhancement(self, analysis_result: AnalysisResult) -> bool:
         """Determine if code quality analysis needs enhancement."""
-        if not analysis_result.code_quality:
+        # Use code_analysis, not code_quality
+        code_analysis = getattr(analysis_result, "code_analysis", None)
+        if not code_analysis:
             return True
-
-        # Check for low confidence in code quality analysis
-        if analysis_result.confidence_scores.get("code_quality", 0) < 0.6:
+        # Use confidence_score for code_analysis if available
+        if (
+            hasattr(code_analysis, "quality_score")
+            and code_analysis.quality_score < 0.6
+        ):
             return True
-
+        if getattr(analysis_result, "confidence_score", 1.0) < 0.6:
+            return True
         return False
 
     def _update_confidence_after_enhancement(

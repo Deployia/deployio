@@ -13,6 +13,7 @@ from ..generators.dockerfile_generator import DockerfileGenerator
 from ..generators.config_generator import ConfigurationGenerator
 from ..generators.pipeline_generator import PipelineGenerator
 from ..utils.cache_manager import CacheManager
+from engines.llm.shared_client_manager import shared_llm_client_manager
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class UnifiedGenerator:
         self.pipeline_generator = PipelineGenerator()
 
         # Initialize enhancer
-        self.llm_enhancer = LLMEnhancer()
+        self.llm_enhancer = LLMEnhancer(client_manager=shared_llm_client_manager)
 
         # Initialize cache
         self.cache_manager = CacheManager()

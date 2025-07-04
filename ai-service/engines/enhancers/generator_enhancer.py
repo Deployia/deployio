@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 from engines.llm.client_manager import LLMClientManager
 from engines.llm.models import LLMRequest, LLMProvider
 from engines.prompts.generator_prompts import GeneratorPrompts
-from models.analysis_models import AnalysisResult, BuildConfiguration
+from models.analysis_models import AnalysisResult 
 
 logger = logging.getLogger(__name__)
 
@@ -20,331 +20,353 @@ class GeneratorEnhancer:
     Specialized enhancer for configuration generation.
     Uses modular LLM clients and generation-specific prompts.
     """
-    
-    def __init__(self):
-        self.client_manager = LLMClientManager()
+
+    def __init__(self, client_manager: Optional[LLMClientManager] = None):
+        self.client_manager = client_manager or LLMClientManager()
         self.prompts = GeneratorPrompts()
-        
+
         # Configuration for generation tasks
         self.max_tokens = 3000  # More tokens for configuration generation
         self.temperature = 0.2  # Slightly higher for creative generation
-        
+
         logger.info("GeneratorEnhancer initialized with modular LLM services")
-    
+
     @property
     def is_available(self) -> bool:
         """Check if LLM services are available for generation."""
         return len(self.client_manager.get_available_providers()) > 0
-    
+
     async def generate_dockerfile(
-        self, 
+        self,
         analysis_result: AnalysisResult,
         repository_data: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate optimized Dockerfile for the analyzed project.
-        
+
         Args:
             analysis_result: Analysis results from rule-based analyzers
             repository_data: Repository files and metadata
             options: Generation options (multi-stage, optimization level, etc.)
-            
+
         Returns:
             Dictionary containing generated Dockerfile and metadata
         """
         if not self.is_available:
             logger.warning("No LLM providers available for Dockerfile generation")
             return {"error": "LLM services unavailable"}
-            
+
         try:
             logger.info("Generating Dockerfile with LLM")
-            
+
             # Generate Dockerfile prompt
             prompt_data = self.prompts.dockerfile_generation(
                 analysis_result, repository_data, options or {}
             )
-            
+
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens,
-                temperature=self.temperature
+                temperature=self.temperature,
             )
-            
+
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, 
-                preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GROQ
             )
-            
+
             if response and response.success:
                 # Parse and structure Dockerfile
                 dockerfile_data = self._parse_dockerfile_response(response.content)
-                
+
                 logger.info("Dockerfile generation completed successfully")
                 return dockerfile_data
             else:
                 logger.warning("Dockerfile generation failed")
                 return {"error": "LLM generation failed"}
-                
+
         except Exception as e:
             logger.error(f"Dockerfile generation error: {e}")
             return {"error": str(e)}
-    
+
     async def generate_docker_compose(
-        self, 
+        self,
         analysis_result: AnalysisResult,
         repository_data: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate Docker Compose configuration for the project.
-        
+
         Args:
             analysis_result: Analysis results from rule-based analyzers
             repository_data: Repository files and metadata
             options: Generation options (services, networks, volumes, etc.)
-            
+
         Returns:
             Dictionary containing generated Docker Compose and metadata
         """
         if not self.is_available:
             logger.warning("No LLM providers available for Docker Compose generation")
             return {"error": "LLM services unavailable"}
-            
+
         try:
             logger.info("Generating Docker Compose with LLM")
-            
+
             # Generate Docker Compose prompt
             prompt_data = self.prompts.docker_compose_generation(
                 analysis_result, repository_data, options or {}
             )
-            
+
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens,
-                temperature=self.temperature
+                temperature=self.temperature,
             )
-            
+
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, 
-                preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GROQ
             )
-            
+
             if response and response.success:
                 # Parse and structure Docker Compose
                 compose_data = self._parse_docker_compose_response(response.content)
-                
+
                 logger.info("Docker Compose generation completed successfully")
                 return compose_data
             else:
                 logger.warning("Docker Compose generation failed")
                 return {"error": "LLM generation failed"}
-                
+
         except Exception as e:
             logger.error(f"Docker Compose generation error: {e}")
             return {"error": str(e)}
-    
+
     async def generate_github_actions(
-        self, 
+        self,
         analysis_result: AnalysisResult,
         repository_data: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate GitHub Actions workflow for CI/CD.
-        
+
         Args:
             analysis_result: Analysis results from rule-based analyzers
             repository_data: Repository files and metadata
             options: Generation options (deployment target, testing strategy, etc.)
-            
+
         Returns:
             Dictionary containing generated GitHub Actions workflow and metadata
         """
         if not self.is_available:
             logger.warning("No LLM providers available for GitHub Actions generation")
             return {"error": "LLM services unavailable"}
-            
+
         try:
             logger.info("Generating GitHub Actions workflow with LLM")
-            
+
             # Generate GitHub Actions prompt
             prompt_data = self.prompts.github_actions_generation(
                 analysis_result, repository_data, options or {}
             )
-            
+
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens,
-                temperature=self.temperature
+                temperature=self.temperature,
             )
-            
+
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, 
-                preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GROQ
             )
-            
+
             if response and response.success:
                 # Parse and structure GitHub Actions workflow
                 workflow_data = self._parse_github_actions_response(response.content)
-                
+
                 logger.info("GitHub Actions workflow generation completed successfully")
                 return workflow_data
             else:
                 logger.warning("GitHub Actions workflow generation failed")
                 return {"error": "LLM generation failed"}
-                
+
         except Exception as e:
             logger.error(f"GitHub Actions workflow generation error: {e}")
             return {"error": str(e)}
-    
+
     async def generate_kubernetes_manifests(
-        self, 
+        self,
         analysis_result: AnalysisResult,
         repository_data: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate Kubernetes deployment manifests.
-        
+
         Args:
             analysis_result: Analysis results from rule-based analyzers
             repository_data: Repository files and metadata
             options: Generation options (replicas, resources, ingress, etc.)
-            
+
         Returns:
             Dictionary containing generated Kubernetes manifests and metadata
         """
         if not self.is_available:
-            logger.warning("No LLM providers available for Kubernetes manifests generation")
+            logger.warning(
+                "No LLM providers available for Kubernetes manifests generation"
+            )
             return {"error": "LLM services unavailable"}
-            
+
         try:
             logger.info("Generating Kubernetes manifests with LLM")
-            
+
             # Generate Kubernetes manifests prompt
             prompt_data = self.prompts.kubernetes_manifests_generation(
                 analysis_result, repository_data, options or {}
             )
-            
+
             # Create LLM request
             request = LLMRequest(
-                system_prompt=prompt_data["system"],
-                user_prompt=prompt_data["user"],
+                messages=[
+                    {"role": "system", "content": prompt_data["system"]},
+                    {"role": "user", "content": prompt_data["user"]},
+                ],
                 max_tokens=self.max_tokens * 2,  # More tokens for multiple manifests
-                temperature=self.temperature
+                temperature=self.temperature,
             )
-            
+
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, 
-                preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GROQ
             )
-            
+
             if response and response.success:
                 # Parse and structure Kubernetes manifests
-                manifests_data = self._parse_kubernetes_manifests_response(response.content)
-                
+                manifests_data = self._parse_kubernetes_manifests_response(
+                    response.content
+                )
+
                 logger.info("Kubernetes manifests generation completed successfully")
                 return manifests_data
             else:
                 logger.warning("Kubernetes manifests generation failed")
                 return {"error": "LLM generation failed"}
-                
+
         except Exception as e:
             logger.error(f"Kubernetes manifests generation error: {e}")
             return {"error": str(e)}
-    
+
     async def generate_all_configurations(
-        self, 
+        self,
         analysis_result: AnalysisResult,
         repository_data: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate all deployment configurations at once.
-        
+
         Args:
             analysis_result: Analysis results from rule-based analyzers
             repository_data: Repository files and metadata
             options: Generation options for all configurations
-            
+
         Returns:
             Dictionary containing all generated configurations
         """
         logger.info("Generating all deployment configurations")
-        
+
         results = {}
-        
+
         # Generate configurations in parallel for efficiency
         import asyncio
-        
+
         tasks = []
         task_names = []
-        
+
         # Add generation tasks
         if options is None or options.get("include_dockerfile", True):
-            tasks.append(self.generate_dockerfile(analysis_result, repository_data, options))
+            tasks.append(
+                self.generate_dockerfile(analysis_result, repository_data, options)
+            )
             task_names.append("dockerfile")
-        
+
         if options is None or options.get("include_compose", True):
-            tasks.append(self.generate_docker_compose(analysis_result, repository_data, options))
+            tasks.append(
+                self.generate_docker_compose(analysis_result, repository_data, options)
+            )
             task_names.append("docker_compose")
-        
+
         if options is None or options.get("include_github_actions", True):
-            tasks.append(self.generate_github_actions(analysis_result, repository_data, options))
+            tasks.append(
+                self.generate_github_actions(analysis_result, repository_data, options)
+            )
             task_names.append("github_actions")
-        
+
         if options is None or options.get("include_kubernetes", True):
-            tasks.append(self.generate_kubernetes_manifests(analysis_result, repository_data, options))
+            tasks.append(
+                self.generate_kubernetes_manifests(
+                    analysis_result, repository_data, options
+                )
+            )
             task_names.append("kubernetes")
-        
+
         # Execute all tasks
         try:
             task_results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             # Process results
             for i, result in enumerate(task_results):
                 task_name = task_names[i]
-                
+
                 if isinstance(result, Exception):
-                    logger.error(f"Configuration generation failed for {task_name}: {result}")
+                    logger.error(
+                        f"Configuration generation failed for {task_name}: {result}"
+                    )
                     results[task_name] = {"error": str(result)}
                 else:
                     results[task_name] = result
-                    
+
         except Exception as e:
             logger.error(f"Error in parallel configuration generation: {e}")
             results["error"] = str(e)
-        
+
         return results
-    
+
     def _parse_dockerfile_response(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for Dockerfile generation."""
         try:
             # Extract Dockerfile content
-            dockerfile_content = self._extract_code_block(response_content, "dockerfile")
-            
+            dockerfile_content = self._extract_code_block(
+                response_content, "dockerfile"
+            )
+
             # Also try to extract JSON metadata if present
             metadata = self._extract_json_metadata(response_content)
-            
+
             return {
                 "dockerfile": dockerfile_content,
                 "filename": "Dockerfile",
                 "type": "dockerfile",
                 "metadata": metadata,
-                "success": True
+                "success": True,
             }
-            
+
         except Exception as e:
             logger.warning(f"Failed to parse Dockerfile response: {e}")
             return {
@@ -353,26 +375,26 @@ class GeneratorEnhancer:
                 "type": "dockerfile",
                 "metadata": {},
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
-    
+
     def _parse_docker_compose_response(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for Docker Compose generation."""
         try:
             # Extract Docker Compose content
             compose_content = self._extract_code_block(response_content, "yaml")
-            
+
             # Also try to extract JSON metadata if present
             metadata = self._extract_json_metadata(response_content)
-            
+
             return {
                 "docker_compose": compose_content,
                 "filename": "docker-compose.yml",
                 "type": "docker_compose",
                 "metadata": metadata,
-                "success": True
+                "success": True,
             }
-            
+
         except Exception as e:
             logger.warning(f"Failed to parse Docker Compose response: {e}")
             return {
@@ -381,26 +403,26 @@ class GeneratorEnhancer:
                 "type": "docker_compose",
                 "metadata": {},
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
-    
+
     def _parse_github_actions_response(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for GitHub Actions workflow generation."""
         try:
             # Extract GitHub Actions workflow content
             workflow_content = self._extract_code_block(response_content, "yaml")
-            
+
             # Also try to extract JSON metadata if present
             metadata = self._extract_json_metadata(response_content)
-            
+
             return {
                 "github_actions": workflow_content,
                 "filename": ".github/workflows/deploy.yml",
                 "type": "github_actions",
                 "metadata": metadata,
-                "success": True
+                "success": True,
             }
-            
+
         except Exception as e:
             logger.warning(f"Failed to parse GitHub Actions response: {e}")
             return {
@@ -409,30 +431,32 @@ class GeneratorEnhancer:
                 "type": "github_actions",
                 "metadata": {},
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
-    
-    def _parse_kubernetes_manifests_response(self, response_content: str) -> Dict[str, Any]:
+
+    def _parse_kubernetes_manifests_response(
+        self, response_content: str
+    ) -> Dict[str, Any]:
         """Parse LLM response for Kubernetes manifests generation."""
         try:
             # Extract Kubernetes manifests content
             manifests_content = self._extract_code_block(response_content, "yaml")
-            
+
             # Also try to extract JSON metadata if present
             metadata = self._extract_json_metadata(response_content)
-            
+
             # Split manifests if multiple documents
             manifests = self._split_yaml_documents(manifests_content)
-            
+
             return {
                 "kubernetes": manifests_content,
                 "manifests": manifests,
                 "filename": "k8s-manifests.yml",
                 "type": "kubernetes",
                 "metadata": metadata,
-                "success": True
+                "success": True,
             }
-            
+
         except Exception as e:
             logger.warning(f"Failed to parse Kubernetes manifests response: {e}")
             return {
@@ -442,73 +466,73 @@ class GeneratorEnhancer:
                 "type": "kubernetes",
                 "metadata": {},
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
-    
+
     def _extract_code_block(self, content: str, language: str) -> str:
         """Extract code block from LLM response."""
         # Look for code blocks with specific language
         import re
-        
+
         pattern = f"```{language}\\n(.*?)```"
         match = re.search(pattern, content, re.DOTALL)
-        
+
         if match:
             return match.group(1).strip()
-        
+
         # Fallback: look for any code block
         pattern = "```\\n(.*?)```"
         match = re.search(pattern, content, re.DOTALL)
-        
+
         if match:
             return match.group(1).strip()
-        
+
         # Final fallback: return entire content
         return content.strip()
-    
+
     def _extract_json_metadata(self, content: str) -> Dict[str, Any]:
         """Extract JSON metadata from LLM response if present."""
         try:
             import re
             import json
-            
+
             # Look for JSON blocks
             pattern = "```json\\n(.*?)```"
             match = re.search(pattern, content, re.DOTALL)
-            
+
             if match:
                 return json.loads(match.group(1).strip())
-            
+
             return {}
-            
+
         except Exception:
             return {}
-    
+
     def _split_yaml_documents(self, yaml_content: str) -> List[str]:
         """Split YAML content into individual documents."""
         try:
             # Split by YAML document separator
             documents = yaml_content.split("---")
-            
+
             # Clean and filter non-empty documents
             manifests = []
             for doc in documents:
                 doc = doc.strip()
                 if doc and not doc.startswith("#"):
                     manifests.append(doc)
-            
+
             return manifests
-            
+
         except Exception as e:
             logger.warning(f"Failed to split YAML documents: {e}")
             return [yaml_content]
-    
+
     async def health_check(self) -> Dict[str, Any]:
         """Perform health check on generator enhancer."""
         try:
             # Check LLM client manager
             client_health = self.client_manager.health_check()
-            
+
             return {
                 "generator_enhancer": {
                     "status": "healthy",
