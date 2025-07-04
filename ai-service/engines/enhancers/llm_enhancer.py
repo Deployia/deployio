@@ -438,3 +438,22 @@ class LLMEnhancer:
             "generator_enhancer": generator_health,
             "overall_status": "available" if self.is_available else "unavailable",
         }
+
+    def _generate_cache_key(self, analysis_result, repository_data, options=None):
+        """Generate a cache key for LLM enhancement results."""
+        repo_name = getattr(
+            analysis_result, "repository_name", None
+        ) or repository_data.get("repository", {}).get("name", "unknown")
+        branch = getattr(analysis_result, "branch", None) or repository_data.get(
+            "branch", "main"
+        )
+        enhancement_flags = ""
+        if options:
+            enhancement_flags = str(
+                sorted(
+                    (k, v)
+                    for k, v in options.items()
+                    if k.startswith("include_") or k.startswith("force_")
+                )
+            )
+        return f"llm_enhance:{repo_name}:{branch}:{enhancement_flags}"
