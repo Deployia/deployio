@@ -14,7 +14,9 @@ import {
   FaDownload,
   FaCodeBranch,
   FaCog,
-  FaCloudUploadAlt,
+  FaFileCode,
+  FaShieldAlt,
+  FaCube,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import AnalysisResults from "@components/analysis/AnalysisResults";
@@ -755,56 +757,889 @@ const AnalysisDemo = () => {
                   {/* Generation Results */}
                   {generationResults && (
                     <div className="mb-8">
-                      <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
-                        <FaCog className="w-6 h-6 mr-3 text-green-400" />
-                        Generated Configurations
-                      </h3>
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-2xl font-bold text-white flex items-center">
+                          <FaCog className="w-6 h-6 mr-3 text-green-400" />
+                          Generated Configurations
+                        </h3>
+                        <div className="flex items-center text-sm text-gray-400 bg-gray-800/50 px-3 py-1 rounded-full">
+                          <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse" />
+                          {generationResults.metadata?.processing_time
+                            ? `Generated in ${Math.round(
+                                generationResults.metadata.processing_time
+                              )}s`
+                            : "Generated successfully"}
+                        </div>
+                      </div>
+
+                      {/* Debug: Log generation results structure */}
+
+                      {/* Configuration Stats */}
+                      {generationResults.metadata && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-xl p-6 mb-6"
+                        >
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-green-400 mb-1">
+                                {generationResults.metadata.config_types
+                                  ?.length || 0}
+                              </div>
+                              <div className="text-sm text-gray-400">
+                                Config Types
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-blue-400 mb-1">
+                                {Object.values(
+                                  generationResults.configurations || {}
+                                ).reduce((acc, config) => {
+                                  // Count files from different possible locations
+                                  let fileCount = 0;
+                                  if (config.files)
+                                    fileCount += Object.keys(
+                                      config.files
+                                    ).length;
+                                  if (config.metadata?.files)
+                                    fileCount += Object.keys(
+                                      config.metadata.files
+                                    ).length;
+                                  // Count individual config files
+                                  if (config.dockerfile || config.docker_file)
+                                    fileCount += 1;
+                                  if (
+                                    config.docker_compose ||
+                                    config.docker_compose_yml
+                                  )
+                                    fileCount += 1;
+                                  if (config.github_actions || config.workflow)
+                                    fileCount += 1;
+                                  if (config.kubernetes || config.k8s)
+                                    fileCount += 1;
+                                  if (config.terraform || config.tf)
+                                    fileCount += 1;
+                                  // Count nested config files
+                                  if (config.config?.dockerfile) fileCount += 1;
+                                  if (config.config?.docker_compose)
+                                    fileCount += 1;
+                                  if (config.config?.github_actions)
+                                    fileCount += 1;
+                                  if (config.config?.files) {
+                                    fileCount += Object.keys(
+                                      config.config.files
+                                    ).length;
+                                  }
+                                  return acc + fileCount;
+                                }, 0)}
+                              </div>
+                              <div className="text-sm text-gray-400">
+                                Files Generated
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-purple-400 mb-1">
+                                {generationResults.metadata.llm_enhanced
+                                  ? "AI"
+                                  : "Rule"}
+                              </div>
+                              <div className="text-sm text-gray-400">
+                                Enhancement
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-orange-400 mb-1">
+                                ✓
+                              </div>
+                              <div className="text-sm text-gray-400">
+                                Production Ready
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Generated Files Summary */}
+                          <div className="border-t border-gray-700/30 pt-4">
+                            <h4 className="text-sm font-medium text-gray-300 mb-3">
+                              Generated Files Overview
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(
+                                generationResults.configurations || {}
+                              ).map(([configType, config]) => {
+                                const getFileNames = (configType, config) => {
+                                  const files = [];
+
+                                  // Check for files in different locations
+                                  if (config.files) {
+                                    files.push(...Object.keys(config.files));
+                                  }
+                                  if (config.metadata?.files) {
+                                    files.push(
+                                      ...Object.keys(config.metadata.files)
+                                    );
+                                  }
+                                  if (config.config?.files) {
+                                    files.push(
+                                      ...Object.keys(config.config.files)
+                                    );
+                                  }
+
+                                  // Check for specific config type fields with multiple naming patterns
+                                  if (config.dockerfile || config.docker_file) {
+                                    files.push("Dockerfile");
+                                  }
+                                  if (
+                                    config.docker_compose ||
+                                    config.docker_compose_yml
+                                  ) {
+                                    files.push("docker-compose.yml");
+                                  }
+                                  if (
+                                    config.github_actions ||
+                                    config.workflow
+                                  ) {
+                                    files.push(
+                                      config.filename ||
+                                        ".github/workflows/deploy.yml"
+                                    );
+                                  }
+                                  if (config.kubernetes || config.k8s) {
+                                    files.push("k8s-deployment.yml");
+                                  }
+                                  if (config.terraform || config.tf) {
+                                    files.push("main.tf");
+                                  }
+
+                                  // Check nested config
+                                  if (config.config?.dockerfile) {
+                                    files.push("Dockerfile");
+                                  }
+                                  if (config.config?.docker_compose) {
+                                    files.push("docker-compose.yml");
+                                  }
+                                  if (config.config?.github_actions) {
+                                    files.push(".github/workflows/deploy.yml");
+                                  }
+
+                                  // Fallback: if we have content but no specific files, create a generic filename
+                                  if (
+                                    files.length === 0 &&
+                                    (config.content ||
+                                      typeof config === "string")
+                                  ) {
+                                    files.push(`${configType}.yml`);
+                                  }
+
+                                  return files;
+                                };
+
+                                const files = getFileNames(configType, config);
+                                return files.map((filename, i) => (
+                                  <span
+                                    key={`${configType}-${i}`}
+                                    className="text-xs px-2 py-1 bg-gray-700/50 text-gray-300 rounded font-mono"
+                                  >
+                                    {filename}
+                                  </span>
+                                ));
+                              })}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+
                       <div className="space-y-6">
                         {generationResults.configurations &&
                           Object.entries(generationResults.configurations).map(
-                            ([configType, config]) => (
-                              <motion.div
-                                key={configType}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50"
-                              >
-                                <h4 className="text-lg font-semibold text-white mb-4 capitalize flex items-center">
-                                  <FaCloudUploadAlt className="w-5 h-5 mr-2 text-green-400" />
-                                  {configType.replace("_", " ")} Configuration
-                                </h4>
-                                <div className="space-y-4">
-                                  {config.files &&
-                                    Object.entries(config.files).map(
-                                      ([filename, content]) => (
-                                        <div
-                                          key={filename}
-                                          className="bg-gray-900/50 rounded-lg p-4"
-                                        >
-                                          <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-gray-300">
-                                              {filename}
-                                            </span>
-                                            <button
-                                              onClick={() =>
-                                                navigator.clipboard.writeText(
-                                                  content
-                                                )
-                                              }
-                                              className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                                            >
-                                              Copy
-                                            </button>
-                                          </div>
-                                          <pre className="text-xs text-gray-300 overflow-x-auto">
-                                            <code>{content}</code>
-                                          </pre>
-                                        </div>
-                                      )
+                            ([configType, config], index) => {
+                              const getConfigIcon = (type) => {
+                                switch (type) {
+                                  case "dockerfile":
+                                    return "🐳";
+                                  case "docker_compose":
+                                    return "🔗";
+                                  case "github_actions":
+                                    return "⚡";
+                                  case "kubernetes":
+                                    return "☸️";
+                                  case "terraform":
+                                    return "🏗️";
+                                  default:
+                                    return "⚙️";
+                                }
+                              };
+
+                              const getConfigColor = (type) => {
+                                switch (type) {
+                                  case "dockerfile":
+                                    return "blue";
+                                  case "docker_compose":
+                                    return "green";
+                                  case "github_actions":
+                                    return "purple";
+                                  case "kubernetes":
+                                    return "indigo";
+                                  case "terraform":
+                                    return "orange";
+                                  default:
+                                    return "gray";
+                                }
+                              };
+
+                              const color = getConfigColor(configType);
+
+                              return (
+                                <motion.div
+                                  key={configType}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.1 }}
+                                  className={`bg-${color}-500/5 border border-${color}-500/20 rounded-xl p-6 hover:bg-${color}-500/10 transition-all duration-300`}
+                                >
+                                  <div className="flex items-center justify-between mb-6">
+                                    <h4 className="text-xl font-semibold text-white flex items-center">
+                                      <span className="text-2xl mr-3">
+                                        {getConfigIcon(configType)}
+                                      </span>
+                                      {configType
+                                        .replace(/_/g, " ")
+                                        .replace(/\b\w/g, (l) =>
+                                          l.toUpperCase()
+                                        )}{" "}
+                                      Configuration
+                                    </h4>
+                                    {config.metadata && (
+                                      <div
+                                        className={`text-xs px-3 py-1 bg-${color}-500/20 text-${color}-300 rounded-full`}
+                                      >
+                                        {config.metadata.estimated_runtime ||
+                                          config.metadata.build_time_estimate ||
+                                          config.metadata.size_estimate ||
+                                          "Optimized"}
+                                      </div>
                                     )}
-                                </div>
-                              </motion.div>
-                            )
+                                  </div>
+
+                                  {/* Config Features */}
+                                  {config.metadata &&
+                                    (config.metadata.security_features ||
+                                      config.metadata.optimization_features ||
+                                      config.metadata.features) && (
+                                      <div className="mb-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          {config.metadata
+                                            .security_features && (
+                                            <div>
+                                              <h5 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
+                                                <FaShieldAlt className="w-4 h-4 mr-2 text-green-400" />
+                                                Security Features
+                                              </h5>
+                                              <div className="flex flex-wrap gap-1">
+                                                {config.metadata.security_features.map(
+                                                  (feature, i) => (
+                                                    <span
+                                                      key={i}
+                                                      className="text-xs px-2 py-1 bg-green-500/20 text-green-300 rounded"
+                                                    >
+                                                      {feature}
+                                                    </span>
+                                                  )
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {(config.metadata
+                                            .optimization_features ||
+                                            config.metadata.features) && (
+                                            <div>
+                                              <h5 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
+                                                <FaChartLine className="w-4 h-4 mr-2 text-blue-400" />
+                                                {config.metadata
+                                                  .optimization_features
+                                                  ? "Optimizations"
+                                                  : "Features"}
+                                              </h5>
+                                              <div className="flex flex-wrap gap-1">
+                                                {(
+                                                  config.metadata
+                                                    .optimization_features ||
+                                                  config.metadata.features
+                                                )?.map((feature, i) => (
+                                                  <span
+                                                    key={i}
+                                                    className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded"
+                                                  >
+                                                    {feature}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                  {/* Files */}
+                                  <div className="space-y-4">
+                                    {(() => {
+                                      // Helper function to extract content from JSON-wrapped strings
+                                      const extractContent = (
+                                        content,
+                                        fallbackKey
+                                      ) => {
+                                        if (!content) return null;
+                                        try {
+                                          if (
+                                            typeof content === "string" &&
+                                            content.startsWith("```json")
+                                          ) {
+                                            const jsonMatch = content.match(
+                                              /```json\n([\s\S]*?)\n```/
+                                            );
+                                            if (jsonMatch) {
+                                              const parsed = JSON.parse(
+                                                jsonMatch[1]
+                                              );
+                                              return (
+                                                parsed.content ||
+                                                parsed[fallbackKey] ||
+                                                parsed.dockerfile_content ||
+                                                content
+                                              );
+                                            }
+                                          }
+                                          return content;
+                                        } catch {
+                                          return content;
+                                        }
+                                      };
+
+                                      // Collect all files from different locations
+                                      const allFiles = {};
+
+                                      // From config.files
+                                      if (config.files) {
+                                        Object.entries(config.files).forEach(
+                                          ([filename, content]) => {
+                                            const extractedContent =
+                                              extractContent(content);
+                                            if (
+                                              extractedContent &&
+                                              !allFiles[filename]
+                                            ) {
+                                              allFiles[filename] =
+                                                extractedContent;
+                                            }
+                                          }
+                                        );
+                                      }
+
+                                      // From config.config.files (nested)
+                                      if (config.config?.files) {
+                                        Object.entries(
+                                          config.config.files
+                                        ).forEach(([filename, content]) => {
+                                          const extractedContent =
+                                            extractContent(content);
+                                          if (
+                                            extractedContent &&
+                                            !allFiles[filename]
+                                          ) {
+                                            allFiles[filename] =
+                                              extractedContent;
+                                          }
+                                        });
+                                      }
+
+                                      // From metadata.files
+                                      if (config.metadata?.files) {
+                                        Object.entries(
+                                          config.metadata.files
+                                        ).forEach(([filename, content]) => {
+                                          const extractedContent =
+                                            extractContent(content);
+                                          if (
+                                            extractedContent &&
+                                            !allFiles[filename]
+                                          ) {
+                                            allFiles[filename] =
+                                              extractedContent;
+                                          }
+                                        });
+                                      }
+
+                                      // From specific config fields with multiple naming patterns
+                                      if (
+                                        config.dockerfile ||
+                                        config.docker_file
+                                      ) {
+                                        const extractedContent = extractContent(
+                                          config.dockerfile ||
+                                            config.docker_file,
+                                          "dockerfile"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles["Dockerfile"]
+                                        ) {
+                                          allFiles["Dockerfile"] =
+                                            extractedContent;
+                                        }
+                                      }
+                                      if (
+                                        config.docker_compose ||
+                                        config.docker_compose_yml
+                                      ) {
+                                        const extractedContent = extractContent(
+                                          config.docker_compose ||
+                                            config.docker_compose_yml,
+                                          "docker_compose"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles["docker-compose.yml"]
+                                        ) {
+                                          allFiles["docker-compose.yml"] =
+                                            extractedContent;
+                                        }
+                                      }
+                                      if (
+                                        config.github_actions ||
+                                        config.workflow
+                                      ) {
+                                        const extractedContent = extractContent(
+                                          config.github_actions ||
+                                            config.workflow,
+                                          "github_actions"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles[
+                                            ".github/workflows/deploy.yml"
+                                          ]
+                                        ) {
+                                          allFiles[
+                                            ".github/workflows/deploy.yml"
+                                          ] = extractedContent;
+                                        }
+                                      }
+
+                                      // Handle additional config types
+                                      if (config.kubernetes || config.k8s) {
+                                        const extractedContent = extractContent(
+                                          config.kubernetes || config.k8s,
+                                          "kubernetes"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles["k8s-deployment.yml"]
+                                        ) {
+                                          allFiles["k8s-deployment.yml"] =
+                                            extractedContent;
+                                        }
+                                      }
+
+                                      if (config.terraform || config.tf) {
+                                        const extractedContent = extractContent(
+                                          config.terraform || config.tf,
+                                          "terraform"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles["main.tf"]
+                                        ) {
+                                          allFiles["main.tf"] =
+                                            extractedContent;
+                                        }
+                                      }
+
+                                      // Handle direct content (when config is just a string or has content field)
+                                      if (
+                                        typeof config === "string" &&
+                                        config.trim()
+                                      ) {
+                                        const filename = `${configType}.yml`;
+                                        if (!allFiles[filename]) {
+                                          allFiles[filename] =
+                                            extractContent(config);
+                                        }
+                                      } else if (
+                                        config.content &&
+                                        typeof config.content === "string"
+                                      ) {
+                                        const filename =
+                                          config.filename ||
+                                          `${configType}.yml`;
+                                        if (!allFiles[filename]) {
+                                          allFiles[filename] = extractContent(
+                                            config.content
+                                          );
+                                        }
+                                      }
+
+                                      // From nested config locations
+                                      if (config.config?.dockerfile) {
+                                        const extractedContent = extractContent(
+                                          config.config.dockerfile,
+                                          "dockerfile"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles["Dockerfile"]
+                                        ) {
+                                          allFiles["Dockerfile"] =
+                                            extractedContent;
+                                        }
+                                      }
+                                      if (config.config?.docker_compose) {
+                                        const extractedContent = extractContent(
+                                          config.config.docker_compose,
+                                          "docker_compose"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles["docker-compose.yml"]
+                                        ) {
+                                          allFiles["docker-compose.yml"] =
+                                            extractedContent;
+                                        }
+                                      }
+                                      if (config.config?.github_actions) {
+                                        const extractedContent = extractContent(
+                                          config.config.github_actions,
+                                          "github_actions"
+                                        );
+                                        if (
+                                          extractedContent &&
+                                          !allFiles[
+                                            ".github/workflows/deploy.yml"
+                                          ]
+                                        ) {
+                                          allFiles[
+                                            ".github/workflows/deploy.yml"
+                                          ] = extractedContent;
+                                        }
+                                      }
+
+                                      // From config.config.files
+                                      if (config.config?.files) {
+                                        Object.entries(
+                                          config.config.files
+                                        ).forEach(([filename, content]) => {
+                                          const extractedContent =
+                                            extractContent(content);
+                                          if (
+                                            extractedContent &&
+                                            !allFiles[filename]
+                                          ) {
+                                            allFiles[filename] =
+                                              extractedContent;
+                                          }
+                                        });
+                                      }
+
+                                      return Object.entries(allFiles)
+                                        .map(([filename, content]) => {
+                                          if (!content) return null;
+
+                                          const contentString =
+                                            typeof content === "string"
+                                              ? content
+                                              : JSON.stringify(
+                                                  content,
+                                                  null,
+                                                  2
+                                                );
+
+                                          return (
+                                            <div
+                                              key={filename}
+                                              className="bg-gray-900/50 rounded-lg border border-gray-700/30 overflow-hidden"
+                                            >
+                                              <div className="flex items-center justify-between p-4 bg-gray-800/50 border-b border-gray-700/30">
+                                                <div className="flex items-center">
+                                                  <FaFileCode className="w-4 h-4 text-gray-400 mr-2" />
+                                                  <span className="text-sm font-medium text-gray-300">
+                                                    {filename}
+                                                  </span>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                  <span className="text-xs text-gray-500">
+                                                    {
+                                                      contentString.split("\n")
+                                                        .length
+                                                    }{" "}
+                                                    lines
+                                                  </span>
+                                                  <button
+                                                    onClick={() =>
+                                                      navigator.clipboard.writeText(
+                                                        contentString
+                                                      )
+                                                    }
+                                                    className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center"
+                                                  >
+                                                    <FaDownload className="w-3 h-3 mr-1" />
+                                                    Copy
+                                                  </button>
+                                                </div>
+                                              </div>
+                                              <div className="p-4">
+                                                <pre className="text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">
+                                                  <code>{contentString}</code>
+                                                </pre>
+                                              </div>
+                                            </div>
+                                          );
+                                        })
+                                        .filter(Boolean);
+                                    })()}
+                                  </div>
+
+                                  {/* Additional Metadata */}
+                                  {config.metadata && (
+                                    <div className="mt-6 space-y-4">
+                                      {/* Build Instructions */}
+                                      {(config.metadata.build_instructions ||
+                                        config.metadata.usage_instructions) && (
+                                        <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
+                                          <h5 className="text-sm font-medium text-gray-300 mb-3 flex items-center">
+                                            <FaRocket className="w-4 h-4 mr-2 text-orange-400" />
+                                            Quick Start Instructions
+                                          </h5>
+                                          <div className="space-y-2">
+                                            {(
+                                              config.metadata
+                                                .build_instructions ||
+                                              config.metadata.usage_instructions
+                                            )?.map((instruction, i) => (
+                                              <div
+                                                key={i}
+                                                className="flex items-start"
+                                              >
+                                                <span className="text-xs text-gray-500 mr-2 mt-1">
+                                                  {i + 1}.
+                                                </span>
+                                                <code className="text-xs text-gray-300 bg-gray-900/50 px-2 py-1 rounded font-mono">
+                                                  {instruction}
+                                                </code>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Environment Variables */}
+                                      {config.metadata.environment_variables &&
+                                        Object.keys(
+                                          config.metadata.environment_variables
+                                        ).length > 0 && (
+                                          <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                                            <h5 className="text-sm font-medium text-blue-300 mb-3 flex items-center">
+                                              <FaCog className="w-4 h-4 mr-2" />
+                                              Environment Variables
+                                            </h5>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                              {Object.entries(
+                                                config.metadata
+                                                  .environment_variables
+                                              ).map(([key, value]) => (
+                                                <div
+                                                  key={key}
+                                                  className="flex items-center justify-between bg-gray-800/50 px-3 py-2 rounded"
+                                                >
+                                                  <span className="text-xs font-mono text-gray-300">
+                                                    {key}
+                                                  </span>
+                                                  <span className="text-xs font-mono text-blue-300">
+                                                    {value}
+                                                  </span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                      {/* Required Secrets */}
+                                      {config.metadata.secrets_required &&
+                                        config.metadata.secrets_required
+                                          .length > 0 && (
+                                          <div className="p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">
+                                            <h5 className="text-sm font-medium text-yellow-300 mb-3 flex items-center">
+                                              <FaShieldAlt className="w-4 h-4 mr-2" />
+                                              Required Secrets
+                                            </h5>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                                              {config.metadata.secrets_required.map(
+                                                (secret, i) => (
+                                                  <div
+                                                    key={i}
+                                                    className="text-xs bg-gray-800/50 px-3 py-2 rounded font-mono text-yellow-300"
+                                                  >
+                                                    {secret}
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                      {/* Service Configuration */}
+                                      {(config.metadata.services ||
+                                        config.metadata.networks ||
+                                        config.metadata.volumes) && (
+                                        <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
+                                          <h5 className="text-sm font-medium text-green-300 mb-3 flex items-center">
+                                            <FaCube className="w-4 h-4 mr-2" />
+                                            Service Configuration
+                                          </h5>
+                                          <div className="space-y-3">
+                                            {config.metadata.services && (
+                                              <div>
+                                                <h6 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
+                                                  Services
+                                                </h6>
+                                                <div className="space-y-2">
+                                                  {Object.entries(
+                                                    config.metadata.services
+                                                  ).map(
+                                                    ([
+                                                      serviceName,
+                                                      service,
+                                                    ]) => (
+                                                      <div
+                                                        key={serviceName}
+                                                        className="bg-gray-800/50 p-3 rounded"
+                                                      >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                          <span className="text-sm font-medium text-green-300">
+                                                            {serviceName}
+                                                          </span>
+                                                          {service.image && (
+                                                            <span className="text-xs text-gray-400">
+                                                              {service.image}
+                                                            </span>
+                                                          )}
+                                                        </div>
+                                                        <p className="text-xs text-gray-300">
+                                                          {service.description}
+                                                        </p>
+                                                        {service.ports && (
+                                                          <div className="mt-2 flex flex-wrap gap-1">
+                                                            {service.ports.map(
+                                                              (port, i) => (
+                                                                <span
+                                                                  key={i}
+                                                                  className="text-xs px-2 py-1 bg-green-500/20 text-green-300 rounded"
+                                                                >
+                                                                  {port}
+                                                                </span>
+                                                              )
+                                                            )}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    )
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                            {config.metadata.volumes &&
+                                              Object.keys(
+                                                config.metadata.volumes
+                                              ).length > 0 && (
+                                                <div>
+                                                  <h6 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
+                                                    Volumes
+                                                  </h6>
+                                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                    {Object.entries(
+                                                      config.metadata.volumes
+                                                    ).map(
+                                                      ([
+                                                        volumeName,
+                                                        volume,
+                                                      ]) => (
+                                                        <div
+                                                          key={volumeName}
+                                                          className="bg-gray-800/50 p-2 rounded"
+                                                        >
+                                                          <span className="text-xs font-medium text-green-300">
+                                                            {volumeName}
+                                                          </span>
+                                                          <p className="text-xs text-gray-400 mt-1">
+                                                            {volume.description}
+                                                          </p>
+                                                        </div>
+                                                      )
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Performance Estimates */}
+                                      {(config.metadata.estimated_runtime ||
+                                        config.metadata.build_time_estimate ||
+                                        config.metadata.size_estimate) && (
+                                        <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-lg">
+                                          <h5 className="text-sm font-medium text-purple-300 mb-3 flex items-center">
+                                            <FaChartLine className="w-4 h-4 mr-2" />
+                                            Performance Estimates
+                                          </h5>
+                                          <div className="grid grid-cols-3 gap-4">
+                                            {config.metadata
+                                              .estimated_runtime && (
+                                              <div className="text-center">
+                                                <div className="text-lg font-bold text-purple-300">
+                                                  {
+                                                    config.metadata
+                                                      .estimated_runtime
+                                                  }
+                                                </div>
+                                                <div className="text-xs text-gray-400">
+                                                  Runtime
+                                                </div>
+                                              </div>
+                                            )}
+                                            {config.metadata
+                                              .build_time_estimate && (
+                                              <div className="text-center">
+                                                <div className="text-lg font-bold text-purple-300">
+                                                  {
+                                                    config.metadata
+                                                      .build_time_estimate
+                                                  }
+                                                </div>
+                                                <div className="text-xs text-gray-400">
+                                                  Build Time
+                                                </div>
+                                              </div>
+                                            )}
+                                            {config.metadata.size_estimate && (
+                                              <div className="text-center">
+                                                <div className="text-lg font-bold text-purple-300">
+                                                  {
+                                                    config.metadata
+                                                      .size_estimate
+                                                  }
+                                                </div>
+                                                <div className="text-xs text-gray-400">
+                                                  Image Size
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </motion.div>
+                              );
+                            }
                           )}
                       </div>
                     </div>
