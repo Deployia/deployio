@@ -20,13 +20,7 @@ class AnalysisPrompts(BasePrompts):
     ) -> Dict[str, str]:
         """
         Generate prompts for technology stack enhancement.
-
-        Args:
-            analysis_result: Current analysis results
-            repository_data: Repository data with files and metadata
-
-        Returns:
-            Dictionary with system and user prompts
+        Instructs the LLM to perform a full, independent analysis using raw data, not just enhance the rule-based result.
         """
         system_prompt = cls.create_system_prompt(
             role="Senior Software Architect and Technology Expert",
@@ -38,6 +32,9 @@ class AnalysisPrompts(BasePrompts):
                 "Technology compatibility and best practices",
             ],
             guidelines=[
+                "You must perform a full, independent analysis of the repository using the raw data provided, regardless of the existing analysis summary.",
+                "Do not simply enhance or validate the previous analysis—re-analyze all aspects (technology stack, frameworks, databases, build tools, etc.) from scratch.",
+                "For every field in the expected output, provide a value. If you cannot determine a value, provide a clear explanation for why it is missing, and add this to a 'null_field_explanations' section in your output.",
                 "Analyze file contents and dependencies to identify technologies",
                 "Consider both explicit and implicit technology indicators",
                 "Evaluate technology choices for appropriateness and modernity",
@@ -55,19 +52,15 @@ class AnalysisPrompts(BasePrompts):
         user_prompt = f"""
 {repository_context}
 
+The following is a summary of a previous rule-based analysis. Use it as a reference only, but do not rely on it. Your analysis should be based primarily on the raw repository data.
+
 {analysis_summary}
 
 REPOSITORY FILES:
 {file_contents}
 
 ENHANCEMENT TASK:
-Enhance the technology stack analysis by:
-
-1. **Technology Validation**: Verify detected technologies and identify any missed
-2. **Framework Details**: Add specific framework versions and configurations
-3. **Architecture Insights**: Identify architectural patterns and design approaches
-4. **Technology Recommendations**: Suggest improvements or missing technologies
-5. **Build Configuration**: Identify build tools, scripts, and deployment patterns
+Perform a full, independent technology stack analysis as described above. If any field in your output is null or empty, add an explanation in a 'null_field_explanations' section.
 
 {cls.format_json_response_instruction()}
 
@@ -101,7 +94,10 @@ Expected JSON structure:
             "description": "Detailed recommendation",
             "priority": "high|medium|low"
         }}
-    ]
+    ],
+    "null_field_explanations": {{
+        "field_name": "Explanation for why this field is null or filled from fallback"
+    }}
 }}
 """
 
@@ -123,6 +119,9 @@ Expected JSON structure:
                 "Supply chain security best practices",
             ],
             guidelines=[
+                "You must perform a full, independent dependency analysis using the raw data provided, regardless of the existing analysis summary.",
+                "Do not simply enhance or validate the previous analysis—re-analyze all dependencies, security, and optimization from scratch.",
+                "For every field in the expected output, provide a value. If you cannot determine a value, provide a clear explanation for why it is missing, and add this to a 'null_field_explanations' section in your output.",
                 "Analyze dependencies for security vulnerabilities",
                 "Assess dependency health and maintenance status",
                 "Identify outdated or deprecated packages",
@@ -162,19 +161,15 @@ Expected JSON structure:
         user_prompt = f"""
 {repository_context}
 
+The following is a summary of a previous rule-based analysis. Use it as a reference only, but do not rely on it. Your analysis should be based primarily on the raw repository data.
+
 {analysis_summary}
 
 DEPENDENCY FILES:
 {file_contents}
 
 ENHANCEMENT TASK:
-Enhance the dependency analysis by:
-
-1. **Security Assessment**: Identify potential security vulnerabilities
-2. **Dependency Health**: Evaluate maintenance status and update needs
-3. **Optimization Opportunities**: Find redundant or unnecessary dependencies
-4. **Alternative Recommendations**: Suggest better or more secure alternatives
-5. **License Compliance**: Identify license conflicts or compliance issues
+Perform a full, independent dependency analysis as described above. If any field in your output is null or empty, add an explanation in a 'null_field_explanations' section.
 
 {cls.format_json_response_instruction()}
 
@@ -223,7 +218,10 @@ Expected JSON structure:
             "description": "Detailed recommendation",
             "priority": "high|medium|low"
         }}
-    ]
+    ],
+    "null_field_explanations": {{
+        "field_name": "Explanation for why this field is null or filled from fallback"
+    }}
 }}
 """
 
@@ -252,6 +250,9 @@ Expected JSON structure:
                 "Code smell detection and refactoring strategies",
             ],
             guidelines=[
+                "You must perform a full, independent code quality analysis using the raw data provided, regardless of the existing analysis summary.",
+                "Do not simply enhance or validate the previous analysis—re-analyze all code quality, architecture, and best practices from scratch.",
+                "For every field in the expected output, provide a value. If you cannot determine a value, provide a clear explanation for why it is missing, and add this to a 'null_field_explanations' section in your output.",
                 "Analyze code structure and patterns for quality indicators",
                 "Identify architectural strengths and weaknesses",
                 "Recommend specific improvements for maintainability",
@@ -282,19 +283,15 @@ Expected JSON structure:
         user_prompt = f"""
 {repository_context}
 
+The following is a summary of a previous rule-based analysis. Use it as a reference only, but do not rely on it. Your analysis should be based primarily on the raw repository data.
+
 {analysis_summary}
 
 SOURCE CODE FILES:
 {file_contents}
 
 ENHANCEMENT TASK:
-Enhance the code quality analysis by:
-
-1. **Architecture Assessment**: Evaluate overall code organization and patterns
-2. **Quality Metrics**: Assess maintainability, readability, and complexity
-3. **Design Patterns**: Identify used patterns and suggest improvements
-4. **Code Smells**: Detect anti-patterns and problematic code structures
-5. **Best Practices**: Evaluate adherence to language/framework best practices
+Perform a full, independent code quality analysis as described above. If any field in your output is null or empty, add an explanation in a 'null_field_explanations' section.
 
 {cls.format_json_response_instruction()}
 
@@ -337,7 +334,10 @@ Expected JSON structure:
             "effort": "low|medium|high",
             "impact": "low|medium|high"
         }}
-    ]
+    ],
+    "null_field_explanations": {{
+        "field_name": "Explanation for why this field is null or filled from fallback"
+    }}
 }}
 """
 
@@ -359,6 +359,9 @@ Expected JSON structure:
                 "Project scalability and performance analysis",
             ],
             guidelines=[
+                "You must perform a full, independent project assessment using the raw data provided, regardless of the existing analysis summary.",
+                "Do not simply enhance or validate the previous analysis—re-analyze all aspects from scratch.",
+                "For every field in the expected output, provide a value. If you cannot determine a value, provide a clear explanation for why it is missing, and add this to a 'null_field_explanations' section in your output.",
                 "Provide holistic assessment of the entire project",
                 "Consider scalability, maintainability, and performance",
                 "Evaluate development and deployment workflows",
@@ -378,20 +381,15 @@ Expected JSON structure:
         user_prompt = f"""
 {repository_context}
 
+The following is a summary of a previous rule-based analysis. Use it as a reference only, but do not rely on it. Your analysis should be based primarily on the raw repository data.
+
 {analysis_summary}
 
 REPOSITORY OVERVIEW:
 {file_contents}
 
 COMPREHENSIVE ANALYSIS TASK:
-Provide strategic insights covering:
-
-1. **Project Assessment**: Overall project health and maturity
-2. **Technology Strategy**: Evaluation of technology choices and alignment
-3. **Scalability Analysis**: Current and future scalability considerations
-4. **Development Workflow**: Assessment of development practices and tooling
-5. **Deployment Readiness**: Evaluation of deployment and DevOps practices
-6. **Strategic Recommendations**: High-level recommendations for improvement
+Perform a full, independent project assessment as described above. If any field in your output is null or empty, add an explanation in a 'null_field_explanations' section.
 
 {cls.format_json_response_instruction()}
 
@@ -432,7 +430,10 @@ Expected JSON structure:
             "timeline": "short|medium|long term",
             "business_impact": "Expected business impact"
         }}
-    ]
+    ],
+    "null_field_explanations": {{
+        "field_name": "Explanation for why this field is null or filled from fallback"
+    }}
 }}
 """
 

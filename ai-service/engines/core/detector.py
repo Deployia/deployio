@@ -14,6 +14,7 @@ from ..analyzers.dependency_analyzer import DependencyAnalyzer
 from ..analyzers.code_analyzer import CodeAnalyzer
 from ..enhancers.llm_enhancer import LLMEnhancer
 from engines.llm.shared_client_manager import shared_llm_client_manager
+from engines.utils.result_processor import AnalysisResultProcessor
 
 # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
 # from ..utils.cache_manager import CacheManager
@@ -384,7 +385,7 @@ class UnifiedDetector:
         repository_data: Dict[str, Any],
         request: AnalysisRequest,
     ):
-        """Enhance analysis result with LLM - LLM should overwrite rule-based analysis"""
+        """Enhance analysis result with LLM and merge with rule-based analysis for completeness."""
         logger.info(f"Starting LLM enhancement for {result.repository_name}")
         start_time = time.time()
 
@@ -397,41 +398,27 @@ class UnifiedDetector:
             enhancement_time = time.time() - start_time
             logger.info(f"LLM enhancement completed in {enhancement_time:.2f}s")
 
-            # LLM enhancement should overwrite rule-based results, not merge
-            # The enhanced_result IS the final result - rule-based is fallback only
-            if enhanced_result and enhanced_result != result:
-                logger.debug(
-                    "Replacing rule-based analysis with LLM-enhanced results..."
-                )
+            # Merge LLM and rule-based results for completeness
+            merged_result = AnalysisResultProcessor.merge_llm_and_rule_based(
+                enhanced_result, result
+            )
+            merged_result.llm_enhanced = True
+            merged_result.analysis_approach = "llm_enhanced"
+            merged_result.processing_time = result.processing_time + enhancement_time
 
-                # Update metadata to show LLM enhancement
-                enhanced_result.llm_enhanced = True
-                enhanced_result.analysis_approach = "llm_enhanced"
-                enhanced_result.processing_time = (
-                    result.processing_time + enhancement_time
+            # Use merged result if confidence is improved or equal, else fallback
+            if merged_result.confidence_score >= result.confidence_score:
+                logger.info(
+                    f"LLM enhancement (merged) used: confidence {merged_result.confidence_score:.2f} >= {result.confidence_score:.2f}"
                 )
-
-                # Keep rule-based as fallback if LLM confidence is not significantly better
-                if enhanced_result.confidence_score > result.confidence_score:
-                    logger.info(
-                        f"LLM enhancement improved confidence from {result.confidence_score:.2f} to {enhanced_result.confidence_score:.2f}"
-                    )
-                    return enhanced_result
-                else:
-                    logger.warning(
-                        "LLM enhancement did not improve confidence, keeping rule-based result"
-                    )
-                    result.llm_enhanced = False
-                    result.analysis_approach = "rule_based_fallback"
-                    return result
+                return merged_result
             else:
                 logger.warning(
-                    "LLM enhancement returned no improvements, using rule-based result"
+                    "LLM enhancement did not improve confidence, keeping rule-based result"
                 )
                 result.llm_enhanced = False
-                result.analysis_approach = "rule_based_only"
+                result.analysis_approach = "rule_based_fallback"
                 return result
-
         except Exception as e:
             enhancement_time = time.time() - start_time
             logger.error(

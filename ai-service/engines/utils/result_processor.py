@@ -338,3 +338,105 @@ class AnalysisResultProcessor:
             )
 
         return analysis_result
+
+    @staticmethod
+    def merge_llm_and_rule_based(
+        llm_result: AnalysisResult, rule_based_result: AnalysisResult
+    ) -> AnalysisResult:
+        """
+        Merge LLM-enhanced and rule-based results, fully replacing with LLM data if available.
+        Fallback to rule-based for any missing/null fields, and add explanations.
+        Ensures all fields and subfields are filled or explained in null_field_explanations.
+        """
+        import copy
+
+        merged = copy.deepcopy(llm_result)
+        null_field_explanations = getattr(merged, "null_field_explanations", {}) or {}
+
+        # Helper to merge dataclasses deeply
+        def deep_merge_dataclass(llm_obj, rule_obj, path_prefix=""):
+            if llm_obj is None and rule_obj is not None:
+                return copy.deepcopy(rule_obj)
+            if hasattr(llm_obj, "__dataclass_fields__"):
+                for field in llm_obj.__dataclass_fields__:
+                    llm_val = getattr(llm_obj, field, None)
+                    rule_val = getattr(rule_obj, field, None) if rule_obj else None
+                    full_path = f"{path_prefix}.{field}" if path_prefix else field
+                    if llm_val is None or (
+                        isinstance(llm_val, (list, dict)) and not llm_val
+                    ):
+                        if rule_val is not None and (
+                            not isinstance(rule_val, (list, dict)) or rule_val
+                        ):
+                            setattr(llm_obj, field, copy.deepcopy(rule_val))
+                            null_field_explanations[full_path] = (
+                                "Filled from rule-based analysis due to missing LLM output."
+                            )
+                        else:
+                            null_field_explanations[full_path] = (
+                                "No data available from LLM or rule-based analysis."
+                            )
+                    elif hasattr(llm_val, "__dataclass_fields__"):
+                        merged_val = deep_merge_dataclass(llm_val, rule_val, full_path)
+                        setattr(llm_obj, field, merged_val)
+                return llm_obj
+            return llm_obj
+
+        # Merge all main dataclass fields
+        merged.technology_stack = deep_merge_dataclass(
+            merged.technology_stack,
+            rule_based_result.technology_stack,
+            "technology_stack",
+        )
+        merged.dependency_analysis = deep_merge_dataclass(
+            merged.dependency_analysis,
+            rule_based_result.dependency_analysis,
+            "dependency_analysis",
+        )
+        merged.code_analysis = deep_merge_dataclass(
+            merged.code_analysis, rule_based_result.code_analysis, "code_analysis"
+        )
+        merged.build_configuration = deep_merge_dataclass(
+            merged.build_configuration,
+            rule_based_result.build_configuration,
+            "build_configuration",
+        )
+        merged.deployment_configuration = deep_merge_dataclass(
+            merged.deployment_configuration,
+            rule_based_result.deployment_configuration,
+            "deployment_configuration",
+        )
+
+        # For lists and dicts at the top level
+        top_fields = [
+            "recommendations",
+            "insights",
+            "suggestions",
+            "detected_files",
+            "quality_metrics",
+            "security_metrics",
+        ]
+        for field in top_fields:
+            llm_value = getattr(merged, field, None)
+            rule_value = getattr(rule_based_result, field, None)
+            if llm_value is None or (
+                isinstance(llm_value, (list, dict)) and not llm_value
+            ):
+                if rule_value is not None and (
+                    not isinstance(rule_value, (list, dict)) or rule_value
+                ):
+                    setattr(merged, field, copy.deepcopy(rule_value))
+                    null_field_explanations[field] = (
+                        "Filled from rule-based analysis due to missing LLM output."
+                    )
+                else:
+                    null_field_explanations[field] = (
+                        "No data available from LLM or rule-based analysis."
+                    )
+
+        # Set detection_method to llm_enhanced if LLM provided any enhancement
+        if merged.llm_enhanced or merged.metadata.get("llm_enhanced"):
+            merged.technology_stack.detection_method = "llm_enhanced"
+
+        merged.null_field_explanations = null_field_explanations
+        return merged
