@@ -395,10 +395,9 @@ function Health() {
   return (
     <>
       <SEO page="health" />
-      <div className="h-full overflow-auto p-6 body">
+      <div className="h-full overflow-auto p-4 sm:p-6 body">
         <div className="max-w-6xl mx-auto">
-          {" "}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 sm:gap-0">
             <div>
               <h2 className="text-2xl font-bold text-white mb-1 heading flex items-center">
                 <FaClipboardCheck className="mr-2 text-purple-400" />
@@ -413,11 +412,11 @@ function Health() {
                 </p>
               )}
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
               <button
                 onClick={() => fetchStatuses(true)}
                 disabled={refreshing}
-                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white rounded-lg transition-colors duration-200 flex items-center text-sm"
+                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white rounded-lg transition-colors duration-200 flex items-center text-sm w-full sm:w-auto justify-center"
               >
                 {refreshing ? (
                   <InlineSpinner size="sm" color="white" />
@@ -427,21 +426,20 @@ function Health() {
                 {refreshing ? "Refreshing..." : "Refresh"}
               </button>
               {error ? (
-                <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center">
+                <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center w-full sm:w-auto">
                   <FaExclamationTriangle className="text-red-400 mr-2" />
                   <span className="text-red-300 text-sm">{error}</span>
                 </div>
               ) : services._healthSummary ? (
-                // Detailed health status based on backend response
                 services._healthSummary.overallStatus === "healthy" ? (
-                  <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center">
+                  <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center w-full sm:w-auto">
                     <FaCheckCircle className="text-green-400 mr-2" />
                     <span className="text-green-300 text-sm">
                       All Systems Operational
                     </span>
                   </div>
                 ) : services._healthSummary.overallStatus === "degraded" ? (
-                  <div className="px-4 py-2 bg-yellow-900/30 border border-yellow-700/30 rounded-lg flex items-center">
+                  <div className="px-4 py-2 bg-yellow-900/30 border border-yellow-700/30 rounded-lg flex items-center w-full sm:w-auto">
                     <FaExclamationTriangle className="text-yellow-400 mr-2" />
                     <span className="text-yellow-300 text-sm">
                       Core Systems Operational -{" "}
@@ -450,7 +448,7 @@ function Health() {
                     </span>
                   </div>
                 ) : (
-                  <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center">
+                  <div className="px-4 py-2 bg-red-900/30 border border-red-700/30 rounded-lg flex items-center w-full sm:w-auto">
                     <FaTimesCircle className="text-red-400 mr-2" />
                     <span className="text-red-300 text-sm">
                       System Unhealthy - Core Services Down
@@ -458,15 +456,14 @@ function Health() {
                   </div>
                 )
               ) : (
-                // Fallback for when health summary is not available
-                <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center">
+                <div className="px-4 py-2 bg-green-900/30 border border-green-700/30 rounded-lg flex items-center w-full sm:w-auto">
                   <FaCheckCircle className="text-green-400 mr-2" />
                   <span className="text-green-300 text-sm">
                     Backend Service Operational
                   </span>
                 </div>
               )}
-            </div>{" "}
+            </div>
           </div>
           {/* Admin Features Banner */}
           {isAdmin && (
@@ -495,16 +492,17 @@ function Health() {
           {/* Service Status Cards */}
           <div className="grid gap-6 mb-6 md:grid-cols-2">
             {Object.entries(services)
-              .filter(([, service]) => service.icon) // Only render cards for services with an icon
+              .filter(([, service]) => service.icon)
               .map(([key, service]) => (
-                <ServiceCard
-                  key={key}
-                  serviceKey={key}
-                  service={service}
-                  isAdmin={isAdmin}
-                  navigate={navigate}
-                  StatusIndicator={StatusIndicator}
-                />
+                <div className="min-w-0" key={key}>
+                  <ServiceCard
+                    serviceKey={key}
+                    service={service}
+                    isAdmin={isAdmin}
+                    navigate={navigate}
+                    StatusIndicator={StatusIndicator}
+                  />
+                </div>
               ))}
           </div>
           {/* Authentication Status Section */}
@@ -591,7 +589,7 @@ function Health() {
             )}
           </div>{" "}
           {/* Environment Information */}
-          <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body bg-neutral-900/70 mb-6">
+          <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 body bg-neutral-900/70 mb-6 overflow-x-auto custom-scrollbar">
             <h3 className="text-lg font-semibold text-white mb-4 heading flex items-center">
               <FaCode className="mr-2 text-blue-400" />
               Environment Information
@@ -603,7 +601,7 @@ function Health() {
                 <FaCog className="mr-2 text-green-400" />
                 Environment Variables
               </h4>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 custom-scrollbar overflow-auto">
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 custom-scrollbar overflow-x-auto">
                 <div className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
                   <p className="text-xs text-neutral-400 mb-1">Environment</p>
                   <p className="text-sm text-white font-mono">

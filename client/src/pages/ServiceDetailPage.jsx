@@ -237,32 +237,32 @@ const ServiceDetailPage = () => {
         title={`${serviceName} Service Details`}
         description={`Detailed monitoring view for ${serviceName} service`}
       />
-      <div className="h-full overflow-auto p-6 body">
+      <div className="h-full overflow-auto p-4 sm:p-6 body">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 sm:gap-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
               <button
                 onClick={() => navigate("/health")}
-                className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition-all duration-200 border border-neutral-700"
+                className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition-all duration-200 border border-neutral-700 w-full sm:w-auto justify-center"
               >
                 <FaArrowLeft size={14} />
                 Back to Health
               </button>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
                 <div className="h-12 w-12 rounded-xl bg-blue-600/20 flex items-center justify-center">
                   <ServiceIcon className="text-blue-400" size={24} />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-white heading capitalize">
+                <div className="min-w-0">
+                  <h1 className="text-2xl font-bold text-white heading capitalize truncate">
                     {serviceName.replace("-", " ")} Service
                   </h1>
-                  <p className="text-neutral-400 text-sm">
+                  <p className="text-neutral-400 text-sm truncate">
                     Detailed monitoring and real-time logs
                   </p>
                   {lastUpdated && (
-                    <p className="text-neutral-500 text-xs">
+                    <p className="text-neutral-500 text-xs truncate">
                       Last updated: {lastUpdated.toLocaleTimeString()}
                     </p>
                   )}
@@ -272,7 +272,7 @@ const ServiceDetailPage = () => {
             <button
               onClick={fetchServiceData}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors duration-200"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors duration-200 w-full sm:w-auto justify-center mt-2 sm:mt-0"
             >
               {loading ? (
                 <InlineSpinner size="sm" color="white" />
@@ -301,7 +301,7 @@ const ServiceDetailPage = () => {
               {/* Service Overview Cards */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Status Card */}
-                <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
+                <div className="p-4 sm:p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70 min-w-0">
                   <div className="flex items-center gap-3 mb-4">
                     <div
                       className={`h-10 w-10 rounded-lg flex items-center justify-center ${
@@ -360,7 +360,7 @@ const ServiceDetailPage = () => {
                         <span className="text-sm text-neutral-400">
                           Response Time
                         </span>
-                        <span className="text-sm text-white bg-neutral-800 px-2 py-1 rounded">
+                        <span className="text-sm text-white bg-neutral-800 px-2 py-1 rounded whitespace-nowrap">
                           {serviceData.responseTime}ms
                         </span>
                       </div>
@@ -370,7 +370,7 @@ const ServiceDetailPage = () => {
 
                 {/* Memory Usage */}
                 {serviceData.memory && (
-                  <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
+                  <div className="p-4 sm:p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70 min-w-0">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="h-10 w-10 rounded-lg bg-purple-600/20 text-purple-400 flex items-center justify-center">
                         <FaMemory className="h-5 w-5" />
@@ -449,7 +449,7 @@ const ServiceDetailPage = () => {
 
                 {/* External Services */}
                 {serviceData.services && (
-                  <div className="p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70">
+                  <div className="p-4 sm:p-5 backdrop-blur-lg rounded-xl border border-neutral-700 bg-neutral-900/70 min-w-0">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="h-10 w-10 rounded-lg bg-green-600/20 text-green-400 flex items-center justify-center">
                         <FaNetworkWired className="h-5 w-5" />
@@ -468,12 +468,12 @@ const ServiceDetailPage = () => {
                         ([service, info]) => (
                           <div
                             key={service}
-                            className="flex items-center justify-between"
+                            className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 xs:gap-0"
                           >
                             <div className="flex items-center text-sm text-neutral-400">
                               <span className="capitalize">{service}</span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap xs:flex-nowrap">
                               <div
                                 className={`w-2 h-2 rounded-full ${
                                   info.status === "healthy" ||
@@ -486,7 +486,7 @@ const ServiceDetailPage = () => {
                                 {info.status || "unknown"}
                               </span>
                               {info.responseTime && (
-                                <span className="text-xs text-neutral-500">
+                                <span className="text-xs text-neutral-500 whitespace-nowrap">
                                   ({info.responseTime}ms)
                                 </span>
                               )}
@@ -499,17 +499,21 @@ const ServiceDetailPage = () => {
                 )}
               </div>{" "}
               {/* Real-time Logs Section */}
-              <ServiceLogs
-                serviceName={serviceName}
-                initialLogs={logs}
-                onLogsChange={setLogs}
-              />{" "}
+              <div className="overflow-x-auto custom-scrollbar rounded-xl border border-neutral-700 bg-neutral-900/70 p-0 sm:p-0 mb-6">
+                <ServiceLogs
+                  serviceName={serviceName}
+                  initialLogs={logs}
+                  onLogsChange={setLogs}
+                />
+              </div>{" "}
               {/* Real-time Metrics */}
-              <ServiceMetrics
-                serviceName={serviceName}
-                formatUptime={formatUptime}
-                initialMetrics={initialMetrics}
-              />
+              <div className="overflow-x-auto custom-scrollbar rounded-xl border border-neutral-700 bg-neutral-900/70 p-0 sm:p-0 mb-6">
+                <ServiceMetrics
+                  serviceName={serviceName}
+                  formatUptime={formatUptime}
+                  initialMetrics={initialMetrics}
+                />
+              </div>
             </div>
           ) : (
             <div className="min-h-[400px] flex items-center justify-center">
