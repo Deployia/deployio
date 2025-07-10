@@ -22,9 +22,6 @@ import {
 } from "react-icons/fa";
 
 const AnalysisResults = ({ results }) => {
-  // Debug: Log the results structure
-  console.log("AnalysisResults received:", results);
-
   if (!results) {
     return <div className="text-white">No results to display</div>;
   }
