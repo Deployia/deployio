@@ -53,8 +53,33 @@ class ConfigurationGenerator:
             "kubernetes": self._generate_kubernetes_config,
             "environment": self._generate_environment_config,
         }
+        # Standard metadata templates to reduce duplication
+        self._metadata_templates = {
+            "labels": {"managed_by": "deployio", "version": "v1"},
+            "annotations": {"deployio.ai/generated": "true"}
+        }
 
         logger.info("ConfigurationGenerator initialized successfully")
+
+    def _create_metadata(self, name: str, app_name: str, resource_type: str = "default") -> Dict[str, Any]:
+        """Create consistent metadata to reduce duplication."""
+        metadata = {
+            "name": name,
+            "labels": {
+                "app": app_name,
+                **self._metadata_templates["labels"]
+            }
+        }
+        
+        # Add resource-specific labels
+        if resource_type == "deployment":
+            metadata["labels"]["tier"] = "application"
+        elif resource_type == "service":
+            metadata["labels"]["tier"] = "networking"
+        elif resource_type == "configmap":
+            metadata["labels"]["tier"] = "configuration"
+            
+        return metadata
 
     async def generate_deployment_config(
         self,
@@ -190,7 +215,7 @@ class ConfigurationGenerator:
         deployment = {
             "apiVersion": "apps/v1",
             "kind": "Deployment",
-            "metadata": {"name": f"{app_name}-deployment", "labels": {"app": app_name}},
+            "metadata": self._create_metadata(f"{app_name}-deployment", app_name, "deployment"),
             "spec": {
                 "replicas": 3 if deployment_target == "production" else 1,
                 "selector": {"matchLabels": {"app": app_name}},
@@ -219,7 +244,7 @@ class ConfigurationGenerator:
         service = {
             "apiVersion": "v1",
             "kind": "Service",
-            "metadata": {"name": f"{app_name}-service", "labels": {"app": app_name}},
+            "metadata": self._create_metadata(f"{app_name}-service", app_name, "service"),
             "spec": {
                 "selector": {"app": app_name},
                 "ports": [

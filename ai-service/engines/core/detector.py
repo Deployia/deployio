@@ -53,6 +53,72 @@ class UnifiedDetector:
 
         logger.info("UnifiedDetector initialized with clean architecture")
 
+    def _filter_repository_data_for_llm(self, repository_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Filter repository data to send only essential information to LLM.
+        Reduces token usage by sending summaries instead of full file contents.
+        """
+        # Create filtered version with summaries instead of full content
+        filtered_data = {
+            "repository": repository_data.get("repository", {}),
+            "metadata": repository_data.get("metadata", {}),
+        }
+        
+        # Only include key files with limited content
+        key_files = repository_data.get("key_files", {})
+        essential_files = {}
+        
+        # Priority files that LLM needs to see (but truncated)
+        priority_patterns = [
+            "package.json", "requirements.txt", "pom.xml", "Cargo.toml", 
+            "go.mod", "Dockerfile", "docker-compose", "README.md"
+        ]
+        
+        # Configuration files (truncated)
+        config_patterns = [
+            "tsconfig.json", ".eslintrc", "babel.config", "webpack.config",
+            "vite.config", "next.config", "nuxt.config"
+        ]
+        
+        for filename, content in key_files.items():
+            # Include priority files with content limits
+            if any(pattern in filename for pattern in priority_patterns):
+                if isinstance(content, str):
+                    # Truncate to 1000 characters for LLM efficiency
+                    essential_files[filename] = content[:1000] + ("..." if len(content) > 1000 else "")
+                else:
+                    essential_files[filename] = content
+                    
+            # Include config files with even stricter limits
+            elif any(pattern in filename for pattern in config_patterns):
+                if isinstance(content, str):
+                    # Even smaller limit for config files
+                    essential_files[filename] = content[:500] + ("..." if len(content) > 500 else "")
+                else:
+                    essential_files[filename] = content
+        
+        # Add summary of other files instead of full content
+        other_files = set(key_files.keys()) - set(essential_files.keys())
+        if other_files:
+            filtered_data["file_summary"] = {
+                "total_additional_files": len(other_files),
+                "file_types": self._get_file_type_summary(other_files),
+                "notable_files": list(other_files)[:10]  # Just names, no content
+            }
+        
+        filtered_data["key_files"] = essential_files
+        
+        logger.debug(f"Filtered repository data: {len(key_files)} -> {len(essential_files)} files for LLM")
+        return filtered_data
+    
+    def _get_file_type_summary(self, filenames: set) -> Dict[str, int]:
+        """Get summary of file types without content."""
+        file_types = {}
+        for filename in filenames:
+            ext = filename.split('.')[-1] if '.' in filename else 'no-ext'
+            file_types[ext] = file_types.get(ext, 0) + 1
+        return dict(sorted(file_types.items(), key=lambda x: x[1], reverse=True)[:10])
+
     async def analyze_repository(
         self,
         request: AnalysisRequest,
@@ -383,14 +449,17 @@ class UnifiedDetector:
         repository_data: Dict[str, Any],
         request: AnalysisRequest,
     ):
-        """Enhance analysis result with LLM and merge with rule-based analysis for completeness."""
+        """Enhance analysis result with LLM using filtered repository data to reduce token usage."""
         logger.info(f"Starting LLM enhancement for {result.repository_name}")
         start_time = time.time()
 
         try:
-            logger.debug("Calling LLM enhancer...")
+            # Filter repository data to reduce token usage
+            filtered_repo_data = self._filter_repository_data_for_llm(repository_data)
+            
+            logger.debug(f"Using filtered repository data for LLM enhancement")
             enhanced_result = await self.llm_enhancer.enhance_analysis(
-                result, repository_data, request.options
+                result, filtered_repo_data, request.options
             )
 
             enhancement_time = time.time() - start_time

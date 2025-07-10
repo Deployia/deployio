@@ -16,6 +16,218 @@ class BasePrompts:
     """
     
     @staticmethod
+    def format_repository_summary(repository_data: Dict[str, Any]) -> str:
+        """Format a concise repository summary instead of full context."""
+        repo_info = repository_data.get('repository', {})
+        metadata = repository_data.get('metadata', {})
+        
+        # Get basic file structure info
+        files = repository_data.get('key_files', {})
+        important_files = [f for f in files.keys() if any(pattern in f for pattern in 
+            ['package.json', 'requirements.txt', 'pom.xml', 'Dockerfile', 'go.mod', 'Cargo.toml'])]
+        
+        summary = f"""
+REPOSITORY SUMMARY:
+- Name: {repo_info.get('full_name', 'unknown')}
+- Language: {repo_info.get('language', 'unknown')}
+- Key Files: {', '.join(important_files[:5])}
+- Total Files Analyzed: {metadata.get('analyzed_files', 0)}
+"""
+        return summary.strip()
+    
+    @staticmethod
+    def extract_key_technology_indicators(repository_data: Dict[str, Any]) -> str:
+        """Extract key technology indicators from repository data."""
+        files = repository_data.get('key_files', {})
+        indicators = []
+        
+        # Package managers and config files
+        if 'package.json' in files:
+            indicators.append("Node.js project (package.json present)")
+        if 'requirements.txt' in files or 'pyproject.toml' in files:
+            indicators.append("Python project (requirements/pyproject detected)")
+        if 'pom.xml' in files:
+            indicators.append("Java/Maven project")
+        if 'Cargo.toml' in files:
+            indicators.append("Rust project")
+        if 'go.mod' in files:
+            indicators.append("Go project")
+        if 'Dockerfile' in files:
+            indicators.append("Docker configuration present")
+        
+        # Framework indicators from file extensions and names
+        for filename in files.keys():
+            if filename.endswith('.vue'):
+                indicators.append("Vue.js files detected")
+            elif filename.endswith('.jsx') or filename.endswith('.tsx'):
+                indicators.append("React/JSX files detected")
+            elif 'angular.json' in filename:
+                indicators.append("Angular configuration detected")
+            elif 'django' in filename.lower() or 'settings.py' in filename:
+                indicators.append("Django framework indicators")
+        
+        return '\n'.join(f"- {indicator}" for indicator in indicators[:8]) if indicators else "No clear technology indicators found"
+    
+    @staticmethod
+    def extract_dependency_summary(repository_data: Dict[str, Any]) -> str:
+        """Extract key dependency information without full file contents."""
+        files = repository_data.get('key_files', {})
+        summary_parts = []
+        
+        # Check for package.json
+        if 'package.json' in files:
+            try:
+                import json
+                pkg_data = json.loads(files['package.json'])
+                deps = pkg_data.get('dependencies', {})
+                dev_deps = pkg_data.get('devDependencies', {})
+                summary_parts.append(f"Node.js: {len(deps)} dependencies, {len(dev_deps)} dev dependencies")
+                # Key frameworks
+                frameworks = [name for name in deps.keys() if name in ['react', 'vue', 'angular', 'express', 'next']]
+                if frameworks:
+                    summary_parts.append(f"Key frameworks: {', '.join(frameworks)}")
+            except:
+                summary_parts.append("Node.js: package.json present but unreadable")
+        
+        # Check for Python dependencies
+        if 'requirements.txt' in files:
+            req_lines = files['requirements.txt'].split('\n')
+            pkg_count = len([line for line in req_lines if line.strip() and not line.strip().startswith('#')])
+            summary_parts.append(f"Python: ~{pkg_count} packages in requirements.txt")
+        
+        if 'pyproject.toml' in files:
+            summary_parts.append("Python: pyproject.toml configuration present")
+        
+        # Check for other package managers
+        if 'pom.xml' in files:
+            summary_parts.append("Java: Maven dependencies in pom.xml")
+        if 'Cargo.toml' in files:
+            summary_parts.append("Rust: Cargo dependencies")
+        if 'go.mod' in files:
+            summary_parts.append("Go: Module dependencies")
+        
+        return '\n'.join(summary_parts) if summary_parts else "No clear dependency files found"
+    
+    @staticmethod
+    def extract_code_structure_summary(repository_data: Dict[str, Any]) -> str:
+        """Extract code structure summary without sending full file contents."""
+        files = repository_data.get('key_files', {})
+        structure_info = []
+        
+        # Directory structure indicators
+        has_src = any('src/' in filename for filename in files.keys())
+        has_components = any('components/' in filename for filename in files.keys())
+        has_tests = any('test' in filename.lower() or 'spec' in filename.lower() for filename in files.keys())
+        
+        if has_src:
+            structure_info.append("Organized source structure (src/ directory)")
+        if has_components:
+            structure_info.append("Component-based architecture")
+        if has_tests:
+            structure_info.append("Test files present")
+        
+        # File type analysis
+        file_types = {}
+        for filename in files.keys():
+            ext = filename.split('.')[-1] if '.' in filename else 'other'
+            file_types[ext] = file_types.get(ext, 0) + 1
+        
+        # Most common file types
+        common_types = sorted(file_types.items(), key=lambda x: x[1], reverse=True)[:5]
+        if common_types:
+            type_summary = ', '.join([f"{ext}: {count}" for ext, count in common_types])
+            structure_info.append(f"File types: {type_summary}")
+        
+        # Configuration files
+        config_files = [f for f in files.keys() if any(cfg in f for cfg in 
+            ['eslint', 'prettier', 'babel', 'webpack', 'vite', 'tsconfig'])]
+        if config_files:
+            structure_info.append(f"Config files: {', '.join(config_files[:3])}")
+        
+        return '\n'.join(f"- {info}" for info in structure_info) if structure_info else "Basic file structure"
+    
+    @staticmethod
+    def extract_project_overview(repository_data: Dict[str, Any]) -> str:
+        """Extract high-level project overview."""
+        repo_info = repository_data.get('repository', {})
+        files = repository_data.get('key_files', {})
+        
+        overview_parts = []
+        
+        # Basic project info
+        overview_parts.append(f"Language: {repo_info.get('language', 'Mixed/Unknown')}")
+        
+        # Project scale indicators
+        total_files = len(files)
+        if total_files > 50:
+            overview_parts.append("Large codebase (50+ files)")
+        elif total_files > 20:
+            overview_parts.append("Medium codebase (20-50 files)")
+        else:
+            overview_parts.append("Small codebase (<20 files)")
+        
+        # Documentation
+        has_readme = any('readme' in f.lower() for f in files.keys())
+        has_docs = any('doc' in f.lower() for f in files.keys())
+        if has_readme and has_docs:
+            overview_parts.append("Well documented (README + docs)")
+        elif has_readme:
+            overview_parts.append("Basic documentation (README)")
+        
+        # Development indicators
+        has_ci = any('github' in f or 'gitlab' in f or 'jenkins' in f for f in files.keys())
+        has_docker = 'Dockerfile' in files or 'docker-compose' in str(files.keys())
+        
+        if has_ci:
+            overview_parts.append("CI/CD configuration present")
+        if has_docker:
+            overview_parts.append("Containerization ready")
+        
+        return '\n'.join(f"- {part}" for part in overview_parts)
+    
+    @staticmethod
+    def extract_code_structure_summary(repository_data: Dict[str, Any]) -> str:
+        """Extract code structure summary for quality analysis."""
+        files = repository_data.get('key_files', {})
+        structure_info = []
+        
+        # Count file types
+        source_files = [f for f in files.keys() if any(f.endswith(ext) for ext in ['.js', '.ts', '.py', '.java', '.go', '.rs', '.php', '.rb'])]
+        config_files = [f for f in files.keys() if any(pattern in f for pattern in ['config', 'eslint', 'babel', 'webpack', 'tsconfig'])]
+        test_files = [f for f in files.keys() if any(pattern in f for pattern in ['test', 'spec', '__test__'])]
+        
+        if source_files:
+            structure_info.append(f"Source files: {len(source_files)} files")
+            # Get primary language from extensions
+            extensions = [f.split('.')[-1] for f in source_files if '.' in f]
+            if extensions:
+                from collections import Counter
+                common_ext = Counter(extensions).most_common(1)[0]
+                structure_info.append(f"Primary language: {common_ext[0]} ({common_ext[1]} files)")
+        
+        if config_files:
+            structure_info.append(f"Configuration files: {len(config_files)}")
+        
+        if test_files:
+            structure_info.append(f"Test files: {len(test_files)}")
+        else:
+            structure_info.append("No test files detected")
+        
+        # Check for common patterns
+        has_src_dir = any('src/' in f for f in files.keys())
+        has_components = any('component' in f.lower() for f in files.keys())
+        has_api = any('api' in f.lower() for f in files.keys())
+        
+        if has_src_dir:
+            structure_info.append("Organized source structure (src/ directory)")
+        if has_components:
+            structure_info.append("Component-based architecture detected")
+        if has_api:
+            structure_info.append("API layer detected")
+        
+        return '\n'.join(f"- {info}" for info in structure_info) if structure_info else "Basic file structure"
+
+    @staticmethod
     def format_repository_context(repository_data: Dict[str, Any]) -> str:
         """Format repository context for prompts."""
         repo_info = repository_data.get('repository', {})

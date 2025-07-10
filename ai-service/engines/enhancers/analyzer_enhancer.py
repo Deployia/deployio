@@ -46,37 +46,36 @@ class AnalyzerEnhancer:
         self, analysis_result: AnalysisResult, repository_data: Dict[str, Any]
     ) -> AnalysisResult:
         """
-        Enhance technology stack detection with LLM insights.
+        Enhance technology stack analysis using LLM insights.
+        Uses rule-based analysis as foundation and LLM for strategic validation only.
 
         Args:
-            analysis_result: Current analysis results from rule-based analyzers
-            repository_data: Repository files and metadata
+            analysis_result: Current analysis results from rule-based analyzers (our foundation)
+            repository_data: Repository summary data (filtered, not full files)
 
         Returns:
-            Enhanced analysis result with improved technology stack
+            Enhanced analysis result with LLM insights merged with rule-based foundation
         """
         if not self.is_available:
-            logger.warning(
-                "No LLM providers available for technology stack enhancement"
-            )
+            logger.warning("No LLM providers available - using rule-based results only")
             return analysis_result
 
         try:
-            logger.info("Enhancing technology stack with LLM")
+            logger.info("Enhancing technology stack with LLM validation")
 
-            # Generate technology stack enhancement prompt
+            # Generate focused enhancement prompt using summaries
             prompt_data = self.prompts.technology_stack_enhancement(
                 analysis_result, repository_data
             )
 
-            # Create LLM request
+            # Create minimal LLM request - focused on validation and gaps
             request = LLMRequest(
                 messages=[
                     {"role": "system", "content": prompt_data["system"]},
                     {"role": "user", "content": prompt_data["user"]},
                 ],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
+                max_tokens=1000,  # Reduced from 2000 - we want concise enhancements
+                temperature=0.1,   # Lower temperature for more focused responses
             )
 
             # Call LLM with fallback providers
@@ -85,19 +84,19 @@ class AnalyzerEnhancer:
             )
 
             if response and response.success:
-                # Parse and apply enhancements
+                # Parse enhancements and merge with rule-based foundation
                 enhancements = self._parse_technology_enhancement(response.content)
-                analysis_result = self._apply_technology_enhancements(
+                analysis_result = self._merge_technology_enhancements(
                     analysis_result, enhancements
                 )
-
-                logger.info("Technology stack enhancement completed successfully")
+                logger.info("Technology stack validation completed successfully")
             else:
-                logger.warning("Technology stack enhancement failed")
+                logger.warning("Technology stack enhancement failed - using rule-based results")
 
         except Exception as e:
-            logger.error(f"Technology stack enhancement error: {e}")
-
+            logger.error(f"Technology stack enhancement error: {e} - falling back to rule-based results")
+        
+        # Always return the analysis result (rule-based foundation preserved)
         return analysis_result
 
     async def enhance_dependency_analysis(
@@ -287,6 +286,53 @@ class AnalyzerEnhancer:
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse technology enhancement response: {e}")
             return {}
+    
+    def _merge_technology_enhancements(self, base_result: AnalysisResult, enhancements: Dict[str, Any]) -> AnalysisResult:
+        """
+        Merge LLM technology enhancements with rule-based foundation.
+        Preserves rule-based analysis as foundation and adds LLM insights.
+        """
+        if not enhancements:
+            return base_result
+        
+        try:
+            # Extract enhancement data
+            enhanced_data = enhancements.get('enhancements', {})
+            architecture_insights = enhancements.get('architecture_insights', [])
+            recommendations = enhancements.get('recommendations', [])
+            
+            # Add additional technologies without replacing rule-based ones
+            additional_techs = enhanced_data.get('additional_technologies', [])
+            if additional_techs and hasattr(base_result, 'technology_stack'):
+                tech_stack = base_result.technology_stack
+                if hasattr(tech_stack, 'additional_technologies'):
+                    existing = getattr(tech_stack, 'additional_technologies', [])
+                    tech_stack.additional_technologies = list(set(existing + additional_techs))
+                
+            # Add architecture insights
+            if architecture_insights:
+                if not hasattr(base_result, 'insights'):
+                    base_result.insights = []
+                base_result.insights.extend([
+                    f"Architecture: {insight.get('pattern', 'Unknown')} (confidence: {insight.get('confidence', 0)})"
+                    for insight in architecture_insights
+                ])
+            
+            # Add LLM recommendations
+            if recommendations:
+                if not hasattr(base_result, 'recommendations'):
+                    base_result.recommendations = []
+                base_result.recommendations.extend([
+                    f"{rec.get('type', 'General')}: {rec.get('title', 'No title')}"
+                    for rec in recommendations
+                ])
+            
+            logger.debug("Technology enhancements merged with rule-based foundation")
+            return base_result
+            
+        except Exception as e:
+            logger.error(f"Failed to merge technology enhancements: {e}")
+            return base_result
 
     def _parse_dependency_enhancement(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for dependency analysis enhancements."""

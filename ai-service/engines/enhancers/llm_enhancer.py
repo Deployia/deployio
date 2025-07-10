@@ -81,14 +81,15 @@ class LLMEnhancer:
     ) -> AnalysisResult:
         """
         Main enhancement orchestration method.
+        Uses rule-based as foundation and LLM for strategic insights only.
 
         Args:
-            analysis_result: Rule-based analysis results
-            repository_data: Repository file contents and metadata
+            analysis_result: Rule-based analysis results (our foundation)
+            repository_data: Repository summary data (not full files)
             enhancement_options: Options for controlling enhancement behavior
 
         Returns:
-            Enhanced analysis result with AI-generated insights
+            Enhanced analysis result with LLM-generated insights
         """
         repo_name = analysis_result.repository_name
         start_time = time.time()
@@ -96,116 +97,103 @@ class LLMEnhancer:
         try:
             logger.info(f"Starting LLM enhancement orchestration for {repo_name}")
 
-            if not self.is_available:
-                logger.warning("No LLM enhancement services available")
-                return analysis_result
-
-            options = enhancement_options or {}
+            # Always start with rule-based as foundation
             enhanced_result = analysis_result
 
-            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-            # # Check cache for existing enhancement
-            cache_key = self._generate_cache_key(
-                analysis_result, repository_data, options
-            )
-            cached_result = await self.cache_manager.get(cache_key)
-            if cached_result:
-                logger.info(f"Cache hit for LLM enhancement: {cache_key}")
-                return cached_result
-            # --- END CACHE DISABLED ---
+            if not self.is_available:
+                logger.warning("No LLM enhancement services available - using rule-based results only")
+                return enhanced_result
 
-            # Determine enhancement strategy based on confidence level
-            needs_enhancement = self._needs_enhancement(analysis_result)
-            logger.debug(f"Enhancement needed: {needs_enhancement}")
+            options = enhancement_options or {}
 
-            if needs_enhancement and self.analyzer_enhancer.is_available:
-                logger.info(f"Orchestrating analysis enhancements for {repo_name}")
+            # Only enhance if confidence is below threshold OR explicitly requested
+            confidence_threshold = options.get('confidence_threshold', 0.75)
+            current_confidence = getattr(analysis_result, 'confidence_score', 1.0)
+            force_enhancement = options.get('force_llm_enhancement', False)
+            
+            needs_enhancement = current_confidence < confidence_threshold or force_enhancement
+            
+            if not needs_enhancement:
+                logger.info(f"Skipping LLM enhancement - confidence {current_confidence} above threshold {confidence_threshold}")
+                return enhanced_result
 
-                # Create enhancement task functions (not coroutines yet)
-                enhancement_task_funcs = []
+            logger.info(f"Orchestrating LLM enhancement for {repo_name} (confidence: {current_confidence})")
 
-                # Technology stack enhancement
-                if self._needs_technology_enhancement(analysis_result):
-                    logger.debug("Scheduling technology stack enhancement")
-                    enhancement_task_funcs.append(
-                        self.analyzer_enhancer.enhance_technology_stack
-                    )
+            # Strategic enhancement only - not re-analysis
+            if self.analyzer_enhancer.is_available:
+                logger.info(f"Applying strategic enhancements for {repo_name}")
 
-                # Dependency analysis enhancement
-                if self._needs_dependency_enhancement(analysis_result):
-                    logger.debug("Scheduling dependency analysis enhancement")
-                    enhancement_task_funcs.append(
-                        self.analyzer_enhancer.enhance_dependency_analysis
-                    )
+                # Only enhance specific areas with low confidence
+                enhancement_tasks = []
 
-                # Code quality enhancement
-                if self._needs_code_quality_enhancement(analysis_result):
-                    logger.debug("Scheduling code quality enhancement")
-                    enhancement_task_funcs.append(
-                        self.analyzer_enhancer.enhance_code_quality
-                    )
-
-                # Execute enhancement tasks
-                if enhancement_task_funcs:
-                    logger.info(
-                        f"Executing {len(enhancement_task_funcs)} enhancement tasks for {repo_name}"
-                    )
-
-                    # Run the most important enhancement first, then others
-                    primary_enhancement_func = enhancement_task_funcs[0]
-                    logger.debug("Running primary enhancement task...")
-                    enhanced_result = await primary_enhancement_func(
-                        enhanced_result, repository_data
-                    )
-
-                    # Run remaining enhancements with updated result
-                    if len(enhancement_task_funcs) > 1:
-                        logger.debug(
-                            f"Running {len(enhancement_task_funcs) - 1} additional enhancement tasks..."
-                        )
-                        remaining_funcs = enhancement_task_funcs[1:]
-                        for func in remaining_funcs:
-                            enhanced_result = await func(
-                                enhanced_result, repository_data
-                            )
-                        logger.info(
-                            f"Completed {len(remaining_funcs)}/{len(remaining_funcs)} additional enhancement tasks"
-                        )
-
-                # Generate comprehensive insights as final step
-                if options.get("generate_insights", True):
-                    logger.debug("Generating comprehensive insights...")
-                    enhanced_result = (
-                        await self.analyzer_enhancer.generate_comprehensive_insights(
+                # Technology stack validation (if needed)
+                if self._needs_technology_validation(analysis_result):
+                    logger.debug("Scheduling technology stack validation")
+                    enhancement_tasks.append(
+                        self.analyzer_enhancer.enhance_technology_stack(
                             enhanced_result, repository_data
                         )
                     )
 
-            # Update confidence level based on enhancements
-            old_confidence = analysis_result.confidence_score
-            self._update_confidence_after_enhancement(enhanced_result, analysis_result)
-            new_confidence = enhanced_result.confidence_score
+                # Strategic insights generation
+                if options.get('include_insights', True):
+                    logger.debug("Scheduling strategic insights generation")
+                    enhancement_tasks.append(
+                        self.analyzer_enhancer.generate_comprehensive_insights(
+                            enhanced_result, repository_data
+                        )
+                    )
 
-            enhancement_time = time.time() - start_time
-            logger.info(
-                f"LLM enhancement completed for {repo_name} in {enhancement_time:.2f}s - confidence: {old_confidence:.2f} -> {new_confidence:.2f}"
-            )
+                # Execute strategic enhancements
+                if enhancement_tasks:
+                    logger.info(f"Executing {len(enhancement_tasks)} strategic enhancement tasks")
+                    
+                    # Execute tasks with fallback to rule-based
+                    try:
+                        enhanced_results = await asyncio.gather(*enhancement_tasks, return_exceptions=True)
+                        
+                        # Process results and merge with rule-based foundation
+                        for i, result in enumerate(enhanced_results):
+                            if isinstance(result, Exception):
+                                logger.warning(f"Enhancement task {i} failed: {result}, keeping rule-based result")
+                                continue
+                            else:
+                                # Merge successful enhancements with rule-based foundation
+                                enhanced_result = self._merge_enhancement_results(enhanced_result, result)
+                                
+                    except Exception as e:
+                        logger.error(f"LLM enhancement failed: {e}, falling back to rule-based results")
+                        # Enhanced result is already the rule-based foundation
+                        pass
 
-            # --- CACHE DISABLED FOR ENGINE DEBUGGING ---
-            # # Cache the enhanced result
-            await self.cache_manager.set(cache_key, enhanced_result, ttl=3600)
-            # --- END CACHE DISABLED ---
-
+            # Always return something - rule-based is our fallback
+            processing_time = time.time() - start_time
+            logger.info(f"LLM enhancement completed for {repo_name} in {processing_time:.2f}s")
+            
             return enhanced_result
 
         except Exception as e:
-            enhancement_time = time.time() - start_time
-            logger.error(
-                f"LLM enhancement error for {repo_name} after {enhancement_time:.2f}s: {e}",
-                exc_info=True,
-            )
-            # Return original result on failure
+            logger.error(f"LLM enhancement orchestration failed for {repo_name}: {e}")
+            # Return original rule-based results as fallback
             return analysis_result
+    
+    def _needs_technology_validation(self, analysis_result: AnalysisResult) -> bool:
+        """Check if technology stack needs LLM validation."""
+        tech_stack = getattr(analysis_result, 'technology_stack', None)
+        if not tech_stack:
+            return True
+        
+        # Check if key technologies are missing or have low confidence
+        language = getattr(tech_stack, 'language', None)
+        framework = getattr(tech_stack, 'framework', None)
+        
+        return not language or not framework
+    
+    def _merge_enhancement_results(self, base_result: AnalysisResult, enhancement_result: AnalysisResult) -> AnalysisResult:
+        """Merge LLM enhancement results with rule-based foundation."""
+        # This would merge the enhanced insights while preserving rule-based core data
+        # For now, return the enhancement result but in production this should be more sophisticated
+        return enhancement_result if enhancement_result else base_result
 
     async def generate_configurations(
         self,
