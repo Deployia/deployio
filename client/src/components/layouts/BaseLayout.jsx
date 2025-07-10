@@ -7,10 +7,13 @@ function BaseLayout({
   maxWidth = "max-w-7xl",
   padding = "py-6",
 }) {
+  // Only add horizontal padding classes if not p-0 or px-0
+  const noPad = padding.includes("p-0") || padding.includes("px-0");
+  const horizontalPad = noPad ? "" : "px-4 sm:px-6 lg:px-8";
   return (
     <div className="min-h-screen bg-black text-white">
       <div
-        className={`${maxWidth} mx-auto px-4 sm:px-6 lg:px-8 ${padding} ${className}`}
+        className={`${maxWidth} mx-auto ${horizontalPad} ${padding} ${className}`}
       >
         <motion.div
           initial={{ opacity: 0, y: 20 }}

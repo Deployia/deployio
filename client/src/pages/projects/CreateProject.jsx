@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import {  useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,7 +39,7 @@ const CreateProject = () => {
     isCompleted,
   } = useSelector((state) => state.projectCreation);
 
-  const { user } = useSelector((state) => state.auth);
+  // const { } = useSelector((state) => state.auth);
 
   // Initialize session on component mount
   useEffect(() => {
@@ -139,7 +139,7 @@ const CreateProject = () => {
     <>
       <SEO page="create-project" />
       
-      <div className="min-h-screen bg-neutral-950 text-white">
+      <div className="min-h-screen">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
