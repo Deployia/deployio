@@ -88,7 +88,7 @@ Generate a comprehensive Dockerfile that includes:
 
 Expected JSON structure:
 {{
-    "dockerfile_content": "# Complete Dockerfile content here\\nFROM node:18-alpine\\n...",
+    "dockerfile_content": "# Complete Dockerfile content here\\nFROM node:18-alpine AS builder\\nWORKDIR /app\\nCOPY package*.json ./\\nRUN npm install\\nCOPY . .\\nRUN npm run build\\n\\nFROM node:18-alpine\\nWORKDIR /app\\nCOPY --from=builder /app/dist ./dist\\nCOPY --from=builder /app/node_modules ./node_modules\\nEXPOSE 3000\\nCMD [\\"npm\\", \\"start\\"]",
     "base_image": "node:18-alpine",
     "multi_stage": true,
     "security_features": [

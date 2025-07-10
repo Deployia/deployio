@@ -351,13 +351,20 @@ class GeneratorEnhancer:
     def _parse_dockerfile_response(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for Dockerfile generation."""
         try:
-            # Extract Dockerfile content
-            dockerfile_content = self._extract_code_block(
-                response_content, "dockerfile"
-            )
-
-            # Also try to extract JSON metadata if present
+            # Extract JSON metadata first
             metadata = self._extract_json_metadata(response_content)
+            
+            # Extract dockerfile content from JSON if available
+            dockerfile_content = ""
+            if metadata and "dockerfile_content" in metadata:
+                dockerfile_content = metadata["dockerfile_content"]
+                # Remove dockerfile_content from metadata to avoid duplication
+                metadata = {k: v for k, v in metadata.items() if k != "dockerfile_content"}
+            else:
+                # Fallback: try to extract Dockerfile code block
+                dockerfile_content = self._extract_code_block(
+                    response_content, "dockerfile"
+                )
 
             return {
                 "dockerfile": dockerfile_content,
@@ -381,11 +388,18 @@ class GeneratorEnhancer:
     def _parse_docker_compose_response(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for Docker Compose generation."""
         try:
-            # Extract Docker Compose content
-            compose_content = self._extract_code_block(response_content, "yaml")
-
-            # Also try to extract JSON metadata if present
+            # Extract JSON metadata first
             metadata = self._extract_json_metadata(response_content)
+            
+            # Extract docker compose content from JSON if available
+            compose_content = ""
+            if metadata and "docker_compose_content" in metadata:
+                compose_content = metadata["docker_compose_content"]
+                # Remove docker_compose_content from metadata to avoid duplication
+                metadata = {k: v for k, v in metadata.items() if k != "docker_compose_content"}
+            else:
+                # Fallback: try to extract YAML code block
+                compose_content = self._extract_code_block(response_content, "yaml")
 
             return {
                 "docker_compose": compose_content,
@@ -409,11 +423,18 @@ class GeneratorEnhancer:
     def _parse_github_actions_response(self, response_content: str) -> Dict[str, Any]:
         """Parse LLM response for GitHub Actions workflow generation."""
         try:
-            # Extract GitHub Actions workflow content
-            workflow_content = self._extract_code_block(response_content, "yaml")
-
-            # Also try to extract JSON metadata if present
+            # Extract JSON metadata first
             metadata = self._extract_json_metadata(response_content)
+            
+            # Extract workflow content from JSON if available
+            workflow_content = ""
+            if metadata and "workflow_content" in metadata:
+                workflow_content = metadata["workflow_content"]
+                # Remove workflow_content from metadata to avoid duplication
+                metadata = {k: v for k, v in metadata.items() if k != "workflow_content"}
+            else:
+                # Fallback: try to extract YAML code block
+                workflow_content = self._extract_code_block(response_content, "yaml")
 
             return {
                 "github_actions": workflow_content,

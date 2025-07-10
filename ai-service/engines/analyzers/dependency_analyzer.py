@@ -152,8 +152,14 @@ class DependencyAnalyzer(BaseAnalyzer):
                             if manager not in package_managers:
                                 package_managers.append(manager)
 
+            # Remove duplicate dependencies (same name + manager combination)
+            unique_dependencies = self._remove_duplicate_dependencies(dependencies)
+            logger.info(f"Removed {len(dependencies) - len(unique_dependencies)} duplicate dependencies")
+
             # Analyze dependencies
-            analysis = self._analyze_dependencies(dependencies)
+            analysis = self._analyze_dependencies(unique_dependencies)
+            # Set package managers on the analysis object
+            analysis.package_managers = package_managers
             result.dependency_analysis = analysis
             # Generate insights
             insights = self._generate_dependency_insights(analysis, dependencies)
@@ -765,3 +771,36 @@ class DependencyAnalyzer(BaseAnalyzer):
         )
 
         return insights
+
+    def _remove_duplicate_dependencies(self, dependencies: List[DependencyInfo]) -> List[DependencyInfo]:
+        """Remove duplicate dependencies, keeping the latest version found"""
+        seen = {}
+        unique_dependencies = []
+        
+        for dep in dependencies:
+            key = f"{dep.name}:{dep.manager}"
+            
+            if key not in seen:
+                seen[key] = dep
+                unique_dependencies.append(dep)
+            else:
+                # If we've seen this dependency before, keep the one with a version if available
+                existing = seen[key]
+                if dep.version and not existing.version:
+                    # Replace existing with this one that has a version
+                    seen[key] = dep
+                    # Find and replace in the list
+                    for i, existing_dep in enumerate(unique_dependencies):
+                        if existing_dep.name == existing.name and existing_dep.manager == existing.manager:
+                            unique_dependencies[i] = dep
+                            break
+                elif dep.version and existing.version:
+                    # Keep the one that appears later (might be more recent)
+                    seen[key] = dep
+                    for i, existing_dep in enumerate(unique_dependencies):
+                        if existing_dep.name == existing.name and existing_dep.manager == existing.manager:
+                            unique_dependencies[i] = dep
+                            break
+                # If both have no version or existing has version and new doesn't, keep existing
+        
+        return unique_dependencies

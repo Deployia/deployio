@@ -163,3 +163,84 @@ Result: Rule-based foundation + strategic LLM enhancement
 ✅ Rule-based foundation with strategic LLM enhancement
 
 The AI service now uses LLM wisely as intended - rule-based analysis provides the foundation, and LLM adds strategic insights only when needed.
+
+## LATEST CRITICAL FIXES (FINAL ITERATION)
+
+### 5. **Dependency Analysis Fixes**
+**Files Modified:**
+- `engines/analyzers/dependency_analyzer.py`
+
+**Changes:**
+- ✅ **Fixed Duplicate Dependencies**: Added `_remove_duplicate_dependencies()` method to eliminate duplicates like cors, express, mongoose appearing multiple times
+- ✅ **Fixed Missing Package Managers**: Properly populate `package_managers` field in analysis results (was always empty)
+- ✅ **Smart Deduplication**: Keep the best version info when removing duplicates
+- ✅ **Enhanced Logging**: Track duplicate removal for debugging
+
+**Impact**: Clean dependency analysis without duplicates, properly filled package_managers array
+
+### 6. **Configuration Generation Fixes**
+**Files Modified:**
+- `engines/enhancers/generator_enhancer.py`
+- `engines/prompts/generator_prompts.py`
+
+**Changes:**
+- ✅ **Fixed Malformed JSON Output**: Configurations were returning JSON-wrapped content instead of clean files
+- ✅ **Enhanced Response Parsing**: Extract clean content from JSON metadata responses
+- ✅ **Improved Dockerfile/YAML Extraction**: Proper parsing for all configuration types
+- ✅ **Better Prompt Examples**: Updated prompts with correct content structure
+
+**Impact**: Clean, production-ready configuration files without JSON wrapping
+
+### 7. **Analysis Field Population**
+**Files Modified:**
+- `engines/analyzers/stack_analyzer.py`
+
+**Changes:**
+- ✅ **Added System Dependencies Detection**: Language-specific system dependencies (postgresql-dev, python3, etc.)
+- ✅ **Added Dockerfile Hints**: Multi-stage build hints, security recommendations, optimization tips
+- ✅ **Enhanced Deployment Configuration**: CPU/memory requirements, port mappings, service dependencies
+- ✅ **Comprehensive Field Filling**: All previously null fields now properly populated
+
+**Impact**: Complete analysis output with all fields filled, better deployment insights
+
+## DATA MODEL CONSISTENCY FIXES (FINAL)
+
+### 8. **RecommendationModel Validation Fix**
+**Files Modified:**
+- `engines/utils/result_processor.py`
+- `engines/prompts/analysis_prompts.py`
+
+**Changes:**
+- ✅ **Fixed Missing Reasoning Field**: Added required `reasoning` field to RecommendationModel creation
+- ✅ **Corrected Field Names**: Removed invalid fields (`category`, `confidence`, `source`) not in the model
+- ✅ **Updated Prompt Structure**: Aligned prompt expectations with actual RecommendationModel fields
+- ✅ **Consistent Field Mapping**: Ensured prompt output maps correctly to model structure
+
+**Impact**: Eliminates Pydantic validation errors, ensures all recommendation objects are properly created
+
+### 9. **Data Model Field Alignment**
+**Files Validated:**
+- `models/analysis_models.py` - BuildConfiguration, DeploymentConfiguration fields
+- `models/common_models.py` - RecommendationModel structure
+- `engines/analyzers/stack_analyzer.py` - Field population consistency
+
+**Validation Results:**
+- ✅ All BuildConfiguration fields properly supported (system_dependencies, dockerfile_hints, etc.)
+- ✅ All DeploymentConfiguration fields properly supported (cpu_requirements, memory_requirements, etc.)
+- ✅ RecommendationModel structure consistent across all usage points
+- ✅ No field type mismatches or missing required fields
+
+## VALIDATION ERROR RESOLUTION
+
+### Pydantic Validation Error ✅ FIXED
+- **Error**: `Field required [type=missing, input_value={'type': 'enhancement', ...}, input_type=dict]` for `reasoning` field
+- **Root Cause**: RecommendationModel objects created without required `reasoning` field
+- **Files Fixed**: `engines/utils/result_processor.py` (line 206), `engines/prompts/analysis_prompts.py` (recommendation structure)
+- **Solution**: Added proper field mapping and default values for all required fields
+- **Status**: Completely resolved
+
+### Model Structure Consistency ✅ VERIFIED
+- **BuildConfiguration**: All fields used in stack_analyzer are properly defined in model
+- **DeploymentConfiguration**: All fields used in stack_analyzer are properly defined in model  
+- **RecommendationModel**: Structure now consistent between creation and model definition
+- **Prompt Alignment**: Prompt output structure now matches model expectations

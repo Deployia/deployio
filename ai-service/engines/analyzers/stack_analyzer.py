@@ -453,6 +453,12 @@ class StackAnalyzer(BaseAnalyzer):
         # Extract ports
         self._extract_exposed_ports(repository_data, config)
 
+        # Extract system dependencies
+        self._extract_system_dependencies(repository_data, config, language)
+
+        # Extract dockerfile hints
+        self._extract_dockerfile_hints(repository_data, config, language, framework)
+
         return config
 
     def _extract_node_build_config(
@@ -647,37 +653,102 @@ class StackAnalyzer(BaseAnalyzer):
             elif self._check_content_pattern(repository_data, r"spring"):
                 config.exposed_ports.append(8080)
 
-    def _extract_deployment_configuration(
-        self, repository_data: Dict[str, Any], framework: Optional[str]
-    ) -> DeploymentConfiguration:
-        """Extract deployment configuration"""
+    def _extract_system_dependencies(
+        self, repository_data: Dict[str, Any], config: BuildConfiguration, language: Optional[str]
+    ):
+        """Extract system dependencies based on detected patterns"""
+        
+        system_deps = []
+        
+        # Language-specific system dependencies
+        if language == "python":
+            # Check for common Python system dependencies
+            if self._check_content_pattern(repository_data, r"psycopg2|pg|postgres"):
+                system_deps.extend(["postgresql-dev", "libpq-dev"])
+            if self._check_content_pattern(repository_data, r"mysqlclient|mysql"):
+                system_deps.extend(["mysql-dev", "libmysqlclient-dev"])
+            if self._check_content_pattern(repository_data, r"pillow|PIL"):
+                system_deps.extend(["jpeg-dev", "zlib-dev", "freetype-dev"])
+            if self._check_content_pattern(repository_data, r"lxml"):
+                system_deps.extend(["libxml2-dev", "libxslt-dev"])
+                
+        elif language == "node" or language == "javascript":
+            # Check for common Node.js system dependencies
+            if self._check_content_pattern(repository_data, r"sharp|canvas"):
+                system_deps.extend(["vips-dev", "cairo-dev"])
+            if self._check_content_pattern(repository_data, r"node-gyp|bcrypt"):
+                system_deps.extend(["python3", "make", "g++"])
+                
+        elif language == "go":
+            # Go often needs git for module downloads
+            system_deps.append("git")
+            
+        elif language == "rust":
+            # Rust might need additional build tools
+            system_deps.extend(["gcc", "musl-dev"])
+            
+        # Check for specific tools in repository
+        if self._check_file_exists(repository_data, "Dockerfile"):
+            system_deps.append("docker")
+        if self._check_file_exists(repository_data, "docker-compose.yml"):
+            system_deps.append("docker-compose")
+            
+        # Remove duplicates and add to config
+        config.system_dependencies = list(set(system_deps))
 
-        config = DeploymentConfiguration()
-
-        # Set service name from repository
-        repo_name = repository_data.get("repository", {}).get("name", "")
-        if repo_name:
-            config.service_name = repo_name.lower().replace("_", "-")
-
-        # Determine service type
-        if framework in ["express", "fastapi", "flask", "django", "spring"]:
-            config.service_type = "api"
-        elif framework in ["react", "vue", "angular", "nextjs", "nuxtjs"]:
-            config.service_type = "web"
-        else:
-            config.service_type = "web"
-
-        # Set health check paths
-        if framework in ["fastapi"]:
-            config.health_check_path = "/health"
-            config.readiness_probe_path = "/health"
-        elif framework in ["spring"]:
-            config.health_check_path = "/actuator/health"
-            config.readiness_probe_path = "/actuator/health"
-        elif framework in ["express", "flask", "django"]:
-            config.health_check_path = "/health"
-
-        return config
+    def _extract_dockerfile_hints(
+        self, repository_data: Dict[str, Any], config: BuildConfiguration, 
+        language: Optional[str], framework: Optional[str]
+    ):
+        """Extract hints for Dockerfile generation"""
+        
+        hints = []
+        
+        # Multi-stage build hints
+        if language == "node" or language == "javascript":
+            hints.append("Use multi-stage build for smaller production image")
+            hints.append("Copy package.json first for better layer caching")
+            if framework == "nextjs":
+                hints.append("Use next build and next start for production")
+            elif framework == "react":
+                hints.append("Use nginx to serve static files in production")
+                
+        elif language == "python":
+            hints.append("Use alpine-based images for smaller size")
+            if framework == "django":
+                hints.append("Run collectstatic for static files")
+                hints.append("Use gunicorn for production server")
+            elif framework == "fastapi":
+                hints.append("Use uvicorn for ASGI server")
+                
+        elif language == "java":
+            hints.append("Use multi-stage build to separate build and runtime")
+            hints.append("Use JRE instead of JDK for runtime image")
+            if framework == "spring":
+                hints.append("Extract JAR layers for better caching")
+                
+        elif language == "go":
+            hints.append("Use multi-stage build with scratch or alpine base")
+            hints.append("Build static binary for minimal runtime image")
+            
+        elif language == "rust":
+            hints.append("Use multi-stage build with cargo chef for dependency caching")
+            hints.append("Use distroless or alpine for runtime image")
+            
+        # Security and optimization hints
+        hints.extend([
+            "Run as non-root user for security",
+            "Set proper signal handling for graceful shutdown",
+            "Add health check endpoint"
+        ])
+        
+        # Check for specific files that suggest additional hints
+        if self._check_file_exists(repository_data, ".dockerignore"):
+            hints.append("Existing .dockerignore found - review for completeness")
+        if self._check_file_exists(repository_data, "docker-compose.yml"):
+            hints.append("Consider consistency with existing docker-compose.yml")
+            
+        config.dockerfile_hints = hints
 
     def _calculate_confidence(
         self, lang_confidence: float, framework_confidence: float
@@ -769,3 +840,145 @@ class StackAnalyzer(BaseAnalyzer):
             )
 
         return insights
+
+    def _extract_deployment_configuration(
+        self, repository_data: Dict[str, Any], framework: Optional[str]
+    ) -> DeploymentConfiguration:
+        """Extract deployment configuration"""
+
+        config = DeploymentConfiguration()
+
+        # Set service name from repository
+        repo_name = repository_data.get("repository", {}).get("name", "")
+        if repo_name:
+            config.service_name = repo_name.lower().replace("_", "-")
+
+        # Determine service type
+        if framework in ["express", "fastapi", "flask", "django", "spring"]:
+            config.service_type = "api"
+        elif framework in ["react", "vue", "angular", "nextjs", "nuxtjs"]:
+            config.service_type = "web"
+        else:
+            config.service_type = "web"
+
+        # Set scaling defaults
+        config.min_instances = 1
+        config.max_instances = 10
+
+        # Set basic resource requirements
+        if config.service_type == "api":
+            config.cpu_requirements = "500m"
+            config.memory_requirements = "512Mi"
+        else:
+            config.cpu_requirements = "250m"
+            config.memory_requirements = "256Mi"
+
+        # Extract ports from build configuration for internal/external mapping
+        self._extract_deployment_ports(repository_data, config)
+
+        # Set health check paths
+        if framework in ["fastapi"]:
+            config.health_check_path = "/health"
+            config.readiness_probe_path = "/health"
+        elif framework in ["spring"]:
+            config.health_check_path = "/actuator/health"
+            config.readiness_probe_path = "/actuator/health"
+        elif framework in ["express", "flask", "django"]:
+            config.health_check_path = "/health"
+
+        # Extract service dependencies
+        self._extract_service_dependencies(repository_data, config)
+
+        return config
+
+    def _extract_deployment_ports(
+        self, repository_data: Dict[str, Any], config: DeploymentConfiguration
+    ):
+        """Extract port mappings for deployment"""
+        
+        # Check common port patterns in code
+        port_patterns = [
+            r"port[:\s]*(\d+)",
+            r'listen\([\'"]?(\d+)[\'"]?\)',
+            r"PORT[:\s]*=?[:\s]*(\d+)",
+            r'app\.listen\([\'"]?(\d+)[\'"]?\)',
+        ]
+
+        found_ports = []
+        key_files = repository_data.get("key_files", {})
+        for file_path, file_data in key_files.items():
+            content = ""
+            if isinstance(file_data, dict):
+                content = file_data.get("content", "")
+            else:
+                content = str(file_data)
+
+            for pattern in port_patterns:
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    try:
+                        port = int(match)
+                        if 1000 <= port <= 65535:  # Valid port range
+                            found_ports.append(port)
+                    except ValueError:
+                        continue
+
+        # Remove duplicates and sort
+        found_ports = sorted(list(set(found_ports)))
+
+        # Set internal and external ports
+        if found_ports:
+            config.internal_ports = found_ports
+            config.external_ports = found_ports  # Same as internal for basic setup
+        else:
+            # Default ports based on common frameworks
+            if self._check_content_pattern(repository_data, r"express|nodejs"):
+                config.internal_ports = [3000]
+                config.external_ports = [3000]
+            elif self._check_content_pattern(repository_data, r"fastapi|flask|django"):
+                config.internal_ports = [8000]
+                config.external_ports = [8000]
+            elif self._check_content_pattern(repository_data, r"spring"):
+                config.internal_ports = [8080]
+                config.external_ports = [8080]
+
+    def _extract_service_dependencies(
+        self, repository_data: Dict[str, Any], config: DeploymentConfiguration
+    ):
+        """Extract service dependencies from code patterns"""
+        
+        service_deps = []
+        external_deps = []
+        
+        # Check for database dependencies
+        if self._check_content_pattern(repository_data, r"postgresql|psycopg2|pg"):
+            service_deps.append("postgresql")
+            external_deps.append("PostgreSQL database")
+        elif self._check_content_pattern(repository_data, r"mysql|pymysql"):
+            service_deps.append("mysql")
+            external_deps.append("MySQL database")
+        elif self._check_content_pattern(repository_data, r"mongodb|pymongo"):
+            service_deps.append("mongodb")
+            external_deps.append("MongoDB database")
+        elif self._check_content_pattern(repository_data, r"redis"):
+            service_deps.append("redis")
+            external_deps.append("Redis cache")
+            
+        # Check for message queue dependencies
+        if self._check_content_pattern(repository_data, r"rabbitmq|celery"):
+            service_deps.append("rabbitmq")
+            external_deps.append("RabbitMQ message broker")
+        elif self._check_content_pattern(repository_data, r"kafka"):
+            service_deps.append("kafka")
+            external_deps.append("Apache Kafka")
+            
+        # Check for external service dependencies
+        if self._check_content_pattern(repository_data, r"elasticsearch"):
+            external_deps.append("Elasticsearch search engine")
+        if self._check_content_pattern(repository_data, r"s3|aws"):
+            external_deps.append("AWS S3 storage")
+        if self._check_content_pattern(repository_data, r"smtp|email"):
+            external_deps.append("SMTP email service")
+            
+        config.service_dependencies = service_deps
+        config.external_dependencies = external_deps

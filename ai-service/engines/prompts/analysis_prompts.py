@@ -342,10 +342,12 @@ Expected JSON structure:
     }},
     "recommendations": [
         {{
-            "category": "technology|architecture|deployment|workflow",
+            "type": "enhancement|optimization|security|deployment",
+            "priority": "high|medium|low",
             "title": "Strategic recommendation",
             "description": "Brief strategic guidance",
-            "priority": "high|medium|low"
+            "reasoning": "Why this recommendation is important",
+            "implementation": "Optional implementation guidance"
         }}
     ]
 }}

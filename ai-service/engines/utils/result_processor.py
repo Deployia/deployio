@@ -205,12 +205,11 @@ class AnalysisResultProcessor:
                     analysis_result.recommendations.append(
                         RecommendationModel(
                             type=rec.get("type", "enhancement"),
-                            category=rec.get("category", "general"),
+                            priority=rec.get("priority", "medium"),
                             title=rec.get("title", "Recommendation"),
                             description=rec.get("description", ""),
-                            priority=rec.get("priority", "medium"),
-                            confidence=0.85,
-                            source="llm_enhancement",
+                            reasoning=rec.get("reasoning", "Recommendation based on LLM analysis of project patterns and best practices."),
+                            implementation=rec.get("implementation"),
                         )
                     )
 
