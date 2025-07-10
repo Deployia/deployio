@@ -87,7 +87,7 @@ jobs:
           docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest ./client
 
           echo "📦 Building AI service..."
-          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest ./ai_service
+          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest ./ai-service
 
           echo "🚀 Pushing images to ECR..."
 
