@@ -20,7 +20,10 @@ const Navbar = memo(() => {
   const dispatch = useDispatch();
   const location = useLocation();
   const [openDropdown, setOpenDropdown] = useState(null);
-  const [hoverTimeout, setHoverTimeout] = useState(null);
+  const [hoveredDropdown, setHoveredDropdown] = useState(null);
+  const hoveredDropdownRef = useRef(null);
+  const leaveTimeoutRef = useRef(); // NEW: ref for timeout id
+  const leaveDropdownIdRef = useRef(null); // NEW: ref for dropdownId
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { isAuthenticated, loading, user } = useSelector((state) => state.auth);
   const dropdownRef = useRef(null); // Determine which navigation items to use based on current route
@@ -44,30 +47,21 @@ const Navbar = memo(() => {
   // Close dropdowns when location changes
   useEffect(() => {
     setOpenDropdown(null);
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      setHoverTimeout(null);
-    }
-  }, [location.pathname, hoverTimeout]);
+    setHoveredDropdown(null);
+  }, [location.pathname]);
 
   // Close dropdown when clicking outside or on mobile screen resize
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setOpenDropdown(null);
-        if (hoverTimeout) {
-          clearTimeout(hoverTimeout);
-          setHoverTimeout(null);
-        }
+        setHoveredDropdown(null);
       }
     };
     const handleResize = () => {
       // Close dropdowns on screen size changes to prevent issues
       setOpenDropdown(null);
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-        setHoverTimeout(null);
-      }
+      setHoveredDropdown(null);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -79,11 +73,19 @@ const Navbar = memo(() => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("resize", handleResize);
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-      }
     };
-  }, [hoverTimeout]);
+  }, []);
+
+  // Keep hoveredDropdownRef in sync with hoveredDropdown
+  useEffect(() => {
+    hoveredDropdownRef.current = hoveredDropdown;
+  }, [hoveredDropdown]);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+    };
+  }, []);
 
   // Memoize event handlers to prevent re-creation on every render
   const onLogout = useCallback(() => {
@@ -98,22 +100,32 @@ const Navbar = memo(() => {
       });
   }, [dispatch, navigate]);
 
-  const { scrollToSection: hookScrollToSection } = useScrollHook();
+  // Dropdown open/close logic
+  const handleDropdownMouseEnter = useCallback((dropdownId) => {
+    if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+    setOpenDropdown(dropdownId);
+    setHoveredDropdown(dropdownId);
+  }, []);
+  const handleDropdownMouseLeave = useCallback((dropdownId) => {
+    setHoveredDropdown(null);
+    leaveDropdownIdRef.current = dropdownId;
+    leaveTimeoutRef.current = setTimeout(() => {
+      if (hoveredDropdownRef.current === null) {
+        setOpenDropdown((current) =>
+          current === leaveDropdownIdRef.current ? null : current
+        );
+      }
+    }, 100);
+  }, []);
 
   // Enhanced smooth scroll to section with cross-page navigation
+  const { scrollToSection: hookScrollToSection } = useScrollHook();
   const scrollToSection = useCallback(
     (sectionId) => {
-      // Clear dropdown immediately
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-        setHoverTimeout(null);
-      }
       setOpenDropdown(null);
-
-      // Use the hook for consistent cross-page navigation
       hookScrollToSection(sectionId);
     },
-    [hoverTimeout, hookScrollToSection]
+    [hookScrollToSection]
   );
 
   // Handler for logo click - scroll to top if on home page, otherwise navigate to home
@@ -136,32 +148,25 @@ const Navbar = memo(() => {
     setOpenDropdown((prev) => (prev === dropdownId ? null : dropdownId));
   }, []);
 
-  const openDropdownOnHover = useCallback(
-    (dropdownId) => {
-      // Clear any existing timeout
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-        setHoverTimeout(null);
-      }
-      setOpenDropdown(dropdownId);
-    },
-    [hoverTimeout]
-  );
-  const closeDropdown = useCallback(() => {
-    // Add a longer delay before closing to improve UX
-    const timeout = setTimeout(() => {
-      setOpenDropdown(null);
-    }, 700); // Increased to 700ms for better UX
-    setHoverTimeout(timeout);
+  const openDropdownOnHover = useCallback((dropdownId) => {
+    setOpenDropdown(dropdownId);
+    setHoveredDropdown(dropdownId);
   }, []);
-
+  const closeDropdown = useCallback(() => {
+    setHoveredDropdown(null);
+    // Delay closing to allow for mouse movement between button and dropdown
+    setTimeout(() => {
+      // Use ref to get latest hoveredDropdown value
+      if (hoveredDropdownRef.current === null) {
+        setOpenDropdown((current) =>
+          current === leaveDropdownIdRef.current ? null : current
+        );
+      }
+    }, 100); // 100ms delay for smoothness
+  }, []);
   const keepDropdownOpen = useCallback(() => {
     // Clear timeout when hovering over dropdown content
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      setHoverTimeout(null);
-    }
-  }, [hoverTimeout]);
+  }, []);
   // Disable logout button while logout is processing
   const isLoggingOut = loading && loading.logout;
 
@@ -205,21 +210,22 @@ const Navbar = memo(() => {
               </span>
             </Link>
             {/* Desktop Navigation */}
-            <nav
-              className="hidden md:block"
-              ref={dropdownRef}
-              onMouseLeave={closeDropdown}
-            >
+            <nav className="hidden md:block" ref={dropdownRef}>
               <ul className="flex items-center gap-2">
                 {/* Navigation Dropdowns */}
                 {navigationItems.map((item) => (
                   <li
                     key={item.id}
                     className="relative"
-                    onMouseEnter={() => openDropdownOnHover(item.id)}
+                    onMouseEnter={() => handleDropdownMouseEnter(item.id)}
+                    onMouseLeave={() => handleDropdownMouseLeave(item.id)}
                   >
                     <button
-                      onClick={() => toggleDropdown(item.id)}
+                      onClick={() =>
+                        setOpenDropdown(
+                          openDropdown === item.id ? null : item.id
+                        )
+                      }
                       className="inline-flex items-center justify-center gap-1 px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-neutral-800/50 transition-all duration-200 font-medium text-sm body border border-transparent hover:border-neutral-700"
                     >
                       {item.label}
@@ -239,8 +245,8 @@ const Navbar = memo(() => {
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
                           transition={{ duration: 0.15, ease: "easeOut" }}
-                          onMouseEnter={keepDropdownOpen}
-                          onMouseLeave={closeDropdown}
+                          onMouseEnter={() => handleDropdownMouseEnter(item.id)}
+                          onMouseLeave={() => handleDropdownMouseLeave(item.id)}
                           className={`absolute top-full mt-2 w-80 bg-neutral-800/95 backdrop-blur-lg border border-neutral-700/50 rounded-xl shadow-2xl overflow-hidden z-50 ${
                             item.id === "resources"
                               ? "right-0"
@@ -267,7 +273,7 @@ const Navbar = memo(() => {
                                       href={subItem.href}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      onClick={closeDropdown}
+                                      onClick={() => setOpenDropdown(null)}
                                       className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/80 transition-all duration-200 group relative overflow-hidden"
                                     >
                                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -293,7 +299,7 @@ const Navbar = memo(() => {
                                   ) : (
                                     <Link
                                       to={subItem.href}
-                                      onClick={closeDropdown}
+                                      onClick={() => setOpenDropdown(null)}
                                       className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-700/80 transition-all duration-200 group relative overflow-hidden"
                                     >
                                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
