@@ -53,4 +53,4 @@ ENV PATH="/venv/bin:$PATH"
 EXPOSE 8000
 
 # Use Uvicorn with production settings
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--ws", "none","--workers", "1"]
