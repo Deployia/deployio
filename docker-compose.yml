@@ -42,9 +42,9 @@ services:
       - web
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
       ai-service:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   backend:
@@ -72,6 +72,12 @@ services:
     networks:
       - web
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   ai-service:
     image: 533266971626.dkr.ecr.ap-south-1.amazonaws.com/deployio-ai-service:latest
@@ -93,7 +99,16 @@ services:
       - "traefik.http.routers.ai-service.priority=2"
     networks:
       - web
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/service/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   redis:
     image: redis:alpine

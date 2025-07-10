@@ -81,7 +81,7 @@ jobs:
           echo "🏗️ Building Docker images with optimizations..."
 
           echo "📦 Building backend service..."
-          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest .
+          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest ./server
 
           echo "📦 Building frontend service..."
           docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest ./client

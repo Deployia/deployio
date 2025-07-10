@@ -10,6 +10,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production --legacy-peer-deps
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 # Copy server source code
 COPY . .
 
