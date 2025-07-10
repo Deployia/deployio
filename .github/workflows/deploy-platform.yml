@@ -29,6 +29,17 @@ jobs:
       - name: 📝 Write frontend .env.production
         run: echo "${{ secrets.ENV_CLIENT_PROD }}" > client/.env.production
 
+      - name: 🏗️ Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🗄️ Docker Cache - Restore
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
       - name: 🔐 Login to Amazon ECR
         run: |
           echo "🔐 Authenticating with Amazon ECR..."
@@ -76,31 +87,35 @@ jobs:
           echo "🎯 TOTAL ECR USAGE: ${total_size_mb} MB across all repositories"
           echo "============================================"
 
-      - name: 🏗️ Build and Push Docker Images
+      - name: 🏗️ Build and Push Docker Images (with cache)
         run: |
-          echo "🏗️ Building Docker images with optimizations..."
+          echo "🏗️ Building Docker images with Buildx and cache..."
 
           echo "📦 Building backend service..."
-          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest ./server
+          docker buildx build --compress --push \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest ./server
 
           echo "📦 Building frontend service..."
-          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest ./client
+          docker buildx build --compress --push \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest ./client
 
           echo "📦 Building AI service..."
-          docker build --compress -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest ./ai-service
+          docker buildx build --compress --push \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest ./ai-service
 
-          echo "🚀 Pushing images to ECR..."
+          echo "✅ All images built and pushed with cache!"
 
-          echo "⬆️  Pushing backend image..."
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-backend:latest
-
-          echo "⬆️  Pushing frontend image..."
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-frontend:latest
-
-          echo "⬆️  Pushing AI service image..."
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/deployio-ai-service:latest
-
-          echo "✅ All images pushed successfully!"
+      - name: 🗄️ Docker Cache - Save
+        if: always()
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: 🚀 Deploy on EC2 via SSH
         uses: appleboy/ssh-action@master
@@ -125,6 +140,9 @@ jobs:
               | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
             cd ~/deployio
+
+            # pull the recent changes 
+            git pull origin main
 
             # Graceful shutdown
             echo "🛑 Stopping existing services..."
