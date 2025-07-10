@@ -62,6 +62,18 @@ function extractCodeAndLang(input, fallbackLang = "text") {
   if (/^name: .+\non:/m.test(str) && /jobs:/m.test(str)) {
     return { code: str, language: "yaml" };
   }
+  if (str.startsWith("{") && str.includes(":")) {
+    return { code: str, language: "json" };
+  }
+  if (/^\s*#!/m.test(str) || /export\s+\w+=/m.test(str)) {
+    return { code: str, language: "shell" };
+  }
+  if (/^\s*<\?xml|^\s*<html|^\s*<!DOCTYPE/m.test(str)) {
+    return { code: str, language: "xml" };
+  }
+  if (/^\s*\w+\s*{|^\s*\.\w+\s*{/m.test(str)) {
+    return { code: str, language: "css" };
+  }
 
   // Fallback: plain text
   return { code: str, language: fallbackLang };

@@ -21,6 +21,7 @@ import api from "@utils/api";
 import { useAuthRedirect } from "@utils/authRedirect";
 import webSocketService from "@services/websocketService";
 import SmartConfigCodeBlock from "@components/common/SmartConfigCodeBlock";
+import ConfigMetadata from "@components/common/ConfigMetadata";
 
 const AnalysisDemo = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ const AnalysisDemo = () => {
   const [serviceHealth, setServiceHealth] = useState(null);
   const [checkingHealth, setCheckingHealth] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
-  const [operationId, setOperationId] = useState(null); // eslint-disable-line no-unused-vars
+  const [operationId, setOperationId] = useState(null);
   const [realProgress, setRealProgress] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
   const progressIntervalRef = useRef(null);
@@ -87,7 +88,6 @@ const AnalysisDemo = () => {
 
       // Listen for progress updates
       socket.on("ai:progress", (data) => {
-        console.log("Received progress update:", data);
         setRealProgress(data);
 
         // Map progress to our step system
@@ -138,19 +138,14 @@ const AnalysisDemo = () => {
 
       // Listen for disconnect
       socket.on("disconnect", () => {
-        console.log("WebSocket disconnected");
         setWsConnected(false);
       });
 
       // Listen for reconnect
       socket.on("connect", () => {
-        console.log("WebSocket connected/reconnected");
         setWsConnected(true);
       });
-
-      console.log("WebSocket AI connection established");
     } catch (error) {
-      console.error("Failed to connect to WebSocket:", error);
       setWsConnected(false);
     }
   }, [currentStep, progressSteps.length]); // Include all dependencies
@@ -277,7 +272,6 @@ const AnalysisDemo = () => {
 
     // Start with fallback animation if WebSocket is not connected
     if (!wsConnected) {
-      console.log("WebSocket not connected, using fallback progress animation");
       startProgressAnimation();
     } else {
       // Reset progress for real-time updates
@@ -949,51 +943,102 @@ const AnalysisDemo = () => {
 
                       <div className="space-y-6">
                         {generationResults &&
-                          Object.entries(generationResults).map(
-                            ([configType, config]) => {
+                          Object.entries(generationResults)
+                            .filter(([configType, config]) => {
+                              // Skip metadata entry
+                              if (configType === "metadata") return false;
+                              
+                              // Skip empty or invalid configurations
+                              if (!config) return false;
+                              
+                              // Check for valid configuration content
+                              const hasValidContent = 
+                                config.dockerfile_content ||
+                                config.docker_compose_content ||
+                                config.workflow_content ||
+                                config.terraform_content ||
+                                config.dockerfile ||
+                                config.docker_compose ||
+                                config.github_actions ||
+                                config.terraform ||
+                                config.code ||
+                                config.content ||
+                                (typeof config === "string" && config.trim().length > 0) ||
+                                (typeof config === "object" && 
+                                 Object.keys(config).some(key => 
+                                   key.includes('content') || 
+                                   ['dockerfile', 'docker_compose', 'github_actions', 'terraform', 'code', 'content'].includes(key)
+                                 ));
+                              
+                              return hasValidContent;
+                            })
+                            .map(([configType, config]) => {
                               // Determine the main config value to display
                               let configValue = config;
-                              // Prefer the correct nested string field for each config type
-                              if (
-                                configType === "dockerfile" &&
-                                config.dockerfile
-                              ) {
-                                configValue = config.dockerfile;
-                              } else if (
-                                configType === "docker_compose" &&
-                                config.docker_compose
-                              ) {
-                                configValue = config.docker_compose;
-                              } else if (
-                                configType === "github_actions" &&
-                                config.github_actions
-                              ) {
-                                configValue = config.github_actions;
-                              } else if (config?.dockerfile_content) {
+                              
+                              // Extract content from various possible formats in priority order
+                              if (config?.dockerfile_content) {
                                 configValue = config.dockerfile_content;
                               } else if (config?.docker_compose_content) {
                                 configValue = config.docker_compose_content;
                               } else if (config?.workflow_content) {
                                 configValue = config.workflow_content;
+                              } else if (config?.terraform_content) {
+                                configValue = config.terraform_content;
+                              } else if (configType === "dockerfile" && config.dockerfile) {
+                                configValue = config.dockerfile;
+                              } else if (configType === "docker_compose" && config.docker_compose) {
+                                configValue = config.docker_compose;
+                              } else if (configType === "github_actions" && config.github_actions) {
+                                configValue = config.github_actions;
+                              } else if (configType === "terraform" && config.terraform) {
+                                configValue = config.terraform;
                               } else if (config?.code) {
                                 configValue = config.code;
                               } else if (config?.content) {
                                 configValue = config.content;
                               }
-                              // Fallback: pass the whole config object
+
+                              // Generate clean config type display name
+                              const displayName = config.filename || 
+                                configType.replace(/_/g, ' ')
+                                  .replace(/\b\w/g, l => l.toUpperCase());
+
                               return (
-                                <div key={configType} className="mb-6">
-                                  <div className="mb-2 font-semibold text-lg text-white capitalize">
-                                    {config.filename || configType}
+                                <motion.div
+                                  key={configType}
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden"
+                                >
+                                  <div className="p-4 border-b border-gray-700/50">
+                                    <h4 className="text-lg font-semibold text-white flex items-center">
+                                      <FaCode className="w-5 h-5 mr-2 text-blue-400" />
+                                      {displayName}
+                                    </h4>
                                   </div>
-                                  <SmartConfigCodeBlock
-                                    value={configValue}
-                                    title={config.filename || configType}
-                                  />
-                                </div>
+                                  
+                                  <div className="p-6">
+                                    {/* Configuration Code */}
+                                    <SmartConfigCodeBlock
+                                      value={configValue}
+                                      title={config.filename || configType}
+                                    />
+                                    
+                                    {/* Configuration Metadata */}
+                                    {config.metadata && (
+                                      <div className="mt-4">
+                                        <ConfigMetadata 
+                                          metadata={config.metadata} 
+                                          configType={configType.replace(/_/g, ' ')}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
                               );
-                            }
-                          )}
+                            })
+                        }
                       </div>
                     </div>
                   )}

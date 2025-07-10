@@ -82,18 +82,90 @@ REPOSITORY SUMMARY:
                 deps = pkg_data.get('dependencies', {})
                 dev_deps = pkg_data.get('devDependencies', {})
                 summary_parts.append(f"Node.js: {len(deps)} dependencies, {len(dev_deps)} dev dependencies")
-                # Key frameworks
-                frameworks = [name for name in deps.keys() if name in ['react', 'vue', 'angular', 'express', 'next']]
+                
+                # Key frameworks and libraries
+                all_deps = {**deps, **dev_deps}
+                frameworks = [name for name in all_deps.keys() if name in [
+                    'react', 'vue', 'angular', 'express', 'next', 'nuxt', 'svelte',
+                    'gatsby', 'remix', 'fastify', 'koa', 'nestjs'
+                ]]
+                ui_libs = [name for name in all_deps.keys() if name in [
+                    'leaflet', 'react-leaflet', 'react-icons', 'chart.js', 'react-chartjs-2',
+                    'd3', 'three', '@material-ui/core', '@mui/material', 'antd', 
+                    'bootstrap', 'tailwindcss', 'styled-components', 'framer-motion'
+                ]]
+                state_mgmt = [name for name in all_deps.keys() if name in [
+                    'redux', 'react-redux', 'zustand', 'recoil', 'mobx', 'jotai'
+                ]]
+                testing = [name for name in all_deps.keys() if name in [
+                    'jest', 'cypress', 'playwright', 'vitest', '@testing-library/react'
+                ]]
+                build_tools = [name for name in all_deps.keys() if name in [
+                    'webpack', 'vite', 'rollup', 'esbuild', 'parcel'
+                ]]
+                
                 if frameworks:
-                    summary_parts.append(f"Key frameworks: {', '.join(frameworks)}")
+                    summary_parts.append(f"Frameworks: {', '.join(frameworks)}")
+                if ui_libs:
+                    summary_parts.append(f"UI Libraries: {', '.join(ui_libs)}")
+                if state_mgmt:
+                    summary_parts.append(f"State Management: {', '.join(state_mgmt)}")
+                if testing:
+                    summary_parts.append(f"Testing: {', '.join(testing)}")
+                if build_tools:
+                    summary_parts.append(f"Build Tools: {', '.join(build_tools)}")
+                    
+                # Sample of other notable dependencies
+                other_deps = [name for name in all_deps.keys() if name not in 
+                    frameworks + ui_libs + state_mgmt + testing + build_tools]
+                if other_deps and len(other_deps) > 0:
+                    sample = other_deps[:8]  # Show first 8 other deps
+                    summary_parts.append(f"Other dependencies: {', '.join(sample)}")
+                    if len(other_deps) > 8:
+                        summary_parts.append(f"... and {len(other_deps) - 8} more dependencies")
             except:
                 summary_parts.append("Node.js: package.json present but unreadable")
         
         # Check for Python dependencies
         if 'requirements.txt' in files:
             req_lines = files['requirements.txt'].split('\n')
-            pkg_count = len([line for line in req_lines if line.strip() and not line.strip().startswith('#')])
-            summary_parts.append(f"Python: ~{pkg_count} packages in requirements.txt")
+            packages = [line.strip().split('==')[0].split('>=')[0].split('<=')[0] 
+                       for line in req_lines if line.strip() and not line.strip().startswith('#')]
+            summary_parts.append(f"Python: {len(packages)} packages in requirements.txt")
+            
+            # Categorize Python packages
+            web_frameworks = [pkg for pkg in packages if pkg.lower() in [
+                'django', 'flask', 'fastapi', 'tornado', 'bottle', 'pyramid'
+            ]]
+            data_science = [pkg for pkg in packages if pkg.lower() in [
+                'pandas', 'numpy', 'scipy', 'matplotlib', 'seaborn', 'plotly',
+                'scikit-learn', 'tensorflow', 'pytorch', 'keras'
+            ]]
+            databases = [pkg for pkg in packages if pkg.lower() in [
+                'psycopg2', 'pymongo', 'sqlalchemy', 'django-orm', 'peewee',
+                'redis', 'elasticsearch'
+            ]]
+            async_tools = [pkg for pkg in packages if pkg.lower() in [
+                'asyncio', 'aiohttp', 'celery', 'dramatiq', 'rq'
+            ]]
+            
+            if web_frameworks:
+                summary_parts.append(f"Web Frameworks: {', '.join(web_frameworks)}")
+            if data_science:
+                summary_parts.append(f"Data Science: {', '.join(data_science)}")
+            if databases:
+                summary_parts.append(f"Databases: {', '.join(databases)}")
+            if async_tools:
+                summary_parts.append(f"Async/Queue: {', '.join(async_tools)}")
+                
+            # Sample other packages
+            other_packages = [pkg for pkg in packages if pkg.lower() not in 
+                [p.lower() for p in web_frameworks + data_science + databases + async_tools]]
+            if other_packages and len(other_packages) > 0:
+                sample = other_packages[:6]
+                summary_parts.append(f"Other packages: {', '.join(sample)}")
+                if len(other_packages) > 6:
+                    summary_parts.append(f"... and {len(other_packages) - 6} more packages")
         
         if 'pyproject.toml' in files:
             summary_parts.append("Python: pyproject.toml configuration present")

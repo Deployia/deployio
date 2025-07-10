@@ -201,22 +201,28 @@ class StackAnalyzer(BaseAnalyzer):
             package_manager = self._detect_package_manager(repository_data)
             build_tool = self._detect_build_tool(repository_data)
 
+            # Step 4.5: Detect additional technologies
+            additional_technologies = self._detect_additional_technologies(repository_data)
+
             # Step 5: Extract build configuration
             build_config = self._extract_build_configuration(
                 repository_data, language, framework
             )
 
-            # Step 6: Extract deployment configuration
+            # Step 6: Detect architecture patterns
+            architecture_pattern = self._detect_architecture_pattern(repository_data, language, framework)
+
+            # Step 7: Extract deployment configuration
             deploy_config = self._extract_deployment_configuration(
                 repository_data, framework
             )
 
-            # Step 7: Calculate overall confidence
+            # Step 8: Calculate overall confidence
             overall_confidence = self._calculate_confidence(
                 lang_confidence, framework_confidence
             )
 
-            # Step 8: Build technology stack
+            # Step 9: Build technology stack
             tech_stack = TechnologyStack(
                 language=language,
                 framework=framework,
@@ -225,6 +231,8 @@ class StackAnalyzer(BaseAnalyzer):
                 detection_method="rule_based",
                 package_manager=package_manager,
                 build_tool=build_tool,
+                additional_technologies=additional_technologies,
+                architecture_pattern=architecture_pattern,
                 main_entry_point=(
                     build_config.main_entry_points[0]
                     if build_config.main_entry_points
@@ -247,7 +255,7 @@ class StackAnalyzer(BaseAnalyzer):
                 ),
             )
 
-            # Step 9: Generate insights
+            # Step 10: Generate insights
             insights = self._generate_insights(
                 tech_stack, build_config, repository_data
             )
@@ -425,6 +433,239 @@ class StackAnalyzer(BaseAnalyzer):
 
         return None
 
+    def _detect_additional_technologies(self, repository_data: Dict[str, Any]) -> List[str]:
+        """Detect additional technologies from dependencies and file patterns"""
+        
+        additional_techs = []
+        
+        # Define technology detection patterns
+        tech_patterns = {
+            # UI/Frontend Libraries
+            "leaflet": [r'"leaflet":', r"import.*leaflet", r"L\.map"],
+            "react-icons": [r'"react-icons":', r"import.*react-icons", r"from ['\"]react-icons"],
+            "chartjs": [r'"chart\.js":', r'"react-chartjs-2":', r"import.*Chart"],
+            "d3": [r'"d3":', r"import.*d3", r"d3\."],
+            "three": [r'"three":', r"import.*three", r"THREE\."],
+            "material-ui": [r'"@material-ui":', r'"@mui":', r"import.*@mui"],
+            "ant-design": [r'"antd":', r"import.*antd", r"from ['\"]antd"],
+            "bootstrap": [r'"bootstrap":', r"import.*bootstrap", r"class=['\"][^'\"]*btn"],
+            "tailwindcss": [r'"tailwindcss":', r"@tailwind", r"class=['\"][^'\"]*bg-"],
+            "styled-components": [r'"styled-components":', r"import styled", r"styled\."],
+            
+            # State Management
+            "redux": [r'"redux":', r'"react-redux":', r"import.*redux", r"useSelector"],
+            "zustand": [r'"zustand":', r"import.*zustand", r"create.*store"],
+            "recoil": [r'"recoil":', r"import.*recoil", r"RecoilRoot"],
+            "mobx": [r'"mobx":', r"import.*mobx", r"@observable"],
+            "context-api": [r"createContext", r"useContext", r"Provider"],
+            
+            # Animation/Motion
+            "framer-motion": [r'"framer-motion":', r"import.*framer-motion", r"motion\."],
+            "lottie": [r'"lottie":', r'"react-lottie":', r"import.*lottie"],
+            "gsap": [r'"gsap":', r"import.*gsap", r"TweenMax"],
+            
+            # Forms/Validation
+            "formik": [r'"formik":', r"import.*formik", r"useFormik"],
+            "react-hook-form": [r'"react-hook-form":', r"import.*react-hook-form", r"useForm"],
+            "yup": [r'"yup":', r"import.*yup", r"Yup\."],
+            "joi": [r'"joi":', r"import.*joi", r"Joi\."],
+            
+            # Routing
+            "react-router": [r'"react-router":', r"import.*react-router", r"BrowserRouter"],
+            "next-router": [r"useRouter", r"next/router", r"Router\."],
+            
+            # HTTP/API
+            "axios": [r'"axios":', r"import.*axios", r"axios\."],
+            "fetch": [r"fetch\(", r"Response\."],
+            "apollo": [r'"@apollo":', r"import.*apollo", r"ApolloClient"],
+            "graphql": [r'"graphql":', r"import.*graphql", r"gql`"],
+            "socket.io": [r'"socket\.io":', r"import.*socket\.io", r"io\("],
+            
+            # Testing
+            "jest": [r'"jest":', r"describe\(", r"test\(", r"it\("],
+            "cypress": [r'"cypress":', r"cy\.", r"cypress/"],
+            "selenium": [r"selenium", r"webdriver", r"WebDriver"],
+            "playwright": [r'"playwright":', r"import.*playwright", r"playwright"],
+            
+            # Build Tools/Bundlers
+            "webpack": [r"webpack\.config", r"import.*webpack"],
+            "vite": [r"vite\.config", r"import.*vite"],
+            "rollup": [r"rollup\.config", r"import.*rollup"],
+            "parcel": [r"\.parcelrc", r"parcel-bundler"],
+            "esbuild": [r'"esbuild":', r"import.*esbuild"],
+            
+            # CSS Preprocessors
+            "sass": [r"\.scss$", r"\.sass$", r'"sass":'],
+            "less": [r"\.less$", r'"less":'],
+            "stylus": [r"\.styl$", r'"stylus":'],
+            
+            # Backend Technologies
+            "express": [r'"express":', r"app\.listen", r"require.*express"],
+            "koa": [r'"koa":', r"import.*koa", r"new Koa"],
+            "fastify": [r'"fastify":', r"import.*fastify", r"fastify\("],
+            "nestjs": [r'"@nestjs":', r"import.*@nestjs", r"@Controller"],
+            
+            # Database ORMs/Query Builders
+            "prisma": [r'"prisma":', r"import.*prisma", r"PrismaClient"],
+            "typeorm": [r'"typeorm":', r"import.*typeorm", r"@Entity"],
+            "sequelize": [r'"sequelize":', r"import.*sequelize", r"Sequelize"],
+            "mongoose": [r'"mongoose":', r"import.*mongoose", r"Schema"],
+            "knex": [r'"knex":', r"import.*knex", r"knex\("],
+            
+            # Authentication
+            "passport": [r'"passport":', r"import.*passport", r"passport\."],
+            "auth0": [r'"auth0":', r"import.*auth0", r"Auth0"],
+            "firebase-auth": [r"firebase/auth", r"signInWith", r"onAuthStateChanged"],
+            "jwt": [r'"jsonwebtoken":', r"jwt\.", r"verify.*token"],
+            
+            # Cloud/Infrastructure
+            "aws-sdk": [r'"aws-sdk":', r"import.*aws-sdk", r"AWS\."],
+            "google-cloud": [r'"@google-cloud":', r"import.*@google-cloud"],
+            "azure": [r'"@azure":', r"import.*@azure"],
+            "firebase": [r'"firebase":', r"import.*firebase", r"initializeApp"],
+            "supabase": [r'"supabase":', r"import.*supabase", r"createClient"],
+            
+            # Monitoring/Analytics
+            "sentry": [r'"@sentry":', r"import.*@sentry", r"Sentry\."],
+            "datadog": [r'"dd-trace":', r"import.*dd-trace"],
+            "newrelic": [r'"newrelic":', r"require.*newrelic"],
+            "google-analytics": [r"gtag\(", r"ga\(", r"GoogleAnalytics"],
+            
+            # Development Tools
+            "eslint": [r"\.eslintrc", r'"eslint":'],
+            "prettier": [r"\.prettierrc", r'"prettier":'],
+            "husky": [r'"husky":', r"\.husky/"],
+            "lint-staged": [r'"lint-staged":', r"lint-staged"],
+        }
+        
+        # Check each technology pattern
+        for tech_name, patterns in tech_patterns.items():
+            found = False
+            for pattern in patterns:
+                if self._check_content_pattern(repository_data, pattern):
+                    found = True
+                    break
+            
+            if found and tech_name not in additional_techs:
+                additional_techs.append(tech_name)
+        
+        # Also check package.json dependencies for common libraries
+        package_json_content = self._extract_file_content(repository_data, "package.json")
+        if package_json_content:
+            try:
+                package_data = json.loads(package_json_content)
+                all_deps = {}
+                all_deps.update(package_data.get("dependencies", {}))
+                all_deps.update(package_data.get("devDependencies", {}))
+                all_deps.update(package_data.get("peerDependencies", {}))
+                
+                # Map common package names to technology names
+                package_to_tech = {
+                    "leaflet": "leaflet",
+                    "react-icons": "react-icons", 
+                    "chart.js": "chartjs",
+                    "react-chartjs-2": "chartjs",
+                    "d3": "d3",
+                    "three": "three",
+                    "@material-ui/core": "material-ui",
+                    "@mui/material": "material-ui",
+                    "antd": "ant-design",
+                    "bootstrap": "bootstrap",
+                    "tailwindcss": "tailwindcss",
+                    "styled-components": "styled-components",
+                    "redux": "redux",
+                    "react-redux": "redux",
+                    "zustand": "zustand",
+                    "recoil": "recoil",
+                    "mobx": "mobx",
+                    "framer-motion": "framer-motion",
+                    "lottie-web": "lottie",
+                    "react-lottie": "lottie",
+                    "gsap": "gsap",
+                    "formik": "formik",
+                    "react-hook-form": "react-hook-form",
+                    "yup": "yup",
+                    "joi": "joi",
+                    "react-router-dom": "react-router",
+                    "axios": "axios",
+                    "@apollo/client": "apollo",
+                    "graphql": "graphql",
+                    "socket.io": "socket.io",
+                    "socket.io-client": "socket.io",
+                    "jest": "jest",
+                    "cypress": "cypress",
+                    "playwright": "playwright",
+                    "webpack": "webpack",
+                    "vite": "vite",
+                    "rollup": "rollup",
+                    "esbuild": "esbuild",
+                    "sass": "sass",
+                    "less": "less",
+                    "stylus": "stylus",
+                    "prisma": "prisma",
+                    "typeorm": "typeorm",
+                    "sequelize": "sequelize",
+                    "mongoose": "mongoose",
+                    "knex": "knex",
+                    "passport": "passport",
+                    "jsonwebtoken": "jwt",
+                    "aws-sdk": "aws-sdk",
+                    "firebase": "firebase",
+                    "@sentry/node": "sentry",
+                    "@sentry/browser": "sentry",
+                    "eslint": "eslint",
+                    "prettier": "prettier",
+                    "husky": "husky",
+                    "lint-staged": "lint-staged",
+                }
+                
+                for package_name, tech_name in package_to_tech.items():
+                    if package_name in all_deps and tech_name not in additional_techs:
+                        additional_techs.append(tech_name)
+                        
+            except json.JSONDecodeError:
+                pass
+        
+        # Check Python requirements for additional technologies
+        requirements_content = self._extract_file_content(repository_data, "requirements.txt")
+        if requirements_content:
+            python_tech_patterns = {
+                "django-rest-framework": "django-rest-framework",
+                "celery": "celery",
+                "redis": "redis",
+                "gunicorn": "gunicorn",
+                "uvicorn": "uvicorn",
+                "sqlalchemy": "sqlalchemy",
+                "alembic": "alembic",
+                "pytest": "pytest",
+                "flask-sqlalchemy": "flask-sqlalchemy",
+                "marshmallow": "marshmallow",
+                "pydantic": "pydantic",
+                "pandas": "pandas",
+                "numpy": "numpy",
+                "scikit-learn": "scikit-learn",
+                "tensorflow": "tensorflow",
+                "pytorch": "pytorch",
+                "opencv": "opencv",
+                "pillow": "pillow",
+                "requests": "requests",
+                "httpx": "httpx",
+                "aiohttp": "aiohttp",
+                "websockets": "websockets",
+                "boto3": "aws-sdk",
+                "google-cloud": "google-cloud",
+                "stripe": "stripe",
+                "twilio": "twilio",
+            }
+            
+            lines = requirements_content.lower().split('\n')
+            for line in lines:
+                line = line.strip().split('==')[0].split('>=')[0].split('<=')[0]  # Remove version specs
+                if line in python_tech_patterns and python_tech_patterns[line] not in additional_techs:
+                    additional_techs.append(python_tech_patterns[line])
+        
+        return sorted(additional_techs)  # Sort for consistency
+
     def _extract_build_configuration(
         self,
         repository_data: Dict[str, Any],
@@ -495,17 +736,29 @@ class StackAnalyzer(BaseAnalyzer):
             except json.JSONDecodeError:
                 pass
 
-        # Common Node.js entry points
+        # Common Node.js entry points (in order of preference)
         common_entries = [
             "src/index.js",
-            "src/index.ts",
+            "src/index.ts", 
+            "src/main.js",
+            "src/main.ts",
+            "src/app.js",
+            "src/app.ts",
+            "src/server.js",
+            "src/server.ts",
             "index.js",
+            "index.ts",
+            "main.js",
+            "main.ts",
             "app.js",
+            "app.ts",
             "server.js",
+            "server.ts",
         ]
         for entry in common_entries:
             if self._check_file_exists(repository_data, entry):
-                config.main_entry_points.append(entry)
+                if entry not in config.main_entry_points:
+                    config.main_entry_points.append(entry)
 
         # Config files
         config.config_files.extend(["package.json", "package-lock.json"])
@@ -982,3 +1235,94 @@ class StackAnalyzer(BaseAnalyzer):
             
         config.service_dependencies = service_deps
         config.external_dependencies = external_deps
+
+    def _detect_architecture_pattern(
+        self, repository_data: Dict[str, Any], language: Optional[str], framework: Optional[str]
+    ) -> Optional[str]:
+        """Detect architecture pattern from file structure and code patterns"""
+        
+        files = self._get_file_list(repository_data)
+        
+        # Architecture pattern detection rules
+        patterns = {
+            "microservices": {
+                "indicators": ["services/", "microservices/", "docker-compose.yml", "k8s/", "api-gateway"],
+                "content_patterns": [r"@Service", r"@RestController", r"@Component", r"service.*registry"],
+                "min_indicators": 2
+            },
+            "mvc": {
+                "indicators": ["models/", "views/", "controllers/", "routes/"],
+                "content_patterns": [r"class.*Controller", r"def.*view", r"Model\.", r"@controller"],
+                "min_indicators": 3
+            },
+            "layered": {
+                "indicators": ["repository/", "service/", "controller/", "entity/", "dto/"],
+                "content_patterns": [r"@Repository", r"@Service", r"@Entity", r"interface.*Repository"],
+                "min_indicators": 3
+            },
+            "clean-architecture": {
+                "indicators": ["domain/", "infrastructure/", "application/", "interfaces/", "entities/"],
+                "content_patterns": [r"UseCase", r"Repository.*interface", r"Entity", r"ValueObject"],
+                "min_indicators": 4
+            },
+            "hexagonal": {
+                "indicators": ["adapters/", "ports/", "domain/", "infrastructure/"],
+                "content_patterns": [r"Port", r"Adapter", r"interface.*Port", r".*Adapter.*implements"],
+                "min_indicators": 3
+            },
+            "event-driven": {
+                "indicators": ["events/", "handlers/", "listeners/", "subscribers/"],
+                "content_patterns": [r"Event", r"EventHandler", r"@EventListener", r"publish.*event"],
+                "min_indicators": 2
+            },
+            "spa": {
+                "indicators": ["src/components/", "src/pages/", "public/", "dist/"],
+                "content_patterns": [r"import.*React", r"Vue\.component", r"@Component", r"router"],
+                "min_indicators": 2
+            },
+            "jamstack": {
+                "indicators": ["static/", "content/", "_posts/", "netlify.toml", "vercel.json"],
+                "content_patterns": [r"getStaticProps", r"getStaticPaths", r"staticQuery", r"buildtime"],
+                "min_indicators": 1
+            },
+            "serverless": {
+                "indicators": ["functions/", "lambda/", "serverless.yml", ".netlify/", ".vercel/"],
+                "content_patterns": [r"export.*handler", r"lambda_handler", r"serverless", r"@azure-functions"],
+                "min_indicators": 1
+            },
+            "monorepo": {
+                "indicators": ["packages/", "apps/", "libs/", "lerna.json", "nx.json", "workspaces"],
+                "content_patterns": [r"workspace:", r"lerna", r"nx", r"packages\/.*\/package\.json"],
+                "min_indicators": 2
+            }
+        }
+        
+        # Check each pattern
+        for pattern_name, pattern_config in patterns.items():
+            score = 0
+            
+            # Check file/directory indicators
+            for indicator in pattern_config["indicators"]:
+                for file_path in files:
+                    if indicator.lower() in file_path.lower():
+                        score += 1
+                        break
+            
+            # Check content patterns
+            for content_pattern in pattern_config["content_patterns"]:
+                if self._check_content_pattern(repository_data, content_pattern):
+                    score += 1
+            
+            # If we have enough indicators, consider pattern detected
+            if score >= pattern_config["min_indicators"]:
+                return pattern_name
+        
+        # Framework-specific defaults
+        if framework == "react" or framework == "vue" or framework == "angular":
+            return "spa"
+        elif framework == "express" and self._check_content_pattern(repository_data, r"routes/"):
+            return "mvc"
+        elif language == "java" and self._check_content_pattern(repository_data, r"@Controller|@Service|@Repository"):
+            return "layered"
+        
+        return None

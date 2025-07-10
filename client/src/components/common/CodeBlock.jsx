@@ -89,12 +89,82 @@ const CodeBlock = ({
             '<span class="text-yellow-300">$1</span>'
           );
         break;
+      case "dockerfile":
+        // Highlight Dockerfile keywords at the start of lines
+        highlighted = highlighted
+          .replace(
+            /^(FROM|RUN|COPY|ADD|WORKDIR|EXPOSE|CMD|ENTRYPOINT|ENV|ARG|VOLUME|USER|HEALTHCHECK|ONBUILD|STOPSIGNAL|SHELL)(\s+)/gm,
+            '<span class="text-purple-400">$1</span>$2'
+          )
+          // Comments
+          .replace(/(#.*$)/gm, '<span class="text-gray-500">$1</span>')
+          // Strings (only quoted)
+          .replace(
+            /(["'])([^"']*)\1/g,
+            '<span class="text-green-300">$1$2$1</span>'
+          )
+          // Numbers and ports (only if surrounded by spaces or at end of line)
+          .replace(
+            /(?<=\s|^)(\d+)(?=\s|$)/g,
+            '<span class="text-orange-300">$1</span>'
+          )
+          // File paths (only after COPY, ADD, WORKDIR, etc. and not inside tags)
+          .replace(
+            /(?<=\b(COPY|ADD|WORKDIR|VOLUME|USER|ENV|ARG|ENTRYPOINT|CMD)\s)(\/?[\w\-\.\/]+)(?=\s|$)/g,
+            '<span class="text-blue-300">$2</span>'
+          );
+        break;
+      case "yaml":
+      case "yml":
+        highlighted = highlighted
+          // Keys
+          .replace(
+            /^(\s*)([a-zA-Z_][a-zA-Z0-9_-]*)\s*:/gm,
+            '$1<span class="text-blue-400">$2</span>:'
+          )
+          // Values
+          .replace(
+            /:\s*([^\n\r#]+)/g,
+            ': <span class="text-green-300">$1</span>'
+          )
+          // Comments
+          .replace(/(#.*$)/gm, '<span class="text-gray-500">$1</span>');
+        break;
+      case "json":
+        highlighted = highlighted
+          // Keys
+          .replace(
+            /"([^"]+)"(\s*:)/g,
+            '<span class="text-blue-400">"$1"</span>$2'
+          )
+          // String values
+          .replace(
+            /:\s*"([^"]*)"/g,
+            ': <span class="text-green-300">"$1"</span>'
+          )
+          // Numbers
+          .replace(
+            /:\s*(\d+\.?\d*)/g,
+            ': <span class="text-orange-300">$1</span>'
+          )
+          // Booleans
+          .replace(
+            /:\s*(true|false|null)/g,
+            ': <span class="text-red-400">$1</span>'
+          );
+        break;
       default:
         // No highlighting for unknown languages
         break;
     }
 
     return highlighted;
+  };
+
+  const cleanDockerfileCode = (raw) => {
+    if (!raw) return "";
+    // Remove all tags like "text-purple-400">, "text-gray-500">, etc. at the start of lines
+    return raw.replace(/"text-[a-zA-Z0-9\-]+">/g, "");
   };
 
   const getLanguageIcon = (lang) => {
@@ -111,12 +181,42 @@ const CodeBlock = ({
         return "☕";
       case "go":
         return "🐹";
+      case "dockerfile":
+        return "🐳";
+      case "yaml":
+      case "yml":
+        return "⚙️";
+      case "json":
+        return "📋";
+      case "css":
+        return "🎨";
+      case "html":
+        return "🌐";
+      case "rust":
+        return "🦀";
+      case "php":
+        return "🐘";
+      case "ruby":
+        return "💎";
+      case "cpp":
+      case "c":
+        return "⚡";
+      case "csharp":
+        return "🔷";
+      case "swift":
+        return "🦉";
+      case "kotlin":
+        return "🎯";
       default:
         return "📄";
     }
   };
 
-  const lines = code.split("\n");
+  // Use cleaning only for Dockerfile
+  const lines = (language === "dockerfile"
+    ? cleanDockerfileCode(code)
+    : code
+  ).split("\n");
 
   return (
     <motion.div
@@ -160,9 +260,33 @@ const CodeBlock = ({
 
       {/* Code Content */}
       <div
-        className="relative overflow-x-auto overflow-y-auto font-mono text-sm"
-        style={{ maxHeight }}
+        className="relative overflow-x-auto overflow-y-auto font-mono text-sm scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500"
+        style={{ 
+          maxHeight,
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#4b5563 #1f2937'
+        }}
       >
+        <style jsx>{`
+          .scrollbar-thin::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+          }
+          .scrollbar-thin::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 4px;
+          }
+          .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+          }
+          .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+          }
+          .scrollbar-thin::-webkit-scrollbar-corner {
+            background: #1f2937;
+          }
+        `}</style>
         <pre className="p-0 m-0">
           {lines.map((line, index) => (
             <div key={index} className="flex">

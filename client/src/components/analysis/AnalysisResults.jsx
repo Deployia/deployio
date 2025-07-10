@@ -614,29 +614,7 @@ const AnalysisResults = ({ results }) => {
           </div>
         </motion.div>
       )}
-      {/* Action Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-lg border border-blue-500/30 rounded-xl p-4 text-center"
-      >
-        <h3 className="text-lg font-bold text-white mb-2">Ready to Deploy?</h3>
-        <p className="text-gray-300 mb-4 max-w-2xl mx-auto text-sm">
-          Take your repository analysis to the next level with DeployIO&apos;s
-          full platform. Get automated deployments, monitoring, and much more.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all flex items-center justify-center text-sm">
-            <FaRocket className="w-4 h-4 mr-2" />
-            Deploy This Repository
-            <FaArrowRight className="w-4 h-4 ml-2" />
-          </button>
-          <button className="px-6 py-2 bg-gray-700/50 text-white font-semibold rounded-lg hover:bg-gray-600/50 transition-all text-sm">
-            Download Analysis Report
-          </button>
-        </div>
-      </motion.div>
+      
       {/* Code Analysis */}
       {data.code_analysis && (
         <motion.div
@@ -1087,6 +1065,7 @@ const AnalysisResults = ({ results }) => {
           )}
         </motion.div>
       )}
+      
     </div>
   );
 };

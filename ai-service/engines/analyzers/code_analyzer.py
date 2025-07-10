@@ -229,6 +229,9 @@ class CodeAnalyzer(BaseAnalyzer):
                 quality_score, architecture_patterns
             )
 
+            # Summarize code smells to reduce output size
+            summarized_smells = self._summarize_code_smells(code_smells)
+
             # Build analysis result
             analysis = CodeAnalysis(
                 total_files=len(code_files),
@@ -236,7 +239,7 @@ class CodeAnalyzer(BaseAnalyzer):
                 complexity_score=avg_complexity,
                 maintainability_score=maintainability_score,
                 quality_score=quality_score,
-                code_smells=code_smells,
+                code_smells=summarized_smells,
                 patterns_detected=design_patterns,
                 architecture_patterns=architecture_patterns,
             )
@@ -395,6 +398,98 @@ class CodeAnalyzer(BaseAnalyzer):
                     )
 
         return smells
+
+    def _summarize_code_smells(self, code_smells: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Summarize code smells to reduce output size while preserving important information"""
+        
+        if not code_smells:
+            return []
+        
+        # Group smells by type and severity
+        smell_summary = {}
+        file_counts = {}
+        
+        for smell in code_smells:
+            smell_type = smell.get("type", "unknown")
+            severity = smell.get("severity", "medium")
+            file_path = smell.get("file", "unknown")
+            
+            # Create summary key
+            key = f"{smell_type}_{severity}"
+            
+            if key not in smell_summary:
+                smell_summary[key] = {
+                    "type": smell_type,
+                    "severity": severity,
+                    "count": 0,
+                    "files": set(),
+                    "descriptions": set(),
+                    "examples": []
+                }
+            
+            smell_summary[key]["count"] += 1
+            smell_summary[key]["files"].add(file_path)
+            
+            # Add description if available
+            if "description" in smell:
+                smell_summary[key]["descriptions"].add(smell["description"])
+            
+            # Keep first few examples for reference
+            if len(smell_summary[key]["examples"]) < 3:
+                example = {
+                    "file": file_path,
+                    "line": smell.get("line"),
+                    "description": smell.get("description")
+                }
+                smell_summary[key]["examples"].append(example)
+        
+        # Convert to summarized format
+        summarized = []
+        for key, summary in smell_summary.items():
+            # Limit files list if too many
+            files_list = list(summary["files"])
+            if len(files_list) > 10:
+                files_list = files_list[:10] + [f"...and {len(files_list) - 10} more files"]
+            
+            # Create concise description
+            if summary["descriptions"]:
+                common_desc = list(summary["descriptions"])[0]
+            else:
+                common_desc = f"{summary['type']} detected"
+            
+            summarized_smell = {
+                "type": summary["type"],
+                "severity": summary["severity"], 
+                "count": summary["count"],
+                "files_affected": len(summary["files"]),
+                "description": f"{common_desc} (found {summary['count']} times in {len(summary['files'])} files)",
+                "sample_files": files_list[:5],  # Show max 5 sample files
+            }
+            
+            # Include examples for high severity issues
+            if summary["severity"] in ["high", "critical"] and summary["examples"]:
+                summarized_smell["examples"] = summary["examples"]
+            
+            summarized.append(summarized_smell)
+        
+        # Sort by severity and count
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        summarized.sort(key=lambda x: (severity_order.get(x["severity"], 4), -x["count"]))
+        
+        # Limit total smells to keep output manageable  
+        max_smells = 20
+        if len(summarized) > max_smells:
+            high_priority = [s for s in summarized if s["severity"] in ["critical", "high"]]
+            other_smells = [s for s in summarized if s["severity"] not in ["critical", "high"]]
+            
+            # Keep all high priority + some others
+            remaining_slots = max_smells - len(high_priority)
+            if remaining_slots > 0:
+                summarized = high_priority + other_smells[:remaining_slots]
+            else:
+                summarized = high_priority[:max_smells]
+        
+        return summarized
 
     def _detect_architecture_patterns(
         self, repository_data: Dict[str, Any]
