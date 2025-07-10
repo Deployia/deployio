@@ -110,7 +110,7 @@ const CodeBlock = ({
           )
           // File paths (only after COPY, ADD, WORKDIR, etc. and not inside tags)
           .replace(
-            /(?<=\b(COPY|ADD|WORKDIR|VOLUME|USER|ENV|ARG|ENTRYPOINT|CMD)\s)(\/?[\w\-\.\/]+)(?=\s|$)/g,
+            /(?<=\b(COPY|ADD|WORKDIR|VOLUME|USER|ENV|ARG|ENTRYPOINT|CMD)\s)(\/?[\w\-.\\/]+)(?=\s|$)/g,
             '<span class="text-blue-300">$2</span>'
           );
         break;
@@ -163,8 +163,11 @@ const CodeBlock = ({
 
   const cleanDockerfileCode = (raw) => {
     if (!raw) return "";
-    // Remove all tags like "text-purple-400">, "text-gray-500">, etc. at the start of lines
-    return raw.replace(/"text-[a-zA-Z0-9\-]+">/g, "");
+    // Remove all HTML-like syntax highlighting tags from the code
+    return raw
+      .replace(/"text-[a-zA-Z0-9-]+">/g, "")
+      .replace(/<span class="[^"]*">/g, "")
+      .replace(/<\/span>/g, "");
   };
 
   const getLanguageIcon = (lang) => {
@@ -212,11 +215,8 @@ const CodeBlock = ({
     }
   };
 
-  // Use cleaning only for Dockerfile
-  const lines = (language === "dockerfile"
-    ? cleanDockerfileCode(code)
-    : code
-  ).split("\n");
+  // Use cleaning for all syntax highlighted code to remove any unwanted tags
+  const lines = (code ? cleanDockerfileCode(code) : "").split("\n");
 
   return (
     <motion.div
@@ -261,10 +261,10 @@ const CodeBlock = ({
       {/* Code Content */}
       <div
         className="relative overflow-x-auto overflow-y-auto font-mono text-sm scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500"
-        style={{ 
+        style={{
           maxHeight,
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#4b5563 #1f2937'
+          scrollbarWidth: "thin",
+          scrollbarColor: "#4b5563 #1f2937",
         }}
       >
         <style jsx>{`

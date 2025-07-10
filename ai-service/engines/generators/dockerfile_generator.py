@@ -122,6 +122,101 @@ class DockerfileGenerator:
             else:
                 return self._generate_basic_fallback_dockerfile()
 
+    async def generate_multistage_dockerfiles(
+        self,
+        analysis: Optional[AnalysisResult] = None,
+        analysis_context: Optional[Dict] = None,
+        tech_stack: Optional[TechnologyStack] = None,
+        frontend_path: Optional[str] = None,
+        backend_path: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """
+        Generate optimized Dockerfiles for multi-service applications (frontend and backend)
+
+        Args:
+            analysis: Analysis result containing technology information
+            analysis_context: Additional context for analysis
+            tech_stack: Technology stack information
+            frontend_path: Path to frontend code (relative to repo root)
+            backend_path: Path to backend code (relative to repo root)
+
+        Returns:
+            Dictionary of paths and Dockerfile contents
+        """
+        result = {}
+
+        # Extract tech stack information
+        if analysis:
+            stack = (
+                analysis.technology_stack
+                if hasattr(analysis, "technology_stack")
+                else None
+            )
+        elif tech_stack:
+            stack = tech_stack
+        else:
+            logger.warning(
+                "No technology stack information provided for multi-service Dockerfile generation"
+            )
+            return result
+
+        # Detect if we have a frontend and backend
+        has_frontend = False
+        has_backend = False
+
+        # Auto-detect frontend frameworks
+        frontend_frameworks = ["react", "vue", "angular", "svelte"]
+        if hasattr(stack, "framework") and stack.framework in frontend_frameworks:
+            has_frontend = True
+
+        # Auto-detect backend frameworks
+        backend_frameworks = ["express", "django", "flask", "spring", "fastapi"]
+        if hasattr(stack, "additional_technologies"):
+            for tech in stack.additional_technologies:
+                if any(bf in tech.lower() for bf in backend_frameworks):
+                    has_backend = True
+                    break
+
+        # Generate frontend Dockerfile if needed
+        if has_frontend:
+            frontend_stack = self._clone_stack_for_frontend(stack)
+            frontend_dockerfile = await self.generate_dockerfile(
+                tech_stack=frontend_stack,
+                optimization_level="balanced",
+                port=3000,
+            )
+            path = (
+                "client/Dockerfile"
+                if frontend_path is None
+                else f"{frontend_path}/Dockerfile"
+            )
+            result[path] = frontend_dockerfile
+
+        # Generate backend Dockerfile if needed
+        if has_backend:
+            backend_stack = self._clone_stack_for_backend(stack)
+            backend_dockerfile = await self.generate_dockerfile(
+                tech_stack=backend_stack,
+                optimization_level="balanced",
+                port=8000,
+            )
+            path = (
+                "server/Dockerfile"
+                if backend_path is None
+                else f"{backend_path}/Dockerfile"
+            )
+            result[path] = backend_dockerfile
+
+        # If no specific services detected, generate a single Dockerfile
+        if not (has_frontend or has_backend):
+            generic_dockerfile = await self.generate_dockerfile(
+                tech_stack=stack,
+                optimization_level="balanced",
+            )
+            result["Dockerfile"] = generic_dockerfile
+
+        return result
+
     def _create_config(
         self, stack: TechnologyStack, base_image_preference: Optional[str] = None
     ) -> DockerfileConfig:
@@ -421,3 +516,64 @@ CMD ["echo", "Application configuration needed"]
 # Basic Dockerfile template
 # Please customize for your specific application
 """
+
+    def _clone_stack_for_frontend(self, stack: TechnologyStack) -> TechnologyStack:
+        """Create a copy of the tech stack optimized for frontend services"""
+        from models.analysis_models import TechnologyStack
+
+        return TechnologyStack(
+            language=stack.language,
+            framework=stack.framework,
+            database=None,  # Frontend doesn't need database info
+            build_tool=stack.build_tool,
+            package_manager=stack.package_manager,
+            runtime_version=stack.runtime_version,
+            architecture_pattern="spa",  # Assume SPA for frontend
+            additional_technologies=[
+                tech
+                for tech in getattr(stack, "additional_technologies", [])
+                if not any(
+                    db in tech.lower()
+                    for db in ["mongo", "postgres", "mysql", "sql", "database"]
+                )
+            ],
+            main_entry_point=getattr(stack, "main_entry_point", None),
+            build_command=getattr(stack, "build_command", None),
+            start_command=(
+                "serve -s build" if stack.framework == "react" else "npm start"
+            ),
+        )
+
+    def _clone_stack_for_backend(self, stack: TechnologyStack) -> TechnologyStack:
+        """Create a copy of the tech stack optimized for backend services"""
+        from models.analysis_models import TechnologyStack
+
+        return TechnologyStack(
+            language=stack.language,
+            framework=next(
+                (
+                    tech
+                    for tech in getattr(stack, "additional_technologies", [])
+                    if any(
+                        bf in tech.lower()
+                        for bf in ["express", "django", "flask", "spring", "fastapi"]
+                    )
+                ),
+                "express",
+            ),  # Default to express for Node.js backends
+            database=stack.database,
+            build_tool=stack.build_tool,
+            package_manager=stack.package_manager,
+            runtime_version=stack.runtime_version,
+            architecture_pattern=getattr(stack, "architecture_pattern", "rest-api"),
+            additional_technologies=[
+                tech
+                for tech in getattr(stack, "additional_technologies", [])
+                if any(
+                    be in tech.lower() for be in ["server", "api", "backend", "rest"]
+                )
+            ],
+            main_entry_point=getattr(stack, "main_entry_point", None),
+            build_command=getattr(stack, "build_command", None),
+            start_command="node server.js" if stack.language == "javascript" else None,
+        )

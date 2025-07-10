@@ -1,11 +1,10 @@
 """
 Analysis Prompt Templates
-
 Specialized prompts for repository analysis enhancement.
 Provides structured prompts for technology detection, dependency analysis, and code quality assessment.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any 
 from .base_prompts import BasePrompts
 
 
@@ -26,7 +25,7 @@ class AnalysisPrompts(BasePrompts):
             role="Senior Software Architect and Technology Expert",
             expertise=[
                 "Technology stack validation and enhancement",
-                "Framework detection refinement", 
+                "Framework detection refinement",
                 "Architecture pattern recognition",
                 "Missing technology identification",
             ],
@@ -35,6 +34,9 @@ class AnalysisPrompts(BasePrompts):
                 "Focus on missing technologies or incorrect detections",
                 "Provide concise insights based on the repository summary",
                 "Fill gaps in the rule-based analysis rather than re-analyzing everything",
+                "Precisely identify database technologies - look for connection strings, ORM imports",
+                "Identify architectural patterns based on file structure and code organization",
+                "Always provide a database technology when possible, even if based on common patterns",
                 "Be conservative - only suggest changes with high confidence",
             ],
         )
@@ -95,7 +97,7 @@ Expected JSON structure:
             role="Security Expert and Dependency Analyst",
             expertise=[
                 "Dependency security analysis",
-                "Package vulnerability assessment", 
+                "Package vulnerability assessment",
                 "Dependency optimization strategies",
                 "License compliance analysis",
             ],
@@ -189,7 +191,7 @@ Expected JSON structure:
             role="Senior Code Architect and Quality Expert",
             expertise=[
                 "Code quality assessment and metrics",
-                "Design pattern recognition", 
+                "Design pattern recognition",
                 "Architecture evaluation",
                 "Code smell detection",
             ],

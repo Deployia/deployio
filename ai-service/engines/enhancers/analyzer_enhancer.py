@@ -12,9 +12,6 @@ from engines.llm.models import LLMRequest, LLMProvider
 from engines.prompts.analysis_prompts import AnalysisPrompts
 from models.analysis_models import (
     AnalysisResult,
-    TechnologyStack,
-    DependencyAnalysis,
-    CodeAnalysis,
 )
 from ..utils.result_processor import AnalysisResultProcessor
 
@@ -75,7 +72,7 @@ class AnalyzerEnhancer:
                     {"role": "user", "content": prompt_data["user"]},
                 ],
                 max_tokens=1000,  # Reduced from 2000 - we want concise enhancements
-                temperature=0.1,   # Lower temperature for more focused responses
+                temperature=0.1,  # Lower temperature for more focused responses
             )
 
             # Call LLM with fallback providers
@@ -91,11 +88,15 @@ class AnalyzerEnhancer:
                 )
                 logger.info("Technology stack validation completed successfully")
             else:
-                logger.warning("Technology stack enhancement failed - using rule-based results")
+                logger.warning(
+                    "Technology stack enhancement failed - using rule-based results"
+                )
 
         except Exception as e:
-            logger.error(f"Technology stack enhancement error: {e} - falling back to rule-based results")
-        
+            logger.error(
+                f"Technology stack enhancement error: {e} - falling back to rule-based results"
+            )
+
         # Always return the analysis result (rule-based foundation preserved)
         return analysis_result
 
@@ -286,50 +287,91 @@ class AnalyzerEnhancer:
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse technology enhancement response: {e}")
             return {}
-    
-    def _merge_technology_enhancements(self, base_result: AnalysisResult, enhancements: Dict[str, Any]) -> AnalysisResult:
+
+    def _merge_technology_enhancements(
+        self, base_result: AnalysisResult, enhancements: Dict[str, Any]
+    ) -> AnalysisResult:
         """
         Merge LLM technology enhancements with rule-based foundation.
         Preserves rule-based analysis as foundation and adds LLM insights.
         """
         if not enhancements:
             return base_result
-        
+
         try:
             # Extract enhancement data
-            enhanced_data = enhancements.get('enhancements', {})
-            architecture_insights = enhancements.get('architecture_insights', [])
-            recommendations = enhancements.get('recommendations', [])
-            
+            enhanced_data = enhancements.get("enhancements", {})
+            architecture_insights = enhancements.get("architecture_insights", [])
+            recommendations = enhancements.get("recommendations", [])
+
+            # Update database information if detected
+            if "database" in enhanced_data and enhanced_data["database"]:
+                if (
+                    hasattr(base_result, "technology_stack")
+                    and base_result.technology_stack
+                ):
+                    # Only update if rule-based analysis didn't provide database info
+                    if not base_result.technology_stack.database:
+                        base_result.technology_stack.database = enhanced_data[
+                            "database"
+                        ]
+                    logger.info(
+                        f"LLM enhanced database detection: {enhanced_data['database']}"
+                    )
+
+            # Update architecture pattern if detected
+            if (
+                "architecture_pattern" in enhanced_data
+                and enhanced_data["architecture_pattern"]
+            ):
+                if (
+                    hasattr(base_result, "technology_stack")
+                    and base_result.technology_stack
+                ):
+                    # Only update if rule-based analysis didn't provide architecture pattern
+                    if not base_result.technology_stack.architecture_pattern:
+                        base_result.technology_stack.architecture_pattern = (
+                            enhanced_data["architecture_pattern"]
+                        )
+                    logger.info(
+                        f"LLM enhanced architecture pattern: {enhanced_data['architecture_pattern']}"
+                    )
+
             # Add additional technologies without replacing rule-based ones
-            additional_techs = enhanced_data.get('additional_technologies', [])
-            if additional_techs and hasattr(base_result, 'technology_stack'):
+            additional_techs = enhanced_data.get("additional_technologies", [])
+            if additional_techs and hasattr(base_result, "technology_stack"):
                 tech_stack = base_result.technology_stack
-                if hasattr(tech_stack, 'additional_technologies'):
-                    existing = getattr(tech_stack, 'additional_technologies', [])
-                    tech_stack.additional_technologies = list(set(existing + additional_techs))
-                
+                if hasattr(tech_stack, "additional_technologies"):
+                    existing = getattr(tech_stack, "additional_technologies", [])
+                    tech_stack.additional_technologies = list(
+                        set(existing + additional_techs)
+                    )
+
             # Add architecture insights
             if architecture_insights:
-                if not hasattr(base_result, 'insights'):
+                if not hasattr(base_result, "insights"):
                     base_result.insights = []
-                base_result.insights.extend([
-                    f"Architecture: {insight.get('pattern', 'Unknown')} (confidence: {insight.get('confidence', 0)})"
-                    for insight in architecture_insights
-                ])
-            
+                base_result.insights.extend(
+                    [
+                        f"Architecture: {insight.get('pattern', 'Unknown')} (confidence: {insight.get('confidence', 0)})"
+                        for insight in architecture_insights
+                    ]
+                )
+
             # Add LLM recommendations
             if recommendations:
-                if not hasattr(base_result, 'recommendations'):
+                if not hasattr(base_result, "recommendations"):
                     base_result.recommendations = []
-                base_result.recommendations.extend([
-                    f"{rec.get('type', 'General')}: {rec.get('title', 'No title')}"
-                    for rec in recommendations
-                ])
-            
+                base_result.recommendations.extend(
+                    [
+                        f"{rec.get('type', 'General')}: {rec.get('title', 'No title')}"
+                        for rec in recommendations
+                    ]
+                )
+
             logger.debug("Technology enhancements merged with rule-based foundation")
             return base_result
-            
+
         except Exception as e:
             logger.error(f"Failed to merge technology enhancements: {e}")
             return base_result

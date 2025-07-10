@@ -135,13 +135,77 @@ class UnifiedGenerator:
             logger.debug("Generating Dockerfile...")
             dockerfile_start = time.time()
             try:
-                dockerfile = await self.dockerfile_generator.generate_dockerfile(
-                    analysis_result, options.get("optimization_level", "balanced")
+                # Check if we need multi-service dockerfiles
+                architecture = getattr(
+                    analysis_result.technology_stack, "architecture_pattern", ""
                 )
-                base_configs["dockerfile"] = dockerfile
+                is_multi_service = any(
+                    pattern in architecture.lower()
+                    for pattern in ["microservices", "multi-service", "monorepo"]
+                )
+
+                # Also check by examining file structure for frontend/backend indicators
+                has_client_dir = any(
+                    "client" in f.get("path", "").lower()
+                    for f in repository_data.get("files", [])
+                )
+                has_server_dir = any(
+                    "server" in f.get("path", "").lower()
+                    for f in repository_data.get("files", [])
+                )
+                has_frontend_dir = any(
+                    "frontend" in f.get("path", "").lower()
+                    for f in repository_data.get("files", [])
+                )
+                has_backend_dir = any(
+                    "backend" in f.get("path", "").lower()
+                    for f in repository_data.get("files", [])
+                )
+
+                is_multi_service = is_multi_service or (
+                    (has_client_dir or has_frontend_dir)
+                    and (has_server_dir or has_backend_dir)
+                )
+
+                if is_multi_service:
+                    logger.info(
+                        "Detected multi-service project, generating multiple Dockerfiles"
+                    )
+                    dockerfiles = (
+                        await self.dockerfile_generator.generate_multistage_dockerfiles(
+                            analysis=analysis_result,
+                            frontend_path=(
+                                "client"
+                                if has_client_dir
+                                else "frontend" if has_frontend_dir else None
+                            ),
+                            backend_path=(
+                                "server"
+                                if has_server_dir
+                                else "backend" if has_backend_dir else None
+                            ),
+                        )
+                    )
+
+                    # Store all generated Dockerfiles
+                    for path, dockerfile in dockerfiles.items():
+                        base_configs[f"dockerfile_{path.replace('/', '_')}"] = (
+                            dockerfile
+                        )
+
+                    # For compatibility, store the first one as the main Dockerfile too
+                    if dockerfiles:
+                        base_configs["dockerfile"] = next(iter(dockerfiles.values()))
+                else:
+                    # Generate a single Dockerfile
+                    dockerfile = await self.dockerfile_generator.generate_dockerfile(
+                        analysis_result, options.get("optimization_level", "balanced")
+                    )
+                    base_configs["dockerfile"] = dockerfile
+
                 dockerfile_time = time.time() - dockerfile_start
                 logger.info(
-                    f"Dockerfile generated successfully in {dockerfile_time:.2f}s"
+                    f"Dockerfile(s) generated successfully in {dockerfile_time:.2f}s"
                 )
             except Exception as e:
                 dockerfile_time = time.time() - dockerfile_start
