@@ -90,29 +90,7 @@ const CodeBlock = ({
           );
         break;
       case "dockerfile":
-        // Highlight Dockerfile keywords at the start of lines
-        highlighted = highlighted
-          .replace(
-            /^(FROM|RUN|COPY|ADD|WORKDIR|EXPOSE|CMD|ENTRYPOINT|ENV|ARG|VOLUME|USER|HEALTHCHECK|ONBUILD|STOPSIGNAL|SHELL)(\s+)/gm,
-            '<span class="text-purple-400">$1</span>$2'
-          )
-          // Comments
-          .replace(/(#.*$)/gm, '<span class="text-gray-500">$1</span>')
-          // Strings (only quoted)
-          .replace(
-            /(["'])([^"']*)\1/g,
-            '<span class="text-green-300">$1$2$1</span>'
-          )
-          // Numbers and ports (only if surrounded by spaces or at end of line)
-          .replace(
-            /(?<=\s|^)(\d+)(?=\s|$)/g,
-            '<span class="text-orange-300">$1</span>'
-          )
-          // File paths (only after COPY, ADD, WORKDIR, etc. and not inside tags)
-          .replace(
-            /(?<=\b(COPY|ADD|WORKDIR|VOLUME|USER|ENV|ARG|ENTRYPOINT|CMD)\s)(\/?[\w\-.\\/]+)(?=\s|$)/g,
-            '<span class="text-blue-300">$2</span>'
-          );
+        // Remove all highlighting for Dockerfile, just return the line as plain text
         break;
       case "yaml":
       case "yml":
@@ -122,10 +100,25 @@ const CodeBlock = ({
             /^(\s*)([a-zA-Z_][a-zA-Z0-9_-]*)\s*:/gm,
             '$1<span class="text-blue-400">$2</span>:'
           )
-          // Values
+          // Double-quoted values
           .replace(
-            /:\s*([^\n\r#]+)/g,
-            ': <span class="text-green-300">$1</span>'
+            /:\s*"([^"]*)"/g,
+            ': <span class="text-green-300">"$1"</span>'
+          )
+          // Single-quoted values
+          .replace(
+            /:\s*'([^']*)'/g,
+            ": <span class=\"text-green-300\">'$1'</span>"
+          )
+          // Unquoted numbers
+          .replace(
+            /:\s*(\d+\.?\d*)/g,
+            ': <span class="text-orange-300">$1</span>'
+          )
+          // Booleans/null
+          .replace(
+            /:\s*(true|false|null)/gi,
+            ': <span class="text-red-400">$1</span>'
           )
           // Comments
           .replace(/(#.*$)/gm, '<span class="text-gray-500">$1</span>');
@@ -161,14 +154,10 @@ const CodeBlock = ({
     return highlighted;
   };
 
-  const cleanDockerfileCode = (raw) => {
-    if (!raw) return "";
-    // Remove all HTML-like syntax highlighting tags from the code
-    return raw
-      .replace(/"text-[a-zA-Z0-9-]+">/g, "")
-      .replace(/<span class="[^"]*">/g, "")
-      .replace(/<\/span>/g, "");
-  };
+  // Split code into lines for rendering
+  // const lines = (code ? cleanDockerfileCode(code) : "").split("\n");
+  // Instead, just split the raw code for rendering, so highlightCode works
+  const lines = (code || "").split("\n");
 
   const getLanguageIcon = (lang) => {
     switch (lang) {
@@ -214,10 +203,6 @@ const CodeBlock = ({
         return "📄";
     }
   };
-
-  // Use cleaning for all syntax highlighted code to remove any unwanted tags
-  const lines = (code ? cleanDockerfileCode(code) : "").split("\n");
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -267,7 +252,7 @@ const CodeBlock = ({
           scrollbarColor: "#4b5563 #1f2937",
         }}
       >
-        <style jsx>{`
+        <style>{`
           .scrollbar-thin::-webkit-scrollbar {
             width: 8px;
             height: 8px;
