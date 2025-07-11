@@ -4,6 +4,7 @@ import { useModal } from "@context/ModalContext.jsx";
 import { useEffect } from "react";
 import SEO from "@components/SEO.jsx";
 import { useScrollToSection } from "@hooks/useScrollToSection";
+import BusinessChatbot from "@components/BusinessChatbot.jsx";
 import {
   Hero,
   About,
@@ -194,6 +195,7 @@ function Home() {
           <Testimonials />
           <Pricing />
           <CTA onGetStarted={handleGetStarted} />
+          <BusinessChatbot />
         </div>
       </div>
     </>
