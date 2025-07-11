@@ -81,7 +81,6 @@ const PlaygroundLayout = () => {
   const [activeView, setActiveView] = useState("editor");
   const [secondarySidebarCollapsed, setSecondarySidebarCollapsed] =
     useState(false);
-  const [fileExplorerCollapsed, setFileExplorerCollapsed] = useState(false);
   const [terminalVisible, setTerminalVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState(ALLOWED_REPOS[0]);
@@ -126,7 +125,7 @@ const PlaygroundLayout = () => {
         id: "chatbot",
         label: "Chat",
         icon: FaComments,
-        tooltip: "AI DevOps Assistant",
+        tooltip: "Deployio Copilot",
       },
     ],
     []
@@ -229,7 +228,7 @@ const PlaygroundLayout = () => {
         };
       case "learning":
         return {
-          title: "Learning Assistant",
+          title: "Deployio Copilot",
           content: (
             <div className="p-4 space-y-4 custom-scrollbar">
               <div className="text-xs text-neutral-400 uppercase tracking-wide font-medium body">
@@ -376,47 +375,40 @@ const PlaygroundLayout = () => {
     switch (activeView) {
       case "editor":
         return (
-          <div className="h-full flex">
-            {!fileExplorerCollapsed && (
-              <div className="w-80 border-r border-neutral-700/50 bg-neutral-950/50">
-                <div className="h-10 border-b border-neutral-700/50 flex items-center justify-between px-3">
-                  <span className="text-sm font-medium text-white">
-                    Explorer
-                  </span>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setFileExplorerCollapsed(true)}
-                    className="p-1 rounded hover:bg-neutral-800 transition-colors"
-                  >
-                    <FaChevronLeft className="w-3 h-3 text-neutral-400" />
-                  </motion.button>
+          <div className="h-full">
+            <PanelGroup direction="horizontal">
+              {/* File Explorer */}
+              <Panel defaultSize={25} minSize={15} maxSize={40}>
+                <div className="h-full border-r border-neutral-700/50 bg-neutral-950/50">
+                  <div className="h-10 border-b border-neutral-700/50 flex items-center px-3">
+                    <span className="text-sm font-medium text-white heading">
+                      Explorer
+                    </span>
+                  </div>
+                  <div className="h-full overflow-hidden">
+                    <FileExplorer
+                      onFileSelect={handleFileSelect}
+                      readOnlyMode={true}
+                      editablePatterns={DEVOPS_CONFIG_PATTERNS}
+                    />
+                  </div>
                 </div>
-                <div className="h-full overflow-hidden">
-                  <FileExplorer
-                    {...panelProps}
-                    readOnlyMode={true}
-                    editablePatterns={DEVOPS_CONFIG_PATTERNS}
-                  />
-                </div>
-              </div>
-            )}
-            <div className="flex-1 flex flex-col">
-              {fileExplorerCollapsed && (
-                <div className="absolute top-12 left-4 z-10">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setFileExplorerCollapsed(false)}
-                    className="w-8 h-8 bg-neutral-800 border border-neutral-700 rounded flex items-center justify-center hover:bg-neutral-700 transition-colors"
-                    title="Show Explorer"
-                  >
-                    <FaFolderOpen className="w-4 h-4 text-neutral-400" />
-                  </motion.button>
-                </div>
-              )}
-              <CodeEditor {...panelProps} />
-            </div>
+              </Panel>
+
+              {/* Panel Resize Handle */}
+              <PanelResizeHandle className="w-1 bg-neutral-800/50 hover:bg-neutral-600 transition-colors" />
+
+              {/* Main Editor Content */}
+              <Panel defaultSize={75} minSize={50}>
+                <CodeEditor
+                  workspace={workspace}
+                  setWorkspace={setWorkspace}
+                  onFileSelect={handleFileSelect}
+                  isFileEditable={isFileEditable}
+                  selectedRepo={selectedRepo}
+                />
+              </Panel>
+            </PanelGroup>
           </div>
         );
       case "analysis":
@@ -535,7 +527,7 @@ const PlaygroundLayout = () => {
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Primary Activity Bar */}
-        <div className="w-12 bg-neutral-950 border-r border-neutral-800 flex flex-col items-center py-2">
+        <div className="w-12 bg-neutral-950 border-r border-neutral-800/50 flex flex-col items-center py-3 flex-shrink-0">
           {activityBarItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
@@ -543,36 +535,44 @@ const PlaygroundLayout = () => {
             return (
               <motion.button
                 key={item.id}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleViewChange(item.id)}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg mb-1 transition-all ${
+                className={`w-9 h-9 flex items-center justify-center rounded-lg mb-2 transition-all duration-200 relative group ${
                   isActive
-                    ? "bg-blue-600 text-white"
-                    : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
+                    : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
                 }`}
                 title={item.tooltip}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4 h-4" />
+                {isActive && (
+                  <motion.div
+                    layoutId="activeIndicator"
+                    className="absolute left-0 top-0 w-1 h-full bg-blue-400 rounded-r"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
               </motion.button>
             );
           })}
 
           {/* Terminal Toggle - Only show for editor */}
           {activeView === "editor" && (
-            <div className="mt-auto">
+            <div className="mt-auto pt-2 border-t border-neutral-800/50">
               <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setTerminalVisible(!terminalVisible)}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
+                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${
                   terminalVisible
-                    ? "bg-neutral-700 text-white"
-                    : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+                    ? "bg-green-600 text-white shadow-lg shadow-green-600/25"
+                    : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
                 }`}
-                title="Toggle Terminal"
+                title={`${terminalVisible ? "Hide" : "Show"} Terminal`}
               >
-                <FaTerminal className="w-4 h-4" />
+                <FaTerminal className="w-3.5 h-3.5" />
               </motion.button>
             </div>
           )}
@@ -648,12 +648,13 @@ const PlaygroundLayout = () => {
           {/* Collapsed Secondary Sidebar Toggle - Only for editor and learning */}
           {secondarySidebarCollapsed &&
             (activeView === "editor" || activeView === "learning") && (
-              <div className="absolute top-16 right-0 z-10">
+              <div className="fixed top-1/2 right-0 z-50 -translate-y-1/2">
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.02, x: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setSecondarySidebarCollapsed(false)}
-                  className="w-6 h-12 bg-neutral-800 border border-neutral-700 rounded-l flex items-center justify-center hover:bg-neutral-700 transition-colors"
+                  className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
+                  title="Show Deployio Copilot"
                 >
                   <FaChevronLeft className="w-3 h-3 text-neutral-400" />
                 </motion.button>

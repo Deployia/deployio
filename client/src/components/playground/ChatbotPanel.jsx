@@ -23,7 +23,7 @@ const ChatbotPanel = () => {
     const welcomeMessage = {
       id: 1,
       type: "ai",
-      content: `👋 Hello! I'm your DevOps AI assistant. I can help you with:
+      content: `👋 Hello! I'm Deployio Copilot, your DevOps AI assistant. I can help you with:
 
 🔧 **Code Analysis & Optimization**
 🐛 **Debugging & Troubleshooting** 
@@ -42,17 +42,23 @@ How can I assist you today?`,
   // Sample AI responses for demonstration
   const getAIResponse = (userMessage) => {
     const responses = {
-      "docker": "🐳 Docker is a containerization platform that packages applications and dependencies into lightweight containers. Here are some best practices:\n\n• Use multi-stage builds to reduce image size\n• Run as non-root user for security\n• Use specific base image tags\n• Implement health checks\n• Optimize layer caching",
-      
-      "ci/cd": "🚀 CI/CD (Continuous Integration/Continuous Deployment) automates your development workflow. Key components:\n\n• **Continuous Integration**: Automated testing and building\n• **Continuous Deployment**: Automated deployment to production\n• **Popular tools**: GitHub Actions, Jenkins, GitLab CI\n• **Best practices**: Test early, deploy often, rollback quickly",
-      
-      "kubernetes": "☸️ Kubernetes orchestrates containerized applications at scale. Core concepts:\n\n• **Pods**: Smallest deployable units\n• **Services**: Network abstraction layer\n• **Deployments**: Manage replica sets\n• **Ingress**: Expose services externally\n• **ConfigMaps & Secrets**: Configuration management",
-      
-      "terraform": "🏗️ Terraform enables Infrastructure as Code (IaC). Benefits:\n\n• **Declarative**: Define desired state\n• **Version Control**: Track infrastructure changes\n• **Reusable**: Modules for common patterns\n• **Multi-cloud**: Works across providers\n• **State Management**: Tracks resource state",
-      
-      "security": "🔒 DevOps security best practices:\n\n• **Shift Left**: Integrate security early in development\n• **Secrets Management**: Use tools like HashiCorp Vault\n• **Image Scanning**: Check for vulnerabilities\n• **RBAC**: Role-based access control\n• **Network Policies**: Secure pod-to-pod communication\n• **Regular Updates**: Keep dependencies current",
-      
-      "monitoring": "📊 Monitoring and observability are crucial:\n\n• **Metrics**: Prometheus, Grafana\n• **Logging**: ELK Stack, Fluentd\n• **Tracing**: Jaeger, Zipkin\n• **Alerting**: PagerDuty, Slack integration\n• **Health Checks**: Application and infrastructure\n• **SLIs/SLOs**: Service level indicators and objectives"
+      docker:
+        "🐳 Docker is a containerization platform that packages applications and dependencies into lightweight containers. Here are some best practices:\n\n• Use multi-stage builds to reduce image size\n• Run as non-root user for security\n• Use specific base image tags\n• Implement health checks\n• Optimize layer caching",
+
+      "ci/cd":
+        "🚀 CI/CD (Continuous Integration/Continuous Deployment) automates your development workflow. Key components:\n\n• **Continuous Integration**: Automated testing and building\n• **Continuous Deployment**: Automated deployment to production\n• **Popular tools**: GitHub Actions, Jenkins, GitLab CI\n• **Best practices**: Test early, deploy often, rollback quickly",
+
+      kubernetes:
+        "☸️ Kubernetes orchestrates containerized applications at scale. Core concepts:\n\n• **Pods**: Smallest deployable units\n• **Services**: Network abstraction layer\n• **Deployments**: Manage replica sets\n• **Ingress**: Expose services externally\n• **ConfigMaps & Secrets**: Configuration management",
+
+      terraform:
+        "🏗️ Terraform enables Infrastructure as Code (IaC). Benefits:\n\n• **Declarative**: Define desired state\n• **Version Control**: Track infrastructure changes\n• **Reusable**: Modules for common patterns\n• **Multi-cloud**: Works across providers\n• **State Management**: Tracks resource state",
+
+      security:
+        "🔒 DevOps security best practices:\n\n• **Shift Left**: Integrate security early in development\n• **Secrets Management**: Use tools like HashiCorp Vault\n• **Image Scanning**: Check for vulnerabilities\n• **RBAC**: Role-based access control\n• **Network Policies**: Secure pod-to-pod communication\n• **Regular Updates**: Keep dependencies current",
+
+      monitoring:
+        "📊 Monitoring and observability are crucial:\n\n• **Metrics**: Prometheus, Grafana\n• **Logging**: ELK Stack, Fluentd\n• **Tracing**: Jaeger, Zipkin\n• **Alerting**: PagerDuty, Slack integration\n• **Health Checks**: Application and infrastructure\n• **SLIs/SLOs**: Service level indicators and objectives",
     };
 
     // Find matching response based on keywords
@@ -78,7 +84,7 @@ How can I assist you today?`,
       timestamp: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setIsTyping(true);
 
@@ -91,7 +97,7 @@ How can I assist you today?`,
         timestamp: new Date().toISOString(),
       };
 
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, aiMessage]);
       setIsTyping(false);
     }, 1500);
   };
@@ -132,11 +138,15 @@ How can I assist you today?`,
         <div className="flex items-center gap-3">
           <FiCpu className="w-6 h-6 text-blue-400" />
           <div>
-            <h2 className="text-2xl font-bold text-white heading">DevOps Assistant</h2>
-            <p className="text-neutral-400 body">AI-powered DevOps guidance and support</p>
+            <h2 className="text-2xl font-bold text-white heading">
+              Deployio Copilot
+            </h2>
+            <p className="text-neutral-400 body">
+              AI-powered DevOps guidance and support
+            </p>
           </div>
         </div>
-        
+
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -156,27 +166,35 @@ How can I assist you today?`,
               key={message.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex ${
+                message.type === "user" ? "justify-end" : "justify-start"
+              }`}
             >
-              <div className={`max-w-3xl ${message.type === "user" ? "order-2" : ""}`}>
+              <div
+                className={`max-w-3xl ${
+                  message.type === "user" ? "order-2" : ""
+                }`}
+              >
                 <div className="flex items-start gap-3">
                   {message.type === "ai" && (
                     <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
                       <FiCpu className="w-4 h-4 text-blue-400" />
                     </div>
                   )}
-                  
-                  <div className={`rounded-xl p-4 ${
-                    message.type === "user"
-                      ? "bg-blue-500/20 border border-blue-500/30 text-blue-100"
-                      : "bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 text-neutral-200"
-                  }`}>
+
+                  <div
+                    className={`rounded-xl p-4 ${
+                      message.type === "user"
+                        ? "bg-blue-500/20 border border-blue-500/30 text-blue-100"
+                        : "bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 text-neutral-200"
+                    }`}
+                  >
                     <div className="prose prose-sm max-w-none">
                       <div className="whitespace-pre-wrap body leading-relaxed">
                         {message.content}
                       </div>
                     </div>
-                    
+
                     {message.type === "ai" && (
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-700/50">
                         <span className="text-xs text-neutral-500 body">
@@ -194,7 +212,7 @@ How can I assist you today?`,
                       </div>
                     )}
                   </div>
-                  
+
                   {message.type === "user" && (
                     <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center flex-shrink-0">
                       <FiUser className="w-4 h-4 text-green-400" />
@@ -222,10 +240,18 @@ How can I assist you today?`,
                     <div className="flex items-center gap-2">
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                        <div
+                          className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
                       </div>
-                      <span className="text-sm text-neutral-400 body">AI is thinking...</span>
+                      <span className="text-sm text-neutral-400 body">
+                        AI is thinking...
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -240,7 +266,9 @@ How can I assist you today?`,
       {/* Quick Prompts */}
       {messages.length <= 1 && (
         <div className="px-6 pb-4">
-          <div className="text-sm text-neutral-400 mb-3 body">Try asking about:</div>
+          <div className="text-sm text-neutral-400 mb-3 body">
+            Try asking about:
+          </div>
           <div className="flex flex-wrap gap-2">
             {quickPrompts.map((prompt, index) => (
               <motion.button
@@ -273,11 +301,12 @@ How can I assist you today?`,
               style={{ minHeight: "44px", maxHeight: "120px" }}
               onInput={(e) => {
                 e.target.style.height = "44px";
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+                e.target.style.height =
+                  Math.min(e.target.scrollHeight, 120) + "px";
               }}
             />
           </div>
-          
+
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

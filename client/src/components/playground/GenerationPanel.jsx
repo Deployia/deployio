@@ -11,6 +11,25 @@ import {
   FiLoader,
   FiCheck,
 } from "react-icons/fi";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+
+// Helper function to determine language from generator type
+const getLanguageFromGenerator = (generatorType) => {
+  const languageMap = {
+    dockerfile: "dockerfile",
+    "docker-compose": "yaml",
+    kubernetes: "yaml",
+    terraform: "hcl",
+    "github-actions": "yaml",
+    "azure-pipelines": "yaml",
+    jenkins: "groovy",
+    bash: "bash",
+    powershell: "powershell",
+  };
+
+  return languageMap[generatorType] || "text";
+};
 
 const GenerationPanel = () => {
   const [activeGenerator, setActiveGenerator] = useState("dockerfile");
@@ -411,11 +430,29 @@ resource "aws_ecs_cluster" "main" {
 
           {/* Code Content */}
           <div className="h-full overflow-auto custom-scrollbar">
-            <pre className="p-4 text-sm body text-neutral-200 leading-relaxed font-mono">
-              <code className="whitespace-pre-wrap break-words">
-                {generatedContent}
-              </code>
-            </pre>
+            <SyntaxHighlighter
+              language={getLanguageFromGenerator(activeGenerator)}
+              style={vscDarkPlus}
+              customStyle={{
+                margin: 0,
+                padding: "1rem",
+                background: "transparent",
+                fontSize: "0.875rem",
+                lineHeight: "1.5",
+                fontFamily:
+                  'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+              }}
+              wrapLines={true}
+              wrapLongLines={true}
+              showLineNumbers={true}
+              lineNumberStyle={{
+                color: "#6b7280",
+                paddingRight: "1rem",
+                fontSize: "0.75rem",
+              }}
+            >
+              {generatedContent}
+            </SyntaxHighlighter>
           </div>
         </div>
       </div>

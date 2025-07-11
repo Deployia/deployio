@@ -11,6 +11,8 @@ const PlaygroundRoutes = () => {
         <Route path="generation" element={<div />} />
         <Route path="learning" element={<div />} />
         <Route path="chatbot" element={<div />} />
+        {/* All playground functionality is handled within PlaygroundLayout */}
+        {/* Individual routes serve as navigation targets only */}
       </Route>
     </Routes>
   );
