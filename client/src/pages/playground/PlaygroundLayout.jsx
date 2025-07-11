@@ -233,7 +233,7 @@ const PlaygroundLayout = () => {
       case "editor":
         return {
           title: "Code Insights",
-          content: <EditorSidebar workspace={currentWorkspace} />,
+          content: <EditorSidebar workspace={viewStates.editor} />,
         };
       case "analysis":
         return {

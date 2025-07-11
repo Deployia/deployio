@@ -1,7 +1,6 @@
 import { useRef, useCallback, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { motion } from "framer-motion";
-import { FaTerminal } from "react-icons/fa";
 import FileExplorer from "../FileExplorer";
 import CodeEditor from "../CodeEditor";
 import Terminal from "../Terminal";
@@ -31,23 +30,10 @@ const EditorView = ({
         {/* File Explorer */}
         <Panel id="file-explorer" defaultSize={25} minSize={15} maxSize={40}>
           <div className="h-full border-r border-neutral-700/50 bg-neutral-950/50">
-            <div className="h-10 border-b border-neutral-700/50 flex items-center justify-between px-3">
+            <div className="h-10 border-b border-neutral-700/50 flex items-center px-3">
               <span className="text-sm font-medium text-white heading">
                 Repository Explorer
               </span>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setTerminalVisible(!terminalVisible)}
-                className={`p-1.5 rounded-md transition-all duration-200 ${
-                  terminalVisible
-                    ? "bg-green-600 text-white shadow-md shadow-green-600/25"
-                    : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
-                }`}
-                title={`${terminalVisible ? "Hide" : "Show"} DevOps Terminal`}
-              >
-                <FaTerminal className="w-3 h-3" />
-              </motion.button>
             </div>
             <div className="h-full overflow-hidden">
               <FileExplorer
@@ -92,6 +78,8 @@ const EditorView = ({
                 readOnlyMode={true}
                 selectedRepo={selectedRepo}
                 githubToken={githubToken}
+                terminalVisible={terminalVisible}
+                setTerminalVisible={setTerminalVisible}
               />
             </Panel>
 

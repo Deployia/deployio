@@ -41,8 +41,11 @@ const ChatbotPanel = () => {
     const welcomeMessage = {
       id: 1,
       type: "ai",
-      content: `👋 Hello! I'm **DeployBot**, your intelligent DevOps assistant. I can help you with:
+      content: `👋 Hello! I'm **DeployBot**, your intelligent DevOps assistant.
 
+⚠️ **Please Note**: This editor is **read-only** and designed for **educational purposes** to demonstrate DevOps best practices.
+
+I can help you with:
 🔧 **Code Analysis & Optimization**
 🐛 **Debugging & Troubleshooting** 
 📚 **DevOps Best Practices**
@@ -265,7 +268,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                               </pre>
                             ) : (
                               <code
-                                className="bg-neutral-700/50 px-1.5 py-0.5 rounded text-orange-300 text-sm"
+                                className="bg-neutral-800/70 px-2 py-1 rounded text-blue-300 text-sm font-mono"
                                 {...props}
                               >
                                 {children}
@@ -273,22 +276,22 @@ Click on a suggestion below or ask me anything about DevOps!`,
                             );
                           },
                           h1: ({ children }) => (
-                            <h1 className="text-xl font-bold text-white mb-3">
+                            <h1 className="text-xl font-bold text-blue-300 mb-3">
                               {children}
                             </h1>
                           ),
                           h2: ({ children }) => (
-                            <h2 className="text-lg font-semibold text-neutral-200 mb-2">
+                            <h2 className="text-lg font-semibold text-blue-200 mb-2">
                               {children}
                             </h2>
                           ),
                           h3: ({ children }) => (
-                            <h3 className="text-md font-medium text-neutral-300 mb-2">
+                            <h3 className="text-md font-medium text-blue-100 mb-2">
                               {children}
                             </h3>
                           ),
                           strong: ({ children }) => (
-                            <strong className="font-semibold text-white">
+                            <strong className="font-semibold text-blue-200">
                               {children}
                             </strong>
                           ),
@@ -353,9 +356,9 @@ Click on a suggestion below or ask me anything about DevOps!`,
               </div>
 
               {message.type === "user" && (
-                <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face&auto=format&q=80"
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face&auto=format&q=80"
                     alt="User"
                     className="w-full h-full object-cover"
                   />
@@ -436,57 +439,51 @@ Click on a suggestion below or ask me anything about DevOps!`,
       {/* Input Area */}
       <div className="border-t border-neutral-800/50 bg-neutral-900/50 backdrop-blur-sm flex-shrink-0">
         <div className="p-4">
-          <div className="flex items-end gap-3">
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                value={inputMessage}
-                onChange={(e) => {
-                  setInputMessage(e.target.value);
-                  // Auto-resize textarea
-                  e.target.style.height = "auto";
-                  e.target.style.height =
-                    Math.min(e.target.scrollHeight, 120) + "px";
-                }}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask DeployBot about DevOps, containers, CI/CD, security..."
-                className="w-full bg-neutral-800/90 border border-neutral-600/30 rounded-xl px-4 py-3 text-white placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm leading-relaxed shadow-lg backdrop-blur-sm"
-                rows={1}
-                style={{ minHeight: "48px", maxHeight: "120px" }}
-              />
+          <div className="relative">
+            <textarea
+              ref={inputRef}
+              value={inputMessage}
+              onChange={(e) => {
+                setInputMessage(e.target.value);
+                // Auto-resize textarea
+                e.target.style.height = "auto";
+                e.target.style.height =
+                  Math.min(e.target.scrollHeight, 120) + "px";
+              }}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask DeployBot about DevOps, containers, CI/CD, security..."
+              className="w-full bg-neutral-800/90 border border-neutral-600/30 rounded-xl px-4 py-3 pr-12 text-white placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm leading-relaxed shadow-lg backdrop-blur-sm"
+              rows={1}
+              style={{ minHeight: "48px", maxHeight: "120px" }}
+            />
 
-              {!inputMessage && !showSuggestions && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowSuggestions(true)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-blue-400 transition-colors"
-                  title="Show Suggestions"
-                >
-                  <FiZap className="w-4 h-4" />
-                </motion.button>
-              )}
-            </div>
-
+            {/* Submit button inside input */}
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={sendMessage}
               disabled={!inputMessage.trim() || isTyping}
-              className="px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-neutral-700 disabled:to-neutral-700 disabled:text-neutral-400 rounded-xl text-white font-medium transition-all flex items-center gap-2 shadow-xl disabled:shadow-none h-12"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-neutral-700 disabled:to-neutral-700 disabled:text-neutral-400 rounded-lg text-white transition-all shadow-md disabled:shadow-none"
             >
               {isTyping ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Thinking...</span>
-                </div>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>
-                  <FiSend className="w-4 h-4" />
-                  Send
-                </>
+                <FiSend className="w-4 h-4" />
               )}
             </motion.button>
+
+            {/* Suggestions toggle for empty input */}
+            {!inputMessage && !showSuggestions && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowSuggestions(true)}
+                className="absolute right-14 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-blue-400 transition-colors"
+                title="Show Suggestions"
+              >
+                <FiZap className="w-4 h-4" />
+              </motion.button>
+            )}
           </div>
         </div>
       </div>
