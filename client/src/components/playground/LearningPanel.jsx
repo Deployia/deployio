@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import SEO from "@components/SEO";
 import { motion } from "framer-motion";
 import {
   FiBookOpen,
@@ -236,203 +237,206 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-neutral-900">
-      {/* Header */}
-      <div className="p-6 border-b border-neutral-800/50 bg-gradient-to-r from-neutral-900/50 to-neutral-800/30">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <FiBookOpen className="w-6 h-6 text-green-400" />
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-2xl font-bold text-white heading">
-                  DevOps Learning Center
-                </h2>
-                <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-xs font-medium text-yellow-400 body">
-                  Coming Soon
-                </span>
-                <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs font-medium text-blue-400 body">
-                  Static Preview
+    <>
+      <SEO page="playground-learning" />
+      <div className="h-full flex flex-col bg-neutral-900">
+        {/* Header */}
+        <div className="p-6 border-b border-neutral-800/50 bg-gradient-to-r from-neutral-900/50 to-neutral-800/30">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <FiBookOpen className="w-6 h-6 text-green-400" />
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h2 className="text-2xl font-bold text-white heading">
+                    DevOps Learning Center
+                  </h2>
+                  <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-xs font-medium text-yellow-400 body">
+                    Coming Soon
+                  </span>
+                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs font-medium text-blue-400 body">
+                    Static Preview
+                  </span>
+                </div>
+                <p className="text-neutral-400 body">
+                  Master DevOps skills with hands-on tutorials and interactive
+                  lessons
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-xs font-medium body">
+                🚀 Coming Soon
+              </span>
+              <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-xs font-medium body">
+                Static Preview
+              </span>
+            </div>
+          </div>
+
+          {/* Progress Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FiAward className="w-4 h-4 text-yellow-400" />
+                <span className="text-sm font-medium text-white heading">
+                  Completed Modules
                 </span>
               </div>
-              <p className="text-neutral-400 body">
-                Master DevOps skills with hands-on tutorials and interactive
-                lessons
-              </p>
+              <div className="text-2xl font-bold text-white heading">1/4</div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-xs font-medium body">
-              🚀 Coming Soon
-            </span>
-            <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-xs font-medium body">
-              Static Preview
-            </span>
+
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FiClock className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-medium text-white heading">
+                  Total Hours
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white heading">18h</div>
+            </div>
+
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FiUsers className="w-4 h-4 text-purple-400" />
+                <span className="text-sm font-medium text-white heading">
+                  Community Rank
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white heading">#47</div>
+            </div>
           </div>
         </div>
 
-        {/* Progress Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FiAward className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm font-medium text-white heading">
-                Completed Modules
-              </span>
-            </div>
-            <div className="text-2xl font-bold text-white heading">1/4</div>
-          </div>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Module Content */}
+          <div className="flex-1 overflow-auto custom-scrollbar p-6">
+            {currentModuleData && (
+              <div>
+                {/* Module Header */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <currentModuleData.icon
+                      className={`w-8 h-8 text-${currentModuleData.color}-400`}
+                    />
+                    <div>
+                      <h2 className="text-2xl font-bold text-white heading">
+                        {currentModuleData.title}
+                      </h2>
+                      <p className="text-neutral-400 body">
+                        {currentModuleData.description}
+                      </p>
+                    </div>
+                  </div>
 
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FiClock className="w-4 h-4 text-blue-400" />
-              <span className="text-sm font-medium text-white heading">
-                Total Hours
-              </span>
-            </div>
-            <div className="text-2xl font-bold text-white heading">18h</div>
-          </div>
-
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FiUsers className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-white heading">
-                Community Rank
-              </span>
-            </div>
-            <div className="text-2xl font-bold text-white heading">#47</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Module Content */}
-        <div className="flex-1 overflow-auto custom-scrollbar p-6">
-          {currentModuleData && (
-            <div>
-              {/* Module Header */}
-              <div className="mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <currentModuleData.icon
-                    className={`w-8 h-8 text-${currentModuleData.color}-400`}
-                  />
-                  <div>
-                    <h2 className="text-2xl font-bold text-white heading">
-                      {currentModuleData.title}
-                    </h2>
-                    <p className="text-neutral-400 body">
-                      {currentModuleData.description}
-                    </p>
+                  {/* Module Stats */}
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
+                      <div className="text-lg font-bold text-white heading">
+                        {currentModuleData.totalLessons}
+                      </div>
+                      <div className="text-sm text-neutral-400 body">
+                        Total Lessons
+                      </div>
+                    </div>
+                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
+                      <div className="text-lg font-bold text-white heading">
+                        {currentModuleData.estimatedTime}
+                      </div>
+                      <div className="text-sm text-neutral-400 body">
+                        Estimated Time
+                      </div>
+                    </div>
+                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
+                      <div
+                        className={`text-lg font-bold heading ${getDifficultyColor(
+                          currentModuleData.difficulty
+                        )}`}
+                      >
+                        {currentModuleData.difficulty}
+                      </div>
+                      <div className="text-sm text-neutral-400 body">
+                        Difficulty
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Module Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
-                    <div className="text-lg font-bold text-white heading">
-                      {currentModuleData.totalLessons}
-                    </div>
-                    <div className="text-sm text-neutral-400 body">
-                      Total Lessons
-                    </div>
-                  </div>
-                  <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
-                    <div className="text-lg font-bold text-white heading">
-                      {currentModuleData.estimatedTime}
-                    </div>
-                    <div className="text-sm text-neutral-400 body">
-                      Estimated Time
-                    </div>
-                  </div>
-                  <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
-                    <div
-                      className={`text-lg font-bold heading ${getDifficultyColor(
-                        currentModuleData.difficulty
-                      )}`}
+                {/* Lessons List */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white heading">
+                    Lessons
+                  </h3>
+
+                  {currentModuleData.lessons.map((lesson, index) => (
+                    <motion.div
+                      key={lesson.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4"
                     >
-                      {currentModuleData.difficulty}
-                    </div>
-                    <div className="text-sm text-neutral-400 body">
-                      Difficulty
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Lessons List */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white heading">
-                  Lessons
-                </h3>
-
-                {currentModuleData.lessons.map((lesson, index) => (
-                  <motion.div
-                    key={lesson.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">
-                            {getLessonTypeIcon(lesson.type)}
-                          </span>
-                          {lesson.completed ? (
-                            <FiCheckCircle className="w-5 h-5 text-green-400" />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full border-2 border-neutral-600" />
-                          )}
-                        </div>
-
-                        <div className="flex-1">
-                          <h4 className="text-lg font-semibold text-white mb-1 heading">
-                            {lesson.title}
-                          </h4>
-                          <p className="text-sm text-neutral-400 mb-2 body">
-                            {lesson.description}
-                          </p>
-                          <div className="flex items-center gap-4 text-xs text-neutral-500 body">
-                            <span className="flex items-center gap-1">
-                              <FiClock className="w-3 h-3" />
-                              {lesson.duration}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">
+                              {getLessonTypeIcon(lesson.type)}
                             </span>
-                            <span className="capitalize">{lesson.type}</span>
+                            {lesson.completed ? (
+                              <FiCheckCircle className="w-5 h-5 text-green-400" />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full border-2 border-neutral-600" />
+                            )}
+                          </div>
+
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-white mb-1 heading">
+                              {lesson.title}
+                            </h4>
+                            <p className="text-sm text-neutral-400 mb-2 body">
+                              {lesson.description}
+                            </p>
+                            <div className="flex items-center gap-4 text-xs text-neutral-500 body">
+                              <span className="flex items-center gap-1">
+                                <FiClock className="w-3 h-3" />
+                                {lesson.duration}
+                              </span>
+                              <span className="capitalize">{lesson.type}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => startLesson(lesson)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors body ${
-                          lesson.completed
-                            ? "bg-green-500/20 border border-green-500/30 text-green-400"
-                            : `bg-${currentModuleData.color}-500/20 border border-${currentModuleData.color}-500/30 text-${currentModuleData.color}-400 hover:bg-${currentModuleData.color}-500/30`
-                        }`}
-                      >
-                        {lesson.completed ? (
-                          <>
-                            <FiCheckCircle className="w-4 h-4" />
-                            Review
-                          </>
-                        ) : (
-                          <>
-                            <FiPlay className="w-4 h-4" />
-                            Start
-                          </>
-                        )}
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                ))}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => startLesson(lesson)}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors body ${
+                            lesson.completed
+                              ? "bg-green-500/20 border border-green-500/30 text-green-400"
+                              : `bg-${currentModuleData.color}-500/20 border border-${currentModuleData.color}-500/30 text-${currentModuleData.color}-400 hover:bg-${currentModuleData.color}-500/30`
+                          }`}
+                        >
+                          {lesson.completed ? (
+                            <>
+                              <FiCheckCircle className="w-4 h-4" />
+                              Review
+                            </>
+                          ) : (
+                            <>
+                              <FiPlay className="w-4 h-4" />
+                              Start
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

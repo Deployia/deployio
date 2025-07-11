@@ -1,4 +1,5 @@
 import { useRef, useCallback, useState } from "react";
+import SEO from "@components/SEO";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { motion } from "framer-motion";
 import FileExplorer from "../FileExplorer";
@@ -25,83 +26,91 @@ const EditorView = ({
   }, []);
 
   return (
-    <div className="h-full">
-      <PanelGroup direction="horizontal">
-        {/* File Explorer */}
-        <Panel id="file-explorer" defaultSize={25} minSize={15} maxSize={40}>
-          <div className="h-full border-r border-neutral-700/50 bg-neutral-950/50">
-            <div className="h-10 border-b border-neutral-700/50 flex items-center px-3">
-              <span className="text-sm font-medium text-white heading">
-                Repository Explorer
-              </span>
+    <>
+      <SEO page="playground-editor" />
+      <div className="h-full">
+        <PanelGroup direction="horizontal">
+          {/* File Explorer */}
+          <Panel id="file-explorer" defaultSize={25} minSize={15} maxSize={40}>
+            <div className="h-full border-r border-neutral-700/50 bg-neutral-950/50">
+              <div className="h-10 border-b border-neutral-700/50 flex items-center px-3">
+                <span className="text-sm font-medium text-white heading">
+                  Repository Explorer
+                </span>
+              </div>
+              <div className="h-full overflow-hidden">
+                <FileExplorer
+                  onFileSelect={handleFileSelect}
+                  githubToken={githubToken}
+                  readOnlyMode={true}
+                  selectedRepo={selectedRepo}
+                />
+              </div>
             </div>
-            <div className="h-full overflow-hidden">
-              <FileExplorer
-                onFileSelect={handleFileSelect}
-                githubToken={githubToken}
-                readOnlyMode={true}
-                selectedRepo={selectedRepo}
-              />
-            </div>
-          </div>
-        </Panel>
+          </Panel>
 
-        {/* Panel Resize Handle */}
-        <PanelResizeHandle className="w-1 bg-neutral-800/50 hover:bg-neutral-600 transition-colors" />
+          {/* Panel Resize Handle */}
+          <PanelResizeHandle className="w-1 bg-neutral-800/50 hover:bg-neutral-600 transition-colors" />
 
-        {/* Main Editor Content */}
-        <Panel id="main-content" defaultSize={75} minSize={50}>
-          {/* Progress Bar */}
-          {isLoadingFile && (
-            <div className="h-0.5 bg-neutral-800">
-              <motion.div
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
-                initial={{ width: 0 }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 2, ease: "easeInOut" }}
-              />
-            </div>
-          )}
-
-          <PanelGroup direction="vertical">
-            {/* Code Editor */}
-            <Panel
-              id="code-editor"
-              defaultSize={terminalVisible ? 70 : 100}
-              minSize={40}
-            >
-              <CodeEditor
-                workspace={workspace}
-                setWorkspace={setWorkspace}
-                onFileSelect={fileSelectRef}
-                onLoadingChange={setIsLoadingFile}
-                readOnlyMode={true}
-                selectedRepo={selectedRepo}
-                githubToken={githubToken}
-                terminalVisible={terminalVisible}
-                setTerminalVisible={setTerminalVisible}
-              />
-            </Panel>
-
-            {/* DevOps Terminal */}
-            {terminalVisible && (
-              <>
-                <PanelResizeHandle className="h-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
-                <Panel id="terminal" defaultSize={30} minSize={15} maxSize={60}>
-                  <div className="h-full border-t border-neutral-800">
-                    <Terminal
-                      workspace={workspace}
-                      selectedRepo={selectedRepo}
-                      devOpsMode={true}
-                    />
-                  </div>
-                </Panel>
-              </>
+          {/* Main Editor Content */}
+          <Panel id="main-content" defaultSize={75} minSize={50}>
+            {/* Progress Bar */}
+            {isLoadingFile && (
+              <div className="h-0.5 bg-neutral-800">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 2, ease: "easeInOut" }}
+                />
+              </div>
             )}
-          </PanelGroup>
-        </Panel>
-      </PanelGroup>
-    </div>
+
+            <PanelGroup direction="vertical">
+              {/* Code Editor */}
+              <Panel
+                id="code-editor"
+                defaultSize={terminalVisible ? 70 : 100}
+                minSize={40}
+              >
+                <CodeEditor
+                  workspace={workspace}
+                  setWorkspace={setWorkspace}
+                  onFileSelect={fileSelectRef}
+                  onLoadingChange={setIsLoadingFile}
+                  readOnlyMode={true}
+                  selectedRepo={selectedRepo}
+                  githubToken={githubToken}
+                  terminalVisible={terminalVisible}
+                  setTerminalVisible={setTerminalVisible}
+                />
+              </Panel>
+
+              {/* DevOps Terminal */}
+              {terminalVisible && (
+                <>
+                  <PanelResizeHandle className="h-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
+                  <Panel
+                    id="terminal"
+                    defaultSize={30}
+                    minSize={15}
+                    maxSize={60}
+                  >
+                    <div className="h-full border-t border-neutral-800">
+                      <Terminal
+                        workspace={workspace}
+                        selectedRepo={selectedRepo}
+                        devOpsMode={true}
+                      />
+                    </div>
+                  </Panel>
+                </>
+              )}
+            </PanelGroup>
+          </Panel>
+        </PanelGroup>
+      </div>
+    </>
   );
 };
 
