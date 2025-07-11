@@ -381,7 +381,13 @@ jobs:
       </div>
 
       {/* Content - Scrollable */}
-      <div className="flex-1 overflow-auto custom-scrollbar">
+      <div
+        className="flex-1 overflow-auto"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#525252 #262626",
+        }}
+      >
         <div className="p-6">
           {/* Generate Button */}
           <div className="mb-6">
@@ -471,8 +477,12 @@ jobs:
 
                 {/* Code Content */}
                 <div
-                  className="overflow-auto custom-scrollbar"
-                  style={{ maxHeight: "400px" }}
+                  className="overflow-auto"
+                  style={{
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#525252 #262626",
+                    maxHeight: "400px",
+                  }}
                 >
                   <SyntaxHighlighter
                     language={getLanguageFromGenerator(activeGenerator)}
@@ -551,7 +561,10 @@ jobs:
                     className="flex-shrink-0 bg-neutral-800/50 rounded-lg px-3 py-2 cursor-pointer"
                     onClick={() => {
                       if (setWorkspace) {
-                        setWorkspace({ activeTemplate: item.type });
+                        setWorkspace({
+                          activeTemplate: item.type,
+                          generatedCode: null, // Clear previous generation
+                        });
                       }
                     }}
                   >

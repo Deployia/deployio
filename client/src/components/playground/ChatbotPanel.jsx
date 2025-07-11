@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
   FiSend,
-  FiUser,
   FiTrash2,
   FiCopy,
   FiCode,
@@ -19,6 +18,7 @@ const ChatbotPanel = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [llmConnected, setLlmConnected] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(null);
 
   // Check LLM service connection status
   useEffect(() => {
@@ -148,8 +148,10 @@ Click on a suggestion below or ask me anything about DevOps!`,
   };
 
   // Copy message
-  const copyMessage = (content) => {
+  const copyMessage = (content, messageId) => {
     navigator.clipboard.writeText(content);
+    setCopySuccess(messageId);
+    setTimeout(() => setCopySuccess(null), 2000);
   };
 
   return (
@@ -263,7 +265,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                               </pre>
                             ) : (
                               <code
-                                className="bg-neutral-700/50 px-1.5 py-0.5 rounded text-cyan-300 text-sm"
+                                className="bg-neutral-700/50 px-1.5 py-0.5 rounded text-orange-300 text-sm"
                                 {...props}
                               >
                                 {children}
@@ -271,22 +273,22 @@ Click on a suggestion below or ask me anything about DevOps!`,
                             );
                           },
                           h1: ({ children }) => (
-                            <h1 className="text-xl font-bold text-emerald-400 mb-3">
+                            <h1 className="text-xl font-bold text-white mb-3">
                               {children}
                             </h1>
                           ),
                           h2: ({ children }) => (
-                            <h2 className="text-lg font-semibold text-emerald-300 mb-2">
+                            <h2 className="text-lg font-semibold text-neutral-200 mb-2">
                               {children}
                             </h2>
                           ),
                           h3: ({ children }) => (
-                            <h3 className="text-md font-medium text-emerald-200 mb-2">
+                            <h3 className="text-md font-medium text-neutral-300 mb-2">
                               {children}
                             </h3>
                           ),
                           strong: ({ children }) => (
-                            <strong className="font-semibold text-yellow-300">
+                            <strong className="font-semibold text-white">
                               {children}
                             </strong>
                           ),
@@ -314,7 +316,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                             </p>
                           ),
                           blockquote: ({ children }) => (
-                            <blockquote className="border-l-4 border-emerald-500/50 pl-4 my-3 text-neutral-300 italic">
+                            <blockquote className="border-l-4 border-neutral-500/50 pl-4 my-3 text-neutral-300 italic">
                               {children}
                             </blockquote>
                           ),
@@ -334,19 +336,29 @@ Click on a suggestion below or ask me anything about DevOps!`,
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      onClick={() => copyMessage(message.content)}
+                      onClick={() => copyMessage(message.content, message.id)}
                       className="p-1 rounded hover:bg-neutral-800 transition-colors text-neutral-500 hover:text-white"
-                      title="Copy Message"
+                      title={
+                        copySuccess === message.id ? "Copied!" : "Copy Message"
+                      }
                     >
-                      <FiCopy className="w-3 h-3" />
+                      {copySuccess === message.id ? (
+                        <FiCode className="w-3 h-3 text-green-400" />
+                      ) : (
+                        <FiCopy className="w-3 h-3" />
+                      )}
                     </motion.button>
                   )}
                 </div>
               </div>
 
               {message.type === "user" && (
-                <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0">
-                  <FiUser className="w-4 h-4 text-neutral-300" />
+                <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <img
+                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face&auto=format&q=80"
+                    alt="User"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               )}
             </motion.div>
@@ -422,9 +434,9 @@ Click on a suggestion below or ask me anything about DevOps!`,
       </AnimatePresence>
 
       {/* Input Area */}
-      <div className="border-t border-neutral-800/50 bg-gradient-to-r from-neutral-900/90 to-neutral-800/90 backdrop-blur-md flex-shrink-0">
-        <div className="p-6">
-          <div className="flex items-end gap-4">
+      <div className="border-t border-neutral-800/50 bg-neutral-900/50 backdrop-blur-sm flex-shrink-0">
+        <div className="p-4">
+          <div className="flex items-end gap-3">
             <div className="flex-1 relative">
               <textarea
                 ref={inputRef}
@@ -438,9 +450,9 @@ Click on a suggestion below or ask me anything about DevOps!`,
                 }}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask DeployBot about DevOps, containers, CI/CD, security..."
-                className="w-full bg-neutral-800/90 border border-neutral-600/30 rounded-2xl px-5 py-4 text-white placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm leading-relaxed shadow-lg backdrop-blur-sm"
+                className="w-full bg-neutral-800/90 border border-neutral-600/30 rounded-xl px-4 py-3 text-white placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm leading-relaxed shadow-lg backdrop-blur-sm"
                 rows={1}
-                style={{ minHeight: "52px", maxHeight: "120px" }}
+                style={{ minHeight: "48px", maxHeight: "120px" }}
               />
 
               {!inputMessage && !showSuggestions && (
@@ -448,7 +460,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowSuggestions(true)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-blue-400 transition-colors"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-blue-400 transition-colors"
                   title="Show Suggestions"
                 >
                   <FiZap className="w-4 h-4" />
@@ -461,7 +473,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
               whileTap={{ scale: 0.98 }}
               onClick={sendMessage}
               disabled={!inputMessage.trim() || isTyping}
-              className="px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-neutral-700 disabled:to-neutral-700 disabled:text-neutral-400 rounded-2xl text-white font-medium transition-all flex items-center gap-3 shadow-xl disabled:shadow-none min-h-[52px]"
+              className="px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-neutral-700 disabled:to-neutral-700 disabled:text-neutral-400 rounded-xl text-white font-medium transition-all flex items-center gap-2 shadow-xl disabled:shadow-none h-12"
             >
               {isTyping ? (
                 <div className="flex items-center gap-2">

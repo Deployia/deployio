@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { FiTerminal, FiCopy, FiTrash2, FiBook } from "react-icons/fi";
+import { FiTerminal, FiTrash2, FiBook } from "react-icons/fi";
 
 const Terminal = ({ selectedRepo, devOpsMode = true }) => {
   const [history, setHistory] = useState([]);
@@ -105,10 +105,6 @@ Type 'help' for available commands`,
   };
 
   const clearTerminal = () => setHistory([]);
-  const copyTerminalContent = () => {
-    const content = history.map((entry) => entry.content).join("\n");
-    navigator.clipboard.writeText(content);
-  };
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -139,16 +135,6 @@ Type 'help' for available commands`,
             title="Show Help"
           >
             <FiBook className="w-3.5 h-3.5" />
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={copyTerminalContent}
-            className="p-1.5 rounded hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
-            title="Copy Content"
-          >
-            <FiCopy className="w-3.5 h-3.5" />
           </motion.button>
 
           <motion.button

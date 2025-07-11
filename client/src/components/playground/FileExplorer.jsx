@@ -111,24 +111,25 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
 
   // Filter files based on search query
   const filterFiles = useCallback((node, query) => {
-    if (!query) return node;
+    if (!query || !node) return node;
 
     const filtered = { ...node };
 
     if (node.type === "folder" && node.children) {
       const filteredChildren = node.children
+        .filter((child) => child != null) // Filter out null children
         .map((child) => filterFiles(child, query))
         .filter(
           (child) =>
-            child.name.toLowerCase().includes(query.toLowerCase()) ||
-            (child.children && child.children.length > 0)
+            child?.name?.toLowerCase().includes(query.toLowerCase()) ||
+            (child?.children && child.children.length > 0)
         );
 
       filtered.children = filteredChildren;
       return filteredChildren.length > 0 ? filtered : null;
     }
 
-    return node.name.toLowerCase().includes(query.toLowerCase())
+    return node?.name?.toLowerCase().includes(query.toLowerCase())
       ? filtered
       : null;
   }, []);
