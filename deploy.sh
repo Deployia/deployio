@@ -87,6 +87,11 @@ for service in "${services_to_build[@]}"; do
     fi
     echo "✅ ECR authentication successful"
 
+    if [ "$service" == "frontend" ]; then
+        echo "📦 Using client/.env.production for frontend build..."
+        cp ./client/.env.production ./client/.env
+    fi
+
     echo "📦 Building $service service..."
     docker build --compress -t "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest" "$context"
 
