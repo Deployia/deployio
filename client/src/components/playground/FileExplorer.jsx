@@ -1,40 +1,29 @@
-import { useState, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   FaFile,
   FaFolder,
   FaFolderOpen,
-  FaPlus,
   FaSearch,
-  FaUpload,
-  FaSync,
   FaCode,
-  FaFileAlt,
-  FaBox,
   FaLock,
   FaUnlock,
-  FaCodeBranch,
+  FaChevronRight,
+  FaChevronDown,
 } from "react-icons/fa";
 
 const FileExplorer = ({
-  workspace,
-  setWorkspace,
   onFileSelect,
-  readOnlyMode = false,
-  _editablePatterns = [],
-  isFileEditable,
 }) => {
   const [expandedFolders, setExpandedFolders] = useState(
-    new Set(["root", "src"])
+    new Set(["root", "src", "config"])
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [contextMenu, setContextMenu] = useState(null);
-  const fileUploadRef = useRef(null);
 
-  // Sample file structure for demo
-  const [fileStructure] = useState({
+  // Sample file structure for demo - DevOps focused
+  const fileStructure = useMemo(() => ({
     id: "root",
-    name: "playground-project",
+    name: "deployio-project",
     type: "folder",
     children: [
       {
@@ -47,53 +36,67 @@ const FileExplorer = ({
             name: "app.js",
             type: "file",
             language: "javascript",
-            size: "2.4 KB",
+            editable: true,
           },
           {
-            id: "server.js",
-            name: "server.js",
-            type: "file",
-            language: "javascript",
-            size: "1.8 KB",
+            id: "routes",
+            name: "routes",
+            type: "folder",
+            children: [
+              {
+                id: "index.js",
+                name: "index.js",
+                type: "file",
+                language: "javascript",
+                editable: true,
+              },
+              {
+                id: "auth.js",
+                name: "auth.js",
+                type: "file",
+                language: "javascript",
+                editable: true,
+              }
+            ]
           },
           {
-            id: "config.json",
-            name: "config.json",
-            type: "file",
-            language: "json",
-            size: "0.5 KB",
-          },
-        ],
+            id: "middleware",
+            name: "middleware",
+            type: "folder",
+            children: [
+              {
+                id: "auth.middleware.js",
+                name: "auth.middleware.js",
+                type: "file",
+                language: "javascript",
+                editable: true,
+              }
+            ]
+          }
+        ]
       },
       {
-        id: "docker",
-        name: "docker",
+        id: "config",
+        name: "config",
         type: "folder",
         children: [
           {
-            id: "dockerfile",
+            id: "Dockerfile",
             name: "Dockerfile",
             type: "file",
             language: "dockerfile",
-            size: "1.2 KB",
+            editable: false,
           },
           {
-            id: "docker-compose",
+            id: "docker-compose.yml",
             name: "docker-compose.yml",
             type: "file",
             language: "yaml",
-            size: "0.8 KB",
+            editable: false,
           },
-        ],
-      },
-      {
-        id: "ci",
-        name: ".github",
-        type: "folder",
-        children: [
           {
-            id: "workflows",
-            name: "workflows",
+            id: ".github",
+            name: ".github",
             type: "folder",
             children: [
               {
@@ -101,45 +104,39 @@ const FileExplorer = ({
                 name: "ci.yml",
                 type: "file",
                 language: "yaml",
-                size: "1.5 KB",
-              },
-              {
-                id: "deploy.yml",
-                name: "deploy.yml",
-                type: "file",
-                language: "yaml",
-                size: "2.1 KB",
-              },
-            ],
-          },
-        ],
+                editable: false,
+              }
+            ]
+          }
+        ]
       },
       {
         id: "package.json",
         name: "package.json",
         type: "file",
         language: "json",
-        size: "1.1 KB",
+        editable: false,
       },
       {
-        id: "readme",
+        id: ".env.example",
+        name: ".env.example",
+        type: "file",
+        language: "text",
+        editable: false,
+      },
+      {
+        id: "README.md",
         name: "README.md",
         type: "file",
         language: "markdown",
-        size: "3.2 KB",
-      },
-      {
-        id: "gitignore",
-        name: ".gitignore",
-        type: "file",
-        language: "text",
-        size: "0.3 KB",
-      },
-    ],
-  });
+        editable: true,
+      }
+    ]
+  }), []);
 
+  // Toggle folder expansion
   const toggleFolder = (folderId) => {
-    setExpandedFolders((prev) => {
+    setExpandedFolders(prev => {
       const newSet = new Set(prev);
       if (newSet.has(folderId)) {
         newSet.delete(folderId);
@@ -150,271 +147,180 @@ const FileExplorer = ({
     });
   };
 
-  const handleFileClick = (file) => {
-    if (file.type === "file") {
-      onFileSelect(file);
-      setWorkspace((prev) => ({
-        ...prev,
-        activeFile: file.name,
-        openFiles: prev.openFiles.includes(file.name)
-          ? prev.openFiles
-          : [...prev.openFiles, file.name],
-      }));
-    } else {
-      toggleFolder(file.id);
+  // Filter files based on search query
+  const filterFiles = useCallback((node, query) => {
+    if (!query) return node;
+    
+    const filtered = { ...node };
+    
+    if (node.type === "folder" && node.children) {
+      const filteredChildren = node.children
+        .map(child => filterFiles(child, query))
+        .filter(child => 
+          child.name.toLowerCase().includes(query.toLowerCase()) ||
+          (child.children && child.children.length > 0)
+        );
+      
+      filtered.children = filteredChildren;
+      return filteredChildren.length > 0 ? filtered : null;
     }
-  };
+    
+    return node.name.toLowerCase().includes(query.toLowerCase()) ? filtered : null;
+  }, []);
 
+  // Get file icon based on type and language
   const getFileIcon = (file) => {
     if (file.type === "folder") {
       return expandedFolders.has(file.id) ? FaFolderOpen : FaFolder;
     }
-
+    
     switch (file.language) {
       case "javascript":
+      case "typescript":
         return FaCode;
-      case "json":
-      case "yaml":
-        return FaFileAlt;
-      case "dockerfile":
-        return FaBox;
-      case "markdown":
-        return FaFileAlt;
       default:
         return FaFile;
     }
   };
 
-  const getFileColor = (file) => {
+  // Get file icon color based on type
+  const getFileIconColor = (file) => {
     if (file.type === "folder") {
-      return "text-yellow-400";
+      return "text-blue-400";
     }
-
+    
+    if (!file.editable) {
+      return "text-red-400";
+    }
+    
     switch (file.language) {
       case "javascript":
-        return "text-yellow-500";
-      case "json":
-        return "text-green-400";
-      case "yaml":
-        return "text-blue-400";
+        return "text-yellow-400";
+      case "typescript":
+        return "text-blue-500";
       case "dockerfile":
-        return "text-cyan-400";
+        return "text-blue-600";
+      case "yaml":
+        return "text-green-400";
+      case "json":
+        return "text-orange-400";
       case "markdown":
-        return "text-purple-400";
-      default:
         return "text-gray-400";
+      default:
+        return "text-neutral-400";
     }
   };
 
-  const renderFileTree = (items, depth = 0) => {
-    return items
-      .filter(
-        (item) =>
-          !searchQuery ||
-          item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      .map((item) => {
-        const Icon = getFileIcon(item);
-        const isExpanded = expandedFolders.has(item.id);
-        const isActive = workspace.activeFile === item.name;
-        const isEditable =
-          item.type === "file" && isFileEditable && isFileEditable(item.name);
-
-        return (
-          <div key={item.id}>
-            <motion.div
-              whileHover={{ x: 2 }}
-              onClick={() => handleFileClick(item)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (!readOnlyMode) {
-                  setContextMenu({ x: e.clientX, y: e.clientY, item });
-                }
-              }}
-              className={`
-                flex items-center gap-2 py-1.5 px-2 cursor-pointer rounded-md transition-colors
-                hover:bg-neutral-800/50 group
-                ${isActive ? "bg-blue-500/20 border-l-2 border-blue-500" : ""}
-                ${readOnlyMode && !isEditable ? "opacity-75" : ""}
-              `}
-              style={{ paddingLeft: `${depth * 16 + 8}px` }}
-            >
-              <Icon
-                className={`w-4 h-4 flex-shrink-0 ${getFileColor(
-                  item
-                )} group-hover:scale-110 transition-transform`}
-              />
-              <span
-                className={`text-sm truncate ${
-                  isActive ? "text-white font-medium" : "text-gray-300"
-                }`}
-              >
-                {item.name}
-              </span>
-              {item.type === "file" && (
-                <div className="ml-auto flex items-center gap-1">
-                  {readOnlyMode && (
-                    <>
-                      {isEditable ? (
-                        <FaUnlock className="w-3 h-3 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      ) : (
-                        <FaLock className="w-3 h-3 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      )}
-                    </>
-                  )}
-                  <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {item.size}
-                  </span>
-                </div>
+  // Render file tree
+  const renderFileNode = (node, depth = 0) => {
+    if (!node) return null;
+    
+    const Icon = getFileIcon(node);
+    const iconColor = getFileIconColor(node);
+    const isExpanded = expandedFolders.has(node.id);
+    
+    return (
+      <div key={node.id}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className={`flex items-center gap-2 px-2 py-1.5 hover:bg-neutral-800/50 rounded cursor-pointer group transition-colors`}
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          onClick={() => {
+            if (node.type === "folder") {
+              toggleFolder(node.id);
+            } else {
+              onFileSelect && onFileSelect(node.name, null);
+            }
+          }}
+        >
+          {/* Folder chevron */}
+          {node.type === "folder" && (
+            <div className="w-3 h-3 flex items-center justify-center">
+              {isExpanded ? (
+                <FaChevronDown className="w-2.5 h-2.5 text-neutral-400" />
+              ) : (
+                <FaChevronRight className="w-2.5 h-2.5 text-neutral-400" />
               )}
-            </motion.div>
-            {item.type === "folder" && isExpanded && item.children && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                {renderFileTree(item.children, depth + 1)}
-              </motion.div>
-            )}
+            </div>
+          )}
+          
+          {/* File/Folder icon */}
+          <Icon className={`w-4 h-4 ${iconColor} flex-shrink-0`} />
+          
+          {/* Name */}
+          <span className="text-sm text-neutral-200 body flex-1 truncate">
+            {node.name}
+          </span>
+          
+          {/* File status indicator */}
+          {node.type === "file" && (
+            <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              {node.editable ? (
+                <FaUnlock className="w-3 h-3 text-green-400" title="Editable" />
+              ) : (
+                <FaLock className="w-3 h-3 text-red-400" title="Read-only" />
+              )}
+            </div>
+          )}
+        </motion.div>
+        
+        {/* Render children if folder is expanded */}
+        {node.type === "folder" && isExpanded && node.children && (
+          <div>
+            {node.children.map(child => renderFileNode(child, depth + 1))}
           </div>
-        );
-      });
+        )}
+      </div>
+    );
   };
 
-  const handleNewFile = () => {
-    // Implement new file creation
-    console.log("Create new file");
-  };
-
-  const handleUploadFiles = () => {
-    fileUploadRef.current?.click();
-  };
+  const filteredStructure = useMemo(() => 
+    filterFiles(fileStructure, searchQuery), 
+    [fileStructure, searchQuery]
+  );
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
+    <div className="h-full flex flex-col bg-neutral-950/50">
+      {/* Search Bar */}
       <div className="p-3 border-b border-neutral-800/50">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-white">
-            Explorer{" "}
-            {readOnlyMode && (
-              <span className="text-xs text-red-400">(Read Only)</span>
-            )}
-          </h3>
-          <div className="flex items-center gap-1">
-            <motion.button
-              whileHover={!readOnlyMode ? { scale: 1.1 } : {}}
-              whileTap={!readOnlyMode ? { scale: 0.9 } : {}}
-              onClick={readOnlyMode ? undefined : handleNewFile}
-              disabled={readOnlyMode}
-              className={`p-1.5 rounded-md transition-colors ${
-                readOnlyMode
-                  ? "text-gray-600 cursor-not-allowed"
-                  : "hover:bg-neutral-800/50 text-gray-400 hover:text-white"
-              }`}
-              title={readOnlyMode ? "Read-only mode" : "New File"}
-            >
-              <FaPlus className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              whileHover={!readOnlyMode ? { scale: 1.1 } : {}}
-              whileTap={!readOnlyMode ? { scale: 0.9 } : {}}
-              onClick={readOnlyMode ? undefined : handleUploadFiles}
-              disabled={readOnlyMode}
-              className={`p-1.5 rounded-md transition-colors ${
-                readOnlyMode
-                  ? "text-gray-600 cursor-not-allowed"
-                  : "hover:bg-neutral-800/50 text-gray-400 hover:text-white"
-              }`}
-              title={readOnlyMode ? "Read-only mode" : "Upload Files"}
-            >
-              <FaUpload className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="p-1.5 rounded-md hover:bg-neutral-800/50 text-gray-400 hover:text-white transition-colors"
-              title="Refresh"
-            >
-              <FaSync className="w-4 h-4" />
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Search */}
         <div className="relative">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3 h-3 text-neutral-400" />
           <input
             type="text"
+            placeholder="Search files..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search files..."
-            className="w-full pl-9 pr-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-md text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500/50 focus:bg-neutral-800/70 transition-colors"
+            className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all"
           />
         </div>
       </div>
 
       {/* File Tree */}
-      <div className="flex-1 overflow-auto p-2">
-        <div className="space-y-1">
-          {renderFileTree(fileStructure.children)}
-        </div>
+      <div className="flex-1 overflow-auto custom-scrollbar p-2">
+        {filteredStructure ? (
+          renderFileNode(filteredStructure)
+        ) : (
+          <div className="text-center py-8">
+            <FaSearch className="w-8 h-8 text-neutral-600 mx-auto mb-3" />
+            <div className="text-sm text-neutral-400 body">No files found</div>
+          </div>
+        )}
       </div>
 
-      {/* Project Info */}
-      <div className="p-3 border-t border-neutral-800/50 bg-neutral-900/30">
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <FaCodeBranch className="w-3 h-3" />
-          <span>main</span>
-          <span>•</span>
-          <span className="text-green-400">✓ No changes</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-          <span>{workspace.openFiles.length} files open</span>
-          {workspace.unsavedChanges?.size > 0 && (
-            <>
-              <span>•</span>
-              <span className="text-yellow-400">
-                {workspace.unsavedChanges.size} unsaved
-              </span>
-            </>
-          )}
+      {/* Footer Info */}
+      <div className="p-3 border-t border-neutral-800/50">
+        <div className="flex items-center justify-between text-xs text-neutral-500 body">
+          <div className="flex items-center gap-2">
+            <FaLock className="w-3 h-3 text-red-400" />
+            <span>DevOps Configs</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaUnlock className="w-3 h-3 text-green-400" />
+            <span>Editable</span>
+          </div>
         </div>
       </div>
-
-      {/* Hidden file upload input */}
-      <input
-        ref={fileUploadRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          // Handle file upload
-          console.log("Files uploaded:", e.target.files);
-        }}
-      />
-
-      {/* Context Menu */}
-      {contextMenu && (
-        <div
-          className="fixed z-50 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg py-1 min-w-[120px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onBlur={() => setContextMenu(null)}
-        >
-          <button className="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-neutral-700 hover:text-white transition-colors">
-            Open
-          </button>
-          <button className="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-neutral-700 hover:text-white transition-colors">
-            Rename
-          </button>
-          <button className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors">
-            Delete
-          </button>
-        </div>
-      )}
     </div>
   );
 };
