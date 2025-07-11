@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { useSelector } from "react-redux";
+import ProfileAvatar from "@components/ProfileAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
@@ -13,6 +15,7 @@ import {
 import llmService from "../../services/llmService";
 
 const ChatbotPanel = () => {
+  const { user } = useSelector((state) => state.auth);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -187,16 +190,18 @@ Click on a suggestion below or ask me anything about DevOps!`,
               </div>
             </div>
           </div>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={clearChat}
-            className="p-2 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
-            title="Clear Chat"
-          >
-            <FiTrash2 className="w-4 h-4" />
-          </motion.button>
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={clearChat}
+              className="p-2 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
+              title="Clear Chat"
+            >
+              <FiTrash2 className="w-4 h-4" />
+            </motion.button>
+            <ProfileAvatar user={user} />
+          </div>
         </div>
       </div>
 
@@ -358,8 +363,8 @@ Click on a suggestion below or ask me anything about DevOps!`,
               {message.type === "user" && (
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face&auto=format&q=80"
-                    alt="User"
+                    src={user.profileImage}
+                    alt={user.name}
                     className="w-full h-full object-cover"
                   />
                 </div>

@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
+import ProfileAvatar from "@components/ProfileAvatar";
 import { useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaCode,
   FaBookOpen,
-  FaUser,
   FaExpandArrowsAlt,
   FaCompressArrowsAlt,
   FaChevronLeft,
@@ -409,13 +409,7 @@ const PlaygroundLayout = () => {
           </motion.button>
 
           <div className="flex items-center gap-2 ml-2">
-            <FaUser className="w-3 h-3 text-neutral-400" />
-            <span className="text-sm text-neutral-300">
-              {user?.name ||
-                user?.username ||
-                user?.email?.split("@")[0] ||
-                "User"}
-            </span>
+            <ProfileAvatar user={user} />
           </div>
         </div>
       </div>
