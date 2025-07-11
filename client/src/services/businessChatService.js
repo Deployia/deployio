@@ -1,5 +1,5 @@
-// Business Chat Service for Deployia Customer Support
-// Specialized AI assistant for customer inquiries about Deployia platform
+// Business Chat Service for deployio Customer Support
+// Specialized AI assistant for customer inquiries about deployio platform
 
 class BusinessChatService {
   constructor() {
@@ -24,13 +24,13 @@ class BusinessChatService {
     this.conversationHistory = [];
     return {
       message:
-        "👋 Hi! I'm **DeployBot**, your AI assistant for Deployia.\n\nI can help you with:\n• **Platform Overview** - What Deployia can do\n• **Pricing & Plans** - Find the right plan\n• **Technical Help** - Docker, Kubernetes, CI/CD\n• **Getting Started** - Deploy your first project\n• **Integrations** - AWS, Azure, GCP setup\n\nWhat would you like to know?",
+        "👋 Hi! I'm **DeployBot**. Ask me about:\n• **How deployio works**\n• **Pricing & plans**\n• **Tech help** (Docker, CI/CD)\n• **Getting started**\n\nWhat would you like to know?",
       isBot: true,
       timestamp: new Date(),
       suggestions: [
-        "How does Deployia work?",
-        "What are your pricing plans?",
-        "Can you help with Docker?",
+        "How does deployio work?",
+        "Show me pricing",
+        "Help with Docker",
         "How do I get started?",
       ],
     };
@@ -154,57 +154,9 @@ class BusinessChatService {
     ];
   }
 
-  // Get specialized business system prompt for Deployia
+  // Get specialized business system prompt for deployio
   getBusinessSystemPrompt() {
-    return `You are DeployBot, a friendly and knowledgeable customer support AI for Deployia - an AI-powered DevOps automation platform. You help potential customers understand our services and existing users with their questions.
-
-**About Deployia:**
-Deployia is a revolutionary AI-powered DevOps platform that automates the entire deployment process from code to production. Our platform analyzes your codebase, generates optimized Docker configurations, creates CI/CD pipelines, and deploys to any cloud provider - all with AI intelligence.
-
-**Key Features & Services:**
-• **AI Code Analysis**: Automatically detects frameworks, dependencies, and optimal deployment strategies
-• **Smart Dockerization**: Generates production-ready Dockerfiles with security best practices
-• **Automated CI/CD**: Creates GitHub Actions, GitLab CI, or Jenkins pipelines automatically
-• **Multi-Cloud Deployment**: Deploy to AWS, Azure, GCP, or any cloud provider
-• **Real-time Monitoring**: Built-in observability with logs, metrics, and alerting
-• **Security First**: Vulnerability scanning, compliance checks, and security hardening
-• **Microservices Ready**: Kubernetes orchestration and service mesh integration
-
-**Pricing Plans:**
-• **Free Tier**: Up to 3 projects, basic deployments, community support
-• **Professional ($29/month)**: Up to 15 projects, advanced CI/CD, priority support
-• **Team ($99/month)**: Up to 50 projects, team collaboration, dedicated support
-• **Enterprise**: Custom pricing, unlimited projects, dedicated account management, SLA
-
-**Target Users:**
-• Startups and scale-ups needing fast deployment solutions
-• Development teams wanting to automate DevOps workflows
-• Companies migrating to cloud-native architectures
-• Organizations seeking AI-powered infrastructure optimization
-
-**Communication Style:**
-• Be helpful, professional, and conversational
-• Use emojis sparingly but effectively (🚀 🔧 ☁️ 💡)
-• Provide specific, actionable information
-• If unsure about technical details, suggest contacting our technical team
-• Always aim to understand the customer's specific needs
-• Offer to connect them with demos, trials, or sales team when appropriate
-
-**Response Format:**
-• Use markdown formatting for clarity
-• Structure responses with headers and bullet points
-• Include relevant code examples when discussing technical features
-• Keep responses focused and not too lengthy
-• End with helpful suggestions or next steps
-
-**Important Guidelines:**
-• Focus on business value and customer benefits
-• Acknowledge limitations honestly - don't oversell
-• Suggest appropriate resources (docs, demos, sales contact)
-• For complex technical issues, recommend contacting our support team
-• Always maintain a helpful and solution-oriented tone
-
-Remember: Your goal is to help customers understand how Deployia can solve their DevOps challenges and guide them to the right solution for their needs.`;
+    return `You are DeployBot, a concise and friendly AI assistant for deployio, an AI-powered DevOps platform. Answer user questions about deployio's features, pricing, technical help, and getting started. Keep responses short, clear, and actionable. Use bullet points and markdown. If unsure, suggest contacting support. Example topics: How deployio works, pricing, Docker help, integrations, onboarding.`;
   }
 
   // Fallback responses when API is not available
@@ -214,52 +166,36 @@ Remember: Your goal is to help customers understand how Deployia can solve their
     const responses = {
       greeting: {
         message:
-          "👋 **Welcome to Deployia!**\n\nI'm here to help you understand how our AI-powered DevOps platform can revolutionize your deployment process.\n\n**What makes Deployia special:**\n• **AI analyzes your code** and creates optimal deployment strategies\n• **Zero configuration** - just paste your GitHub URL\n• **Deploy in minutes** to any cloud provider\n• **Enterprise security** with automated compliance\n\n💡 **Ready to see it in action?** Try our free demo or ask me anything about our platform!",
+          "👋 **Welcome to deployio!**\nAsk about:\n• How it works\n• Pricing\n• Tech help\n• Getting started",
         suggestions: [
           "Show me a demo",
-          "What are your pricing plans?",
+          "Pricing plans?",
           "How does the AI work?",
         ],
       },
 
       pricing: {
         message:
-          "💰 **Deployia Pricing Plans:**\n\n**🆓 Free Tier**\n• Up to 3 projects\n• Basic deployments\n• Community support\n• Perfect for trying out the platform\n\n**👨‍💻 Professional - $29/month**\n• Up to 15 projects\n• Advanced CI/CD pipelines\n• Priority email support\n• Great for individual developers\n\n**👥 Team - $99/month**\n• Up to 50 projects\n• Team collaboration features\n• Dedicated Slack support\n• Ideal for growing teams\n\n**🏢 Enterprise - Custom Pricing**\n• Unlimited projects\n• White-label options\n• Dedicated account manager\n• Custom SLA and support\n\n📞 **Want to discuss your specific needs?** Contact our sales team for a personalized quote!",
-        suggestions: [
-          "What's included in Free tier?",
-          "Tell me about Enterprise features",
-          "Can I get a demo?",
-        ],
+          "💰 **Pricing:**\n• Free: 3 projects\n• Pro: $29/mo\n• Team: $99/mo\n• Enterprise: Custom\nContact sales for details.",
+        suggestions: ["What's in Free tier?", "Enterprise features?", "Demo?"],
       },
 
       demo: {
         message:
-          "🎥 **See Deployia in Action!**\n\n**Live Demo Options:**\n\n**📱 Interactive Demo**\n• Try our platform with a sample repository\n• See AI code analysis in real-time\n• Watch automated deployment process\n• No signup required!\n\n**👨‍💼 Personalized Demo**\n• 30-minute session with our team\n• Custom demo with your actual codebase\n• Q&A about your specific use case\n• Best practices and recommendations\n\n**🚀 Free Trial**\n• Full access to Professional features\n• Deploy your real projects\n• 14-day trial period\n• Dedicated onboarding support\n\n💡 **Ready to get started?** I can help you sign up for any of these options!",
-        suggestions: [
-          "Start interactive demo",
-          "Schedule personalized demo",
-          "Sign up for free trial",
-        ],
+          "🎥 **Demo:**\n• Try demo (no signup)\n• Book a session\n• 14-day trial\nReady to start?",
+        suggestions: ["Start demo", "Book session", "Sign up for trial"],
       },
 
       technical: {
         message:
-          "🔧 **Deployia Technical Overview:**\n\n**🤖 AI-Powered Analysis**\n• Detects 50+ frameworks automatically\n• Optimizes Docker configurations\n• Security-hardened setups\n• Best practice recommendations\n\n**☁️ Multi-Cloud Support**\n• AWS, Azure, GCP, DigitalOcean\n• Kubernetes on any provider\n• Serverless deployments\n\n**🔄 CI/CD Integration**\n• GitHub Actions & GitLab CI\n• Jenkins pipelines\n• Custom webhook triggers\n\n**📊 Monitoring Built-in**\n• Real-time logs and metrics\n• Performance monitoring\n• Custom dashboards\n\n🛡️ **Enterprise Security**\n• SOC 2 Type II & GDPR compliant\n• Vulnerability scanning\n• Role-based access control\n\n*Need detailed technical specs?* Our engineering team can help!",
-        suggestions: [
-          "What frameworks do you support?",
-          "How does security work?",
-          "Can you integrate with our tools?",
-        ],
+          "🔧 **Tech:**\n• AI auto-detects frameworks\n• Docker & CI/CD\n• Multi-cloud\n• Monitoring & security\nNeed more? Ask!",
+        suggestions: ["What frameworks?", "Security?", "Integrations?"],
       },
 
       support: {
         message:
-          "🎧 **Get Help with Deployia:**\n\n**📚 Self-Service**\n• Comprehensive documentation\n• Video tutorials & guides\n• Community forum\n• 200+ knowledge base articles\n\n**💬 Direct Support**\n• **Free/Pro**: Email (24-48h response)\n• **Team**: Slack + priority support\n• **Enterprise**: Dedicated team + phone\n\n**🚀 Onboarding Included**\n• Free onboarding for all paid plans\n• Custom training for Enterprise\n• Best practices consultation\n\n**🔧 Technical Help**\n• Migration assistance\n• Custom integrations\n• Performance optimization\n\n📞 *Available Mon-Fri, 9 AM - 6 PM EST*",
-        suggestions: [
-          "Contact support team",
-          "View documentation",
-          "Schedule onboarding call",
-        ],
+          "🎧 **Support:**\n• Docs & guides\n• Email/Slack\n• Onboarding\n• Enterprise help\nHow can I help?",
+        suggestions: ["Contact support", "View docs", "Onboarding"],
       },
     };
 
@@ -308,14 +244,10 @@ Remember: Your goal is to help customers understand how Deployia can solve their
 
     // Default response
     return {
-      message: `Thanks for asking about **"${userMessage}"**!\n\nI can help you with:\n\n• **🚀 How Deployia works** - AI-powered deployments\n• **💰 Pricing & Plans** - Find your perfect plan\n• **🎥 Live Demo** - See it in action\n• **🔧 Technical Features** - Integrations & capabilities\n• **📞 Contact Sales** - Talk to our team\n\n💡 *Try: "How does Deployia work?" or "Show me pricing"*`,
+      message: `Thanks for asking about **"${userMessage}"**!\nAsk about:\n• 🚀 How deployio works\n• 💰 Pricing\n• 🎥 Demo\n• 🔧 Tech features\n• 📞 Contact sales`,
       isBot: true,
       timestamp: new Date(),
-      suggestions: [
-        "How does Deployia work?",
-        "Show me pricing plans",
-        "Can I see a demo?",
-      ],
+      suggestions: ["How does deployio work?", "Show me pricing", "Demo?"],
     };
   }
 
