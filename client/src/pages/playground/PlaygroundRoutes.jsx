@@ -1,11 +1,12 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import PlaygroundLayout from "./PlaygroundLayout";
+import PlaygroundOverview from "./PlaygroundOverview";
 
 const PlaygroundRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<PlaygroundLayout />}>
-        <Route index element={<Navigate to="/playground/editor" replace />} />
+        <Route index element={<PlaygroundOverview />} />
         <Route path="editor" element={<div />} />
         <Route path="analysis" element={<div />} />
         <Route path="generation" element={<div />} />
