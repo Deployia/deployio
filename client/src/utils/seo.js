@@ -42,6 +42,103 @@ export const seoConfig = {
       },
     },
   },
+  "playground-editor": {
+    title: "IDE Editor | Deployio Playground - Online Code Editor & DevOps IDE",
+    description:
+      "Edit, explore, and experiment with code in a modern online IDE. Supports real-world DevOps scenarios, syntax highlighting, and instant feedback.",
+    keywords:
+      "online code editor, devops ide, playground editor, code sandbox, deployio ide, code playground, syntax highlighting, devops code editor",
+    url: `${defaultSEO.url}/playground/editor`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Deployio Playground Editor",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Web",
+      description:
+        "Modern online code editor for DevOps and cloud-native development.",
+      url: `${defaultSEO.url}/playground/editor`,
+      author: { "@type": "Organization", name: defaultSEO.author },
+    },
+  },
+  "playground-analysis": {
+    title:
+      "AI Code Analysis | Deployio Playground - Automated Code Review & Insights",
+    description:
+      "Get instant AI-powered code analysis, best practice suggestions, and DevOps insights. Improve code quality and security in the Deployio Playground.",
+    keywords:
+      "ai code analysis, code review, devops analysis, code quality, security analysis, playground analysis, automated code review, devops playground",
+    url: `${defaultSEO.url}/playground/analysis`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Deployio Playground AI Analysis",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Web",
+      description:
+        "AI-powered code analysis and review for DevOps best practices.",
+      url: `${defaultSEO.url}/playground/analysis`,
+      author: { "@type": "Organization", name: defaultSEO.author },
+    },
+  },
+  "playground-generation": {
+    title:
+      "Code Generator | Deployio Playground - AI Code Generation & Templates",
+    description:
+      "Generate code, CI/CD pipelines, and infrastructure templates using AI. Accelerate DevOps automation and prototyping in the Deployio Playground.",
+    keywords:
+      "ai code generator, code generation, devops templates, ci/cd generator, playground code gen, infrastructure as code, devops automation",
+    url: `${defaultSEO.url}/playground/generation`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Deployio Playground Code Generator",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Web",
+      description:
+        "AI-powered code and pipeline generation for DevOps workflows.",
+      url: `${defaultSEO.url}/playground/generation`,
+      author: { "@type": "Organization", name: defaultSEO.author },
+    },
+  },
+  "playground-learning": {
+    title:
+      "DevOps Learning | Deployio Playground - Interactive Tutorials & Modules",
+    description:
+      "Learn DevOps, CI/CD, Docker, Kubernetes, and more with interactive modules and hands-on tutorials in the Deployio Playground.",
+    keywords:
+      "devops learning, interactive tutorials, playground learning, ci/cd education, docker tutorial, kubernetes learning, devops modules",
+    url: `${defaultSEO.url}/playground/learning`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "EducationalApplication",
+      name: "Deployio Playground Learning",
+      applicationCategory: "EducationalApplication",
+      operatingSystem: "Web",
+      description: "Interactive DevOps learning modules and tutorials.",
+      url: `${defaultSEO.url}/playground/learning`,
+      author: { "@type": "Organization", name: defaultSEO.author },
+    },
+  },
+  "playground-chatbot": {
+    title: "DevOps AI Chatbot | Deployio Playground - Ask DevOps Questions",
+    description:
+      "Chat with DeployBot, your DevOps AI assistant. Get instant answers, best practices, and troubleshooting help in the Deployio Playground.",
+    keywords:
+      "devops chatbot, ai assistant, playground chatbot, devops help, deploybot, devops ai, devops q&a, playground support",
+    url: `${defaultSEO.url}/playground/chatbot`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Deployio Playground Chatbot",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Web",
+      description:
+        "AI-powered DevOps chatbot for instant help and best practices.",
+      url: `${defaultSEO.url}/playground/chatbot`,
+      author: { "@type": "Organization", name: defaultSEO.author },
+    },
+  },
   // Home page
   home: {
     title:
