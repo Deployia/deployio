@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -11,13 +11,13 @@ import {
   FaCompressArrowsAlt,
   FaChevronLeft,
   FaChevronRight,
-  FaLock,
-  FaUnlock,
   FaFolderOpen,
   FaComments,
   FaBrain,
+  FaSignInAlt,
 } from "react-icons/fa";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useModal } from "@context/ModalContext";
 
 // Import playground components
 import CodeEditor from "@components/playground/CodeEditor";
@@ -27,6 +27,15 @@ import AIAnalysisPanel from "@components/playground/AIAnalysisPanel";
 import ChatbotPanel from "@components/playground/ChatbotPanel";
 import LearningPanel from "@components/playground/LearningPanel";
 import GenerationPanel from "@components/playground/GenerationPanel";
+
+// Import sidebar components
+import {
+  EditorSidebar,
+  AnalysisSidebar,
+  GenerationSidebar,
+  ChatbotSidebar,
+  LearningSidebar,
+} from "@components/playground/sidebars";
 
 // Allowed repositories
 const ALLOWED_REPOS = [
@@ -75,7 +84,8 @@ const DEVOPS_CONFIG_PATTERNS = [
 const PlaygroundLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useSelector((state) => state.auth);
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
+  const { openModal } = useModal();
 
   // Layout state
   const [activeView, setActiveView] = useState("editor");
@@ -85,6 +95,69 @@ const PlaygroundLayout = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState(ALLOWED_REPOS[0]);
 
+  // GitHub integration state
+  // TODO: This should be moved to backend with proper authentication
+  // For now, replace 'your_github_token_here' with your actual GitHub token
+  const [githubToken] = useState(
+    import.meta.env.VITE_APP_GITHUB_TOKEN || "your_github_token_here"
+  );
+
+  // Authentication check
+  useEffect(() => {
+    if (!isAuthenticated) {
+      openModal(
+        <div className="p-6 text-center">
+          <FaSignInAlt className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-4 heading">
+            Authentication Required
+          </h3>
+          <p className="text-neutral-400 mb-6 body">
+            Please sign in to access the Deployio Playground
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => navigate("/auth/login")}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => navigate("/auth/register")}
+              className="px-6 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-white font-medium transition-colors"
+            >
+              Register
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }, [isAuthenticated, openModal, navigate]);
+
+  // Fullscreen functionality
+  const handleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      });
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   // Workspace state
   const [workspace, setWorkspace] = useState({
     activeFile: null,
@@ -93,6 +166,9 @@ const PlaygroundLayout = () => {
     chatHistory: [],
     learningProgress: {},
   });
+
+  // File selection ref for communication between FileExplorer and CodeEditor
+  const fileSelectRef = useRef(null);
 
   // Activity bar items (Primary sidebar)
   const activityBarItems = useMemo(
@@ -137,187 +213,27 @@ const PlaygroundLayout = () => {
       case "editor":
         return {
           title: "Deployio Copilot",
-          content: (
-            <div className="p-4 space-y-4 custom-scrollbar">
-              <div className="text-xs text-neutral-400 uppercase tracking-wide font-medium body">
-                Code Insights
-              </div>
-              {workspace.activeFile ? (
-                <div className="space-y-4">
-                  {/* File Information */}
-                  <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FaCode className="w-4 h-4 text-blue-400" />
-                      <div className="text-sm font-semibold text-white heading">
-                        {workspace.activeFile.path?.split("/").pop() ||
-                          "No file selected"}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs body mb-3">
-                      {workspace.activeFile.editable ? (
-                        <>
-                          <FaUnlock className="text-green-400" />
-                          <span className="text-green-400">Editable</span>
-                        </>
-                      ) : (
-                        <>
-                          <FaLock className="text-red-400" />
-                          <span className="text-red-400">
-                            Read-only DevOps Config
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="text-xs text-neutral-300 body leading-relaxed">
-                      File type:{" "}
-                      <span className="text-blue-400 font-medium">
-                        {workspace.activeFile.path
-                          ?.split(".")
-                          .pop()
-                          ?.toUpperCase() || "Unknown"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* AI Analysis */}
-                  <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FaBrain className="w-4 h-4 text-purple-400" />
-                      <div className="text-sm font-semibold text-white heading">
-                        AI Analysis
-                      </div>
-                    </div>
-                    <div className="text-xs text-neutral-300 body leading-relaxed">
-                      This file contains DevOps best practices and
-                      configurations. Learn from the structure and patterns used
-                      in modern deployments.
-                    </div>
-                  </div>
-
-                  {/* Quick Actions */}
-                  <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-                    <div className="text-sm font-semibold text-white heading mb-3">
-                      Quick Actions
-                    </div>
-                    <div className="space-y-2">
-                      <button className="w-full flex items-center gap-2 px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-xs body">
-                        <FaBrain className="w-3 h-3" />
-                        Analyze Code
-                      </button>
-                      <button className="w-full flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs body">
-                        <FaBookOpen className="w-3 h-3" />
-                        Learn More
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <FaBrain className="w-12 h-12 text-neutral-600 mx-auto mb-4" />
-                  <div className="text-sm text-neutral-400 body mb-2">
-                    No file selected
-                  </div>
-                  <div className="text-xs text-neutral-500 body">
-                    Select a file from the explorer to get AI insights and code
-                    analysis
-                  </div>
-                </div>
-              )}
-            </div>
-          ),
+          content: <EditorSidebar workspace={workspace} />,
+        };
+      case "analysis":
+        return {
+          title: "AI Analysis Tools",
+          content: <AnalysisSidebar />,
+        };
+      case "generation":
+        return {
+          title: "Code Generation",
+          content: <GenerationSidebar />,
+        };
+      case "chatbot":
+        return {
+          title: "Deployio Copilot",
+          content: <ChatbotSidebar />,
         };
       case "learning":
         return {
           title: "Deployio Copilot",
-          content: (
-            <div className="p-4 space-y-4 custom-scrollbar">
-              <div className="text-xs text-neutral-400 uppercase tracking-wide font-medium body">
-                DevOps Learning Path
-              </div>
-              <div className="space-y-3">
-                {[
-                  {
-                    title: "Docker Fundamentals",
-                    progress: 85,
-                    color: "blue",
-                    description: "Containerization basics and best practices",
-                    topics: ["Images", "Containers", "Volumes", "Networks"],
-                  },
-                  {
-                    title: "CI/CD Pipelines",
-                    progress: 60,
-                    color: "green",
-                    description: "Continuous integration and deployment",
-                    topics: ["GitHub Actions", "Jenkins", "GitLab CI"],
-                  },
-                  {
-                    title: "Kubernetes Basics",
-                    progress: 30,
-                    color: "purple",
-                    description: "Container orchestration with K8s",
-                    topics: ["Pods", "Services", "Deployments", "Ingress"],
-                  },
-                  {
-                    title: "Infrastructure as Code",
-                    progress: 0,
-                    color: "orange",
-                    description: "Terraform and CloudFormation",
-                    topics: ["Terraform", "AWS CDK", "Pulumi"],
-                  },
-                ].map((module, index) => (
-                  <div
-                    key={index}
-                    className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 hover:border-neutral-700/50 transition-all group cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-semibold text-white heading">
-                        {module.title}
-                      </span>
-                      <span className="text-xs text-neutral-400 body">
-                        {module.progress}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-neutral-800 rounded-full h-2 mb-3">
-                      <div
-                        className={`h-2 rounded-full bg-${module.color}-500 transition-all`}
-                        style={{ width: `${module.progress}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-neutral-300 body mb-2 leading-relaxed">
-                      {module.description}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {module.topics.map((topic, topicIndex) => (
-                        <span
-                          key={topicIndex}
-                          className={`px-2 py-1 bg-${module.color}-500/20 text-${module.color}-400 border border-${module.color}-500/30 rounded text-xs body`}
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Learning Resources */}
-              <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-                <div className="text-sm font-semibold text-white heading mb-3">
-                  Quick Resources
-                </div>
-                <div className="space-y-2">
-                  <button className="w-full flex items-center gap-2 px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-xs body">
-                    <FaBookOpen className="w-3 h-3" />
-                    Documentation
-                  </button>
-                  <button className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 hover:bg-purple-500/30 transition-colors text-xs body">
-                    <FaCode className="w-3 h-3" />
-                    Practice Lab
-                  </button>
-                </div>
-              </div>
-            </div>
-          ),
+          content: <LearningSidebar />,
         };
       default:
         return null;
@@ -340,19 +256,6 @@ const PlaygroundLayout = () => {
     navigate(`/playground/${viewId}`);
   };
 
-  // Handle file selection
-  const handleFileSelect = (filePath) => {
-    const editable = isFileEditable(filePath);
-    setWorkspace((prev) => ({
-      ...prev,
-      activeFile: {
-        path: filePath,
-        editable,
-        content: null,
-      },
-    }));
-  };
-
   // Sync active view with URL
   useEffect(() => {
     const pathSegments = location.pathname.split("/");
@@ -368,7 +271,6 @@ const PlaygroundLayout = () => {
       workspace,
       setWorkspace,
       selectedRepo,
-      onFileSelect: handleFileSelect,
       isFileEditable,
     };
 
@@ -387,7 +289,12 @@ const PlaygroundLayout = () => {
                   </div>
                   <div className="h-full overflow-hidden">
                     <FileExplorer
-                      onFileSelect={handleFileSelect}
+                      onFileSelect={(file) => {
+                        if (fileSelectRef.current) {
+                          fileSelectRef.current(file);
+                        }
+                      }}
+                      githubToken={githubToken}
                       readOnlyMode={true}
                       editablePatterns={DEVOPS_CONFIG_PATTERNS}
                     />
@@ -403,9 +310,10 @@ const PlaygroundLayout = () => {
                 <CodeEditor
                   workspace={workspace}
                   setWorkspace={setWorkspace}
-                  onFileSelect={handleFileSelect}
+                  onFileSelect={fileSelectRef}
                   isFileEditable={isFileEditable}
                   selectedRepo={selectedRepo}
+                  githubToken={githubToken}
                 />
               </Panel>
             </PanelGroup>
@@ -504,7 +412,7 @@ const PlaygroundLayout = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setIsFullscreen(!isFullscreen)}
+            onClick={handleFullscreen}
             className="p-2 rounded-lg hover:bg-neutral-800/50 transition-colors"
             title="Toggle Fullscreen"
           >
@@ -540,8 +448,8 @@ const PlaygroundLayout = () => {
                 onClick={() => handleViewChange(item.id)}
                 className={`w-9 h-9 flex items-center justify-center rounded-lg mb-2 transition-all duration-200 relative group ${
                   isActive
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
-                    : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
+                    ? "bg-neutral-800/80 text-blue-400"
+                    : "text-neutral-400 hover:bg-neutral-800/50 hover:text-white"
                 }`}
                 title={item.tooltip}
               >
@@ -614,52 +522,50 @@ const PlaygroundLayout = () => {
             </Panel>
 
             {/* Secondary Sidebar - Only show for editor and learning */}
-            {!secondarySidebarCollapsed &&
-              (activeView === "editor" || activeView === "learning") && (
-                <>
-                  <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
-                  <Panel defaultSize={25} minSize={15} maxSize={40}>
-                    <div className="h-full bg-neutral-950 border-l border-neutral-800">
-                      {/* Secondary Sidebar Header */}
-                      <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3">
-                        <span className="text-sm font-medium text-white heading">
-                          {secondarySidebarContent?.title}
-                        </span>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => setSecondarySidebarCollapsed(true)}
-                          className="p-1 rounded hover:bg-neutral-800 transition-colors"
-                        >
-                          <FaChevronRight className="w-3 h-3 text-neutral-400" />
-                        </motion.button>
-                      </div>
-
-                      {/* Secondary Sidebar Content */}
-                      <div className="flex-1 overflow-auto custom-scrollbar">
-                        {secondarySidebarContent?.content}
-                      </div>
+            {!secondarySidebarCollapsed && secondarySidebarContent && (
+              <>
+                <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
+                <Panel defaultSize={25} minSize={15} maxSize={40}>
+                  <div className="h-full bg-neutral-950 border-l border-neutral-800">
+                    {/* Secondary Sidebar Header */}
+                    <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3">
+                      <span className="text-sm font-medium text-white heading">
+                        {secondarySidebarContent?.title}
+                      </span>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setSecondarySidebarCollapsed(true)}
+                        className="p-1 rounded hover:bg-neutral-800 transition-colors"
+                      >
+                        <FaChevronRight className="w-3 h-3 text-neutral-400" />
+                      </motion.button>
                     </div>
-                  </Panel>
-                </>
-              )}
+
+                    {/* Secondary Sidebar Content */}
+                    <div className="flex-1 overflow-auto custom-scrollbar">
+                      {secondarySidebarContent?.content}
+                    </div>
+                  </div>
+                </Panel>
+              </>
+            )}
           </PanelGroup>
 
           {/* Collapsed Secondary Sidebar Toggle - Only for editor and learning */}
-          {secondarySidebarCollapsed &&
-            (activeView === "editor" || activeView === "learning") && (
-              <div className="fixed top-1/2 right-0 z-50 -translate-y-1/2">
-                <motion.button
-                  whileHover={{ scale: 1.02, x: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setSecondarySidebarCollapsed(false)}
-                  className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
-                  title="Show Deployio Copilot"
-                >
-                  <FaChevronLeft className="w-3 h-3 text-neutral-400" />
-                </motion.button>
-              </div>
-            )}
+          {secondarySidebarCollapsed && secondarySidebarContent && (
+            <div className="fixed top-1/2 right-0 z-50 -translate-y-1/2">
+              <motion.button
+                whileHover={{ scale: 1.02, x: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSecondarySidebarCollapsed(false)}
+                className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
+                title="Show Deployio Copilot"
+              >
+                <FaChevronLeft className="w-3 h-3 text-neutral-400" />
+              </motion.button>
+            </div>
+          )}
         </div>
       </div>
     </div>
