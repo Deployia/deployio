@@ -1,75 +1,84 @@
 import { FaBookOpen, FaCode } from "react-icons/fa";
 
-const LearningSidebar = () => {
+const LearningSidebar = ({ workspace, onModuleSelect }) => {
+  // Get learning progress from workspace or use defaults
+  const learningProgress = workspace?.learningProgress || {};
+
+  const modules = [
+    {
+      id: "docker-fundamentals",
+      title: "Docker Fundamentals",
+      color: "blue",
+      description: "Containerization basics and best practices",
+    },
+    {
+      id: "cicd-pipelines",
+      title: "CI/CD Pipelines",
+      color: "green",
+      description: "Continuous integration and deployment",
+    },
+    {
+      id: "kubernetes-basics",
+      title: "Kubernetes Basics",
+      color: "purple",
+      description: "Container orchestration with K8s",
+    },
+    {
+      id: "infrastructure-as-code",
+      title: "Infrastructure as Code",
+      color: "orange",
+      description: "Terraform and CloudFormation",
+    },
+  ];
+
   return (
     <div className="p-4 space-y-4 custom-scrollbar">
       <div className="text-xs text-neutral-400 uppercase tracking-wide font-medium body">
-        DevOps Learning Path
+        Learning Progress
       </div>
       <div className="space-y-3">
-        {[
-          {
-            title: "Docker Fundamentals",
-            progress: 85,
-            color: "blue",
-            description: "Containerization basics and best practices",
-            topics: ["Images", "Containers", "Volumes", "Networks"],
-          },
-          {
-            title: "CI/CD Pipelines",
-            progress: 60,
-            color: "green",
-            description: "Continuous integration and deployment",
-            topics: ["GitHub Actions", "Jenkins", "GitLab CI"],
-          },
-          {
-            title: "Kubernetes Basics",
-            progress: 30,
-            color: "purple",
-            description: "Container orchestration with K8s",
-            topics: ["Pods", "Services", "Deployments", "Ingress"],
-          },
-          {
-            title: "Infrastructure as Code",
-            progress: 0,
-            color: "orange",
-            description: "Terraform and CloudFormation",
-            topics: ["Terraform", "AWS CDK", "Pulumi"],
-          },
-        ].map((module, index) => (
-          <div
-            key={index}
-            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 hover:border-neutral-700/50 transition-all group cursor-pointer"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-white heading">
-                {module.title}
-              </span>
-              <span className="text-xs text-neutral-400 body">
-                {module.progress}%
-              </span>
-            </div>
-            <div className="w-full bg-neutral-800 rounded-full h-2 mb-3">
-              <div
-                className={`h-2 rounded-full bg-${module.color}-500 transition-all`}
-                style={{ width: `${module.progress}%` }}
-              />
-            </div>
-            <div className="text-xs text-neutral-300 body mb-2 leading-relaxed">
-              {module.description}
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {module.topics.map((topic, topicIndex) => (
-                <span
-                  key={topicIndex}
-                  className={`px-2 py-1 bg-${module.color}-500/20 text-${module.color}-400 border border-${module.color}-500/30 rounded text-xs body`}
-                >
-                  {topic}
+        {modules.map((module) => {
+          const progress = learningProgress[module.id]?.completed || 0;
+          const moduleTopics = learningProgress[module.id]?.modules || [];
+
+          return (
+            <div
+              key={module.id}
+              onClick={() => onModuleSelect && onModuleSelect(module.id)}
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 hover:border-neutral-700/50 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-white heading">
+                  {module.title}
                 </span>
-              ))}
+                <span className="text-xs text-neutral-400 body">
+                  {progress}%
+                </span>
+              </div>
+              <div className="w-full bg-neutral-800 rounded-full h-2 mb-3">
+                <div
+                  className={`h-2 rounded-full bg-${module.color}-500 transition-all`}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="text-xs text-neutral-300 body mb-2 leading-relaxed">
+                {module.description}
+              </div>
+              {moduleTopics.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {moduleTopics.map((topic, topicIndex) => (
+                    <span
+                      key={topicIndex}
+                      className={`px-2 py-1 bg-${module.color}-500/20 text-${module.color}-400 border border-${module.color}-500/30 rounded text-xs body`}
+                    >
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Learning Resources */}

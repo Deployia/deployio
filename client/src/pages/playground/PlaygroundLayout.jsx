@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaCode,
-  FaTerminal,
   FaBookOpen,
   FaUser,
   FaExpandArrowsAlt,
@@ -19,14 +18,8 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useModal } from "@context/ModalContext";
 
-// Import playground components
-import CodeEditor from "@components/playground/CodeEditor";
-import FileExplorer from "@components/playground/FileExplorer";
-import Terminal from "@components/playground/Terminal";
-import AIAnalysisPanel from "@components/playground/AIAnalysisPanel";
-import ChatbotPanel from "@components/playground/ChatbotPanel";
-import LearningPanel from "@components/playground/LearningPanel";
-import GenerationPanel from "@components/playground/GenerationPanel";
+// Import view components
+import EditorView from "@components/playground/views/EditorView";
 
 // Import sidebar components
 import {
@@ -36,6 +29,12 @@ import {
   ChatbotSidebar,
   LearningSidebar,
 } from "@components/playground/sidebars";
+
+// Import panel components
+import AIAnalysisPanel from "@components/playground/AIAnalysisPanel";
+import GenerationPanel from "@components/playground/GenerationPanel";
+import LearningPanel from "@components/playground/LearningPanel";
+import ChatbotPanel from "@components/playground/ChatbotPanel";
 
 // Allowed repositories
 const ALLOWED_REPOS = [
@@ -159,16 +158,58 @@ const PlaygroundLayout = () => {
   }, []);
 
   // Workspace state
-  const [workspace, setWorkspace] = useState({
-    activeFile: null,
-    openFiles: [],
-    analysisData: null,
-    chatHistory: [],
-    learningProgress: {},
+  const [viewStates, setViewStates] = useState({
+    editor: { activeFile: null, openFiles: [], analysisData: null },
+    analysis: {
+      analysisData: null,
+      activeFile: null,
+      analysisHistory: [],
+      settings: {},
+    },
+    generation: {
+      templates: {},
+      activeTemplate: null,
+      generatedCode: null,
+      settings: {},
+      history: [],
+    },
+    chatbot: {
+      chatHistory: [],
+      activeConversation: null,
+      context: {},
+      settings: {},
+    },
+    learning: {
+      learningProgress: {
+        "docker-fundamentals": {
+          completed: 85,
+          modules: ["Images", "Containers", "Volumes", "Networks"],
+        },
+        "cicd-pipelines": {
+          completed: 60,
+          modules: ["GitHub Actions", "Jenkins", "GitLab CI"],
+        },
+        "kubernetes-basics": {
+          completed: 30,
+          modules: ["Pods", "Services", "Deployments", "Ingress"],
+        },
+        "infrastructure-as-code": {
+          completed: 0,
+          modules: ["Terraform", "AWS CDK", "Pulumi"],
+        },
+      },
+      currentModule: null,
+      bookmarks: [],
+    },
   });
 
-  // File selection ref for communication between FileExplorer and CodeEditor
-  const fileSelectRef = useRef(null);
+  // Update view state helper
+  const updateViewState = (viewId, newState) => {
+    setViewStates((prev) => ({
+      ...prev,
+      [viewId]: { ...prev[viewId], ...newState },
+    }));
+  };
 
   // Activity bar items (Primary sidebar)
   const activityBarItems = useMemo(
@@ -207,47 +248,53 @@ const PlaygroundLayout = () => {
     []
   );
 
-  // Get the secondary sidebar content based on active view
+  // Get the secondary sidebar content from the current view
   const getSecondarySidebarContent = () => {
+    const currentWorkspace = viewStates[activeView];
+
     switch (activeView) {
       case "editor":
         return {
-          title: "Deployio Copilot",
-          content: <EditorSidebar workspace={workspace} />,
+          title: "Code Insights",
+          content: <EditorSidebar workspace={currentWorkspace} />,
         };
       case "analysis":
         return {
-          title: "AI Analysis Tools",
-          content: <AnalysisSidebar />,
+          title: "Analysis Tools",
+          content: <AnalysisSidebar workspace={currentWorkspace} />,
         };
       case "generation":
         return {
           title: "Code Generation",
-          content: <GenerationSidebar />,
+          content: (
+            <GenerationSidebar
+              workspace={currentWorkspace}
+              setWorkspace={(newState) =>
+                updateViewState("generation", newState)
+              }
+            />
+          ),
         };
       case "chatbot":
         return {
-          title: "Deployio Copilot",
-          content: <ChatbotSidebar />,
+          title: "Chat Context",
+          content: <ChatbotSidebar workspace={currentWorkspace} />,
         };
       case "learning":
         return {
-          title: "Deployio Copilot",
-          content: <LearningSidebar />,
+          title: "Learning Progress",
+          content: (
+            <LearningSidebar
+              workspace={currentWorkspace}
+              onModuleSelect={(moduleId) => {
+                updateViewState("learning", { currentModule: moduleId });
+              }}
+            />
+          ),
         };
       default:
         return null;
     }
-  };
-
-  // Utility function to check if file is editable
-  const isFileEditable = (filePath) => {
-    if (!filePath) return false;
-    const fileName = filePath.split("/").pop();
-    const relativePath = filePath.replace(/^\/+/, "");
-    return DEVOPS_CONFIG_PATTERNS.some(
-      (pattern) => pattern.test(fileName) || pattern.test(relativePath)
-    );
   };
 
   // Handle view switching
@@ -265,82 +312,44 @@ const PlaygroundLayout = () => {
     }
   }, [location.pathname, activityBarItems]);
 
-  // Render main content based on active view
+  // Render main content using direct component rendering
   const renderMainContent = () => {
-    const panelProps = {
-      workspace,
-      setWorkspace,
+    const currentWorkspace = viewStates[activeView];
+    const commonProps = {
+      workspace: currentWorkspace,
+      setWorkspace: (newState) => updateViewState(activeView, newState),
       selectedRepo,
-      isFileEditable,
+      terminalVisible,
+      setTerminalVisible,
+      DEVOPS_CONFIG_PATTERNS,
+      githubToken,
     };
 
     switch (activeView) {
       case "editor":
-        return (
-          <div className="h-full">
-            <PanelGroup direction="horizontal">
-              {/* File Explorer */}
-              <Panel defaultSize={25} minSize={15} maxSize={40}>
-                <div className="h-full border-r border-neutral-700/50 bg-neutral-950/50">
-                  <div className="h-10 border-b border-neutral-700/50 flex items-center px-3">
-                    <span className="text-sm font-medium text-white heading">
-                      Explorer
-                    </span>
-                  </div>
-                  <div className="h-full overflow-hidden">
-                    <FileExplorer
-                      onFileSelect={(file) => {
-                        if (fileSelectRef.current) {
-                          fileSelectRef.current(file);
-                        }
-                      }}
-                      githubToken={githubToken}
-                      readOnlyMode={true}
-                      editablePatterns={DEVOPS_CONFIG_PATTERNS}
-                    />
-                  </div>
-                </div>
-              </Panel>
-
-              {/* Panel Resize Handle */}
-              <PanelResizeHandle className="w-1 bg-neutral-800/50 hover:bg-neutral-600 transition-colors" />
-
-              {/* Main Editor Content */}
-              <Panel defaultSize={75} minSize={50}>
-                <CodeEditor
-                  workspace={workspace}
-                  setWorkspace={setWorkspace}
-                  onFileSelect={fileSelectRef}
-                  isFileEditable={isFileEditable}
-                  selectedRepo={selectedRepo}
-                  githubToken={githubToken}
-                />
-              </Panel>
-            </PanelGroup>
-          </div>
-        );
+        return <EditorView {...commonProps} />;
       case "analysis":
         return (
-          <div className="h-full overflow-auto custom-scrollbar">
-            <AIAnalysisPanel {...panelProps} />
+          <div className="h-full overflow-auto">
+            <AIAnalysisPanel {...commonProps} />
           </div>
         );
       case "generation":
         return (
-          <div className="h-full overflow-auto custom-scrollbar">
-            <GenerationPanel {...panelProps} />
+          <div className="h-full overflow-auto">
+            <GenerationPanel {...commonProps} />
           </div>
         );
       case "learning":
         return (
-          <div className="h-full overflow-auto custom-scrollbar">
-            <LearningPanel {...panelProps} />
+          <div className="h-full overflow-auto">
+            <LearningPanel {...commonProps} />
           </div>
         );
       case "chatbot":
         return (
-          <div className="h-full overflow-auto custom-scrollbar">
-            <ChatbotPanel {...panelProps} />
+          <div className="h-full overflow-auto">
+            <ChatbotPanel {...commonProps} />
           </div>
         );
       default:
@@ -426,7 +435,10 @@ const PlaygroundLayout = () => {
           <div className="flex items-center gap-2 ml-2">
             <FaUser className="w-3 h-3 text-neutral-400" />
             <span className="text-sm text-neutral-300">
-              {user?.name || "User"}
+              {user?.name ||
+                user?.username ||
+                user?.email?.split("@")[0] ||
+                "User"}
             </span>
           </div>
         </div>
@@ -465,25 +477,6 @@ const PlaygroundLayout = () => {
               </motion.button>
             );
           })}
-
-          {/* Terminal Toggle - Only show for editor */}
-          {activeView === "editor" && (
-            <div className="mt-auto pt-2 border-t border-neutral-800/50">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setTerminalVisible(!terminalVisible)}
-                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${
-                  terminalVisible
-                    ? "bg-green-600 text-white shadow-lg shadow-green-600/25"
-                    : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
-                }`}
-                title={`${terminalVisible ? "Hide" : "Show"} Terminal`}
-              >
-                <FaTerminal className="w-3.5 h-3.5" />
-              </motion.button>
-            </div>
-          )}
         </div>
 
         {/* Main Content with Resizable Panels */}
@@ -491,37 +484,10 @@ const PlaygroundLayout = () => {
           <PanelGroup direction="horizontal">
             {/* Main Content Area */}
             <Panel defaultSize={75} minSize={50}>
-              <PanelGroup direction="vertical">
-                {/* Content */}
-                <Panel
-                  defaultSize={
-                    terminalVisible && activeView === "editor" ? 70 : 100
-                  }
-                  minSize={40}
-                >
-                  <div className="h-full bg-neutral-900">
-                    {renderMainContent()}
-                  </div>
-                </Panel>
-
-                {/* Terminal - Only show for editor */}
-                {terminalVisible && activeView === "editor" && (
-                  <>
-                    <PanelResizeHandle className="h-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
-                    <Panel defaultSize={30} minSize={15} maxSize={60}>
-                      <div className="h-full border-t border-neutral-800">
-                        <Terminal
-                          workspace={workspace}
-                          selectedRepo={selectedRepo}
-                        />
-                      </div>
-                    </Panel>
-                  </>
-                )}
-              </PanelGroup>
+              <div className="h-full bg-neutral-900">{renderMainContent()}</div>
             </Panel>
 
-            {/* Secondary Sidebar - Only show for editor and learning */}
+            {/* Secondary Sidebar - Context-aware based on view */}
             {!secondarySidebarCollapsed && secondarySidebarContent && (
               <>
                 <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
@@ -552,7 +518,7 @@ const PlaygroundLayout = () => {
             )}
           </PanelGroup>
 
-          {/* Collapsed Secondary Sidebar Toggle - Only for editor and learning */}
+          {/* Collapsed Secondary Sidebar Toggle */}
           {secondarySidebarCollapsed && secondarySidebarContent && (
             <div className="fixed top-1/2 right-0 z-50 -translate-y-1/2">
               <motion.button
@@ -560,7 +526,7 @@ const PlaygroundLayout = () => {
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSecondarySidebarCollapsed(false)}
                 className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
-                title="Show Deployio Copilot"
+                title="Show Sidebar"
               >
                 <FaChevronLeft className="w-3 h-3 text-neutral-400" />
               </motion.button>

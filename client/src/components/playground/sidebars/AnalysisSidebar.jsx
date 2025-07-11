@@ -1,6 +1,13 @@
 import { FaCode, FaFolderOpen } from "react-icons/fa";
 
-const AnalysisSidebar = () => {
+const AnalysisSidebar = ({ workspace }) => {
+  const settings = workspace?.settings || {
+    securityAnalysis: true,
+    performanceCheck: true,
+    bestPractices: true,
+    codeQuality: true,
+  };
+
   return (
     <div className="p-4 space-y-4 custom-scrollbar">
       <div className="text-xs text-neutral-400 uppercase tracking-wide font-medium body">
@@ -13,15 +20,27 @@ const AnalysisSidebar = () => {
           </h4>
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs body">
-              <input type="checkbox" defaultChecked className="rounded" />
+              <input
+                type="checkbox"
+                defaultChecked={settings.securityAnalysis}
+                className="rounded"
+              />
               <span className="text-neutral-300">Security Analysis</span>
             </label>
             <label className="flex items-center gap-2 text-xs body">
-              <input type="checkbox" defaultChecked className="rounded" />
+              <input
+                type="checkbox"
+                defaultChecked={settings.performanceCheck}
+                className="rounded"
+              />
               <span className="text-neutral-300">Performance Check</span>
             </label>
             <label className="flex items-center gap-2 text-xs body">
-              <input type="checkbox" defaultChecked className="rounded" />
+              <input
+                type="checkbox"
+                defaultChecked={settings.bestPractices}
+                className="rounded"
+              />
               <span className="text-neutral-300">Best Practices</span>
             </label>
           </div>
