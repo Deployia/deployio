@@ -12,7 +12,6 @@ const EditorView = ({
   selectedRepo,
   terminalVisible,
   setTerminalVisible,
-  DEVOPS_CONFIG_PATTERNS,
   githubToken,
 }) => {
   // File selection ref for communication between FileExplorer and CodeEditor
@@ -25,16 +24,6 @@ const EditorView = ({
     }
   }, []);
 
-  // Utility function to check if file is editable
-  const isFileEditable = (filePath) => {
-    if (!filePath) return false;
-    const fileName = filePath.split("/").pop();
-    const relativePath = filePath.replace(/^\/+/, "");
-    return !DEVOPS_CONFIG_PATTERNS.some(
-      (pattern) => pattern.test(fileName) || pattern.test(relativePath)
-    );
-  };
-
   return (
     <div className="h-full">
       <PanelGroup direction="horizontal">
@@ -43,7 +32,7 @@ const EditorView = ({
           <div className="h-full border-r border-neutral-700/50 bg-neutral-950/50">
             <div className="h-10 border-b border-neutral-700/50 flex items-center justify-between px-3">
               <span className="text-sm font-medium text-white heading">
-                Explorer
+                Repository Explorer
               </span>
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -54,7 +43,7 @@ const EditorView = ({
                     ? "bg-green-600 text-white shadow-md shadow-green-600/25"
                     : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
                 }`}
-                title={`${terminalVisible ? "Hide" : "Show"} Terminal`}
+                title={`${terminalVisible ? "Hide" : "Show"} DevOps Terminal`}
               >
                 <FaTerminal className="w-3 h-3" />
               </motion.button>
@@ -64,7 +53,7 @@ const EditorView = ({
                 onFileSelect={handleFileSelect}
                 githubToken={githubToken}
                 readOnlyMode={true}
-                editablePatterns={DEVOPS_CONFIG_PATTERNS}
+                selectedRepo={selectedRepo}
               />
             </div>
           </div>
@@ -82,13 +71,13 @@ const EditorView = ({
                 workspace={workspace}
                 setWorkspace={setWorkspace}
                 onFileSelect={fileSelectRef}
-                isFileEditable={isFileEditable}
+                readOnlyMode={true}
                 selectedRepo={selectedRepo}
                 githubToken={githubToken}
               />
             </Panel>
 
-            {/* Terminal */}
+            {/* DevOps Terminal */}
             {terminalVisible && (
               <>
                 <PanelResizeHandle className="h-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
@@ -97,6 +86,7 @@ const EditorView = ({
                     <Terminal
                       workspace={workspace}
                       selectedRepo={selectedRepo}
+                      devOpsMode={true}
                     />
                   </div>
                 </Panel>

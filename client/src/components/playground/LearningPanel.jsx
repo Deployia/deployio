@@ -238,17 +238,35 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
   return (
     <div className="h-full flex flex-col bg-neutral-900">
       {/* Header */}
-      <div className="p-6 border-b border-neutral-800/50">
-        <div className="flex items-center gap-3 mb-4">
-          <FiBookOpen className="w-6 h-6 text-green-400" />
-          <div>
-            <h2 className="text-2xl font-bold text-white heading">
-              DevOps Learning Center
-            </h2>
-            <p className="text-neutral-400 body">
-              Master DevOps skills with hands-on tutorials and interactive
-              lessons
-            </p>
+      <div className="p-6 border-b border-neutral-800/50 bg-gradient-to-r from-neutral-900/50 to-neutral-800/30">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <FiBookOpen className="w-6 h-6 text-green-400" />
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="text-2xl font-bold text-white heading">
+                  DevOps Learning Center
+                </h2>
+                <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-xs font-medium text-yellow-400 body">
+                  Coming Soon
+                </span>
+                <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs font-medium text-blue-400 body">
+                  Static Preview
+                </span>
+              </div>
+              <p className="text-neutral-400 body">
+                Master DevOps skills with hands-on tutorials and interactive
+                lessons
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-xs font-medium body">
+              🚀 Coming Soon
+            </span>
+            <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-xs font-medium body">
+              Static Preview
+            </span>
           </div>
         </div>
 

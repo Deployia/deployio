@@ -55,31 +55,6 @@ const ALLOWED_REPOS = [
   },
 ];
 
-// DevOps/Config file patterns for read-only enforcement
-const DEVOPS_CONFIG_PATTERNS = [
-  /^Dockerfile$/,
-  /^docker-compose\.ya?ml$/,
-  /^\.dockerignore$/,
-  /^\.github\/workflows\//,
-  /^\.gitlab-ci\.yml$/,
-  /^ci\/.*$/,
-  /^scripts\/.*\.sh$/,
-  /^deploy\/.*$/,
-  /^k8s\/.*\.ya?ml$/,
-  /^terraform\/.*\.tf$/,
-  /^\.env\.example$/,
-  /^package\.json$/,
-  /^requirements\.txt$/,
-  /^Pipfile$/,
-  /^pyproject\.toml$/,
-  /^go\.mod$/,
-  /^pom\.xml$/,
-  /^build\.gradle$/,
-  /^Makefile$/,
-  /^nginx\.conf$/,
-  /^apache\.conf$/,
-];
-
 const PlaygroundLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -321,7 +296,6 @@ const PlaygroundLayout = () => {
       selectedRepo,
       terminalVisible,
       setTerminalVisible,
-      DEVOPS_CONFIG_PATTERNS,
       githubToken,
     };
 
@@ -330,25 +304,25 @@ const PlaygroundLayout = () => {
         return <EditorView {...commonProps} />;
       case "analysis":
         return (
-          <div className="h-full overflow-auto">
+          <div className="h-full overflow-auto custom-scrollbar">
             <AIAnalysisPanel {...commonProps} />
           </div>
         );
       case "generation":
         return (
-          <div className="h-full overflow-auto">
+          <div className="h-full overflow-auto custom-scrollbar">
             <GenerationPanel {...commonProps} />
           </div>
         );
       case "learning":
         return (
-          <div className="h-full overflow-auto">
+          <div className="h-full overflow-auto custom-scrollbar">
             <LearningPanel {...commonProps} />
           </div>
         );
       case "chatbot":
         return (
-          <div className="h-full overflow-auto">
+          <div className="h-full overflow-auto custom-scrollbar">
             <ChatbotPanel {...commonProps} />
           </div>
         );
@@ -361,7 +335,7 @@ const PlaygroundLayout = () => {
                 Welcome to Deployio Playground
               </h3>
               <p className="text-neutral-400">
-                Select a tool from the activity bar to get started
+                Explore DevOps best practices through real-world repositories
               </p>
             </div>
           </div>
