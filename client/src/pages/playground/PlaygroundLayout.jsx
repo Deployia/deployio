@@ -1,22 +1,24 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
-  FiCode,
-  FiTerminal,
-  FiPlay,
-  FiSave,
-  FiMessageSquare,
-  FiBookOpen,
-  FiCpu,
-  FiZap,
-  FiActivity,
-  FiMaximize2,
-  FiMinimize2,
-  FiMenu,
-  FiX,
-} from "react-icons/fi";
-import { useLocation, useNavigate } from "react-router-dom";
+  FaCode,
+  FaTerminal,
+  FaRobot,
+  FaBookOpen,
+  FaMicrochip,
+  FaChartLine,
+  FaUser,
+  FaBars,
+  FaExpandArrowsAlt,
+  FaCompressArrowsAlt,
+  FaGripVertical,
+  FaLock,
+  FaUnlock,
+  FaComments,
+} from "react-icons/fa";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 // Import playground components
 import CodeEditor from "@components/playground/CodeEditor";
@@ -28,505 +30,420 @@ import LearningPanel from "@components/playground/LearningPanel";
 import GenerationPanel from "@components/playground/GenerationPanel";
 import MonitoringPanel from "@components/playground/MonitoringPanel";
 
+// Allowed repositories
+const ALLOWED_REPOS = [
+  {
+    id: "mern-stack",
+    name: "MERN Stack Template",
+    url: "https://github.com/vasudevshetty/mern",
+    description: "Full-stack MERN application template",
+    icon: FaCode,
+  },
+  {
+    id: "fastapi-template",
+    name: "FastAPI Template",
+    url: "https://github.com/deployio/fastapi-template",
+    description: "FastAPI backend template (Coming Soon)",
+    icon: FaMicrochip,
+    comingSoon: true,
+  },
+];
+
+// DevOps/Config file patterns for read-only enforcement
+const DEVOPS_CONFIG_PATTERNS = [
+  /^Dockerfile$/,
+  /^docker-compose\.ya?ml$/,
+  /^\.dockerignore$/,
+  /^\.github\/workflows\//,
+  /^\.gitlab-ci\.yml$/,
+  /^ci\/.*$/,
+  /^scripts\/.*\.sh$/,
+  /^deploy\/.*$/,
+  /^k8s\/.*\.ya?ml$/,
+  /^terraform\/.*\.tf$/,
+  /^\.env\.example$/,
+  /^package\.json$/,
+  /^requirements\.txt$/,
+  /^Pipfile$/,
+  /^pyproject\.toml$/,
+  /^go\.mod$/,
+  /^pom\.xml$/,
+  /^build\.gradle$/,
+  /^Makefile$/,
+  /^nginx\.conf$/,
+  /^apache\.conf$/,
+];
+
 const PlaygroundLayout = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
 
-  // Responsive state
-  const [isMobile, setIsMobile] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Panel visibility state
-  const [panels, setPanels] = useState({
-    fileExplorer: true,
-    terminal: true,
-    aiAnalysis: true,
-    chatbot: false,
-    learning: false,
-    generation: false,
-    monitoring: false,
-  });
-
   // Layout state
-  const [layout, setLayout] = useState({
-    isFullscreen: false,
-    terminalHeight: 240,
-    rightPanelWidth: 400,
-    sidebarWidth: 320,
-  });
+  const [activePanel, setActivePanel] = useState("analysis");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedRepo, setSelectedRepo] = useState(ALLOWED_REPOS[0]);
 
-  // Current workspace state
+  // Workspace state
   const [workspace, setWorkspace] = useState({
-    currentProject: null,
-    openFiles: [],
     activeFile: null,
-    unsavedChanges: new Set(),
-  });
-
-  // AI state
-  const [aiState, setAiState] = useState({
-    isAnalyzing: false,
-    analysisResults: null,
-    suggestions: [],
-    currentContext: "devops",
+    openFiles: [],
+    analysisData: null,
+    chatHistory: [],
     learningProgress: {},
-    metrics: {},
   });
 
-  // Check screen size
-  useEffect(() => {
-    const checkScreenSize = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      if (mobile) {
-        setSidebarOpen(false);
-      }
-    };
-
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
-  }, []);
-
-  const togglePanel = (panelName) => {
-    setPanels((prev) => {
-      const newPanels = { ...prev };
-
-      if (isMobile && panelName !== "terminal") {
-        // On mobile, only allow one right panel at a time
-        Object.keys(newPanels).forEach((key) => {
-          if (
-            key !== "fileExplorer" &&
-            key !== "terminal" &&
-            key !== panelName
-          ) {
-            newPanels[key] = false;
-          }
-        });
-      }
-
-      newPanels[panelName] = !prev[panelName];
-      return newPanels;
-    });
-  };
-
-  const toggleFullscreen = () => {
-    setLayout((prev) => ({
-      ...prev,
-      isFullscreen: !prev.isFullscreen,
-    }));
-  };
-
-  // Sidebar navigation items
-  const sidebarItems = [
-    {
-      id: "code",
-      icon: FiCode,
-      label: "Code Editor",
-      path: "/playground/editor",
-      color: "text-blue-400",
-      panel: "fileExplorer",
-    },
+  // Panel configurations
+  const panels = [
     {
       id: "analysis",
-      icon: FiCpu,
       label: "AI Analysis",
-      path: "/playground/analysis",
-      color: "text-purple-400",
-      panel: "aiAnalysis",
+      icon: FaMicrochip,
+      component: AIAnalysisPanel,
+      showTerminal: false,
+      fileOverview: "Analysis Steps & Results",
     },
     {
-      id: "generation",
-      icon: FiZap,
-      label: "AI Generation",
-      path: "/playground/generation",
-      color: "text-yellow-400",
-      panel: "generation",
+      id: "chat",
+      label: "AI Assistant",
+      icon: FaRobot,
+      component: ChatbotPanel,
+      showTerminal: false,
+      fileOverview: "Chat History & Context",
     },
     {
       id: "learning",
-      icon: FiBookOpen,
-      label: "DevOps Learning",
-      path: "/playground/learning",
-      color: "text-green-400",
-      panel: "learning",
+      label: "Learning",
+      icon: FaBookOpen,
+      component: LearningPanel,
+      showTerminal: false,
+      fileOverview: "Learning Modules & Progress",
     },
     {
-      id: "chatbot",
-      icon: FiMessageSquare,
-      label: "AI Assistant",
-      path: "/playground/chatbot",
-      color: "text-cyan-400",
-      panel: "chatbot",
+      id: "generation",
+      label: "Generation",
+      icon: FaCode,
+      component: GenerationPanel,
+      showTerminal: false,
+      fileOverview: "Generated Configurations",
+    },
+    {
+      id: "editor",
+      label: "Code Editor",
+      icon: FaTerminal,
+      component: CodeEditor,
+      showTerminal: true,
+      fileOverview: "File Explorer & Navigation",
     },
     {
       id: "monitoring",
-      icon: FiActivity,
       label: "Monitoring",
-      path: "/playground/monitoring",
-      color: "text-red-400",
-      panel: "monitoring",
+      icon: FaChartLine,
+      component: MonitoringPanel,
+      showTerminal: false,
+      fileOverview: "System Metrics & Logs",
     },
   ];
 
-  // Get current active item
-  const currentPath = location.pathname;
-  const activeItem =
-    sidebarItems.find((item) => currentPath.startsWith(item.path)) ||
-    sidebarItems[0];
+  // Get active panel config
+  const activePanelConfig = panels.find((p) => p.id === activePanel);
 
-  // Handle navigation
-  const handleNavigation = (item) => {
-    navigate(item.path);
-    // Auto-open related panel
-    if (item.panel) {
-      togglePanel(item.panel);
-    }
-    // Close mobile sidebar
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
+  // Utility function to check if file is editable
+  const isFileEditable = (filePath) => {
+    if (!filePath) return false;
+
+    // Extract filename from path
+    const fileName = filePath.split("/").pop();
+    const relativePath = filePath.replace(/^\/+/, ""); // Remove leading slashes
+
+    // Check if file matches any DevOps/Config pattern
+    return DEVOPS_CONFIG_PATTERNS.some(
+      (pattern) => pattern.test(fileName) || pattern.test(relativePath)
+    );
   };
 
-  // Check if any right panel is open
-  const hasRightPanel =
-    panels.aiAnalysis ||
-    panels.chatbot ||
-    panels.learning ||
-    panels.generation ||
-    panels.monitoring;
+  // Responsive handling
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Handle panel switching
+  const handlePanelSwitch = (panelId) => {
+    setActivePanel(panelId);
+  };
+
+  // Handle home navigation
+  const handleHomeNavigation = () => {
+    navigate("/dashboard");
+  };
+
+  // Handle file selection with read-only enforcement
+  const handleFileSelect = (filePath) => {
+    const editable = isFileEditable(filePath);
+    setWorkspace((prev) => ({
+      ...prev,
+      activeFile: {
+        path: filePath,
+        editable,
+        content: null, // Will be loaded by CodeEditor
+      },
+    }));
+  };
+
+  // Handle fullscreen toggle
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  // Render active panel component
+  const renderActivePanel = () => {
+    if (!activePanelConfig) return null;
+
+    const Component = activePanelConfig.component;
+
+    const panelProps = {
+      workspace,
+      setWorkspace,
+      selectedRepo,
+      onFileSelect: handleFileSelect,
+      isFileEditable,
+    };
+
+    return <Component {...panelProps} />;
+  };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-black via-neutral-900 to-black text-white flex flex-col overflow-hidden">
-      {/* Top Navigation Bar */}
-      <motion.div
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="h-12 bg-neutral-900/90 backdrop-blur-lg border-b border-neutral-800/50 flex items-center justify-between px-3 lg:px-4 flex-shrink-0 z-50"
-      >
-        {/* Left Section */}
-        <div className="flex items-center gap-2 lg:gap-4">
-          {/* Mobile Menu Button */}
-          {isMobile && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-neutral-800/50 text-gray-400 hover:text-white transition-colors lg:hidden"
-            >
-              {sidebarOpen ? (
-                <FiX className="w-4 h-4" />
-              ) : (
-                <FiMenu className="w-4 h-4" />
-              )}
-            </motion.button>
-          )}
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="flex items-center gap-2"
+    <div className="h-screen bg-neutral-900 text-white flex flex-col overflow-hidden">
+      {/* Top Bar - styled like Navbar */}
+      <div className="h-16 bg-neutral-900/70 backdrop-blur-lg border-b border-neutral-800/30 flex items-center justify-between px-4 shadow-xl">
+        {/* Logo and Home */}
+        <div className="flex items-center gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleHomeNavigation}
+            className="flex items-center gap-3 group"
           >
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-              <FiCode className="w-4 h-4 text-white" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+              <img src="/favicon.png" alt="Deployio Logo" />
             </div>
-            <span className="text-lg font-bold heading hidden sm:block">
-              DevOps Playground
+            <span className="text-2xl font-bold text-white heading group-hover:text-blue-400 transition-colors duration-200">
+              Deployio
             </span>
-            <span className="text-lg font-bold heading sm:hidden">
-              Playground
-            </span>
-          </motion.div>
-
-          {/* Breadcrumb - Hidden on mobile */}
-          <div className="hidden md:flex items-center gap-2 text-sm text-gray-400">
-            <span>/</span>
-            <span className="text-white">{activeItem.label}</span>
-            {workspace.activeFile && (
-              <>
-                <span>/</span>
-                <span className="text-blue-400 truncate max-w-32">
-                  {workspace.activeFile}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Center Section - Quick Actions */}
-        <div className="flex items-center gap-1">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => togglePanel("terminal")}
-            className={`p-2 rounded-lg transition-colors ${
-              panels.terminal
-                ? "bg-blue-500/20 text-blue-400"
-                : "hover:bg-neutral-800/50 text-gray-400"
-            }`}
-            title="Toggle Terminal"
-          >
-            <FiTerminal className="w-4 h-4" />
           </motion.button>
 
+          {/* Mobile sidebar toggle */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2 rounded-lg hover:bg-neutral-800/50 text-gray-400 hover:text-white transition-colors"
-            title="Save All"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="lg:hidden p-2 rounded-lg hover:bg-neutral-800 transition-colors"
           >
-            <FiSave className="w-4 h-4" />
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="p-2 rounded-lg hover:bg-green-500/20 text-gray-400 hover:text-green-400 transition-colors"
-            title="Run Analysis"
-          >
-            <FiPlay className="w-4 h-4" />
+            <FaBars className="w-4 h-4" />
           </motion.button>
         </div>
 
-        {/* Right Section */}
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-2 text-xs">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                aiState.isAnalyzing
-                  ? "bg-yellow-400 animate-pulse"
-                  : "bg-green-400"
-              }`}
-            />
-            <span className="text-gray-400">
-              {aiState.isAnalyzing ? "AI Working..." : "AI Ready"}
-            </span>
-          </div>
+        {/* Center - Repository Selector */}
+        <div className="flex-1 max-w-md mx-4">
+          <select
+            value={selectedRepo.id}
+            onChange={(e) => {
+              const repo = ALLOWED_REPOS.find((r) => r.id === e.target.value);
+              if (repo && !repo.comingSoon) {
+                setSelectedRepo(repo);
+              }
+            }}
+            className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 body"
+          >
+            {ALLOWED_REPOS.map((repo) => (
+              <option key={repo.id} value={repo.id} disabled={repo.comingSoon}>
+                {repo.name} {repo.comingSoon ? "(Coming Soon)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
+        {/* Right side controls */}
+        <div className="flex items-center space-x-4">
+          {/* Fullscreen toggle */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={toggleFullscreen}
-            className="p-2 rounded-lg hover:bg-neutral-800/50 text-gray-400 hover:text-white transition-colors"
-            title={layout.isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            className="p-2 rounded-lg hover:bg-neutral-800 transition-colors"
           >
-            {layout.isFullscreen ? (
-              <FiMinimize2 className="w-4 h-4" />
+            {isFullscreen ? (
+              <FaCompressArrowsAlt className="w-4 h-4" />
             ) : (
-              <FiMaximize2 className="w-4 h-4" />
+              <FaExpandArrowsAlt className="w-4 h-4" />
             )}
           </motion.button>
 
-          <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-neutral-800">
-            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-xs font-medium">
-              {user?.name?.charAt(0)?.toUpperCase() || "U"}
-            </div>
-            <span className="text-sm text-gray-300 hidden md:block">
+          {/* User info */}
+          <div className="flex items-center space-x-2">
+            <FaUser className="w-4 h-4 text-neutral-400" />
+            <span className="hidden sm:block text-sm text-neutral-300 body">
               {user?.name || "User"}
             </span>
           </div>
         </div>
-      </motion.div>
-
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        {/* Left Sidebar Navigation */}
-        <motion.div
-          initial={{ x: -50, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          className={`
-            ${isMobile ? "absolute inset-y-0 left-0 z-40" : "relative"}
-            ${isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"}
-            w-14 bg-neutral-900/90 backdrop-blur-lg border-r border-neutral-800/50 
-            flex flex-col items-center py-3 gap-1 flex-shrink-0 transition-transform duration-300
-          `}
-        >
-          {sidebarItems.map((item) => {
-            const isActive = activeItem.id === item.id;
-            return (
-              <motion.button
-                key={item.id}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleNavigation(item)}
-                className={`
-                  w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200
-                  ${
-                    isActive
-                      ? `bg-gradient-to-r from-blue-500/20 to-purple-600/20 ${item.color} border border-blue-500/30`
-                      : "text-gray-400 hover:text-white hover:bg-neutral-800/50"
-                  }
-                `}
-                title={item.label}
-              >
-                <item.icon className="w-5 h-5" />
-              </motion.button>
-            );
-          })}
-        </motion.div>
-
-        {/* Mobile Sidebar Overlay */}
-        {isMobile && sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSidebarOpen(false)}
-            className="absolute inset-0 bg-black/50 z-30"
-          />
-        )}
-
-        {/* Main Content Container */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          {/* Primary Content Area */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* File Explorer - Responsive */}
-            <AnimatePresence>
-              {panels.fileExplorer && (
-                <motion.div
-                  initial={{ x: -300, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -300, opacity: 0 }}
-                  className={`
-                    ${
-                      isMobile
-                        ? "absolute inset-y-0 left-0 z-20 w-80"
-                        : "relative w-80"
-                    }
-                    bg-neutral-900/40 backdrop-blur-lg border-r border-neutral-800/50 
-                    flex-shrink-0 overflow-hidden
-                  `}
-                >
-                  <FileExplorer
-                    workspace={workspace}
-                    setWorkspace={setWorkspace}
-                    onFileSelect={(file) =>
-                      setWorkspace((prev) => ({ ...prev, activeFile: file }))
-                    }
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Editor and Right Panel Container */}
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-w-0">
-              {/* Code Editor */}
-              <div className="flex-1 bg-neutral-950/50 overflow-hidden">
-                <CodeEditor
-                  workspace={workspace}
-                  setWorkspace={setWorkspace}
-                  aiState={aiState}
-                  setAiState={setAiState}
-                />
-              </div>
-
-              {/* Right Panel - Contextual */}
-              <AnimatePresence>
-                {hasRightPanel && (
-                  <motion.div
-                    initial={{ x: 400, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 400, opacity: 0 }}
-                    className={`
-                      ${isMobile ? "absolute inset-0 z-30" : "relative w-96"}
-                      bg-neutral-900/40 backdrop-blur-lg border-l border-neutral-800/50 
-                      flex-shrink-0 overflow-hidden
-                    `}
-                  >
-                    {isMobile && (
-                      <div className="absolute top-2 right-2 z-10">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => {
-                            setPanels((prev) => ({
-                              ...prev,
-                              aiAnalysis: false,
-                              chatbot: false,
-                              learning: false,
-                              generation: false,
-                              monitoring: false,
-                            }));
-                          }}
-                          className="p-2 rounded-lg bg-neutral-800/80 text-gray-400 hover:text-white"
-                        >
-                          <FiX className="w-4 h-4" />
-                        </motion.button>
-                      </div>
-                    )}
-
-                    <div className="h-full overflow-hidden">
-                      {panels.aiAnalysis && (
-                        <AIAnalysisPanel
-                          workspace={workspace}
-                          aiState={aiState}
-                          setAiState={setAiState}
-                        />
-                      )}
-                      {panels.chatbot && (
-                        <ChatbotPanel
-                          workspace={workspace}
-                          context={aiState.currentContext}
-                        />
-                      )}
-                      {panels.learning && (
-                        <LearningPanel
-                          workspace={workspace}
-                          progress={aiState.learningProgress}
-                        />
-                      )}
-                      {panels.generation && (
-                        <GenerationPanel
-                          workspace={workspace}
-                          aiState={aiState}
-                        />
-                      )}
-                      {panels.monitoring && (
-                        <MonitoringPanel
-                          workspace={workspace}
-                          metrics={aiState.metrics}
-                        />
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* Terminal Panel - Bottom */}
-          <AnimatePresence>
-            {panels.terminal && (
-              <motion.div
-                initial={{ y: 300, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 300, opacity: 0 }}
-                style={{ height: layout.terminalHeight }}
-                className="bg-neutral-950/80 backdrop-blur-lg border-t border-neutral-800/50 flex-shrink-0 overflow-hidden"
-              >
-                <Terminal
-                  workspace={workspace}
-                  onCommand={(command, output) => {
-                    console.log("Terminal command:", command, output);
-                  }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
 
-      {/* Floating Action Button - Mobile Chatbot */}
-      {isMobile && !panels.chatbot && (
+      {/* Main Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        <PanelGroup direction="horizontal">
+          {/* Sidebar */}
+          <Panel
+            defaultSize={20}
+            minSize={15}
+            maxSize={30}
+            collapsible={true}
+            className={`${sidebarCollapsed ? "hidden lg:block" : ""}`}
+          >
+            <div className="h-full bg-neutral-900 border-r border-neutral-800 flex flex-col">
+              {/* Panel Navigation */}
+              <div className="p-4">
+                <h2 className="text-lg font-semibold text-white mb-4 heading">
+                  Playground
+                </h2>
+                <nav className="space-y-2">
+                  {panels.map((panel) => {
+                    const Icon = panel.icon;
+                    const isActive = activePanel === panel.id;
+
+                    return (
+                      <motion.button
+                        key={panel.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handlePanelSwitch(panel.id)}
+                        className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-all body ${
+                          isActive
+                            ? "bg-blue-600 text-white shadow-lg"
+                            : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                          {panel.label}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {/* Workspace Info */}
+              <div className="mt-auto p-4 border-t border-neutral-800">
+                <div className="text-xs text-neutral-400 body">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span>Repository:</span>
+                    <span className="text-blue-400">{selectedRepo.name}</span>
+                  </div>
+                  {workspace.activeFile && (
+                    <div className="flex items-center space-x-2">
+                      {workspace.activeFile.editable ? (
+                        <FaUnlock className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <FaLock className="w-3 h-3 text-red-500" />
+                      )}
+                      <span className="text-xs">
+                        {workspace.activeFile.editable
+                          ? "Editable"
+                          : "Read-only"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Panel>
+
+          <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
+
+          {/* Main Content Area */}
+          <Panel defaultSize={80} minSize={50}>
+            <div className="h-full flex flex-col">
+              {/* Contextual File Overview Bar */}
+              <div className="h-12 bg-neutral-800/50 border-b border-neutral-700 flex items-center px-4">
+                <div className="flex items-center space-x-2">
+                  <FaGripVertical className="w-4 h-4 text-neutral-500" />
+                  <span className="text-sm text-neutral-300 body">
+                    {activePanelConfig?.fileOverview || "Playground"}
+                  </span>
+                </div>
+                {workspace.activeFile && (
+                  <div className="ml-auto flex items-center space-x-2 text-xs text-neutral-400 body">
+                    <span>{workspace.activeFile.path}</span>
+                    {workspace.activeFile.editable ? (
+                      <FaUnlock className="w-3 h-3 text-green-500" />
+                    ) : (
+                      <FaLock className="w-3 h-3 text-red-500" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Panel Content */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {activePanel === "editor" ? (
+                  <PanelGroup direction="vertical">
+                    <Panel defaultSize={75} minSize={50}>
+                      <div className="flex-1 flex h-full">
+                        {/* File Explorer - Read Only */}
+                        <div className="w-80 border-r border-neutral-800">
+                          <FileExplorer
+                            workspace={workspace}
+                            setWorkspace={setWorkspace}
+                            onFileSelect={handleFileSelect}
+                            readOnlyMode={true}
+                            editablePatterns={DEVOPS_CONFIG_PATTERNS}
+                            isFileEditable={isFileEditable}
+                          />
+                        </div>
+                        {/* Code Editor */}
+                        <div className="flex-1">{renderActivePanel()}</div>
+                      </div>
+                    </Panel>
+                    {/* Terminal for editor only */}
+                    <PanelResizeHandle className="h-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
+                    <Panel defaultSize={25} minSize={15} maxSize={50}>
+                      <Terminal
+                        workspace={workspace}
+                        selectedRepo={selectedRepo}
+                      />
+                    </Panel>
+                  </PanelGroup>
+                ) : (
+                  <div className="flex-1 p-6 overflow-auto">
+                    {renderActivePanel()}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Panel>
+        </PanelGroup>
+      </div>
+
+      {/* Floating Chat Button (when not in chat panel) */}
+      {activePanel !== "chat" && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => togglePanel("chatbot")}
+          onClick={() => handlePanelSwitch("chat")}
           className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/25 z-50"
         >
-          <FiMessageSquare className="w-6 h-6 text-white" />
+          <FaComments className="w-6 h-6 text-white" />
         </motion.button>
       )}
     </div>

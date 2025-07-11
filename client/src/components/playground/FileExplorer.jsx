@@ -1,20 +1,29 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import {
-  FiFile,
-  FiFolder,
-  FiGitBranch,
-  FiPlus,
-  FiSearch,
-  FiUpload,
-  FiRefreshCw,
-  FiCode,
-  FiFileText,
-  FiPackage,
-} from "react-icons/fi";
-import { FaFolderOpen } from "react-icons/fa";
+  FaFile,
+  FaFolder,
+  FaFolderOpen,
+  FaPlus,
+  FaSearch,
+  FaUpload,
+  FaSync,
+  FaCode,
+  FaFileAlt,
+  FaBox,
+  FaLock,
+  FaUnlock,
+  FaCodeBranch,
+} from "react-icons/fa";
 
-const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
+const FileExplorer = ({
+  workspace,
+  setWorkspace,
+  onFileSelect,
+  readOnlyMode = false,
+  _editablePatterns = [],
+  isFileEditable,
+}) => {
   const [expandedFolders, setExpandedFolders] = useState(
     new Set(["root", "src"])
   );
@@ -158,21 +167,21 @@ const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
 
   const getFileIcon = (file) => {
     if (file.type === "folder") {
-      return expandedFolders.has(file.id) ? FaFolderOpen : FiFolder;
+      return expandedFolders.has(file.id) ? FaFolderOpen : FaFolder;
     }
 
     switch (file.language) {
       case "javascript":
-        return FiCode;
+        return FaCode;
       case "json":
       case "yaml":
-        return FiFileText;
+        return FaFileAlt;
       case "dockerfile":
-        return FiPackage;
+        return FaBox;
       case "markdown":
-        return FiFileText;
+        return FaFileAlt;
       default:
-        return FiFile;
+        return FaFile;
     }
   };
 
@@ -208,6 +217,8 @@ const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
         const Icon = getFileIcon(item);
         const isExpanded = expandedFolders.has(item.id);
         const isActive = workspace.activeFile === item.name;
+        const isEditable =
+          item.type === "file" && isFileEditable && isFileEditable(item.name);
 
         return (
           <div key={item.id}>
@@ -216,12 +227,15 @@ const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
               onClick={() => handleFileClick(item)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                setContextMenu({ x: e.clientX, y: e.clientY, item });
+                if (!readOnlyMode) {
+                  setContextMenu({ x: e.clientX, y: e.clientY, item });
+                }
               }}
               className={`
                 flex items-center gap-2 py-1.5 px-2 cursor-pointer rounded-md transition-colors
                 hover:bg-neutral-800/50 group
                 ${isActive ? "bg-blue-500/20 border-l-2 border-blue-500" : ""}
+                ${readOnlyMode && !isEditable ? "opacity-75" : ""}
               `}
               style={{ paddingLeft: `${depth * 16 + 8}px` }}
             >
@@ -238,12 +252,22 @@ const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
                 {item.name}
               </span>
               {item.type === "file" && (
-                <span className="text-xs text-gray-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                  {item.size}
-                </span>
+                <div className="ml-auto flex items-center gap-1">
+                  {readOnlyMode && (
+                    <>
+                      {isEditable ? (
+                        <FaUnlock className="w-3 h-3 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      ) : (
+                        <FaLock className="w-3 h-3 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </>
+                  )}
+                  <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {item.size}
+                  </span>
+                </div>
               )}
             </motion.div>
-
             {item.type === "folder" && isExpanded && item.children && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
@@ -274,25 +298,40 @@ const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
       {/* Header */}
       <div className="p-3 border-b border-neutral-800/50">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-white">Explorer</h3>
+          <h3 className="text-sm font-medium text-white">
+            Explorer{" "}
+            {readOnlyMode && (
+              <span className="text-xs text-red-400">(Read Only)</span>
+            )}
+          </h3>
           <div className="flex items-center gap-1">
             <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleNewFile}
-              className="p-1.5 rounded-md hover:bg-neutral-800/50 text-gray-400 hover:text-white transition-colors"
-              title="New File"
+              whileHover={!readOnlyMode ? { scale: 1.1 } : {}}
+              whileTap={!readOnlyMode ? { scale: 0.9 } : {}}
+              onClick={readOnlyMode ? undefined : handleNewFile}
+              disabled={readOnlyMode}
+              className={`p-1.5 rounded-md transition-colors ${
+                readOnlyMode
+                  ? "text-gray-600 cursor-not-allowed"
+                  : "hover:bg-neutral-800/50 text-gray-400 hover:text-white"
+              }`}
+              title={readOnlyMode ? "Read-only mode" : "New File"}
             >
-              <FiPlus className="w-4 h-4" />
+              <FaPlus className="w-4 h-4" />
             </motion.button>
             <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleUploadFiles}
-              className="p-1.5 rounded-md hover:bg-neutral-800/50 text-gray-400 hover:text-white transition-colors"
-              title="Upload Files"
+              whileHover={!readOnlyMode ? { scale: 1.1 } : {}}
+              whileTap={!readOnlyMode ? { scale: 0.9 } : {}}
+              onClick={readOnlyMode ? undefined : handleUploadFiles}
+              disabled={readOnlyMode}
+              className={`p-1.5 rounded-md transition-colors ${
+                readOnlyMode
+                  ? "text-gray-600 cursor-not-allowed"
+                  : "hover:bg-neutral-800/50 text-gray-400 hover:text-white"
+              }`}
+              title={readOnlyMode ? "Read-only mode" : "Upload Files"}
             >
-              <FiUpload className="w-4 h-4" />
+              <FaUpload className="w-4 h-4" />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -300,14 +339,14 @@ const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
               className="p-1.5 rounded-md hover:bg-neutral-800/50 text-gray-400 hover:text-white transition-colors"
               title="Refresh"
             >
-              <FiRefreshCw className="w-4 h-4" />
+              <FaSync className="w-4 h-4" />
             </motion.button>
           </div>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             value={searchQuery}
@@ -328,14 +367,14 @@ const FileExplorer = ({ workspace, setWorkspace, onFileSelect }) => {
       {/* Project Info */}
       <div className="p-3 border-t border-neutral-800/50 bg-neutral-900/30">
         <div className="flex items-center gap-2 text-xs text-gray-400">
-          <FiGitBranch className="w-3 h-3" />
+          <FaCodeBranch className="w-3 h-3" />
           <span>main</span>
           <span>•</span>
           <span className="text-green-400">✓ No changes</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
           <span>{workspace.openFiles.length} files open</span>
-          {workspace.unsavedChanges.size > 0 && (
+          {workspace.unsavedChanges?.size > 0 && (
             <>
               <span>•</span>
               <span className="text-yellow-400">
