@@ -74,6 +74,11 @@ const CloudIntegration = lazy(() => import("@products/CloudIntegration"));
 const SecurityShield = lazy(() => import("@products/SecurityShield"));
 const DevOpsAutomation = lazy(() => import("@products/DevOpsAutomation"));
 
+// Playground
+const PlaygroundRoutes = lazy(() =>
+  import("@pages/playground/PlaygroundRoutes")
+);
+
 // Download Pages
 const CLITool = lazy(() => import("@downloads/CLITool"));
 const SDK = lazy(() => import("@downloads/SDK"));
@@ -145,6 +150,10 @@ function App() {
               <Route path="security" element={<AdminSecurity />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
+          </Route>
+          {/* Protected Playground Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="playground/*" element={<PlaygroundRoutes />} />
           </Route>
           {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>

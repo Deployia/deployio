@@ -16,6 +16,7 @@ import {
   FaChartLine,
   FaCog,
   FaLock,
+  FaPlay,
 } from "react-icons/fa";
 
 // Products navigation items
@@ -122,6 +123,13 @@ export const dashboardItems = [
     href: "/dashboard",
     icon: FaTachometerAlt,
     description: "Your deployment overview",
+  },
+  {
+    label: "Playground",
+    href: "/playground",
+    icon: FaPlay,
+    description: "AI-powered DevOps IDE",
+    highlight: true,
   },
   {
     label: "Projects",
