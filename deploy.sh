@@ -90,10 +90,10 @@ for service in "${services_to_build[@]}"; do
     if [ "$service" == "frontend" ]; then
         echo "📦 Using client/.env.production for frontend build..."
         cp ./client/.env.production ./client/.env
+        docker build --compress --no-cache -t "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest" "$context"
+    else
+        docker build --compress -t "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest" "$context"
     fi
-
-    echo "📦 Building $service service..."
-    docker build --compress -t "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest" "$context"
 
     echo "⬆️ Pushing $service image..."
     docker push "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest"
