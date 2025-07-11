@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 
+
 # Important: Allow search engines to crawl public pages
 Allow: /auth/login
 Allow: /auth/register
@@ -11,6 +12,7 @@ Allow: /resources/
 Allow: /products/
 Allow: /downloads/
 Allow: /health
+Allow: /playground
 
 # Disallow protected dashboard pages
 Disallow: /dashboard/

@@ -20,6 +20,28 @@ const defaultSEO = {
 
 // Page-specific SEO configurations
 export const seoConfig = {
+  playground: {
+    title: "Playground | Deployio - Interactive DevOps Sandbox & AI IDE",
+    description:
+      "Experiment with DevOps best practices, AI-powered code analysis, and CI/CD automation in the Deployio Playground. Try real-world scenarios in a safe, interactive environment.",
+    keywords:
+      "DevOps playground, AI IDE, code sandbox, CI/CD demo, DevOps education, interactive DevOps, code analysis demo, deployio playground, devops learning, cloud sandbox",
+    url: `${defaultSEO.url}/playground`,
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      name: "Deployio Playground",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Web",
+      description:
+        "Interactive DevOps playground for learning, experimenting, and demonstrating AI-powered deployment automation.",
+      url: `${defaultSEO.url}/playground`,
+      author: {
+        "@type": "Organization",
+        name: defaultSEO.author,
+      },
+    },
+  },
   // Home page
   home: {
     title:

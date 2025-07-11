@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import SEO from "@components/SEO";
 import ProfileAvatar from "@components/ProfileAvatar";
 import { useSelector } from "react-redux";
 import { motion } from "framer-motion";
@@ -348,163 +349,176 @@ const PlaygroundLayout = () => {
   const secondarySidebarContent = getSecondarySidebarContent();
 
   return (
-    <div className="h-screen bg-neutral-900 text-white flex flex-col overflow-hidden">
-      {/* Top Bar */}
-      <div className="h-12 bg-neutral-900/50 backdrop-blur-md border-b border-neutral-800/50 flex items-center justify-between px-4">
-        {/* Logo and Menu */}
-        <div className="flex items-center gap-3">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-              <img src="/favicon.png" alt="Deployio" className="w-6 h-6" />
+    <>
+      <SEO page="playground" />
+      <div className="h-screen bg-neutral-900 text-white flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <div className="h-12 bg-neutral-900/50 backdrop-blur-md border-b border-neutral-800/50 flex items-center justify-between px-4">
+          {/* Logo and Menu */}
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate("/dashboard")}
+              className="flex items-center gap-2 group"
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                <img src="/favicon.png" alt="Deployio" className="w-6 h-6" />
+              </div>
+              <span className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors heading">
+                Deployio
+              </span>
+            </motion.button>
+
+            <div className="h-6 w-px bg-neutral-700/50 mx-2" />
+
+            <span className="text-sm text-neutral-400 body">Playground</span>
+          </div>
+
+          {/* Repository Selector */}
+          <div className="flex-1 max-w-md mx-4">
+            <select
+              value={selectedRepo.id}
+              onChange={(e) => {
+                const repo = ALLOWED_REPOS.find((r) => r.id === e.target.value);
+                if (repo && !repo.comingSoon) {
+                  setSelectedRepo(repo);
+                }
+              }}
+              className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all"
+            >
+              {ALLOWED_REPOS.map((repo) => (
+                <option
+                  key={repo.id}
+                  value={repo.id}
+                  disabled={repo.comingSoon}
+                >
+                  {repo.name} {repo.comingSoon ? "(Coming Soon)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center gap-2">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleFullscreen}
+              className="p-2 rounded-lg hover:bg-neutral-800/50 transition-colors"
+              title="Toggle Fullscreen"
+            >
+              {isFullscreen ? (
+                <FaCompressArrowsAlt className="w-3 h-3" />
+              ) : (
+                <FaExpandArrowsAlt className="w-3 h-3" />
+              )}
+            </motion.button>
+
+            <div className="flex items-center gap-2 ml-2">
+              <ProfileAvatar user={user} />
             </div>
-            <span className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors heading">
-              Deployio
-            </span>
-          </motion.button>
-
-          <div className="h-6 w-px bg-neutral-700/50 mx-2" />
-
-          <span className="text-sm text-neutral-400 body">Playground</span>
+          </div>
         </div>
 
-        {/* Repository Selector */}
-        <div className="flex-1 max-w-md mx-4">
-          <select
-            value={selectedRepo.id}
-            onChange={(e) => {
-              const repo = ALLOWED_REPOS.find((r) => r.id === e.target.value);
-              if (repo && !repo.comingSoon) {
-                setSelectedRepo(repo);
-              }
-            }}
-            className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all"
-          >
-            {ALLOWED_REPOS.map((repo) => (
-              <option key={repo.id} value={repo.id} disabled={repo.comingSoon}>
-                {repo.name} {repo.comingSoon ? "(Coming Soon)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Main Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Primary Activity Bar */}
+          <div className="w-12 bg-neutral-950 border-r border-neutral-800/50 flex flex-col items-center py-3 flex-shrink-0">
+            {activityBarItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeView === item.id;
 
-        {/* Controls */}
-        <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleFullscreen}
-            className="p-2 rounded-lg hover:bg-neutral-800/50 transition-colors"
-            title="Toggle Fullscreen"
-          >
-            {isFullscreen ? (
-              <FaCompressArrowsAlt className="w-3 h-3" />
-            ) : (
-              <FaExpandArrowsAlt className="w-3 h-3" />
+              return (
+                <motion.button
+                  key={item.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleViewChange(item.id)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-lg mb-2 transition-all duration-200 relative group ${
+                    isActive
+                      ? "bg-neutral-800/80 text-blue-400"
+                      : "text-neutral-400 hover:bg-neutral-800/50 hover:text-white"
+                  }`}
+                  title={item.tooltip}
+                >
+                  <Icon className="w-4 h-4" />
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeIndicator"
+                      className="absolute left-0 top-0 w-1 h-full bg-blue-400 rounded-r"
+                      initial={false}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Main Content with Resizable Panels */}
+          <div className="flex-1">
+            <PanelGroup direction="horizontal">
+              {/* Main Content Area */}
+              <Panel defaultSize={75} minSize={50}>
+                <div className="h-full bg-neutral-900">
+                  {renderMainContent()}
+                </div>
+              </Panel>
+
+              {/* Secondary Sidebar - Context-aware based on view */}
+              {!secondarySidebarCollapsed && secondarySidebarContent && (
+                <>
+                  <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
+                  <Panel defaultSize={25} minSize={15} maxSize={40}>
+                    <div className="h-full bg-neutral-950 border-l border-neutral-800">
+                      {/* Secondary Sidebar Header */}
+                      <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3">
+                        <span className="text-sm font-medium text-white heading">
+                          {secondarySidebarContent?.title}
+                        </span>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setSecondarySidebarCollapsed(true)}
+                          className="p-1 rounded hover:bg-neutral-800 transition-colors"
+                        >
+                          <FaChevronRight className="w-3 h-3 text-neutral-400" />
+                        </motion.button>
+                      </div>
+
+                      {/* Secondary Sidebar Content */}
+                      <div className="flex-1 overflow-auto custom-scrollbar">
+                        {secondarySidebarContent?.content}
+                      </div>
+                    </div>
+                  </Panel>
+                </>
+              )}
+            </PanelGroup>
+
+            {/* Collapsed Secondary Sidebar Toggle */}
+            {secondarySidebarCollapsed && secondarySidebarContent && (
+              <div className="fixed top-1/2 right-0 z-50 -translate-y-1/2">
+                <motion.button
+                  whileHover={{ scale: 1.02, x: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSecondarySidebarCollapsed(false)}
+                  className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
+                  title="Show Sidebar"
+                >
+                  <FaChevronLeft className="w-3 h-3 text-neutral-400" />
+                </motion.button>
+              </div>
             )}
-          </motion.button>
-
-          <div className="flex items-center gap-2 ml-2">
-            <ProfileAvatar user={user} />
           </div>
         </div>
       </div>
-
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Primary Activity Bar */}
-        <div className="w-12 bg-neutral-950 border-r border-neutral-800/50 flex flex-col items-center py-3 flex-shrink-0">
-          {activityBarItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-
-            return (
-              <motion.button
-                key={item.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleViewChange(item.id)}
-                className={`w-9 h-9 flex items-center justify-center rounded-lg mb-2 transition-all duration-200 relative group ${
-                  isActive
-                    ? "bg-neutral-800/80 text-blue-400"
-                    : "text-neutral-400 hover:bg-neutral-800/50 hover:text-white"
-                }`}
-                title={item.tooltip}
-              >
-                <Icon className="w-4 h-4" />
-                {isActive && (
-                  <motion.div
-                    layoutId="activeIndicator"
-                    className="absolute left-0 top-0 w-1 h-full bg-blue-400 rounded-r"
-                    initial={false}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Main Content with Resizable Panels */}
-        <div className="flex-1">
-          <PanelGroup direction="horizontal">
-            {/* Main Content Area */}
-            <Panel defaultSize={75} minSize={50}>
-              <div className="h-full bg-neutral-900">{renderMainContent()}</div>
-            </Panel>
-
-            {/* Secondary Sidebar - Context-aware based on view */}
-            {!secondarySidebarCollapsed && secondarySidebarContent && (
-              <>
-                <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
-                <Panel defaultSize={25} minSize={15} maxSize={40}>
-                  <div className="h-full bg-neutral-950 border-l border-neutral-800">
-                    {/* Secondary Sidebar Header */}
-                    <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3">
-                      <span className="text-sm font-medium text-white heading">
-                        {secondarySidebarContent?.title}
-                      </span>
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setSecondarySidebarCollapsed(true)}
-                        className="p-1 rounded hover:bg-neutral-800 transition-colors"
-                      >
-                        <FaChevronRight className="w-3 h-3 text-neutral-400" />
-                      </motion.button>
-                    </div>
-
-                    {/* Secondary Sidebar Content */}
-                    <div className="flex-1 overflow-auto custom-scrollbar">
-                      {secondarySidebarContent?.content}
-                    </div>
-                  </div>
-                </Panel>
-              </>
-            )}
-          </PanelGroup>
-
-          {/* Collapsed Secondary Sidebar Toggle */}
-          {secondarySidebarCollapsed && secondarySidebarContent && (
-            <div className="fixed top-1/2 right-0 z-50 -translate-y-1/2">
-              <motion.button
-                whileHover={{ scale: 1.02, x: -2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSecondarySidebarCollapsed(false)}
-                className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
-                title="Show Sidebar"
-              >
-                <FaChevronLeft className="w-3 h-3 text-neutral-400" />
-              </motion.button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    </>
   );
 };
 

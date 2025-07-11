@@ -5,6 +5,13 @@
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
   
   <!-- Homepage -->
+  <!-- Playground Page -->
+  <url>
+    <loc>https://deployio.tech/playground</loc>
+    <lastmod>2025-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
   <url>
     <loc>https://deployio.tech/</loc>
     <lastmod>2025-06-17</lastmod>
