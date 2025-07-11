@@ -28,6 +28,13 @@ class GitHubService {
     this.api.defaults.headers["Authorization"] = `token ${token}`;
   }
 
+  // Set repository (owner and repo name)
+  setRepository(owner, repo, branch = "main") {
+    this.owner = owner;
+    this.repo = repo;
+    this.branch = branch;
+  }
+
   // Get repository information
   async getRepository() {
     try {

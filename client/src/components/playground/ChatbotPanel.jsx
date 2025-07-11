@@ -1,29 +1,47 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import {
   FiSend,
   FiUser,
-  FiCpu,
   FiTrash2,
   FiCopy,
   FiCode,
   FiZap,
   FiBookOpen,
+  FiSettings,
 } from "react-icons/fi";
+import llmService from "../../services/llmService";
 
 const ChatbotPanel = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [llmConnected, setLlmConnected] = useState(false);
+
+  // Check LLM service connection status
+  useEffect(() => {
+    setLlmConnected(llmService.isConfigured());
+  }, []);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Predefined suggestions for quick interaction
+  const suggestions = [
+    { text: "How do I optimize Docker images?", icon: FiCode },
+    { text: "Set up CI/CD pipeline", icon: FiZap },
+    { text: "Kubernetes best practices", icon: FiSettings },
+    { text: "Security recommendations", icon: FiZap },
+    { text: "Infrastructure as Code guide", icon: FiBookOpen },
+  ];
 
   // Initialize chat with welcome message
   useEffect(() => {
     const welcomeMessage = {
       id: 1,
       type: "ai",
-      content: `👋 Hello! I'm Deployio Copilot, your DevOps AI assistant. I can help you with:
+      content: `👋 Hello! I'm **DeployBot**, your intelligent DevOps assistant. I can help you with:
 
 🔧 **Code Analysis & Optimization**
 🐛 **Debugging & Troubleshooting** 
@@ -33,44 +51,37 @@ const ChatbotPanel = () => {
 ☁️ **Infrastructure as Code**
 🔒 **Security Recommendations**
 
-How can I assist you today?`,
+Click on a suggestion below or ask me anything about DevOps!`,
       timestamp: new Date().toISOString(),
     };
     setMessages([welcomeMessage]);
   }, []);
 
-  // Sample AI responses for demonstration
-  const getAIResponse = (userMessage) => {
-    const responses = {
-      docker:
-        "🐳 Docker is a containerization platform that packages applications and dependencies into lightweight containers. Here are some best practices:\n\n• Use multi-stage builds to reduce image size\n• Run as non-root user for security\n• Use specific base image tags\n• Implement health checks\n• Optimize layer caching",
-
-      "ci/cd":
-        "🚀 CI/CD (Continuous Integration/Continuous Deployment) automates your development workflow. Key components:\n\n• **Continuous Integration**: Automated testing and building\n• **Continuous Deployment**: Automated deployment to production\n• **Popular tools**: GitHub Actions, Jenkins, GitLab CI\n• **Best practices**: Test early, deploy often, rollback quickly",
-
-      kubernetes:
-        "☸️ Kubernetes orchestrates containerized applications at scale. Core concepts:\n\n• **Pods**: Smallest deployable units\n• **Services**: Network abstraction layer\n• **Deployments**: Manage replica sets\n• **Ingress**: Expose services externally\n• **ConfigMaps & Secrets**: Configuration management",
-
-      terraform:
-        "🏗️ Terraform enables Infrastructure as Code (IaC). Benefits:\n\n• **Declarative**: Define desired state\n• **Version Control**: Track infrastructure changes\n• **Reusable**: Modules for common patterns\n• **Multi-cloud**: Works across providers\n• **State Management**: Tracks resource state",
-
-      security:
-        "🔒 DevOps security best practices:\n\n• **Shift Left**: Integrate security early in development\n• **Secrets Management**: Use tools like HashiCorp Vault\n• **Image Scanning**: Check for vulnerabilities\n• **RBAC**: Role-based access control\n• **Network Policies**: Secure pod-to-pod communication\n• **Regular Updates**: Keep dependencies current",
-
-      monitoring:
-        "📊 Monitoring and observability are crucial:\n\n• **Metrics**: Prometheus, Grafana\n• **Logging**: ELK Stack, Fluentd\n• **Tracing**: Jaeger, Zipkin\n• **Alerting**: PagerDuty, Slack integration\n• **Health Checks**: Application and infrastructure\n• **SLIs/SLOs**: Service level indicators and objectives",
-    };
-
-    // Find matching response based on keywords
-    const userLower = userMessage.toLowerCase();
-    for (const [keyword, response] of Object.entries(responses)) {
-      if (userLower.includes(keyword)) {
-        return response;
+  // Enhanced AI responses using LLM service
+  const getAIResponse = async (userMessage) => {
+    try {
+      // Try to use LLM service first
+      if (llmService.isConfigured()) {
+        const context = {
+          activeFile: null, // Could pass active file from props
+          repository: "Deployio Playground",
+        };
+        return await llmService.generateResponse(userMessage, context);
+      } else {
+        // Fall back to predefined responses
+        return llmService.getFallbackResponse(userMessage);
       }
+    } catch (error) {
+      console.error("AI Response Error:", error);
+      return llmService.getFallbackResponse(userMessage);
     }
+  };
 
-    // Default response
-    return `I understand you're asking about "${userMessage}". While I can provide general DevOps guidance, I'd recommend:\n\n• Check the official documentation\n• Explore hands-on tutorials\n• Join DevOps communities\n• Practice with real projects\n\nIs there a specific DevOps topic you'd like to learn more about? (Docker, CI/CD, Kubernetes, Terraform, Security, Monitoring)`;
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestionText) => {
+    setInputMessage(suggestionText);
+    setShowSuggestions(false);
+    inputRef.current?.focus();
   };
 
   // Send message
@@ -85,24 +96,39 @@ How can I assist you today?`,
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputMessage.trim();
     setInputMessage("");
     setIsTyping(true);
+    setShowSuggestions(false);
 
-    // Simulate AI response delay
-    setTimeout(() => {
+    try {
+      // Get AI response using LLM service
+      const aiResponse = await getAIResponse(currentInput);
+
       const aiMessage = {
         id: Date.now() + 1,
         type: "ai",
-        content: getAIResponse(userMessage.content),
+        content: aiResponse,
         timestamp: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Failed to get AI response:", error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: "ai",
+        content:
+          "I'm having trouble connecting right now. Please try again in a moment.",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
-  // Handle key press
+  // Handle Enter key
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -110,9 +136,15 @@ How can I assist you today?`,
     }
   };
 
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   // Clear chat
   const clearChat = () => {
     setMessages([]);
+    setShowSuggestions(true);
   };
 
   // Copy message
@@ -120,106 +152,191 @@ How can I assist you today?`,
     navigator.clipboard.writeText(content);
   };
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const quickPrompts = [
-    { icon: FiCode, text: "How to optimize Docker images?", color: "blue" },
-    { icon: FiZap, text: "CI/CD best practices", color: "green" },
-    { icon: FiBookOpen, text: "Kubernetes for beginners", color: "purple" },
-  ];
-
   return (
     <div className="h-full flex flex-col bg-neutral-900">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-neutral-800/50">
-        <div className="flex items-center gap-3">
-          <FiCpu className="w-6 h-6 text-blue-400" />
-          <div>
-            <h2 className="text-2xl font-bold text-white heading">
-              Deployio Copilot
-            </h2>
-            <p className="text-neutral-400 body">
-              AI-powered DevOps guidance and support
-            </p>
+      <div className="p-6 border-b border-neutral-800/50 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <FiZap className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white heading">
+                DeployBot
+              </h2>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-neutral-400 body">
+                  Your DevOps AI Assistant
+                </p>
+                <div className="flex items-center gap-1">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      llmConnected ? "bg-green-500" : "bg-yellow-500"
+                    }`}
+                  ></div>
+                  <span className="text-xs text-neutral-500">
+                    {llmConnected ? "AI Active" : "Demo Mode"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={clearChat}
-          className="p-2 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
-          title="Clear Chat"
-        >
-          <FiTrash2 className="w-4 h-4" />
-        </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={clearChat}
+            className="p-2 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
+            title="Clear Chat"
+          >
+            <FiTrash2 className="w-4 h-4" />
+          </motion.button>
+        </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-auto custom-scrollbar p-6">
-        <div className="space-y-4">
+      {/* Chat Messages */}
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        <div className="p-6 space-y-6">
           {messages.map((message) => (
             <motion.div
               key={message.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex ${
-                message.type === "user" ? "justify-end" : "justify-start"
+              className={`flex gap-4 ${
+                message.type === "user" ? "justify-end" : ""
               }`}
             >
+              {message.type === "ai" && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <FiZap className="w-4 h-4 text-white" />
+                </div>
+              )}
+
               <div
-                className={`max-w-3xl ${
-                  message.type === "user" ? "order-2" : ""
-                }`}
+                className={`flex flex-col ${
+                  message.type === "user" ? "items-end" : ""
+                } max-w-2xl`}
               >
-                <div className="flex items-start gap-3">
-                  {message.type === "ai" && (
-                    <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
-                      <FiCpu className="w-4 h-4 text-blue-400" />
+                <div
+                  className={`rounded-2xl px-5 py-4 ${
+                    message.type === "user"
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white max-w-md ml-auto shadow-lg"
+                      : "bg-neutral-800/80 border border-neutral-700/30 text-neutral-100 max-w-3xl backdrop-blur-sm"
+                  }`}
+                >
+                  {message.type === "user" ? (
+                    <div className="text-white font-medium">
+                      {message.content}
                     </div>
-                  )}
-
-                  <div
-                    className={`rounded-xl p-4 ${
-                      message.type === "user"
-                        ? "bg-blue-500/20 border border-blue-500/30 text-blue-100"
-                        : "bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 text-neutral-200"
-                    }`}
-                  >
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap body leading-relaxed">
+                  ) : (
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          code: ({
+                            node,
+                            inline,
+                            className,
+                            children,
+                            ...props
+                          }) => {
+                            const match = /language-(\w+)/.exec(
+                              className || ""
+                            );
+                            return !inline && match ? (
+                              <pre className="bg-neutral-900/80 border border-neutral-600/30 rounded-lg p-4 my-3 overflow-x-auto">
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              </pre>
+                            ) : (
+                              <code
+                                className="bg-neutral-700/50 px-1.5 py-0.5 rounded text-blue-300 text-sm"
+                                {...props}
+                              >
+                                {children}
+                              </code>
+                            );
+                          },
+                          h1: ({ children }) => (
+                            <h1 className="text-xl font-bold text-blue-400 mb-3">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-lg font-semibold text-blue-300 mb-2">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-md font-medium text-blue-200 mb-2">
+                              {children}
+                            </h3>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-blue-300">
+                              {children}
+                            </strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="italic text-neutral-300">
+                              {children}
+                            </em>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc ml-4 mb-3 space-y-1">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal ml-4 mb-3 space-y-1">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-neutral-200">{children}</li>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-neutral-200 leading-relaxed mb-2">
+                              {children}
+                            </p>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-blue-500/50 pl-4 my-3 text-neutral-300 italic">
+                              {children}
+                            </blockquote>
+                          ),
+                        }}
+                      >
                         {message.content}
-                      </div>
-                    </div>
-
-                    {message.type === "ai" && (
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-700/50">
-                        <span className="text-xs text-neutral-500 body">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </span>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => copyMessage(message.content)}
-                          className="p-1 rounded hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
-                          title="Copy Message"
-                        >
-                          <FiCopy className="w-3 h-3" />
-                        </motion.button>
-                      </div>
-                    )}
-                  </div>
-
-                  {message.type === "user" && (
-                    <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center flex-shrink-0">
-                      <FiUser className="w-4 h-4 text-green-400" />
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>
+
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-neutral-500">
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </span>
+                  {message.type === "ai" && (
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => copyMessage(message.content)}
+                      className="p-1 rounded hover:bg-neutral-800 transition-colors text-neutral-500 hover:text-white"
+                      title="Copy Message"
+                    >
+                      <FiCopy className="w-3 h-3" />
+                    </motion.button>
+                  )}
+                </div>
               </div>
+
+              {message.type === "user" && (
+                <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0">
+                  <FiUser className="w-4 h-4 text-neutral-300" />
+                </div>
+              )}
             </motion.div>
           ))}
 
@@ -230,29 +347,25 @@ How can I assist you today?`,
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="flex justify-start"
+                className="flex gap-4"
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                    <FiCpu className="w-4 h-4 text-blue-400" />
-                  </div>
-                  <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        ></div>
-                        <div
-                          className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-neutral-400 body">
-                        AI is thinking...
-                      </span>
-                    </div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <FiZap className="w-4 h-4 text-white" />
+                </div>
+                <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl px-4 py-3">
+                  <div className="flex gap-1">
+                    <div
+                      className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    />
                   </div>
                 </div>
               </motion.div>
@@ -263,59 +376,94 @@ How can I assist you today?`,
         </div>
       </div>
 
-      {/* Quick Prompts */}
-      {messages.length <= 1 && (
-        <div className="px-6 pb-4">
-          <div className="text-sm text-neutral-400 mb-3 body">
-            Try asking about:
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {quickPrompts.map((prompt, index) => (
-              <motion.button
-                key={index}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setInputMessage(prompt.text)}
-                className={`flex items-center gap-2 px-3 py-2 bg-${prompt.color}-500/20 border border-${prompt.color}-500/30 rounded-lg text-${prompt.color}-400 hover:bg-${prompt.color}-500/30 transition-colors text-sm body`}
-              >
-                <prompt.icon className="w-3 h-3" />
-                {prompt.text}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Input */}
-      <div className="p-6 border-t border-neutral-800/50">
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <textarea
-              ref={inputRef}
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about DevOps..."
-              className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-4 py-3 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none body transition-all"
-              rows={1}
-              style={{ minHeight: "44px", maxHeight: "120px" }}
-              onInput={(e) => {
-                e.target.style.height = "44px";
-                e.target.style.height =
-                  Math.min(e.target.scrollHeight, 120) + "px";
-              }}
-            />
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={sendMessage}
-            disabled={!inputMessage.trim() || isTyping}
-            className="p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      {/* Suggestions */}
+      <AnimatePresence>
+        {showSuggestions && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="px-6 pb-4"
           >
-            <FiSend className="w-4 h-4" />
-          </motion.button>
+            <div className="text-sm text-neutral-400 mb-3">
+              Quick suggestions:
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((suggestion, index) => {
+                const Icon = suggestion.icon;
+                return (
+                  <motion.button
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleSuggestionClick(suggestion.text)}
+                    className="flex items-center gap-2 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-sm text-neutral-300 hover:bg-neutral-700/50 hover:text-white transition-colors"
+                  >
+                    <Icon className="w-3 h-3" />
+                    {suggestion.text}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Input Area */}
+      <div className="border-t border-neutral-800/50 bg-gradient-to-r from-neutral-900/90 to-neutral-800/90 backdrop-blur-md flex-shrink-0">
+        <div className="p-6">
+          <div className="flex items-end gap-4">
+            <div className="flex-1 relative">
+              <textarea
+                ref={inputRef}
+                value={inputMessage}
+                onChange={(e) => {
+                  setInputMessage(e.target.value);
+                  // Auto-resize textarea
+                  e.target.style.height = "auto";
+                  e.target.style.height =
+                    Math.min(e.target.scrollHeight, 120) + "px";
+                }}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask DeployBot about DevOps, containers, CI/CD, security..."
+                className="w-full bg-neutral-800/90 border border-neutral-600/30 rounded-2xl px-5 py-4 text-white placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm leading-relaxed shadow-lg backdrop-blur-sm"
+                rows={1}
+                style={{ minHeight: "52px", maxHeight: "120px" }}
+              />
+
+              {!inputMessage && !showSuggestions && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowSuggestions(true)}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-blue-400 transition-colors"
+                  title="Show Suggestions"
+                >
+                  <FiZap className="w-4 h-4" />
+                </motion.button>
+              )}
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={sendMessage}
+              disabled={!inputMessage.trim() || isTyping}
+              className="px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-neutral-700 disabled:to-neutral-700 disabled:text-neutral-400 rounded-2xl text-white font-medium transition-all flex items-center gap-3 shadow-xl disabled:shadow-none min-h-[52px]"
+            >
+              {isTyping ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Thinking...</span>
+                </div>
+              ) : (
+                <>
+                  <FiSend className="w-4 h-4" />
+                  Send
+                </>
+              )}
+            </motion.button>
+          </div>
         </div>
       </div>
     </div>

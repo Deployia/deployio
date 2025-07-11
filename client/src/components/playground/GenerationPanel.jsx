@@ -302,11 +302,11 @@ jobs:
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    
+
     // Simulate AI generation process
     setTimeout(() => {
       const content = sampleConfigs[activeGenerator];
-      
+
       // Update workspace with generated content
       if (setWorkspace) {
         setWorkspace({
@@ -325,7 +325,7 @@ jobs:
           ],
         });
       }
-      
+
       setIsGenerating(false);
     }, 2000);
   };
@@ -364,7 +364,7 @@ jobs:
   };
 
   return (
-    <div className="h-full flex flex-col bg-neutral-900 custom-scrollbar">
+    <div className="h-full flex flex-col bg-neutral-900">
       {/* Header */}
       <div className="p-6 border-b border-neutral-800/50 flex-shrink-0">
         <div className="flex items-center gap-3 mb-4">
@@ -380,168 +380,198 @@ jobs:
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col p-6 min-h-0">
-        {/* Generate Button */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-white heading mb-1">
-                {activeGenerator.split("-").map(word => 
-                  word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(" ")} Generator
-              </h3>
-              <p className="text-sm text-neutral-400 body">
-                Generate optimized configuration for your deployment
-              </p>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="flex items-center gap-2 px-6 py-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors disabled:opacity-50 body"
-            >
-              {isGenerating ? (
-                <>
-                  <FiLoader className="w-4 h-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <FiZap className="w-4 h-4" />
-                  Generate Configuration
-                </>
-              )}
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Generated Configuration or Fallback */}
-        <div className="flex-1 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl overflow-hidden min-h-0">
-          {generatedContent ? (
-            <>
-              {/* Code Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800/50 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <FiCheck className="w-4 h-4 text-green-400" />
-                  <span className="text-sm font-medium text-white heading">
-                    Generated: {getFileName(activeGenerator)}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => copyToClipboard(generatedContent)}
-                    className="p-1.5 rounded hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
-                    title="Copy to Clipboard"
-                  >
-                    {copySuccess ? (
-                      <FiCheck className="w-3.5 h-3.5 text-green-400" />
-                    ) : (
-                      <FiCopy className="w-3.5 h-3.5" />
-                    )}
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => downloadFile(generatedContent, getFileName(activeGenerator))}
-                    className="p-1.5 rounded hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
-                    title="Download File"
-                  >
-                    <FiDownload className="w-3.5 h-3.5" />
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* Code Content */}
-              <div className="flex-1 overflow-auto custom-scrollbar">
-                <SyntaxHighlighter
-                  language={getLanguageFromGenerator(activeGenerator)}
-                  style={vscDarkPlus}
-                  customStyle={{
-                    margin: 0,
-                    padding: "1rem",
-                    background: "transparent",
-                    fontSize: "0.875rem",
-                    lineHeight: "1.5",
-                    fontFamily:
-                      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                  }}
-                  wrapLines={true}
-                  wrapLongLines={true}
-                  showLineNumbers={true}
-                  lineNumberStyle={{
-                    color: "#6b7280",
-                    paddingRight: "1rem",
-                    fontSize: "0.75rem",
-                  }}
-                >
-                  {generatedContent}
-                </SyntaxHighlighter>
-              </div>
-            </>
-          ) : (
-            // Fallback content when no configuration is generated
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center max-w-md">
-                <FiCode className="w-16 h-16 text-neutral-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-white mb-2 heading">
-                  Ready to Generate
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        <div className="p-6">
+          {/* Generate Button */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white heading mb-1">
+                  {activeGenerator
+                    .split("-")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")}{" "}
+                  Generator
                 </h3>
-                <p className="text-neutral-400 body mb-6">
-                  Configure your generation settings in the sidebar and click &quot;Generate Configuration&quot; to create optimized deployment files.
+                <p className="text-sm text-neutral-400 body">
+                  Generate optimized configuration for your deployment
                 </p>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <FiSettings className="w-4 h-4 text-blue-400 mb-2" />
-                    <div className="text-neutral-300 font-medium mb-1">Customizable</div>
-                    <div className="text-neutral-500">Adjust settings in sidebar</div>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-6 py-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors disabled:opacity-50 body"
+              >
+                {isGenerating ? (
+                  <>
+                    <FiLoader className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FiZap className="w-4 h-4" />
+                    Generate Configuration
+                  </>
+                )}
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Generated Configuration or Fallback */}
+          <div
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl overflow-hidden"
+            style={{ minHeight: "400px" }}
+          >
+            {generatedContent ? (
+              <>
+                {/* Code Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800/50 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <FiCheck className="w-4 h-4 text-green-400" />
+                    <span className="text-sm font-medium text-white heading">
+                      Generated: {getFileName(activeGenerator)}
+                    </span>
                   </div>
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <FiZap className="w-4 h-4 text-yellow-400 mb-2" />
-                    <div className="text-neutral-300 font-medium mb-1">AI-Powered</div>
-                    <div className="text-neutral-500">Optimized configurations</div>
+
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => copyToClipboard(generatedContent)}
+                      className="p-1.5 rounded hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
+                      title="Copy to Clipboard"
+                    >
+                      {copySuccess ? (
+                        <FiCheck className="w-3.5 h-3.5 text-green-400" />
+                      ) : (
+                        <FiCopy className="w-3.5 h-3.5" />
+                      )}
+                    </motion.button>
+
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() =>
+                        downloadFile(
+                          generatedContent,
+                          getFileName(activeGenerator)
+                        )
+                      }
+                      className="p-1.5 rounded hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
+                      title="Download File"
+                    >
+                      <FiDownload className="w-3.5 h-3.5" />
+                    </motion.button>
                   </div>
                 </div>
+
+                {/* Code Content */}
+                <div
+                  className="overflow-auto custom-scrollbar"
+                  style={{ maxHeight: "400px" }}
+                >
+                  <SyntaxHighlighter
+                    language={getLanguageFromGenerator(activeGenerator)}
+                    style={vscDarkPlus}
+                    customStyle={{
+                      margin: 0,
+                      padding: "1rem",
+                      background: "transparent",
+                      fontSize: "0.875rem",
+                      lineHeight: "1.5",
+                      fontFamily:
+                        'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                    }}
+                    wrapLines={true}
+                    wrapLongLines={true}
+                    showLineNumbers={true}
+                    lineNumberStyle={{
+                      color: "#6b7280",
+                      paddingRight: "1rem",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    {generatedContent}
+                  </SyntaxHighlighter>
+                </div>
+              </>
+            ) : (
+              // Fallback content when no configuration is generated
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center max-w-md">
+                  <FiCode className="w-16 h-16 text-neutral-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2 heading">
+                    Ready to Generate
+                  </h3>
+                  <p className="text-neutral-400 body mb-6">
+                    Configure your generation settings in the sidebar and click
+                    &quot;Generate Configuration&quot; to create optimized
+                    deployment files.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="bg-neutral-800/50 rounded-lg p-3">
+                      <FiSettings className="w-4 h-4 text-blue-400 mb-2" />
+                      <div className="text-neutral-300 font-medium mb-1">
+                        Customizable
+                      </div>
+                      <div className="text-neutral-500">
+                        Adjust settings in sidebar
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800/50 rounded-lg p-3">
+                      <FiZap className="w-4 h-4 text-yellow-400 mb-2" />
+                      <div className="text-neutral-300 font-medium mb-1">
+                        AI-Powered
+                      </div>
+                      <div className="text-neutral-500">
+                        Optimized configurations
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Generation History */}
+          {history.length > 0 && (
+            <div className="mt-4 flex-shrink-0">
+              <div className="text-sm text-neutral-400 mb-2 body">
+                Recent Generations
+              </div>
+              <div className="flex gap-2 overflow-x-auto">
+                {history.slice(-5).map((item, index) => (
+                  <motion.div
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    className="flex-shrink-0 bg-neutral-800/50 rounded-lg px-3 py-2 cursor-pointer"
+                    onClick={() => {
+                      if (setWorkspace) {
+                        setWorkspace({ activeTemplate: item.type });
+                      }
+                    }}
+                  >
+                    <div className="text-xs text-neutral-300 font-medium">
+                      {item.type
+                        .split("-")
+                        .map(
+                          (word) => word.charAt(0).toUpperCase() + word.slice(1)
+                        )
+                        .join(" ")}
+                    </div>
+                    <div className="text-xs text-neutral-500">
+                      {new Date(item.timestamp).toLocaleDateString()}
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </div>
           )}
         </div>
-
-        {/* Generation History */}
-        {history.length > 0 && (
-          <div className="mt-4 flex-shrink-0">
-            <div className="text-sm text-neutral-400 mb-2 body">Recent Generations</div>
-            <div className="flex gap-2 overflow-x-auto">
-              {history.slice(-5).map((item, index) => (
-                <motion.div
-                  key={index}
-                  whileHover={{ scale: 1.02 }}
-                  className="flex-shrink-0 bg-neutral-800/50 rounded-lg px-3 py-2 cursor-pointer"
-                  onClick={() => {
-                    if (setWorkspace) {
-                      setWorkspace({ activeTemplate: item.type });
-                    }
-                  }}
-                >
-                  <div className="text-xs text-neutral-300 font-medium">
-                    {item.type.split("-").map(word => 
-                      word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(" ")}
-                  </div>
-                  <div className="text-xs text-neutral-500">
-                    {new Date(item.timestamp).toLocaleDateString()}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

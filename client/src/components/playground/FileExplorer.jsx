@@ -16,7 +16,7 @@ import {
 } from "react-icons/fa";
 import gitHubService from "../../services/githubService";
 
-const FileExplorer = ({ onFileSelect, githubToken }) => {
+const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
   const [expandedFolders, setExpandedFolders] = useState(new Set(["root"]));
   const [searchQuery, setSearchQuery] = useState("");
   const [fileStructure, setFileStructure] = useState(null);
@@ -27,10 +27,20 @@ const FileExplorer = ({ onFileSelect, githubToken }) => {
   // Load GitHub repository data
   useEffect(() => {
     const loadRepositoryData = async () => {
-      if (!githubToken) {
+      if (!githubToken || githubToken === "your_github_token_here") {
         setError({
           type: "no_token",
-          message: "GitHub token not provided",
+          message:
+            "GitHub token not configured. Add VITE_APP_GITHUB_TOKEN environment variable.",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!selectedRepo || !selectedRepo.url) {
+        setError({
+          type: "no_repo",
+          message: "No repository selected",
         });
         setLoading(false);
         return;
@@ -40,8 +50,16 @@ const FileExplorer = ({ onFileSelect, githubToken }) => {
         setLoading(true);
         setError(null);
 
-        // Set token in service
+        // Extract owner and repo from URL
+        const urlParts = selectedRepo.url
+          .replace("https://github.com/", "")
+          .split("/");
+        const owner = urlParts[0];
+        const repo = urlParts[1];
+
+        // Set token and repository in service
         gitHubService.setToken(githubToken);
+        gitHubService.setRepository(owner, repo);
 
         // Load repository info and tree
         const [repoInfo, treeData] = await Promise.all([
@@ -72,7 +90,7 @@ const FileExplorer = ({ onFileSelect, githubToken }) => {
     };
 
     loadRepositoryData();
-  }, [githubToken]);
+  }, [githubToken, selectedRepo]);
 
   // Toggle folder expansion
   const toggleFolder = (folderId) => {
@@ -173,7 +191,7 @@ const FileExplorer = ({ onFileSelect, githubToken }) => {
             if (node.type === "folder") {
               toggleFolder(node.id);
             } else {
-              onFileSelect && onFileSelect(node.name, null);
+              onFileSelect && onFileSelect(node);
             }
           }}
         >

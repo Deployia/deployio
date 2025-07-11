@@ -55,18 +55,49 @@ const getLanguageFromFilename = (filename) => {
   return languageMap[ext] || "text";
 };
 
-const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
+const CodeEditor = ({
+  setWorkspace,
+  onFileSelect,
+  onLoadingChange,
+  githubToken,
+  selectedRepo,
+}) => {
   const [activeFile, setActiveFile] = useState(null);
   const [openFiles, setOpenFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Initialize GitHub service with token
+  // Initialize GitHub service with token and repository
   useEffect(() => {
-    if (githubToken && githubToken !== "your_github_token_here") {
+    console.log("CodeEditor: Initializing GitHub service", {
+      hasToken: !!githubToken,
+      tokenValue: githubToken,
+      hasRepo: !!selectedRepo,
+      repoUrl: selectedRepo?.url,
+    });
+
+    if (
+      githubToken &&
+      githubToken !== "your_github_token_here" &&
+      selectedRepo
+    ) {
       gitHubService.setToken(githubToken);
+
+      // Extract owner and repo from URL
+      const urlParts = selectedRepo.url
+        .replace("https://github.com/", "")
+        .split("/");
+      const owner = urlParts[0];
+      const repo = urlParts[1];
+
+      console.log("CodeEditor: Setting repository", { owner, repo });
+      gitHubService.setRepository(owner, repo);
+    } else {
+      console.log(
+        "CodeEditor: GitHub service not initialized - missing token or repo"
+      );
     }
-  }, [githubToken]);
+  }, [githubToken, selectedRepo]);
 
   // Helper function to check if file is binary
   const isBinaryFile = (filename) => {
@@ -109,17 +140,42 @@ const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
   // Handle file selection from explorer
   const handleFileSelect = useCallback(
     async (file) => {
-      if (file.type === "folder") return;
+      console.log("CodeEditor: handleFileSelect called with:", file);
+      console.log("CodeEditor: File selected:", file);
+
+      if (file.type === "folder") {
+        console.log("CodeEditor: Folder selected, ignoring");
+        return;
+      }
+
+      // Check if GitHub token is available
+      if (!githubToken || githubToken === "your_github_token_here") {
+        console.log("CodeEditor: No valid GitHub token available", {
+          hasToken: !!githubToken,
+          tokenValue: githubToken,
+          envValue: import.meta.env.VITE_GITHUB_TOKEN,
+          appEnvValue: import.meta.env.VITE_APP_GITHUB_TOKEN,
+        });
+        setError(
+          "GitHub token not configured. Please add VITE_GITHUB_TOKEN environment variable."
+        );
+        return;
+      }
 
       // Check if file is already open
       const existingFile = openFiles.find((f) => f.path === file.path);
       if (existingFile) {
+        console.log(
+          "CodeEditor: File already open, switching to:",
+          existingFile.name
+        );
         setActiveFile(existingFile);
         return;
       }
 
       // Check if it's a binary file
       if (isBinaryFile(file.name)) {
+        console.log("CodeEditor: Binary file detected:", file.name);
         const binaryFile = {
           ...file,
           content: null,
@@ -140,16 +196,45 @@ const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
             ],
           }));
         }
-        console.log("Binary file loaded:", binaryFile.name);
         return;
       }
 
       try {
         setLoading(true);
+        onLoadingChange?.(true);
         setError(null);
+        console.log("CodeEditor: Fetching file content for:", file.path);
+
+        // Validate file path before making API call
+        if (!file.path) {
+          throw new Error("File path is undefined");
+        }
+
+        // Add immediate feedback by adding file to tabs with loading state
+        const loadingFile = {
+          ...file,
+          content: null,
+          isLoading: true,
+          isBinary: false,
+        };
+
+        setOpenFiles((prev) => [
+          ...prev.filter((f) => f.path !== file.path),
+          loadingFile,
+        ]);
+        setActiveFile(loadingFile);
 
         // Fetch file content from GitHub
         const fileData = await gitHubService.getFileContent(file.path);
+        console.log(
+          "CodeEditor: File data received:",
+          fileData ? "Success" : "Failed"
+        );
+        console.log("CodeEditor: File data details:", {
+          hasDecodedContent: !!fileData?.decodedContent,
+          contentLength: fileData?.decodedContent?.length,
+          contentPreview: fileData?.decodedContent?.substring(0, 100),
+        });
 
         const fileWithContent = {
           ...file,
@@ -157,8 +242,15 @@ const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
           sha: fileData.sha,
           size: fileData.size,
           isBinary: false,
+          isLoading: false,
           lastModified: new Date().toISOString(),
         };
+
+        console.log("CodeEditor: File with content created:", {
+          hasContent: !!fileWithContent.content,
+          contentLength: fileWithContent.content?.length,
+          fileName: fileWithContent.name,
+        });
 
         // Add to open files
         setOpenFiles((prev) => [
@@ -169,31 +261,57 @@ const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
 
         // Update workspace
         if (setWorkspace) {
-          setWorkspace((prev) => ({
-            ...prev,
-            activeFile: fileWithContent,
-            openFiles: [
-              ...prev.openFiles.filter((f) => f.path !== file.path),
-              fileWithContent,
-            ],
-          }));
+          setWorkspace((prev) => {
+            const newWorkspace = {
+              ...prev,
+              activeFile: fileWithContent,
+              openFiles: [
+                ...prev.openFiles.filter((f) => f.path !== file.path),
+                fileWithContent,
+              ],
+            };
+            console.log("CodeEditor: Updating workspace with:", {
+              activeFileName: newWorkspace.activeFile?.name,
+              hasContent: !!newWorkspace.activeFile?.content,
+              contentLength: newWorkspace.activeFile?.content?.length,
+            });
+            return newWorkspace;
+          });
         }
 
-        console.log("File loaded successfully:", fileWithContent.name);
+        console.log(
+          "CodeEditor: File loaded successfully:",
+          fileWithContent.name
+        );
       } catch (err) {
-        console.error("Error loading file:", err);
+        console.error("CodeEditor: Error loading file:", err);
         setError(`Failed to load ${file.name}: ${err.message}`);
+
+        // Remove loading file and revert to previous state
+        setOpenFiles((prev) => prev.filter((f) => f.path !== file.path));
+        const lastFile = openFiles[openFiles.length - 1] || null;
+        setActiveFile(lastFile);
       } finally {
         setLoading(false);
+        onLoadingChange?.(false);
       }
     },
-    [openFiles, setWorkspace]
+    [openFiles, setWorkspace, githubToken, onLoadingChange]
   );
 
-  // Update external file selection handler
+  // Register file selection handler with parent
   useEffect(() => {
-    if (onFileSelect && onFileSelect.current) {
+    console.log("CodeEditor: Setting up file selection handler", {
+      hasOnFileSelect: !!onFileSelect,
+      hasOnFileSelectCurrent: !!(onFileSelect && onFileSelect.current),
+      handleFileSelectType: typeof handleFileSelect,
+    });
+
+    if (onFileSelect && onFileSelect.current !== undefined) {
       onFileSelect.current = handleFileSelect;
+      console.log("CodeEditor: File selection handler assigned");
+    } else {
+      console.error("CodeEditor: onFileSelect ref is not available");
     }
   }, [handleFileSelect, onFileSelect]);
 
@@ -231,45 +349,68 @@ const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
   };
 
   // Render welcome screen
-  const renderWelcomeScreen = () => (
-    <div className="flex items-center justify-center h-full bg-neutral-900">
-      <div className="text-center max-w-md">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <FaCode className="w-20 h-20 text-neutral-600 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-white mb-4 heading">
-            Welcome to Deployio Code Editor
-          </h2>
-          <p className="text-neutral-400 leading-relaxed body">
-            Explore the GitHub repository structure from the file explorer and
-            select a file to start coding. This playground is connected to the{" "}
-            <span className="text-blue-400 font-medium">
-              vasudevshetty/mern
-            </span>{" "}
-            repository.
-          </p>
-        </motion.div>
+  const renderWelcomeScreen = () => {
+    const hasValidToken =
+      githubToken && githubToken !== "your_github_token_here";
 
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 text-sm text-neutral-500 body">
-            <FiFile className="w-4 h-4" />
-            <span>Browse files in the explorer</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-neutral-500 body">
-            <FiCode className="w-4 h-4" />
-            <span>View code with syntax highlighting</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-neutral-500 body">
-            <FiLock className="w-4 h-4" />
-            <span>Learn from DevOps configurations</span>
+    return (
+      <div className="flex items-center justify-center h-full bg-neutral-900">
+        <div className="text-center max-w-md">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <FaCode className="w-20 h-20 text-neutral-600 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-4 heading">
+              Welcome to Deployio Code Editor
+            </h2>
+            {hasValidToken ? (
+              <p className="text-neutral-400 leading-relaxed body">
+                Explore the GitHub repository structure from the file explorer
+                and select a file to start coding. This playground is connected
+                to the{" "}
+                <span className="text-blue-400 font-medium">
+                  {selectedRepo?.name || "repository"}
+                </span>{" "}
+                repository.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-neutral-400 leading-relaxed body">
+                  To view file contents, you need to configure a GitHub token.
+                </p>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                  <p className="text-amber-400 text-sm">
+                    <strong>Setup Required:</strong> Add your GitHub token to{" "}
+                    <code className="bg-neutral-800 px-1 rounded">
+                      VITE_APP_GITHUB_TOKEN
+                    </code>{" "}
+                    environment variable.
+                  </p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
+              <FiFile className="w-4 h-4" />
+              <span>Browse files in the explorer</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
+              <FiCode className="w-4 h-4" />
+              <span>View code with syntax highlighting</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
+              <FiLock className="w-4 h-4" />
+              <span>Learn from DevOps configurations</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Render binary file viewer
   const renderBinaryFile = (file) => (
@@ -349,6 +490,9 @@ const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
                 <span className="truncate max-w-32" title={file.name}>
                   {file.name}
                 </span>
+                {file.isLoading && (
+                  <FaSpinner className="w-3 h-3 text-blue-400 flex-shrink-0 animate-spin" />
+                )}
                 {file.isBinary && (
                   <FiImage className="w-3 h-3 text-orange-400 flex-shrink-0" />
                 )}
@@ -436,6 +580,27 @@ const CodeEditor = ({ setWorkspace, onFileSelect, githubToken }) => {
               <FiFileText className="w-12 h-12 text-neutral-600 mx-auto mb-4" />
               <div className="text-neutral-400 body">
                 {loading ? "Loading file content..." : "No content available"}
+              </div>
+              {/* Enhanced debug info */}
+              <div className="text-xs text-neutral-600 mt-4 space-y-1 bg-neutral-800/50 p-4 rounded-lg">
+                <div>Debug Info:</div>
+                <div>• hasContent: {String(!!activeFile.content)}</div>
+                <div>• loading: {String(loading)}</div>
+                <div>• fileName: {activeFile.name}</div>
+                <div>• filePath: {activeFile.path}</div>
+                <div>• contentLength: {activeFile.content?.length || 0}</div>
+                <div>
+                  • contentPreview:{" "}
+                  {activeFile.content?.substring(0, 50) || "None"}
+                </div>
+                <div>• isBinary: {String(!!activeFile.isBinary)}</div>
+                <div>
+                  • hasToken:{" "}
+                  {String(
+                    !!githubToken && githubToken !== "your_github_token_here"
+                  )}
+                </div>
+                <div>• error: {error || "None"}</div>
               </div>
             </div>
           </div>

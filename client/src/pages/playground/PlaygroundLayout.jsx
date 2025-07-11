@@ -73,7 +73,9 @@ const PlaygroundLayout = () => {
   // TODO: This should be moved to backend with proper authentication
   // For now, replace 'your_github_token_here' with your actual GitHub token
   const [githubToken] = useState(
-    import.meta.env.VITE_APP_GITHUB_TOKEN || "your_github_token_here"
+    import.meta.env.VITE_GITHUB_TOKEN ||
+      import.meta.env.VITE_APP_GITHUB_TOKEN ||
+      "your_github_token_here"
   );
 
   // Authentication check
