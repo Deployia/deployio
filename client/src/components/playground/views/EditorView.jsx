@@ -20,16 +20,8 @@ const EditorView = ({
 
   // Handle file selection from FileExplorer
   const handleFileSelect = useCallback((fileNode) => {
-    console.log("EditorView: File selected from FileExplorer:", fileNode);
-    console.log(
-      "EditorView: fileSelectRef.current exists:",
-      !!fileSelectRef.current
-    );
     if (fileSelectRef.current) {
-      console.log("EditorView: Calling fileSelectRef.current with:", fileNode);
       fileSelectRef.current(fileNode);
-    } else {
-      console.error("EditorView: fileSelectRef.current is null!");
     }
   }, []);
 

@@ -196,7 +196,13 @@ Click on a suggestion below or ask me anything about DevOps!`,
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-auto custom-scrollbar">
+      <div
+        className="flex-1 overflow-auto"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#525252 #262626",
+        }}
+      >
         <div className="p-6 space-y-6">
           {messages.map((message) => (
             <motion.div
@@ -244,14 +250,20 @@ Click on a suggestion below or ask me anything about DevOps!`,
                               className || ""
                             );
                             return !inline && match ? (
-                              <pre className="bg-neutral-900/80 border border-neutral-600/30 rounded-lg p-4 my-3 overflow-x-auto">
+                              <pre
+                                className="bg-neutral-900/80 border border-neutral-600/30 rounded-lg p-4 my-3 overflow-x-auto"
+                                style={{
+                                  scrollbarWidth: "thin",
+                                  scrollbarColor: "#525252 #262626",
+                                }}
+                              >
                                 <code className={className} {...props}>
                                   {children}
                                 </code>
                               </pre>
                             ) : (
                               <code
-                                className="bg-neutral-700/50 px-1.5 py-0.5 rounded text-blue-300 text-sm"
+                                className="bg-neutral-700/50 px-1.5 py-0.5 rounded text-cyan-300 text-sm"
                                 {...props}
                               >
                                 {children}
@@ -259,22 +271,22 @@ Click on a suggestion below or ask me anything about DevOps!`,
                             );
                           },
                           h1: ({ children }) => (
-                            <h1 className="text-xl font-bold text-blue-400 mb-3">
+                            <h1 className="text-xl font-bold text-emerald-400 mb-3">
                               {children}
                             </h1>
                           ),
                           h2: ({ children }) => (
-                            <h2 className="text-lg font-semibold text-blue-300 mb-2">
+                            <h2 className="text-lg font-semibold text-emerald-300 mb-2">
                               {children}
                             </h2>
                           ),
                           h3: ({ children }) => (
-                            <h3 className="text-md font-medium text-blue-200 mb-2">
+                            <h3 className="text-md font-medium text-emerald-200 mb-2">
                               {children}
                             </h3>
                           ),
                           strong: ({ children }) => (
-                            <strong className="font-semibold text-blue-300">
+                            <strong className="font-semibold text-yellow-300">
                               {children}
                             </strong>
                           ),
@@ -302,7 +314,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                             </p>
                           ),
                           blockquote: ({ children }) => (
-                            <blockquote className="border-l-4 border-blue-500/50 pl-4 my-3 text-neutral-300 italic">
+                            <blockquote className="border-l-4 border-emerald-500/50 pl-4 my-3 text-neutral-300 italic">
                               {children}
                             </blockquote>
                           ),

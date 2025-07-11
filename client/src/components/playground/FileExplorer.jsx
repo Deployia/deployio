@@ -13,7 +13,11 @@ import {
   FaSpinner,
   FaExclamationTriangle,
   FaGithub,
+  FaDocker,
+  FaServer,
+  FaCog,
 } from "react-icons/fa";
+import { FiFileText, FiPackage, FiSettings } from "react-icons/fi";
 import gitHubService from "../../services/githubService";
 
 const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
@@ -131,8 +135,44 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
 
   // Get file icon based on type and language
   const getFileIcon = (file) => {
+    if (!file) return FaFile;
+
     if (file.type === "folder") {
       return expandedFolders.has(file.id) ? FaFolderOpen : FaFolder;
+    }
+
+    // DevOps-specific file icons
+    const fileName = file.name?.toLowerCase() || "";
+
+    if (fileName.includes("dockerfile")) {
+      return FaDocker;
+    }
+
+    if (fileName.includes("docker-compose")) {
+      return FaServer;
+    }
+
+    if (
+      fileName.includes("package.json") ||
+      fileName.includes("requirements.txt")
+    ) {
+      return FiPackage;
+    }
+
+    if (fileName.includes(".yml") || fileName.includes(".yaml")) {
+      return FiSettings;
+    }
+
+    if (fileName.includes(".md")) {
+      return FiFileText;
+    }
+
+    if (
+      fileName.includes("nginx") ||
+      fileName.includes("apache") ||
+      fileName.includes(".conf")
+    ) {
+      return FaCog;
     }
 
     switch (file.language) {
@@ -146,12 +186,48 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
 
   // Get file icon color based on type
   const getFileIconColor = (file) => {
+    if (!file) return "text-neutral-400";
+
     if (file.type === "folder") {
       return "text-blue-400";
     }
 
     if (!file.editable) {
       return "text-red-400";
+    }
+
+    // DevOps-specific file colors
+    const fileName = file.name?.toLowerCase() || "";
+
+    if (fileName.includes("dockerfile")) {
+      return "text-blue-500";
+    }
+
+    if (fileName.includes("docker-compose")) {
+      return "text-green-400";
+    }
+
+    if (
+      fileName.includes("package.json") ||
+      fileName.includes("requirements.txt")
+    ) {
+      return "text-orange-400";
+    }
+
+    if (fileName.includes(".yml") || fileName.includes(".yaml")) {
+      return "text-purple-400";
+    }
+
+    if (fileName.includes(".md")) {
+      return "text-cyan-400";
+    }
+
+    if (
+      fileName.includes("nginx") ||
+      fileName.includes("apache") ||
+      fileName.includes(".conf")
+    ) {
+      return "text-amber-400";
     }
 
     switch (file.language) {
@@ -211,13 +287,13 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
 
           {/* Name */}
           <span className="text-sm text-neutral-200 body flex-1 truncate">
-            {node.name}
+            {node?.name || "Unknown"}
           </span>
 
           {/* File status indicator */}
-          {node.type === "file" && (
+          {node?.type === "file" && (
             <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              {node.editable ? (
+              {node?.editable ? (
                 <FaUnlock className="w-3 h-3 text-green-400" title="Editable" />
               ) : (
                 <FaLock className="w-3 h-3 text-red-400" title="Read-only" />
@@ -276,7 +352,13 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto custom-scrollbar">
+      <div
+        className="flex-1 overflow-auto"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#525252 #262626",
+        }}
+      >
         {loading ? (
           <div className="flex items-center justify-center h-32">
             <div className="flex items-center gap-3">

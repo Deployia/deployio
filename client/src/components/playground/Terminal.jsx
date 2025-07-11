@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import {
-  FiTerminal,
-  FiCopy,
-  FiTrash2,
-  FiBook,
-  FiChevronRight,
-} from "react-icons/fi";
+import { FiTerminal, FiCopy, FiTrash2, FiBook } from "react-icons/fi";
 
 const Terminal = ({ selectedRepo, devOpsMode = true }) => {
   const [history, setHistory] = useState([]);
@@ -131,8 +125,8 @@ Type 'help' for available commands`,
           <span className="text-sm font-medium text-white">
             DevOps Terminal
           </span>
-          <span className="px-2 py-0.5 bg-blue-500/20 border border-blue-500/30 rounded text-xs text-blue-400">
-            Demo Mode
+          <span className="px-2 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded text-xs text-orange-400">
+            Coming Soon
           </span>
         </div>
 
@@ -172,7 +166,11 @@ Type 'help' for available commands`,
       {/* Terminal Content */}
       <div
         ref={terminalRef}
-        className="flex-1 overflow-auto p-4 font-mono text-sm custom-scrollbar bg-black/20"
+        className="flex-1 overflow-auto p-4 font-mono text-sm bg-black/20"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#525252 #262626",
+        }}
       >
         <div className="space-y-1">
           {history.map((entry, index) => (

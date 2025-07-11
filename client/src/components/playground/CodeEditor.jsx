@@ -140,22 +140,12 @@ const CodeEditor = ({
   // Handle file selection from explorer
   const handleFileSelect = useCallback(
     async (file) => {
-      console.log("CodeEditor: handleFileSelect called with:", file);
-      console.log("CodeEditor: File selected:", file);
-
       if (file.type === "folder") {
-        console.log("CodeEditor: Folder selected, ignoring");
         return;
       }
 
       // Check if GitHub token is available
       if (!githubToken || githubToken === "your_github_token_here") {
-        console.log("CodeEditor: No valid GitHub token available", {
-          hasToken: !!githubToken,
-          tokenValue: githubToken,
-          envValue: import.meta.env.VITE_GITHUB_TOKEN,
-          appEnvValue: import.meta.env.VITE_APP_GITHUB_TOKEN,
-        });
         setError(
           "GitHub token not configured. Please add VITE_GITHUB_TOKEN environment variable."
         );
@@ -165,17 +155,12 @@ const CodeEditor = ({
       // Check if file is already open
       const existingFile = openFiles.find((f) => f.path === file.path);
       if (existingFile) {
-        console.log(
-          "CodeEditor: File already open, switching to:",
-          existingFile.name
-        );
         setActiveFile(existingFile);
         return;
       }
 
       // Check if it's a binary file
       if (isBinaryFile(file.name)) {
-        console.log("CodeEditor: Binary file detected:", file.name);
         const binaryFile = {
           ...file,
           content: null,
@@ -203,7 +188,6 @@ const CodeEditor = ({
         setLoading(true);
         onLoadingChange?.(true);
         setError(null);
-        console.log("CodeEditor: Fetching file content for:", file.path);
 
         // Validate file path before making API call
         if (!file.path) {
@@ -226,15 +210,6 @@ const CodeEditor = ({
 
         // Fetch file content from GitHub
         const fileData = await gitHubService.getFileContent(file.path);
-        console.log(
-          "CodeEditor: File data received:",
-          fileData ? "Success" : "Failed"
-        );
-        console.log("CodeEditor: File data details:", {
-          hasDecodedContent: !!fileData?.decodedContent,
-          contentLength: fileData?.decodedContent?.length,
-          contentPreview: fileData?.decodedContent?.substring(0, 100),
-        });
 
         const fileWithContent = {
           ...file,
@@ -246,45 +221,23 @@ const CodeEditor = ({
           lastModified: new Date().toISOString(),
         };
 
-        console.log("CodeEditor: File with content created:", {
-          hasContent: !!fileWithContent.content,
-          contentLength: fileWithContent.content?.length,
-          fileName: fileWithContent.name,
-        });
-
         // Add to open files
         setOpenFiles((prev) => [
           ...prev.filter((f) => f.path !== file.path),
           fileWithContent,
         ]);
-        setActiveFile(fileWithContent);
-
-        // Update workspace
+        setActiveFile(fileWithContent); // Update workspace
         if (setWorkspace) {
-          setWorkspace((prev) => {
-            const newWorkspace = {
-              ...prev,
-              activeFile: fileWithContent,
-              openFiles: [
-                ...prev.openFiles.filter((f) => f.path !== file.path),
-                fileWithContent,
-              ],
-            };
-            console.log("CodeEditor: Updating workspace with:", {
-              activeFileName: newWorkspace.activeFile?.name,
-              hasContent: !!newWorkspace.activeFile?.content,
-              contentLength: newWorkspace.activeFile?.content?.length,
-            });
-            return newWorkspace;
-          });
+          setWorkspace((prev) => ({
+            ...prev,
+            activeFile: fileWithContent,
+            openFiles: [
+              ...prev.openFiles.filter((f) => f.path !== file.path),
+              fileWithContent,
+            ],
+          }));
         }
-
-        console.log(
-          "CodeEditor: File loaded successfully:",
-          fileWithContent.name
-        );
       } catch (err) {
-        console.error("CodeEditor: Error loading file:", err);
         setError(`Failed to load ${file.name}: ${err.message}`);
 
         // Remove loading file and revert to previous state
@@ -301,17 +254,8 @@ const CodeEditor = ({
 
   // Register file selection handler with parent
   useEffect(() => {
-    console.log("CodeEditor: Setting up file selection handler", {
-      hasOnFileSelect: !!onFileSelect,
-      hasOnFileSelectCurrent: !!(onFileSelect && onFileSelect.current),
-      handleFileSelectType: typeof handleFileSelect,
-    });
-
     if (onFileSelect && onFileSelect.current !== undefined) {
       onFileSelect.current = handleFileSelect;
-      console.log("CodeEditor: File selection handler assigned");
-    } else {
-      console.error("CodeEditor: onFileSelect ref is not available");
     }
   }, [handleFileSelect, onFileSelect]);
 
@@ -470,7 +414,13 @@ const CodeEditor = ({
     <div className="h-full flex flex-col bg-neutral-900">
       {/* File Tabs */}
       {openFiles.length > 0 && (
-        <div className="flex bg-neutral-950 border-b border-neutral-800/50 overflow-x-auto">
+        <div
+          className="flex bg-neutral-950 border-b border-neutral-800/50 overflow-x-auto"
+          style={{
+            scrollbarWidth: "thin",
+            scrollbarColor: "#525252 #262626",
+          }}
+        >
           {openFiles.map((file, index) => {
             const isActive = activeFile?.path === file.path;
             return (
@@ -552,7 +502,13 @@ const CodeEditor = ({
       </div>
 
       {/* Code Content */}
-      <div className="flex-1 overflow-auto">
+      <div
+        className="flex-1 overflow-auto"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#525252 #262626",
+        }}
+      >
         {activeFile.content ? (
           <SyntaxHighlighter
             language={getLanguageFromFilename(activeFile.name)}
