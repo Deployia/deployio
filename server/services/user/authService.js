@@ -51,6 +51,9 @@ const generateOtp = () => {
  */
 const registerUser = async (userData) => {
   const { username, email, password } = userData;
+  // Import sanitizeUsername utility
+  const { sanitizeUsername } = require("../config/strategies/githubStrategy");
+  const safeUsername = sanitizeUsername(username);
 
   // Check if user already exists
   const userExists = await User.findOne({ email });
@@ -63,7 +66,7 @@ const registerUser = async (userData) => {
 
   // Create user first to get userId for notification system
   const user = await User.create({
-    username,
+    username: safeUsername,
     email,
     password,
     otp,
@@ -74,7 +77,7 @@ const registerUser = async (userData) => {
   try {
     await AuthNotifications.sendOTPVerification(
       user._id,
-      { username, email },
+      { username: safeUsername, email },
       otp,
       false // not a resend
     );

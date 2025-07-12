@@ -366,9 +366,9 @@ jobs:
   };
 
   return (
-    <div className="h-full flex flex-col bg-neutral-900">
+    <div className="h-full w-full flex flex-col bg-neutral-900">
       {/* Header */}
-      <div className="p-6 border-b border-neutral-800/50 flex-shrink-0">
+      <div className="p-6 border-b border-neutral-800/50 flex-shrink-0 w-full">
         <div className="flex items-center gap-3 mb-4">
           <FiZap className="w-6 h-6 text-yellow-400" />
           <div>
@@ -382,18 +382,18 @@ jobs:
         </div>
       </div>
 
-      {/* Content - Scrollable */}
+      {/* Content - Scrollable, edge-to-edge */}
       <div
-        className="flex-1 overflow-auto"
+        className="flex-1 w-full overflow-auto"
         style={{
           scrollbarWidth: "thin",
           scrollbarColor: "#525252 #262626",
-        }}
+        }}  
       >
-        <div className="p-6">
+        <div className="max-w-8xl mx-auto px-2 sm:px-6 py-10 w-full h-full flex flex-col">
           {/* Generate Button */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between">
+          <div className="mb-10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-white heading mb-1">
                   {activeGenerator
@@ -431,8 +431,8 @@ jobs:
 
           {/* Generated Configuration or Fallback */}
           <div
-            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl overflow-hidden"
-            style={{ minHeight: "400px" }}
+            className="bg-neutral-900/70 backdrop-blur-md border border-neutral-800/50 rounded-2xl w-full flex flex-col"
+            style={{ width: "100%" }}
           >
             {generatedContent ? (
               <>
@@ -479,11 +479,12 @@ jobs:
 
                 {/* Code Content */}
                 <div
-                  className="overflow-auto"
+                  className="w-full flex-1 overflow-auto px-4 py-3"
                   style={{
+                    minHeight: "300px",
+                    maxHeight: "50vh",
                     scrollbarWidth: "thin",
                     scrollbarColor: "#525252 #262626",
-                    maxHeight: "400px",
                   }}
                 >
                   <SyntaxHighlighter
@@ -491,7 +492,7 @@ jobs:
                     style={vscDarkPlus}
                     customStyle={{
                       margin: 0,
-                      padding: "1rem",
+                      padding: 0,
                       background: "transparent",
                       fontSize: "0.875rem",
                       lineHeight: "1.5",
@@ -513,7 +514,7 @@ jobs:
               </>
             ) : (
               // Fallback content when no configuration is generated
-              <div className="flex-1 flex items-center justify-center p-8">
+              <div className="flex-1 flex items-center justify-center p-8 w-full">
                 <div className="text-center max-w-md">
                   <FiCode className="w-16 h-16 text-neutral-600 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-white mb-2 heading">
@@ -551,11 +552,11 @@ jobs:
 
           {/* Generation History */}
           {history.length > 0 && (
-            <div className="mt-4 flex-shrink-0">
+            <div className="mt-10 flex-shrink-0 w-full">
               <div className="text-sm text-neutral-400 mb-2 body">
                 Recent Generations
               </div>
-              <div className="flex gap-2 overflow-x-auto">
+              <div className="flex gap-2 overflow-x-auto w-full">
                 {history.slice(-5).map((item, index) => (
                   <motion.div
                     key={index}
