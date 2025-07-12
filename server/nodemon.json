@@ -1,6 +1,7 @@
 {
   "watch": [
     "server.js",
+    "app.js",
     "config/",
     "controllers/",
     "middleware/",

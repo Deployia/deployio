@@ -47,19 +47,11 @@ router.get(
 
 // Get file content
 router.get(
-  "/:provider/repositories/:owner/:repo/contents/*",
+  "/:provider/repositories/:owner/:repo/contents/:filePath(*)",
   protect,
   getRateLimiters().gitProviders.repositories,
   user.gitProvider.getFileContent
 );
-
-// // Analyze repository for AI suggestions
-// router.post(
-//   "/:provider/repositories/:owner/:repo/analyze",
-//   protect,
-//   getRateLimiters().gitProviders.analyze,
-//   user.gitProvider.analyzeRepository
-// );
 
 // Test provider connection
 router.get("/:provider/test", protect, user.gitProvider.testConnection);

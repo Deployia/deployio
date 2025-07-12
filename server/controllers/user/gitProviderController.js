@@ -365,8 +365,16 @@ const getFileContent = async (req, res) => {
     const { provider, owner, repo } = req.params;
     const { branch = "main", playground = false } = req.query;
 
-    // Extract file path from URL params (everything after /contents/)
-    const filePath = req.params[0] || "";
+    // Extract file path from named param (Express 5+)
+    const filePath = req.params.filePath || "";
+
+    // Validation: filePath must be present and not 'undefined'
+    if (!filePath || filePath === "undefined") {
+      return res.status(400).json({
+        success: false,
+        message: "Missing or invalid file path",
+      });
+    }
 
     const options = {
       isPlayground: playground === "true" || playground === true,
