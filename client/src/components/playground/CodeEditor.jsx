@@ -70,12 +70,6 @@ const CodeEditor = ({
 
   // Initialize GitHub service with token and repository
   useEffect(() => {
-    console.log("CodeEditor: Initializing GitHub service", {
-      hasToken: !!githubToken,
-      tokenValue: githubToken,
-      hasRepo: !!selectedRepo,
-      repoUrl: selectedRepo?.url,
-    });
 
     if (
       githubToken &&
@@ -91,7 +85,6 @@ const CodeEditor = ({
       const owner = urlParts[0];
       const repo = urlParts[1];
 
-      console.log("CodeEditor: Setting repository", { owner, repo });
       gitHubService.setRepository(owner, repo);
     } else {
       console.log(
