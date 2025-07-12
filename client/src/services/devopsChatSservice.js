@@ -2,7 +2,7 @@
 // This is a client-side implementation for testing purposes
 // In production, this should be moved to the backend
 
-class LLMService {
+class DevopsChatService {
   constructor() {
     this.apiKey =
       import.meta.env.VITE_GROQ_API_KEY ||
@@ -259,4 +259,4 @@ To get personalized responses, configure your Groq API key in \`VITE_GROQ_API_KE
   }
 }
 
-export default new LLMService();
+export default new DevopsChatService();

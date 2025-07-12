@@ -13,7 +13,7 @@ import {
   FiBookOpen,
   FiSettings,
 } from "react-icons/fi";
-import llmService from "../../services/llmService";
+import devopsChatService from "../../services/devopsChatSservice";
 
 const ChatbotPanel = () => {
   const { user } = useSelector((state) => state.auth);
@@ -24,9 +24,9 @@ const ChatbotPanel = () => {
   const [llmConnected, setLlmConnected] = useState(false);
   const [copySuccess, setCopySuccess] = useState(null);
 
-  // Check LLM service connection status
+  // Check DevOpsChat service connection status
   useEffect(() => {
-    setLlmConnected(llmService.isConfigured());
+    setLlmConnected(devopsChatService.isConfigured());
   }, []);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -67,20 +67,20 @@ Click on a suggestion below or ask me anything about DevOps!`,
   // Enhanced AI responses using LLM service
   const getAIResponse = async (userMessage) => {
     try {
-      // Try to use LLM service first
-      if (llmService.isConfigured()) {
+      // Try to use DevOpsChat service first
+      if (devopsChatService.isConfigured()) {
         const context = {
           activeFile: null, // Could pass active file from props
           repository: "Deployio Playground",
         };
-        return await llmService.generateResponse(userMessage, context);
+        return await devopsChatService.generateResponse(userMessage, context);
       } else {
         // Fall back to predefined responses
-        return llmService.getFallbackResponse(userMessage);
+        return devopsChatService.getFallbackResponse(userMessage);
       }
     } catch (error) {
       console.error("AI Response Error:", error);
-      return llmService.getFallbackResponse(userMessage);
+      return devopsChatService.getFallbackResponse(userMessage);
     }
   };
 
