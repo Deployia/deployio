@@ -267,13 +267,15 @@ class AIServiceBridgeService extends EventEmitter {
    */
   handleAnalysisProgress(socket, data) {
     try {
-      const { sessionId, progress, status, message } = data;
+      const { session_id, sessionId, progress, status, message } = data;
+      const actualSessionId = session_id || sessionId;
 
       // Route through stream router
       this.streamRouter.routeStream({
         event: "analysis_progress",
         data: {
-          session_id: sessionId,
+          session_id: actualSessionId,
+          sessionId: actualSessionId, // Include both forms for compatibility
           progress,
           status,
           message,
@@ -283,14 +285,14 @@ class AIServiceBridgeService extends EventEmitter {
       });
 
       logger.debug("Analysis progress routed through stream router", {
-        sessionId,
+        sessionId: actualSessionId,
         progress,
         status,
       });
     } catch (error) {
       logger.error("Error handling analysis progress", {
         error: error.message,
-        sessionId: data?.sessionId,
+        sessionId: data?.sessionId || data?.session_id,
       });
     }
   }
@@ -300,13 +302,15 @@ class AIServiceBridgeService extends EventEmitter {
    */
   handleAnalysisComplete(socket, data) {
     try {
-      const { sessionId, result, status } = data;
+      const { session_id, sessionId, result, status } = data;
+      const actualSessionId = session_id || sessionId;
 
       // Route through stream router
       this.streamRouter.routeStream({
         event: "analysis_complete",
         data: {
-          session_id: sessionId,
+          session_id: actualSessionId,
+          sessionId: actualSessionId, // Include both forms for compatibility
           result,
           status: status || "completed",
         },
@@ -315,13 +319,13 @@ class AIServiceBridgeService extends EventEmitter {
       });
 
       logger.info("Analysis completion routed through stream router", {
-        sessionId,
+        sessionId: actualSessionId,
         status,
       });
     } catch (error) {
       logger.error("Error handling analysis completion", {
         error: error.message,
-        sessionId: data?.sessionId,
+        sessionId: data?.sessionId || data?.session_id,
       });
     }
   }

@@ -175,7 +175,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
       // AI analysis progress events
       socket.on("ai:progress", (data) => {
         console.log("Received progress:", data);
-        if (data.sessionId === operationId || !operationId) {
+        // Check if this progress is for any active operation (more flexible matching)
+        if (!operationId || data.sessionId === operationId || !data.sessionId) {
           setRealProgress(data);
           
           // Update step based on progress
@@ -189,7 +190,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
       socket.on("ai:analysis_complete", (data) => {
         console.log("Analysis complete:", data);
-        if (data.sessionId === operationId || !operationId) {
+        // Check if this completion is for any active operation
+        if (!operationId || data.sessionId === operationId || !data.sessionId) {
           setAnalysisResults(data.data || data.results);
           setIsAnalyzing(false);
           setCurrentStep(progressSteps.length - 1);
@@ -207,7 +209,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
       socket.on("ai:generation_complete", (data) => {
         console.log("Generation complete:", data);
-        if (data.sessionId === operationId || !operationId) {
+        // Check if this completion is for any active operation
+        if (!operationId || data.sessionId === operationId || !data.sessionId) {
           setGenerationResults(data.data || data.results);
           setIsGenerating(false);
 
@@ -227,7 +230,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
       socket.on("ai:error", (data) => {
         console.log("AI service error:", data);
-        if (data.sessionId === operationId || !operationId) {
+        // Check if this error is for any active operation
+        if (!operationId || data.sessionId === operationId || !data.sessionId) {
           setError(data.error);
           setIsAnalyzing(false);
           setIsGenerating(false);
@@ -247,9 +251,22 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
   // Setup WebSocket on mount
   useEffect(() => {
-    setupWebSocketConnection();
+    let isMounted = true;
+    
+    const initWebSocket = async () => {
+      if (!isMounted) return;
+      
+      try {
+        await setupWebSocketConnection();
+      } catch (error) {
+        console.error("Failed to setup WebSocket:", error);
+      }
+    };
+
+    initWebSocket();
 
     return () => {
+      isMounted = false;
       // Use webSocketService to properly disconnect
       if (socketRef.current) {
         websocketService.disconnect("/ai");
@@ -259,7 +276,7 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
         clearInterval(progressPollingRef.current);
       }
     };
-  }, [setupWebSocketConnection]);
+  }, []); // Empty dependency array to run only on mount
 
   const normalizeRepositoryUrl = (input) => {
     if (!input) return "";
@@ -382,8 +399,6 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
     setRepositoryUrl(`https://github.com/${repo.name}`);
     setBranch(repo.branch);
   };
-
-  console.log(error)
 
   const renderTabContent = () => {
     switch (activeTab) {

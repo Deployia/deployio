@@ -43,15 +43,18 @@ class WebSocketService {
    * @returns {Promise<Socket>} Connected socket instance
    */
   async connect(namespace, options = {}) {
+    // Check if we already have a connected socket
     if (this.connections.has(namespace)) {
       const existingSocket = this.connections.get(namespace);
       if (existingSocket.connected) {
+        console.log(`Reusing existing connection to ${namespace}`);
         return existingSocket;
       }
       // Clean up disconnected socket
       this.disconnect(namespace);
     }
 
+    console.log(`Creating new connection to ${namespace}`);
     const socketUrl = `${this.baseUrl}${namespace}`;
     const socketOptions = { ...this.defaultOptions, ...options };
 
@@ -60,6 +63,7 @@ class WebSocketService {
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        this.connections.delete(namespace);
         reject(new Error(`Connection timeout for namespace ${namespace}`));
       }, 10000);
 
@@ -81,6 +85,8 @@ class WebSocketService {
           `Disconnected from WebSocket namespace ${namespace}:`,
           reason
         );
+        // Remove from connections map when disconnected
+        this.connections.delete(namespace);
       });
 
       // Connect the socket

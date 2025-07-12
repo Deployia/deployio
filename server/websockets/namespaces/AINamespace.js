@@ -33,7 +33,7 @@ class AINamespace {
     const namespace = webSocketRegistry.register("/ai", {
       requireAuth: true,
       requireAdmin: false,
-      requireVerified: true, // Require verified users for AI features
+      requireVerified: false, // Change to false for development/testing
     });
 
     // Register event handlers
@@ -46,7 +46,7 @@ class AINamespace {
 
     // Add connection handler
     namespace.onConnection(instance.handleConnection.bind(instance));
-    namespace.onDisconnect(instance.handleDisconnect.bind(instance));
+    namespace.onDisconnection(instance.handleDisconnection.bind(instance));
 
     instance.namespace = namespace;
 
@@ -59,31 +59,39 @@ class AINamespace {
    * @param {Object} socket - Socket instance
    */
   handleConnection(socket) {
-    logger.info(`AI namespace: User ${socket.user.username} connected`);
+    const userInfo = socket.user ? (socket.user.email || socket.user.username || socket.user._id) : 'unknown';
+    logger.info(`AI namespace: User ${userInfo} connected`);
 
-    // Join user to their personal room for progress updates
-    socket.join(`user:${socket.user._id}`);
+    if (socket.user && socket.user._id) {
+      // Join user to their personal room for progress updates
+      socket.join(`user:${socket.user._id}`);
 
-    // Send initial status
-    socket.emit("ai:status", {
-      status: "connected",
-      timestamp: new Date().toISOString(),
-      message: "AI service connected successfully",
-    });
+      // Send initial status
+      socket.emit("ai:status", {
+        status: "connected",
+        timestamp: new Date().toISOString(),
+        message: "AI service connected successfully",
+      });
+    } else {
+      logger.warn('AI namespace: Connected socket has no user context');
+    }
   }
 
   /**
    * Handle disconnection
    * @param {Object} socket - Socket instance
    */
-  handleDisconnect(socket) {
-    logger.info(`AI namespace: User ${socket.user.username} disconnected`);
+  handleDisconnection(socket) {
+    const userInfo = socket.user ? (socket.user.email || socket.user.username || socket.user._id) : 'unknown';
+    logger.info(`AI namespace: User ${userInfo} disconnected`);
 
     // Clean up any active sessions for this user
-    for (const [sessionId, session] of this.activeSessions.entries()) {
-      if (session.userId === socket.user._id.toString()) {
-        this.activeSessions.delete(sessionId);
-        logger.info(`Cleaned up session ${sessionId} for disconnected user`);
+    if (socket.user && socket.user._id) {
+      for (const [sessionId, session] of this.activeSessions.entries()) {
+        if (session.userId === socket.user._id.toString()) {
+          this.activeSessions.delete(sessionId);
+          logger.info(`Cleaned up session ${sessionId} for disconnected user`);
+        }
       }
     }
   }

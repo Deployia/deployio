@@ -6,14 +6,16 @@ Provides comprehensive endpoints with proper error handling and progress trackin
 """
 
 import logging
+import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 
 from services.analysis_service import AnalysisService
-from models.response_models import AnalysisResponse, ErrorResponse
+from models.response_models import AnalysisResponse, ErrorResponse, ProgressUpdate
 from models.common_models import AnalysisStatus, AnalysisType
+from websockets.manager import ai_websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +119,44 @@ def create_analysis_routes() -> APIRouter:
             if "include_llm_enhancement" not in request_data["options"]:
                 request_data["options"]["include_llm_enhancement"] = True
 
-            # Execute unified analysis (with optional configuration generation)
-            result = await service.analyze_repository(request_data)
+            # Extract session_id for progress tracking
+            session_id = request_data["options"].get("session_id", f"analysis_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}")
+            
+            # Create progress callback for WebSocket events
+            async def progress_callback(progress_update: ProgressUpdate):
+                """Send progress updates through WebSocket bridge"""
+                try:
+                    if ai_websocket_manager.is_connected:
+                        await ai_websocket_manager.emit_to_server(
+                            "analysis_progress",
+                            {
+                                "session_id": session_id,
+                                "progress": progress_update.progress,
+                                "status": progress_update.status.value if hasattr(progress_update.status, 'value') else str(progress_update.status),
+                                "message": progress_update.current_step,
+                                "timestamp": progress_update.timestamp.isoformat() if progress_update.timestamp else datetime.utcnow().isoformat(),
+                            }
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to send progress update via WebSocket: {e}")
+
+            # Execute unified analysis (with optional configuration generation and progress tracking)
+            result = await service.analyze_repository(request_data, progress_callback=progress_callback)
+
+            # Send completion event through WebSocket bridge
+            try:
+                if ai_websocket_manager.is_connected:
+                    await ai_websocket_manager.emit_to_server(
+                        "analysis_complete",
+                        {
+                            "session_id": session_id,
+                            "result": result.dict() if hasattr(result, 'dict') else result,
+                            "status": "completed",
+                            "timestamp": datetime.utcnow().isoformat(),
+                        }
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to send completion event via WebSocket: {e}")
 
             # Log completion
             repo_name = request.repository_data.get('repository', {}).get('name', 'unknown')
