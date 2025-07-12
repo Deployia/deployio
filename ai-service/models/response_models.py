@@ -162,7 +162,7 @@ class LegacyAnalysisResponse(BaseModel):
 
 class ProgressUpdate(BaseModel):
     analysis_id: str
-    progress: int
+    progress: float  # Changed from int to float to handle decimal progress values
     status: "AnalysisStatus"
     current_step: str
     timestamp: datetime

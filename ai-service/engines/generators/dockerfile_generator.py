@@ -66,12 +66,16 @@ class DockerfileGenerator:
         try:
             # Handle both legacy and new formats
             if analysis:
-                # Handle both dict and object formats
-                if isinstance(analysis, dict):
+                # Handle string, dict, and object formats
+                if isinstance(analysis, str):
+                    # If analysis is a string, we can't extract technology stack
+                    logger.warning("Analysis provided as string, using default configuration")
+                    stack = None
+                elif isinstance(analysis, dict):
                     stack = analysis.get("technology_stack")
                     if isinstance(stack, dict):
                         # Convert dict to TechnologyStack object
-                        from models.analysis_models import TechnologyStack
+                        from ...models.analysis_models import TechnologyStack
 
                         stack = TechnologyStack(
                             language=stack.get("language", "unknown"),

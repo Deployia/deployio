@@ -79,9 +79,24 @@ class AnalysisNamespace(BaseAINamespace):
             )
 
             # Send completion to server bridge
+            # Convert result status to string for JSON serialization
+            result_status = result.status.value if hasattr(result.status, 'value') else str(result.status)
+            
             await self._emit_to_server(
                 "analysis_complete",
-                {"session_id": session_id, "result": result, "status": "completed"},
+                {
+                    "session_id": session_id, 
+                    "result": {
+                        "analysis_id": result.analysis_id,
+                        "status": result_status,
+                        "analysis": result.analysis,
+                        "configurations": result.configurations,
+                        "execution_time": result.execution_time,
+                        "cached": result.cached,
+                        "timestamp": result.timestamp.isoformat() if result.timestamp else None
+                    }, 
+                    "status": "completed"
+                },
             )
 
             logger.info(f"Analysis completed for session: {session_id}")
@@ -102,16 +117,21 @@ class AnalysisNamespace(BaseAINamespace):
 
     def _create_progress_callback(self, session_id: str):
         """Create a progress callback function for the session"""
+        from models.response_models import ProgressUpdate
 
-        async def progress_callback(progress: int, message: str, details: Dict = None):
+        async def progress_callback(progress_update: ProgressUpdate):
+            # Convert AnalysisStatus enum to string for JSON serialization
+            status_str = progress_update.status.value if hasattr(progress_update.status, 'value') else str(progress_update.status)
+            
             await self._emit_to_server(
                 "analysis_progress",
                 {
                     "session_id": session_id,
-                    "progress": progress,
-                    "status": "processing",
-                    "message": message,
-                    "details": details or {},
+                    "progress": int(progress_update.progress),  # Ensure progress is integer
+                    "status": status_str,  # Use string value instead of enum
+                    "message": progress_update.current_step,
+                    "analysis_id": progress_update.analysis_id,
+                    "timestamp": progress_update.timestamp.isoformat(),
                 },
             )
 
