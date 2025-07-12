@@ -35,37 +35,40 @@ const ProductCTA = ({
             {description}
           </motion.p>
 
-          {(primaryButton || secondaryButton) && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center pt-4"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center pt-4"
+          >
+            <a
+              href="/playground"
+              className="group px-8 md:px-12 py-4 md:py-6 bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 text-base md:text-lg relative overflow-hidden"
             >
-              {primaryButton && (
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -3 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={primaryButton.onClick}
-                  className={`group px-8 md:px-12 py-4 md:py-6 bg-gradient-to-r ${gradientClasses} hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 text-base md:text-lg relative overflow-hidden`}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <span className="relative z-10">{primaryButton.text}</span>
-                </motion.button>
-              )}
-
-              {secondaryButton && (
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -3 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={secondaryButton.onClick}
-                  className="px-8 md:px-12 py-4 md:py-6 bg-black/30 border-2 border-gray-600 hover:border-blue-500/50 backdrop-blur-sm text-white font-bold rounded-2xl transition-all duration-300 text-base md:text-lg hover:bg-black/50"
-                >
-                  {secondaryButton.text}
-                </motion.button>
-              )}
-            </motion.div>
-          )}
+              <span className="relative z-10">Try Playground</span>
+            </a>
+            {primaryButton && (
+              <motion.button
+                whileHover={{ scale: 1.05, y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={primaryButton.onClick}
+                className={`group px-8 md:px-12 py-4 md:py-6 bg-gradient-to-r ${gradientClasses} hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 text-base md:text-lg relative overflow-hidden`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="relative z-10">{primaryButton.text}</span>
+              </motion.button>
+            )}
+            {secondaryButton && (
+              <motion.button
+                whileHover={{ scale: 1.05, y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={secondaryButton.onClick}
+                className="px-8 md:px-12 py-4 md:py-6 bg-black/30 border-2 border-gray-600 hover:border-blue-500/50 backdrop-blur-sm text-white font-bold rounded-2xl transition-all duration-300 text-base md:text-lg hover:bg-black/50"
+              >
+                {secondaryButton.text}
+              </motion.button>
+            )}
+          </motion.div>
         </motion.div>
       </div>
     </section>

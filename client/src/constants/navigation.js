@@ -17,6 +17,7 @@ import {
   FaCog,
   FaLock,
   FaPlay,
+  FaLaptopCode,
 } from "react-icons/fa";
 
 // Products navigation items
@@ -82,6 +83,13 @@ export const downloadsItems = [
 
 // Resources navigation items
 export const resourcesItems = [
+  {
+    label: "Playground",
+    href: "/playground",
+    icon: FaLaptopCode,
+    description: "AI-powered DevOps IDE & Sandbox",
+    highlight: true,
+  },
   {
     label: "Documentation",
     href: "/resources/docs",

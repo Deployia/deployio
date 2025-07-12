@@ -35,20 +35,20 @@ class GitProviderService {
       return user.gitProviders[provider].accessToken;
     }
 
-    // If no user token and this is a playground request, use environment token
-    if (isPlaygroundRequest && provider === "github") {
-      const playgroundToken =
+    // Fallback: use environment token for github if available
+    if (provider === "github") {
+      const envToken =
         process.env.GITHUB_TOKEN || process.env.GITHUB_PLAYGROUND_TOKEN;
-      if (playgroundToken && playgroundToken !== "your_github_token_here") {
+      if (envToken && envToken !== "your_github_token_here") {
         console.log(
-          `Using environment GitHub token for playground request for user ${user._id}`
+          `Using environment GitHub token as fallback for user ${user._id}`
         );
-        return playgroundToken;
+        return envToken;
       }
     }
 
     throw new Error(
-      `No ${provider} provider connected and no playground token available`
+      `No ${provider} provider connected and no environment token available`
     );
   }
 
@@ -65,13 +65,11 @@ class GitProviderService {
       return true;
     }
 
-    // Check if playground fallback is available
-    if (isPlaygroundRequest && provider === "github") {
-      const playgroundToken =
+    // Fallback: check if environment token is available for github
+    if (provider === "github") {
+      const envToken =
         process.env.GITHUB_TOKEN || process.env.GITHUB_PLAYGROUND_TOKEN;
-      return !!(
-        playgroundToken && playgroundToken !== "your_github_token_here"
-      );
+      return !!(envToken && envToken !== "your_github_token_here");
     }
 
     return false;
