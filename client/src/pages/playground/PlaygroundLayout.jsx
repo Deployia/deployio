@@ -348,7 +348,39 @@ const PlaygroundLayout = () => {
   const secondarySidebarContent = getSecondarySidebarContent();
 
   return (
-    <div className="h-screen bg-neutral-900 text-white flex flex-col overflow-hidden">
+    <>
+      {/* Global select/option styles for playground */}
+      <style>{`
+        select {
+          background-color: #23232b;
+          border: 1px solid #27272f;
+          border-radius: 0.5rem;
+          color: #fff;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.95rem;
+          outline: none;
+          transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+          box-shadow: 0 1px 2px 0 #0000000d;
+          appearance: none;
+          cursor: pointer;
+        }
+        select:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px #3b82f680;
+        }
+        select:hover {
+          background-color: #18181b;
+        }
+        option {
+          background: #18181b;
+          color: #fff;
+        }
+        option:disabled {
+          color: #888;
+          background: #23232b;
+        }
+      `}</style>
+      <div className="h-screen bg-neutral-900 text-white flex flex-col overflow-hidden">
       {/* Top Bar */}
       <div className="h-12 bg-neutral-900/50 backdrop-blur-md border-b border-neutral-800/50 flex items-center justify-between px-4">
         {/* Logo and Menu */}
@@ -382,10 +414,17 @@ const PlaygroundLayout = () => {
                 setSelectedRepo(repo);
               }
             }}
-            className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all"
+            className="w-full bg-neutral-800/80 border border-neutral-700/70 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 body transition-all appearance-none shadow-sm hover:bg-neutral-800/90"
+            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', cursor: 'pointer' }}
           >
             {ALLOWED_REPOS.map((repo) => (
-              <option key={repo.id} value={repo.id} disabled={repo.comingSoon}>
+              <option
+                key={repo.id}
+                value={repo.id}
+                disabled={repo.comingSoon}
+                className="bg-neutral-900 text-white hover:bg-blue-900/80 focus:bg-blue-900/80 disabled:text-neutral-500 disabled:bg-neutral-800/60"
+                style={{ color: repo.comingSoon ? '#888' : '#fff', backgroundColor: '#18181b' }}
+              >
                 {repo.name} {repo.comingSoon ? "(Coming Soon)" : ""}
               </option>
             ))}
@@ -466,9 +505,9 @@ const PlaygroundLayout = () => {
               <>
                 <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
                 <Panel defaultSize={25} minSize={15} maxSize={40}>
-                  <div className="h-full bg-neutral-950 border-l border-neutral-800">
+                  <div className="h-full min-h-0 flex flex-col bg-neutral-950 border-l border-neutral-800">
                     {/* Secondary Sidebar Header */}
-                    <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3">
+                    <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3 flex-shrink-0">
                       <span className="text-sm font-medium text-white heading">
                         {secondarySidebarContent?.title}
                       </span>
@@ -483,7 +522,7 @@ const PlaygroundLayout = () => {
                     </div>
 
                     {/* Secondary Sidebar Content */}
-                    <div className="flex-1 overflow-auto custom-scrollbar">
+                    <div className="flex-1 min-h-0 overflow-auto custom-scrollbar">
                       {secondarySidebarContent?.content}
                     </div>
                   </div>
@@ -509,6 +548,7 @@ const PlaygroundLayout = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

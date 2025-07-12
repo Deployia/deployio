@@ -9,9 +9,14 @@ import {
   FiCloud,
 } from "react-icons/fi";
 
+import { useState } from "react";
+
 const GenerationSidebar = ({ workspace, setWorkspace }) => {
-  const activeTemplate = workspace?.activeTemplate || "dockerfile";
-  const settings = workspace?.settings || {};
+  // Use local state for form fields, only update workspace on submit
+  const [localTemplate, setLocalTemplate] = useState(workspace?.activeTemplate || "dockerfile");
+  const [localSettings, setLocalSettings] = useState({ ...workspace?.settings } || {});
+  const activeTemplate = localTemplate;
+  const settings = localSettings;
 
   const generators = [
     {
@@ -52,22 +57,12 @@ const GenerationSidebar = ({ workspace, setWorkspace }) => {
   ];
 
   const handleGeneratorSelect = (generatorId) => {
-    setWorkspace({
-      activeTemplate: generatorId,
-      settings: {
-        ...settings,
-        lastSelected: generatorId,
-      },
-    });
+    setLocalTemplate(generatorId);
+    setLocalSettings((prev) => ({ ...prev, lastSelected: generatorId }));
   };
 
   const handleSettingChange = (key, value) => {
-    setWorkspace({
-      settings: {
-        ...settings,
-        [key]: value,
-      },
-    });
+    setLocalSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -263,33 +258,17 @@ const GenerationSidebar = ({ workspace, setWorkspace }) => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
-                // Trigger generation by updating workspace
+                // Only update workspace on submit
                 setWorkspace({
-                  activeTemplate: activeTemplate,
-                  settings: settings,
-                  generatedCode: {
-                    type: activeTemplate,
-                    content: `# Generated ${activeTemplate} configuration\n# This will be replaced by actual AI-generated content\n\n# Settings used:\n${Object.entries(
-                      settings
-                    )
-                      .map(([key, value]) => `# ${key}: ${value}`)
-                      .join("\n")}`,
-                    timestamp: new Date().toISOString(),
-                  },
-                  history: [
-                    ...(workspace.history || []),
-                    {
-                      type: activeTemplate,
-                      settings,
-                      timestamp: new Date().toISOString(),
-                    },
-                  ],
+                  activeTemplate: localTemplate,
+                  settings: localSettings,
+                  generatedCode: null, // Clear previous generation
                 });
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors body"
             >
               <FiZap className="w-4 h-4" />
-              Generate Configuration
+              Apply Settings
             </motion.button>
           </>
         )}
