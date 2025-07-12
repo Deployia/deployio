@@ -1,26 +1,38 @@
 // Business Chat Service for deployio Customer Support
-// Specialized AI assistant for customer inquiries about deployio platform
+// Now uses backend server for proper authentication and AI service integration
+
+import api from "../utils/api";
 
 class BusinessChatService {
   constructor() {
-    this.apiKey =
-      import.meta.env.VITE_GROQ_API_KEY ||
-      import.meta.env.VITE_APP_GROQ_API_KEY ||
-      null;
-    this.baseURL = "https://api.groq.com/openai/v1/chat/completions";
-    this.model = "llama3-8b-8192"; // Fast and reliable model
+    this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    this.apiEndpoint = `${this.baseURL}/api/v1/ai/chat`;
 
     // Conversation history to maintain context
     this.conversationHistory = [];
   }
 
-  // Check if API key is configured
+  // Check if backend API is configured
   isConfigured() {
-    return !!this.apiKey && this.apiKey !== "your_groq_api_key_here";
+    return !!this.baseURL;
   }
 
   // Initialize conversation with welcome message
-  initializeConversation() {
+  async initializeConversation() {
+    try {
+      const response = await api.get(`/ai/chat/business/welcome`);
+      if (response.data.success) {
+        return {
+          message: response.data.data.message,
+          isBot: true,
+          timestamp: new Date(response.data.data.timestamp),
+          suggestions: response.data.data.suggestions,
+        };
+      }
+    } catch (error) {
+      console.error("Failed to get welcome message:", error);
+    }
+    // Fallback welcome message
     this.conversationHistory = [];
     return {
       message:
@@ -37,63 +49,45 @@ class BusinessChatService {
   }
 
   // Generate response for business inquiries
-  async generateBusinessResponse(userMessage) {
-    if (!this.isConfigured()) {
-      return this.getFallbackBusinessResponse(userMessage);
-    }
-
-    // Add user message to conversation history
-    this.conversationHistory.push({
-      role: "user",
-      content: userMessage,
-    });
-
-    const systemPrompt = this.getBusinessSystemPrompt();
-
+  async generateBusinessResponse(userMessage, sessionId = "default") {
     try {
-      const response = await fetch(this.baseURL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
+      const response = await api.post(
+        `/ai/chat/business`,
+        {
+          message: userMessage,
+          session_id: sessionId,
         },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...this.conversationHistory.slice(-10), // Keep last 10 messages for context
-          ],
-          temperature: 0.7,
-          max_tokens: 1024,
-          stream: false,
-        }),
-      });
+        {
+          timeout: 30000, // 30 second timeout
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(
-          `Groq API error: ${response.status} ${response.statusText}`
-        );
+      if (response.data.success) {
+        const botResponse = response.data.data;
+
+        // Add to conversation history
+        this.conversationHistory.push({
+          role: "user",
+          content: userMessage,
+        });
+        this.conversationHistory.push({
+          role: "assistant",
+          content: botResponse.message,
+        });
+
+        return {
+          message: botResponse.message,
+          isBot: true,
+          timestamp: new Date(botResponse.timestamp),
+          suggestions:
+            botResponse.suggestions ||
+            this.generateSuggestions(userMessage, botResponse.message),
+        };
+      } else {
+        throw new Error(response.data.message || "API request failed");
       }
-
-      const data = await response.json();
-      const botResponse =
-        data.choices[0]?.message?.content ||
-        "I apologize, but I couldn't generate a response. Please try asking again.";
-
-      // Add bot response to conversation history
-      this.conversationHistory.push({
-        role: "assistant",
-        content: botResponse,
-      });
-
-      return {
-        message: botResponse,
-        isBot: true,
-        timestamp: new Date(),
-        suggestions: this.generateSuggestions(userMessage, botResponse),
-      };
     } catch (error) {
-      console.error("Business Chat Service Error:", error);
+      console.error("Business chat service error:", error);
       return this.getFallbackBusinessResponse(userMessage);
     }
   }
@@ -152,11 +146,6 @@ class BusinessChatService {
       "Show me a demo",
       "How do I contact sales?",
     ];
-  }
-
-  // Get specialized business system prompt for deployio
-  getBusinessSystemPrompt() {
-    return `You are DeployBot, a concise and friendly AI assistant for deployio, an AI-powered DevOps platform. Answer user questions about deployio's features, pricing, technical help, and getting started. Keep responses short, clear, and actionable. Use bullet points and markdown. If unsure, suggest contacting support. Example topics: How deployio works, pricing, Docker help, integrations, onboarding.`;
   }
 
   // Fallback responses when API is not available
@@ -251,14 +240,36 @@ class BusinessChatService {
     };
   }
 
-  // Clear conversation history
-  resetConversation() {
+  // Reset conversation history
+  async resetConversation(sessionId = "default") {
+    try {
+      await api.post(`/ai/chat/business/reset`, null, {
+        params: { session_id: sessionId },
+        timeout: 10000, // 10 second timeout
+      });
+    } catch (error) {
+      console.error("Failed to reset conversation on server:", error);
+    }
+    // Reset local history regardless
     this.conversationHistory = [];
   }
 
   // Get conversation history
   getConversationHistory() {
     return this.conversationHistory;
+  }
+
+  // Check service health
+  async checkHealth() {
+    try {
+      const response = await api.get(`/ai/chat/health`, {
+        timeout: 10000,
+      });
+      return response.data.success ? response.data.data : null;
+    } catch (error) {
+      console.error("Health check failed:", error);
+      return null;
+    }
   }
 }
 

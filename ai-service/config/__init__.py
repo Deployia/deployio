@@ -13,6 +13,7 @@ from .settings import settings
 from .logging import setup_logging, get_logger
 from websockets.manager import ai_websocket_manager
 from engines.enhancers.llm_enhancer import LLMEnhancer
+from services.chatbot_service import initialize_chatbot_services
 
 # Setup logging configuration
 setup_logging(debug=settings.debug)
@@ -50,6 +51,14 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.error(f"ENGINE NOT READY: {e}")
         # --- END ENGINE HEALTH CHECK ---
+
+        # --- CHATBOT SERVICES INITIALIZATION ---
+        try:
+            await initialize_chatbot_services()
+            logger.info("CHATBOT SERVICES: Initialized successfully")
+        except Exception as e:
+            logger.error(f"CHATBOT SERVICES INITIALIZATION FAILED: {e}")
+        # --- END CHATBOT SERVICES INITIALIZATION ---
 
         yield
         # Shutdown

@@ -1,64 +1,74 @@
-// Simple LLM Service using Groq API
-// This is a client-side implementation for testing purposes
-// In production, this should be moved to the backend
+// DevOps Chat Service using Backend Server
+// This communicates with the backend server which handles authentication and AI service communication
+
+import api from "../utils/api";
 
 class DevopsChatService {
   constructor() {
-    this.apiKey =
-      import.meta.env.VITE_GROQ_API_KEY ||
-      import.meta.env.VITE_APP_GROQ_API_KEY ||
-      null;
-    this.baseURL = "https://api.groq.com/openai/v1/chat/completions";
-    this.model = "llama3-8b-8192"; // Fast and reliable model
+    this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    this.apiEndpoint = `${this.baseURL}/api/v1/ai/chat`;
   }
 
-  // Check if API key is configured
+  // Check if API is configured
   isConfigured() {
-    return !!this.apiKey && this.apiKey !== "your_groq_api_key_here";
+    return !!this.baseURL;
   }
 
-  // Generate response using Groq API
+  // Generate response using backend AI service
   async generateResponse(userMessage, context = {}) {
     if (!this.isConfigured()) {
-      throw new Error("Groq API key not configured");
+      return this.getFallbackResponse(userMessage);
     }
-
-    const systemPrompt = this.getSystemPrompt(context);
 
     try {
-      const response = await fetch(this.baseURL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
+      const response = await api.post(
+        `/ai/chat/devops`,
+        {
+          message: userMessage,
+          context: context,
         },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
-          temperature: 0.7,
-          max_tokens: 1024,
-          stream: false,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Groq API error: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-      return (
-        data.choices[0]?.message?.content ||
-        "Sorry, I could not generate a response."
+        {
+          headers: {
+            ...this._getAuthHeaders(),
+          },
+          timeout: 30000, // 30 second timeout
+        }
       );
+
+      if (response.data.success) {
+        return response.data.data.message;
+      } else {
+        throw new Error(response.data.message || "API request failed");
+      }
     } catch (error) {
-      console.error("LLM Service Error:", error);
-      throw error;
+      console.error("DevOps Chat Service Error:", error);
+
+      // Return fallback if API fails
+      return this.getFallbackResponse(userMessage);
     }
+  }
+
+  // Get authentication headers from stored tokens
+  _getAuthHeaders() {
+    const token = localStorage.getItem("token") || this._getCookieToken();
+    if (token) {
+      return {
+        Authorization: `Bearer ${token}`,
+      };
+    }
+    return {};
+  }
+
+  // Get token from cookies (fallback)
+  _getCookieToken() {
+    const cookies = document.cookie.split(";");
+    for (let cookie of cookies) {
+      const [name, value] = cookie.trim().split("=");
+      if (name === "token") {
+        return value;
+      }
+    }
+    return null;
   }
 
   // Get system prompt for DeployBot
@@ -255,7 +265,20 @@ resource "aws_instance" "web" {
 
 💡 **Tip:** Try asking about specific topics like "Docker best practices" or "Kubernetes deployment"
 
-To get personalized responses, configure your Groq API key in \`VITE_GROQ_API_KEY\` environment variable.`;
+To get personalized responses from our AI assistant, please make sure you're logged in to your DeployIO account.`;
+  }
+
+  // Check service health
+  async checkHealth() {
+    try {
+      const response = await api.get(`/ai/chat/health`, {
+        timeout: 10000,
+      });
+      return response.data.success ? response.data.data : null;
+    } catch (error) {
+      console.error("DevOps chat health check failed:", error);
+      return null;
+    }
   }
 }
 

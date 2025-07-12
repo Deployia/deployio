@@ -67,15 +67,17 @@ Click on a suggestion below or ask me anything about DevOps!`,
   // Enhanced AI responses using LLM service
   const getAIResponse = async (userMessage) => {
     try {
-      // Try to use DevOpsChat service first
       if (devopsChatService.isConfigured()) {
         const context = {
-          activeFile: null, // Could pass active file from props
+          activeFile: null,
           repository: "Deployio Playground",
         };
-        return await devopsChatService.generateResponse(userMessage, context);
+        const response = await devopsChatService.generateResponse(
+          userMessage,
+          context
+        );
+        return response;
       } else {
-        // Fall back to predefined responses
         return devopsChatService.getFallbackResponse(userMessage);
       }
     } catch (error) {
@@ -112,13 +114,23 @@ Click on a suggestion below or ask me anything about DevOps!`,
       // Get AI response using LLM service
       const aiResponse = await getAIResponse(currentInput);
 
-      const aiMessage = {
-        id: Date.now() + 1,
-        type: "ai",
-        content: aiResponse,
-        timestamp: new Date().toISOString(),
-      };
-
+      let aiMessage;
+      if (typeof aiResponse === "string") {
+        aiMessage = {
+          id: Date.now() + 1,
+          type: "ai",
+          content: aiResponse,
+          timestamp: new Date().toISOString(),
+        };
+      } else {
+        aiMessage = {
+          id: Date.now() + 1,
+          type: "ai",
+          content: aiResponse.message || "",
+          timestamp: aiResponse.timestamp || new Date().toISOString(),
+          suggestions: aiResponse.suggestions || [],
+        };
+      }
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error("Failed to get AI response:", error);

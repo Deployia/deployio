@@ -8,6 +8,7 @@ Provides comprehensive endpoints with proper error handling.
 from fastapi import APIRouter
 from .health import router as health_router
 from .analysis_routes import create_analysis_routes
+from .chatbot_routes import create_chatbot_routes
 from .dev import router as dev_router  # noqa: F401
 import os
 
@@ -19,6 +20,7 @@ def create_routes() -> APIRouter:
     Unified structure:
     - /service/v1/health - Health checks
     - /service/v1/analysis - All analysis operations with integrated config generation
+    - /service/v1/chatbot - Business and DevOps chatbot services
     """
     api_router = APIRouter()
 
@@ -34,6 +36,13 @@ def create_routes() -> APIRouter:
         create_analysis_routes(),
         prefix="/service/v1/analysis",
         tags=["Analysis"],
+    )
+
+    # Chatbot endpoints
+    api_router.include_router(
+        create_chatbot_routes(),
+        prefix="/service/v1/chatbot",
+        tags=["Chatbot"],
     )
 
     # Dev endpoints (only in non-production)

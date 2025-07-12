@@ -22,8 +22,18 @@ const BusinessChatbot = () => {
   // Initialize chatbot with welcome message
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      const welcomeMessage = businessChatService.initializeConversation();
-      setMessages([welcomeMessage]);
+      (async () => {
+        const welcomeMessage =
+          await businessChatService.initializeConversation();
+        setMessages([
+          {
+            message: welcomeMessage.message,
+            isBot: true,
+            timestamp: welcomeMessage.timestamp || new Date(),
+            suggestions: welcomeMessage.suggestions || [],
+          },
+        ]);
+      })();
     }
   }, [isOpen, messages.length]);
 
