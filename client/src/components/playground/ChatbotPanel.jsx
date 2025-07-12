@@ -13,7 +13,7 @@ import {
   FiBookOpen,
   FiSettings,
 } from "react-icons/fi";
-import devopsChatService from "../../services/devopsChatSservice";
+import devopsChatService from "../../services/devopsChatService";
 
 const ChatbotPanel = () => {
   const { user } = useSelector((state) => state.auth);
