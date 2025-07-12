@@ -1,45 +1,56 @@
-import axios from "axios";
+// Repository Service using Backend Server
+// This communicates with the backend server which handles authentication and Git provider integration
 
-// TODO: Move this to backend with proper authentication and token management
-// This is a temporary client-side implementation for development
+import api from "../utils/api";
 
-const GITHUB_API_BASE = "https://api.github.com";
-
-class GitHubService {
-  constructor(token = null) {
-    this.token = token;
-    this.owner = "vasudevshetty";
-    this.repo = "mern";
-    this.branch = "main";
-
-    // Create axios instance with default config
-    this.api = axios.create({
-      baseURL: GITHUB_API_BASE,
-      headers: {
-        Accept: "application/vnd.github.v3+json",
-        ...(this.token && { Authorization: `token ${this.token}` }),
-      },
-    });
+class RepositoryService {
+  constructor() {
+    this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    this.apiEndpoint = `${this.baseURL}/api/v1/users/git-providers`;
+    this.provider = "github"; // Default provider
   }
 
-  // Set GitHub token
-  setToken(token) {
-    this.token = token;
-    this.api.defaults.headers["Authorization"] = `token ${token}`;
+  // Check if API is configured
+  isConfigured() {
+    return !!this.baseURL;
   }
 
-  // Set repository (owner and repo name)
-  setRepository(owner, repo, branch = "main") {
-    this.owner = owner;
-    this.repo = repo;
-    this.branch = branch;
+  // No manual authentication logic needed; api.js handles auth
+
+  // Set provider (github, gitlab, etc.)
+  setProvider(provider) {
+    this.provider = provider;
+  }
+
+  // Get available providers
+  async getProviders() {
+    try {
+      const response = await api.get(`/users/git-providers`);
+      return response.data.success ? response.data.data : null;
+    } catch (error) {
+      console.error("Error fetching providers:", error);
+      throw this.handleError(error);
+    }
+  }
+
+  // Get connected providers
+  async getConnectedProviders() {
+    try {
+      const response = await api.get(`/users/git-providers/connected`);
+      return response.data.success ? response.data.data : [];
+    } catch (error) {
+      console.error("Error fetching connected providers:", error);
+      throw this.handleError(error);
+    }
   }
 
   // Get repository information
-  async getRepository() {
+  async getRepository(owner, repo) {
     try {
-      const response = await this.api.get(`/repos/${this.owner}/${this.repo}`);
-      return response.data;
+      const response = await api.get(
+        `/users/git-providers/${this.provider}/repositories/${owner}/${repo}`
+      );
+      return response.data.success ? response.data.data : null;
     } catch (error) {
       console.error("Error fetching repository:", error);
       throw this.handleError(error);
@@ -47,14 +58,15 @@ class GitHubService {
   }
 
   // Get repository tree (file structure)
-  async getRepositoryTree(recursive = true) {
+  async getRepositoryTree(owner, repo, branch = "main", recursive = true) {
     try {
-      const response = await this.api.get(
-        `/repos/${this.owner}/${this.repo}/git/trees/${this.branch}?recursive=${
-          recursive ? 1 : 0
-        }`
+      const response = await api.get(
+        `/users/git-providers/${this.provider}/repositories/${owner}/${repo}/tree`,
+        {
+          params: { branch, recursive },
+        }
       );
-      return response.data;
+      return response.data.success ? response.data.data : null;
     } catch (error) {
       console.error("Error fetching repository tree:", error);
       throw this.handleError(error);
@@ -62,21 +74,15 @@ class GitHubService {
   }
 
   // Get file content
-  async getFileContent(path) {
+  async getFileContent(owner, repo, path, branch = "main") {
     try {
-      const response = await this.api.get(
-        `/repos/${this.owner}/${this.repo}/contents/${path}?ref=${this.branch}`
+      const response = await api.get(
+        `/users/git-providers/${this.provider}/repositories/${owner}/${repo}/contents/${path}`,
+        {
+          params: { branch },
+        }
       );
-
-      // Decode base64 content if it's a file
-      if (response.data.type === "file" && response.data.content) {
-        return {
-          ...response.data,
-          decodedContent: atob(response.data.content.replace(/\n/g, "")),
-        };
-      }
-
-      return response.data;
+      return response.data.success ? response.data.data : null;
     } catch (error) {
       console.error("Error fetching file content:", error);
       throw this.handleError(error);
@@ -84,16 +90,23 @@ class GitHubService {
   }
 
   // Get multiple files content (for initial load)
-  async getMultipleFiles(paths) {
+  async getMultipleFiles(owner, repo, paths, branch = "main") {
     try {
-      const promises = paths.map((path) => this.getFileContent(path));
+      const promises = paths.map((path) =>
+        this.getFileContent(owner, repo, path, branch).catch((error) => ({
+          path,
+          error: error.message,
+          success: false,
+        }))
+      );
       const results = await Promise.allSettled(promises);
 
       return results.map((result, index) => ({
         path: paths[index],
-        success: result.status === "fulfilled",
+        success: result.status === "fulfilled" && !result.value?.error,
         data: result.status === "fulfilled" ? result.value : null,
-        error: result.status === "rejected" ? result.reason : null,
+        error:
+          result.status === "rejected" ? result.reason : result.value?.error,
       }));
     } catch (error) {
       console.error("Error fetching multiple files:", error);
@@ -102,7 +115,16 @@ class GitHubService {
   }
 
   // Transform GitHub tree to our file structure format
-  transformTreeToFileStructure(tree) {
+  transformTreeToFileStructure(tree, repositoryName) {
+    if (!tree || !tree.tree) {
+      return {
+        id: "root",
+        name: repositoryName || "Repository",
+        type: "folder",
+        children: [],
+      };
+    }
+
     const fileMap = new Map();
     const rootChildren = [];
 
@@ -133,7 +155,6 @@ class GitHubService {
         name: name,
         type: item.type === "tree" ? "folder" : "file",
         path: item.path,
-        sha: item.sha,
         size: item.size || 0,
         ...(item.type === "blob" && {
           language: this.getLanguageFromPath(item.path),
@@ -172,7 +193,7 @@ class GitHubService {
 
     return {
       id: "root",
-      name: this.repo,
+      name: repositoryName || "Repository",
       type: "folder",
       children: rootChildren,
     };
@@ -223,16 +244,46 @@ class GitHubService {
     return !readOnlyPatterns.some((pattern) => pattern.test(path));
   }
 
+  // Parse repository URL to extract owner and repo
+  parseRepositoryUrl(repositoryUrl) {
+    try {
+      const url = new URL(repositoryUrl);
+      const pathParts = url.pathname.split("/").filter(Boolean);
+
+      if (pathParts.length >= 2) {
+        return {
+          owner: pathParts[0],
+          repo: pathParts[1].replace(/\.git$/, ""), // Remove .git suffix if present
+        };
+      }
+
+      throw new Error("Invalid repository URL format");
+    } catch {
+      throw new Error(`Invalid repository URL: ${repositoryUrl}`);
+    }
+  }
+
+  // Test provider connection
+  async testConnection(provider = this.provider) {
+    try {
+      const response = await api.get(`/users/git-providers/${provider}/test`);
+      return response.data.success ? response.data.data : null;
+    } catch (error) {
+      console.error("Error testing connection:", error);
+      throw this.handleError(error);
+    }
+  }
+
   // Error handling
   handleError(error) {
     if (error.response) {
-      // GitHub API error
+      // Backend API error
       const { status, data } = error.response;
       return {
         type: "api_error",
         status,
-        message: data.message || "GitHub API error",
-        documentation_url: data.documentation_url,
+        message: data.message || "Backend API error",
+        details: data.error,
       };
     } else if (error.request) {
       // Network error
@@ -248,10 +299,21 @@ class GitHubService {
       };
     }
   }
+
+  // Check service health
+  async checkHealth() {
+    try {
+      const response = await api.get(`/users/git-providers`);
+      return response.data.success;
+    } catch (error) {
+      console.error("Repository service health check failed:", error);
+      return false;
+    }
+  }
 }
 
 // Create singleton instance
-const gitHubService = new GitHubService();
+const repositoryService = new RepositoryService();
 
-export default gitHubService;
-export { GitHubService };
+export default repositoryService;
+export { RepositoryService };

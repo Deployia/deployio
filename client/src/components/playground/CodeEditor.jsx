@@ -11,7 +11,7 @@ import {
 import { FaCode, FaSpinner, FaTerminal } from "react-icons/fa";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import gitHubService from "../../services/githubService";
+import repositoryService from "@services/repositoryService";
 
 // Helper function to determine language from filename
 const getLanguageFromFilename = (filename) => {
@@ -58,7 +58,6 @@ const CodeEditor = ({
   setWorkspace,
   onFileSelect,
   onLoadingChange,
-  githubToken,
   selectedRepo,
   terminalVisible,
   setTerminalVisible,
@@ -68,30 +67,10 @@ const CodeEditor = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Initialize GitHub service with token and repository
+  // Set repository service provider
   useEffect(() => {
-
-    if (
-      githubToken &&
-      githubToken !== "your_github_token_here" &&
-      selectedRepo
-    ) {
-      gitHubService.setToken(githubToken);
-
-      // Extract owner and repo from URL
-      const urlParts = selectedRepo.url
-        .replace("https://github.com/", "")
-        .split("/");
-      const owner = urlParts[0];
-      const repo = urlParts[1];
-
-      gitHubService.setRepository(owner, repo);
-    } else {
-      console.log(
-        "CodeEditor: GitHub service not initialized - missing token or repo"
-      );
-    }
-  }, [githubToken, selectedRepo]);
+    repositoryService.setProvider("github");
+  }, []);
 
   // Helper function to check if file is binary
   const isBinaryFile = (filename) => {
@@ -138,11 +117,8 @@ const CodeEditor = ({
         return;
       }
 
-      // Check if GitHub token is available
-      if (!githubToken || githubToken === "your_github_token_here") {
-        setError(
-          "GitHub token not configured. Please add VITE_GITHUB_TOKEN environment variable."
-        );
+      if (!selectedRepo) {
+        setError("No repository selected");
         return;
       }
 
@@ -202,12 +178,25 @@ const CodeEditor = ({
         ]);
         setActiveFile(loadingFile);
 
-        // Fetch file content from GitHub
-        const fileData = await gitHubService.getFileContent(file.path);
+        // Extract owner and repo from repository URL
+        const { owner, repo } = repositoryService.parseRepositoryUrl(
+          selectedRepo.url
+        );
+
+        // Fetch file content from repository service
+        const fileData = await repositoryService.getFileContent(
+          owner,
+          repo,
+          file.path
+        );
+
+        if (!fileData) {
+          throw new Error("File not found");
+        }
 
         const fileWithContent = {
           ...file,
-          content: fileData.decodedContent,
+          content: fileData.content || fileData.decodedContent,
           sha: fileData.sha,
           size: fileData.size,
           isBinary: false,
@@ -243,7 +232,7 @@ const CodeEditor = ({
         onLoadingChange?.(false);
       }
     },
-    [openFiles, setWorkspace, githubToken, onLoadingChange]
+    [openFiles, setWorkspace, selectedRepo, onLoadingChange]
   );
 
   // Register file selection handler with parent
@@ -276,9 +265,6 @@ const CodeEditor = ({
 
   // Render welcome screen
   const renderWelcomeScreen = () => {
-    const hasValidToken =
-      githubToken && githubToken !== "your_github_token_here";
-
     return (
       <div className="flex items-center justify-center h-full bg-neutral-900">
         <div className="text-center max-w-md">
@@ -291,7 +277,7 @@ const CodeEditor = ({
             <h2 className="text-2xl font-bold text-white mb-4 heading">
               Welcome to Deployio Code Editor
             </h2>
-            {hasValidToken ? (
+            {selectedRepo ? (
               <p className="text-neutral-400 leading-relaxed body">
                 Explore the GitHub repository structure from the file explorer
                 and select a file to start coding. This playground is connected
@@ -302,20 +288,9 @@ const CodeEditor = ({
                 repository.
               </p>
             ) : (
-              <div className="space-y-4">
-                <p className="text-neutral-400 leading-relaxed body">
-                  To view file contents, you need to configure a GitHub token.
-                </p>
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                  <p className="text-amber-400 text-sm">
-                    <strong>Setup Required:</strong> Add your GitHub token to{" "}
-                    <code className="bg-neutral-800 px-1 rounded">
-                      VITE_APP_GITHUB_TOKEN
-                    </code>{" "}
-                    environment variable.
-                  </p>
-                </div>
-              </div>
+              <p className="text-neutral-400 leading-relaxed body">
+                Please select a repository to start exploring code.
+              </p>
             )}
           </motion.div>
 
@@ -461,6 +436,7 @@ const CodeEditor = ({
                       closeFile(file);
                     }}
                     className="p-1 rounded hover:bg-neutral-700/50 opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0"
+                    aria-label={`Close ${file.name}`}
                   >
                     <FiX className="w-3 h-3" />
                   </motion.button>
@@ -505,29 +481,30 @@ const CodeEditor = ({
             <div className="text-center">
               <FiFileText className="w-12 h-12 text-neutral-600 mx-auto mb-4" />
               <div className="text-neutral-400 body">
-                {loading ? "Loading file content..." : "No content available"}
+                {loading
+                  ? "Loading file content..."
+                  : error
+                  ? "Failed to load file content."
+                  : "No content available"}
               </div>
-              {/* Enhanced debug info */}
-              <div className="text-xs text-neutral-600 mt-4 space-y-1 bg-neutral-800/50 p-4 rounded-lg">
-                <div>Debug Info:</div>
-                <div>• hasContent: {String(!!activeFile.content)}</div>
-                <div>• loading: {String(loading)}</div>
-                <div>• fileName: {activeFile.name}</div>
-                <div>• filePath: {activeFile.path}</div>
-                <div>• contentLength: {activeFile.content?.length || 0}</div>
-                <div>
-                  • contentPreview:{" "}
-                  {activeFile.content?.substring(0, 50) || "None"}
+              {/* Only show debug info in development */}
+              {import.meta.env.VITE_APP_ENV === "development" && (
+                <div className="text-xs text-neutral-600 mt-4 space-y-1 bg-neutral-800/50 p-4 rounded-lg">
+                  <div>Debug Info:</div>
+                  <div>• hasContent: {String(!!activeFile.content)}</div>
+                  <div>• loading: {String(loading)}</div>
+                  <div>• fileName: {activeFile.name}</div>
+                  <div>• filePath: {activeFile.path}</div>
+                  <div>• contentLength: {activeFile.content?.length || 0}</div>
+                  <div>
+                    • contentPreview:{" "}
+                    {activeFile.content?.substring(0, 50) || "None"}
+                  </div>
+                  <div>• isBinary: {String(!!activeFile.isBinary)}</div>
+                  <div>• isAuthenticated: {String(!!selectedRepo)}</div>
+                  <div>• error: {error || "None"}</div>
                 </div>
-                <div>• isBinary: {String(!!activeFile.isBinary)}</div>
-                <div>
-                  • hasToken:{" "}
-                  {String(
-                    !!githubToken && githubToken !== "your_github_token_here"
-                  )}
-                </div>
-                <div>• error: {error || "None"}</div>
-              </div>
+              )}
             </div>
           </div>
         )}

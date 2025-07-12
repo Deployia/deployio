@@ -11,22 +11,6 @@ class GitProviderService {
    * Helper method to check if user has valid token for provider
    */
   static _hasValidGitProviderToken(user, provider) {
-    console.log(`Checking token validity for ${provider}:`, {
-      hasGitProviders: !!user.gitProviders,
-      hasProvider: !!(user.gitProviders && user.gitProviders[provider]),
-      providerData:
-        user.gitProviders && user.gitProviders[provider]
-          ? {
-              isConnected: user.gitProviders[provider].isConnected,
-              hasAccessToken: !!user.gitProviders[provider].accessToken,
-              tokenExpiry: user.gitProviders[provider].tokenExpiry,
-              isTokenExpired: user.gitProviders[provider].tokenExpiry
-                ? user.gitProviders[provider].tokenExpiry <= new Date()
-                : false,
-            }
-          : null,
-    });
-
     if (!user.gitProviders || !user.gitProviders[provider]) {
       return false;
     }
@@ -39,13 +23,58 @@ class GitProviderService {
   }
 
   /**
-   * Helper method to get git provider token
+   * Helper method to get git provider token with playground fallback
    */
-  static _getGitProviderToken(user, provider) {
-    if (!user.gitProviders || !user.gitProviders[provider]) {
-      throw new Error(`No ${provider} provider connected`);
+  static _getGitProviderToken(user, provider, isPlaygroundRequest = false) {
+    // First try to get user's own token
+    if (
+      user.gitProviders &&
+      user.gitProviders[provider] &&
+      user.gitProviders[provider].accessToken
+    ) {
+      return user.gitProviders[provider].accessToken;
     }
-    return user.gitProviders[provider].accessToken;
+
+    // If no user token and this is a playground request, use environment token
+    if (isPlaygroundRequest && provider === "github") {
+      const playgroundToken =
+        process.env.GITHUB_TOKEN || process.env.GITHUB_PLAYGROUND_TOKEN;
+      if (playgroundToken && playgroundToken !== "your_github_token_here") {
+        console.log(
+          `Using environment GitHub token for playground request for user ${user._id}`
+        );
+        return playgroundToken;
+      }
+    }
+
+    throw new Error(
+      `No ${provider} provider connected and no playground token available`
+    );
+  }
+
+  /**
+   * Helper method to check if user has valid token or playground fallback is available
+   */
+  static _hasValidGitProviderTokenOrFallback(
+    user,
+    provider,
+    isPlaygroundRequest = false
+  ) {
+    // Check if user has their own valid token
+    if (this._hasValidGitProviderToken(user, provider)) {
+      return true;
+    }
+
+    // Check if playground fallback is available
+    if (isPlaygroundRequest && provider === "github") {
+      const playgroundToken =
+        process.env.GITHUB_TOKEN || process.env.GITHUB_PLAYGROUND_TOKEN;
+      return !!(
+        playgroundToken && playgroundToken !== "your_github_token_here"
+      );
+    }
+
+    return false;
   }
 
   /**
@@ -241,8 +270,9 @@ class GitProviderService {
    */
   static async getRepositories(userId, provider, options = {}) {
     try {
+      const isPlaygroundRequest = options.isPlayground || false;
+
       // Make sure to select the access tokens since they have select: false in schema
-      // For nested fields with select: false, we need to explicitly include them
       const user = await User.findById(userId).select(
         `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
       );
@@ -252,6 +282,7 @@ class GitProviderService {
 
       console.log(`Getting repositories for ${provider}:`, {
         userId,
+        isPlaygroundRequest,
         hasGitProviders: !!user.gitProviders,
         hasProvider: !!(user.gitProviders && user.gitProviders[provider]),
         providerKeys: user.gitProviders ? Object.keys(user.gitProviders) : [],
@@ -267,11 +298,23 @@ class GitProviderService {
             : null,
       });
 
-      if (!this._hasValidGitProviderToken(user, provider)) {
-        throw new Error("No valid token for provider");
+      if (
+        !this._hasValidGitProviderTokenOrFallback(
+          user,
+          provider,
+          isPlaygroundRequest
+        )
+      ) {
+        throw new Error(
+          "No valid token for provider and no playground fallback available"
+        );
       }
 
-      const token = this._getGitProviderToken(user, provider);
+      const token = this._getGitProviderToken(
+        user,
+        provider,
+        isPlaygroundRequest
+      );
       const providerInstance = GitProviderFactory.createProvider(
         provider,
         token
@@ -292,8 +335,10 @@ class GitProviderService {
   /**
    * Get specific repository details
    */
-  static async getRepository(userId, provider, repoFullName) {
+  static async getRepository(userId, provider, repoFullName, options = {}) {
     try {
+      const isPlaygroundRequest = options.isPlayground || false;
+
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
         `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
@@ -302,21 +347,43 @@ class GitProviderService {
         throw new Error("User not found");
       }
 
-      if (!this._hasValidGitProviderToken(user, provider)) {
-        throw new Error("No valid token for provider");
+      if (
+        !this._hasValidGitProviderTokenOrFallback(
+          user,
+          provider,
+          isPlaygroundRequest
+        )
+      ) {
+        throw new Error(
+          "No valid token for provider and no playground fallback available"
+        );
       }
 
-      const token = this._getGitProviderToken(user, provider);
+      const token = this._getGitProviderToken(
+        user,
+        provider,
+        isPlaygroundRequest
+      );
       const providerInstance = GitProviderFactory.createProvider(
         provider,
         token
       );
 
-      const repository = await providerInstance.getRepository(repoFullName);
+      // Split full name into owner and repo
+      const [ownerName, repoName] = repoFullName.split("/");
+      if (!ownerName || !repoName) {
+        throw new Error(`Invalid repository full name: ${repoFullName}`);
+      }
+      const repository = await providerInstance.getRepository(
+        ownerName,
+        repoName
+      );
 
-      // Update last used timestamp
-      this._updateProviderLastUsed(user, provider);
-      await user.save();
+      // Only update last used timestamp if user has their own token
+      if (this._hasValidGitProviderToken(user, provider)) {
+        this._updateProviderLastUsed(user, provider);
+        await user.save();
+      }
 
       return repository;
     } catch (error) {
@@ -761,6 +828,137 @@ class GitProviderService {
           file_tree: [],
         };
       }
+    }
+  }
+
+  /**
+   * Get repository tree (file structure)
+   */
+  static async getRepositoryTree(
+    userId,
+    provider,
+    owner,
+    repo,
+    branch = "main",
+    recursive = true,
+    options = {}
+  ) {
+    try {
+      const isPlaygroundRequest = options.isPlayground || false;
+
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (
+        !this._hasValidGitProviderTokenOrFallback(
+          user,
+          provider,
+          isPlaygroundRequest
+        )
+      ) {
+        throw new Error(
+          `No valid ${provider} token found and no playground fallback available`
+        );
+      }
+
+      const token = this._getGitProviderToken(
+        user,
+        provider,
+        isPlaygroundRequest
+      );
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
+      );
+
+      // Only update last used timestamp if user has their own token
+      if (this._hasValidGitProviderToken(user, provider)) {
+        this._updateProviderLastUsed(user, provider);
+        await user.save();
+      }
+
+      const tree = await providerInstance.getRepositoryTree(
+        owner,
+        repo,
+        branch
+      );
+
+      return {
+        sha: tree.sha,
+        truncated: tree.truncated,
+        tree: tree.files || tree.tree || [],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get repository tree: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get file content
+   */
+  static async getFileContent(
+    userId,
+    provider,
+    owner,
+    repo,
+    filePath,
+    branch = "main",
+    options = {}
+  ) {
+    try {
+      const isPlaygroundRequest = options.isPlayground || false;
+
+      // Make sure to select the access tokens since they have select: false in schema
+      const user = await User.findById(userId).select(
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+      );
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (
+        !this._hasValidGitProviderTokenOrFallback(
+          user,
+          provider,
+          isPlaygroundRequest
+        )
+      ) {
+        throw new Error(
+          `No valid ${provider} token found and no playground fallback available`
+        );
+      }
+
+      const token = this._getGitProviderToken(
+        user,
+        provider,
+        isPlaygroundRequest
+      );
+      const providerInstance = GitProviderFactory.createProvider(
+        provider,
+        token
+      );
+
+      // Only update last used timestamp if user has their own token
+      if (this._hasValidGitProviderToken(user, provider)) {
+        this._updateProviderLastUsed(user, provider);
+        await user.save();
+      }
+
+      const content = await providerInstance.getFileContent(
+        owner,
+        repo,
+        filePath,
+        branch
+      );
+
+      return content;
+    } catch (error) {
+      throw new Error(`Failed to get file content: ${error.message}`);
     }
   }
 }

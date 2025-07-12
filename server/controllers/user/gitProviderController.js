@@ -186,6 +186,7 @@ const getRepositories = async (req, res) => {
       visibility = "all",
       affiliation = "owner,collaborator",
       search,
+      playground = false, // Check for playground flag
     } = req.query;
 
     const options = {
@@ -196,6 +197,7 @@ const getRepositories = async (req, res) => {
       visibility,
       affiliation,
       search,
+      isPlayground: playground === "true" || playground === true,
     };
 
     const result = await GitProviderService.getRepositories(
@@ -234,12 +236,24 @@ const getRepositories = async (req, res) => {
 const getRepository = async (req, res) => {
   try {
     const { provider, owner, repo } = req.params;
+    if (!provider || !owner || !repo) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing provider, owner, or repo parameter",
+      });
+    }
+    const { playground = false } = req.query;
     const repoFullName = `${owner}/${repo}`;
+
+    const options = {
+      isPlayground: playground === "true" || playground === true,
+    };
 
     const repository = await GitProviderService.getRepository(
       req.user._id,
       provider,
-      repoFullName
+      repoFullName,
+      options
     );
 
     res.json({
@@ -309,6 +323,84 @@ const getRepositoryData = async (req, res) => {
   }
 };
 
+/**
+ * Get repository tree (file structure)
+ */
+const getRepositoryTree = async (req, res) => {
+  try {
+    const { provider, owner, repo } = req.params;
+    const { branch = "main", recursive = true, playground = false } = req.query;
+
+    const options = {
+      isPlayground: playground === "true" || playground === true,
+    };
+
+    const tree = await GitProviderService.getRepositoryTree(
+      req.user._id,
+      provider,
+      owner,
+      repo,
+      branch,
+      recursive === "true",
+      options
+    );
+
+    res.json({
+      success: true,
+      data: tree,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get file content
+ */
+const getFileContent = async (req, res) => {
+  try {
+    const { provider, owner, repo } = req.params;
+    const { branch = "main", playground = false } = req.query;
+
+    // Extract file path from URL params (everything after /contents/)
+    const filePath = req.params[0] || "";
+
+    const options = {
+      isPlayground: playground === "true" || playground === true,
+    };
+
+    const content = await GitProviderService.getFileContent(
+      req.user._id,
+      provider,
+      owner,
+      repo,
+      filePath,
+      branch,
+      options
+    );
+
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: content,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   // Provider information (read-only)
   getProviders,
@@ -325,4 +417,6 @@ module.exports = {
   getRepository,
   getBranches,
   getRepositoryData,
+  getRepositoryTree,
+  getFileContent,
 };

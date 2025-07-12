@@ -37,6 +37,22 @@ router.get(
   user.gitProvider.getBranches
 );
 
+// Get repository tree/file structure
+router.get(
+  "/:provider/repositories/:owner/:repo/tree",
+  protect,
+  getRateLimiters().gitProviders.repositories,
+  user.gitProvider.getRepositoryTree
+);
+
+// Get file content
+router.get(
+  "/:provider/repositories/:owner/:repo/contents/*",
+  protect,
+  getRateLimiters().gitProviders.repositories,
+  user.gitProvider.getFileContent
+);
+
 // // Analyze repository for AI suggestions
 // router.post(
 //   "/:provider/repositories/:owner/:repo/analyze",

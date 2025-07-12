@@ -18,9 +18,9 @@ import {
   FaCog,
 } from "react-icons/fa";
 import { FiFileText, FiPackage, FiSettings } from "react-icons/fi";
-import gitHubService from "../../services/githubService";
+import repositoryService from "../../services/repositoryService";
 
-const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
+const FileExplorer = ({ onFileSelect, selectedRepo }) => {
   const [expandedFolders, setExpandedFolders] = useState(new Set(["root"]));
   const [searchQuery, setSearchQuery] = useState("");
   const [fileStructure, setFileStructure] = useState(null);
@@ -28,19 +28,9 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
   const [error, setError] = useState(null);
   const [repositoryInfo, setRepositoryInfo] = useState(null);
 
-  // Load GitHub repository data
+  // Load repository data from backend
   useEffect(() => {
     const loadRepositoryData = async () => {
-      if (!githubToken || githubToken === "your_github_token_here") {
-        setError({
-          type: "no_token",
-          message:
-            "GitHub token not configured. Add VITE_APP_GITHUB_TOKEN environment variable.",
-        });
-        setLoading(false);
-        return;
-      }
-
       if (!selectedRepo || !selectedRepo.url) {
         setError({
           type: "no_repo",
@@ -55,25 +45,25 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
         setError(null);
 
         // Extract owner and repo from URL
-        const urlParts = selectedRepo.url
-          .replace("https://github.com/", "")
-          .split("/");
-        const owner = urlParts[0];
-        const repo = urlParts[1];
+        const { owner, repo } = repositoryService.parseRepositoryUrl(
+          selectedRepo.url
+        );
 
-        // Set token and repository in service
-        gitHubService.setToken(githubToken);
-        gitHubService.setRepository(owner, repo);
+        // Set provider to GitHub (this could be dynamic later)
+        repositoryService.setProvider("github");
 
         // Load repository info and tree
         const [repoInfo, treeData] = await Promise.all([
-          gitHubService.getRepository(),
-          gitHubService.getRepositoryTree(true),
+          repositoryService.getRepository(owner, repo),
+          repositoryService.getRepositoryTree(owner, repo, "main", true),
         ]);
 
         setRepositoryInfo(repoInfo);
         const transformedStructure =
-          gitHubService.transformTreeToFileStructure(treeData);
+          repositoryService.transformTreeToFileStructure(
+            treeData,
+            repoInfo?.name
+          );
         setFileStructure(transformedStructure);
 
         // Auto-expand common folders
@@ -94,7 +84,7 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
     };
 
     loadRepositoryData();
-  }, [githubToken, selectedRepo]);
+  }, [selectedRepo]);
 
   // Toggle folder expansion
   const toggleFolder = (folderId) => {
@@ -378,9 +368,15 @@ const FileExplorer = ({ onFileSelect, githubToken, selectedRepo }) => {
               </span>
             </div>
             <div className="text-xs text-neutral-400 mb-3">{error.message}</div>
-            {error.type === "no_token" && (
+            {error.type === "api_error" && error.status === 401 && (
               <div className="text-xs text-neutral-500">
-                Please provide a GitHub token to access the repository.
+                Please make sure you&apos;re logged in and have connected your
+                GitHub account.
+              </div>
+            )}
+            {error.type === "network_error" && (
+              <div className="text-xs text-neutral-500">
+                Please check your internet connection and try again.
               </div>
             )}
           </div>
