@@ -238,7 +238,12 @@ const PlaygroundLayout = () => {
       case "analysis":
         return {
           title: "Analysis Tools",
-          content: <AnalysisSidebar workspace={currentWorkspace} />,
+          content: <AnalysisSidebar 
+            workspace={currentWorkspace} 
+            onSettingsChange={(newSettings) => 
+              updateViewState("analysis", { ...currentWorkspace, settings: newSettings })
+            } 
+          />,
         };
       case "generation":
         return {

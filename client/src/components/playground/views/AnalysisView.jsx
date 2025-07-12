@@ -13,13 +13,32 @@ const AnalysisView = ({ selectedRepo, githubToken }) => {
       performanceCheck: true,
       bestPractices: true,
       codeQuality: true,
+      stackAnalysis: true,
+      dependencyAnalysis: true,
+      codeAnalysis: true,
+      llmEnhancement: true,
+      includeInsights: true,
+      includeRecommendations: true,
+      explainNullFields: false,
+      generateDockerfile: true,
+      generateDockerCompose: true,
+      generateGithubActions: true,
+      analysisScope: 'full_project',
     },
   });
+
+  // Handle settings changes from sidebar
+  const handleSettingsChange = (newSettings) => {
+    setWorkspace(prev => ({
+      ...prev,
+      settings: newSettings,
+    }));
+  };
 
   // Get sidebar content
   const getSidebarContent = () => ({
     title: "Analysis Tools",
-    content: <AnalysisSidebar workspace={workspace} />,
+    content: <AnalysisSidebar workspace={workspace} onSettingsChange={handleSettingsChange} />,
   });
 
   return {
