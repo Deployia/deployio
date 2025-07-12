@@ -45,11 +45,7 @@ class AgentBridgeService extends EventEmitter {
       this.isInitialized = true;
 
       logger.info("Agent Bridge Service initialized successfully", {
-        components: [
-          "ConnectionManager",
-          "StreamRouter",
-          "AccessControl",
-        ],
+        components: ["ConnectionManager", "StreamRouter", "AccessControl"],
         agentNamespace: "/agent-bridge",
       });
 
@@ -208,14 +204,6 @@ class AgentBridgeService extends EventEmitter {
         logger.warning("Received stream from unknown agent", { agentId });
         return false;
       }
-
-      // Process through AI middleware (async, non-blocking)
-      this.aiMiddleware.processLogData(data, {
-        agentId,
-        namespace,
-        event,
-        room,
-      });
 
       // Route to appropriate client namespace
       const routed = await this.streamRouter.routeStream({
@@ -635,7 +623,6 @@ class AgentBridgeService extends EventEmitter {
       componentStatus: {
         connectionManager: this.connectionManager.getStatus(),
         streamRouter: this.streamRouter.getStatus(),
-        aiMiddleware: this.aiMiddleware.getStatus(),
         accessControl: this.accessControl.getStatus(),
       },
     };
@@ -679,7 +666,6 @@ class AgentBridgeService extends EventEmitter {
       // Cleanup components
       await this.connectionManager.cleanup();
       await this.streamRouter.cleanup();
-      await this.aiMiddleware.cleanup();
       await this.accessControl.cleanup();
 
       // Clear maps
