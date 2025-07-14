@@ -238,12 +238,17 @@ const PlaygroundLayout = () => {
       case "analysis":
         return {
           title: "Analysis Tools",
-          content: <AnalysisSidebar 
-            workspace={currentWorkspace} 
-            onSettingsChange={(newSettings) => 
-              updateViewState("analysis", { ...currentWorkspace, settings: newSettings })
-            } 
-          />,
+          content: (
+            <AnalysisSidebar
+              workspace={currentWorkspace}
+              onSettingsChange={(newSettings) =>
+                updateViewState("analysis", {
+                  ...currentWorkspace,
+                  settings: newSettings,
+                })
+              }
+            />
+          ),
         };
       case "generation":
         return {
@@ -386,173 +391,237 @@ const PlaygroundLayout = () => {
         }
       `}</style>
       <div className="h-screen bg-neutral-900 text-white flex flex-col overflow-hidden">
-      {/* Top Bar */}
-      <div className="h-12 bg-neutral-900/50 backdrop-blur-md border-b border-neutral-800/50 flex items-center justify-between px-4">
-        {/* Logo and Menu */}
-        <div className="flex items-center gap-3">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-              <img src="/favicon.png" alt="Deployio" className="w-6 h-6" />
-            </div>
-            <span className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors heading">
-              Deployio
+        {/* Top Bar */}
+        <div className="h-12 md:h-12 bg-neutral-900/50 backdrop-blur-md border-b border-neutral-800/50 flex items-center justify-between px-2 md:px-4">
+          {/* Logo and Menu */}
+          <div className="flex items-center gap-2 md:gap-3">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate("/dashboard")}
+              className="flex items-center gap-1 md:gap-2 group"
+            >
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg flex items-center justify-center">
+                <img
+                  src="/favicon.png"
+                  alt="Deployio"
+                  className="w-4 h-4 md:w-6 md:h-6"
+                />
+              </div>
+              <span className="text-base md:text-lg font-bold text-white group-hover:text-blue-400 transition-colors heading">
+                Deployio
+              </span>
+            </motion.button>
+
+            <div className="h-4 md:h-6 w-px bg-neutral-700/50 mx-1 md:mx-2" />
+
+            <span className="text-xs md:text-sm text-neutral-400 body">
+              Playground
             </span>
-          </motion.button>
+          </div>
 
-          <div className="h-6 w-px bg-neutral-700/50 mx-2" />
+          {/* Repository Selector */}
+          <div className="flex-1 max-w-xs md:max-w-md mx-2 md:mx-4">
+            <select
+              value={selectedRepo.id}
+              onChange={(e) => {
+                const repo = ALLOWED_REPOS.find((r) => r.id === e.target.value);
+                if (repo && !repo.comingSoon) {
+                  setSelectedRepo(repo);
+                }
+              }}
+              className="w-full bg-neutral-800/80 border border-neutral-700/70 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 body transition-all appearance-none shadow-sm hover:bg-neutral-800/90"
+              style={{
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+                cursor: "pointer",
+              }}
+            >
+              {ALLOWED_REPOS.map((repo) => (
+                <option
+                  key={repo.id}
+                  value={repo.id}
+                  disabled={repo.comingSoon}
+                  className="bg-neutral-900 text-white hover:bg-blue-900/80 focus:bg-blue-900/80 disabled:text-neutral-500 disabled:bg-neutral-800/60"
+                  style={{
+                    color: repo.comingSoon ? "#888" : "#fff",
+                    backgroundColor: "#18181b",
+                  }}
+                >
+                  {repo.name} {repo.comingSoon ? "(Coming Soon)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <span className="text-sm text-neutral-400 body">Playground</span>
+          {/* Controls */}
+          <div className="flex items-center gap-1 md:gap-2">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleFullscreen}
+              className="p-1.5 md:p-2 rounded-lg hover:bg-neutral-800/50 transition-colors"
+              title="Toggle Fullscreen"
+            >
+              {isFullscreen ? (
+                <FaCompressArrowsAlt className="w-3 h-3" />
+              ) : (
+                <FaExpandArrowsAlt className="w-3 h-3" />
+              )}
+            </motion.button>
+
+            <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-2">
+              <ProfileAvatar user={user} />
+            </div>
+          </div>
         </div>
 
-        {/* Repository Selector */}
-        <div className="flex-1 max-w-md mx-4">
-          <select
-            value={selectedRepo.id}
-            onChange={(e) => {
-              const repo = ALLOWED_REPOS.find((r) => r.id === e.target.value);
-              if (repo && !repo.comingSoon) {
-                setSelectedRepo(repo);
-              }
-            }}
-            className="w-full bg-neutral-800/80 border border-neutral-700/70 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 body transition-all appearance-none shadow-sm hover:bg-neutral-800/90"
-            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', cursor: 'pointer' }}
-          >
-            {ALLOWED_REPOS.map((repo) => (
-              <option
-                key={repo.id}
-                value={repo.id}
-                disabled={repo.comingSoon}
-                className="bg-neutral-900 text-white hover:bg-blue-900/80 focus:bg-blue-900/80 disabled:text-neutral-500 disabled:bg-neutral-800/60"
-                style={{ color: repo.comingSoon ? '#888' : '#fff', backgroundColor: '#18181b' }}
-              >
-                {repo.name} {repo.comingSoon ? "(Coming Soon)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Main Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Mobile Bottom Navigation - Only visible on mobile */}
+          <div className="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-neutral-950 border-t border-neutral-800/50 backdrop-blur-md">
+            <div className="flex justify-around items-center py-2 px-1">
+              {activityBarItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeView === item.id;
 
-        {/* Controls */}
-        <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleFullscreen}
-            className="p-2 rounded-lg hover:bg-neutral-800/50 transition-colors"
-            title="Toggle Fullscreen"
-          >
-            {isFullscreen ? (
-              <FaCompressArrowsAlt className="w-3 h-3" />
-            ) : (
-              <FaExpandArrowsAlt className="w-3 h-3" />
+                return (
+                  <motion.button
+                    key={item.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleViewChange(item.id)}
+                    className={`flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-all duration-200 relative ${
+                      isActive
+                        ? "text-blue-400"
+                        : "text-neutral-400 hover:text-white"
+                    }`}
+                    title={item.tooltip}
+                  >
+                    <Icon className="w-4 h-4 mb-1" />
+                    <span className="text-xs font-medium">{item.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="mobileActiveIndicator"
+                        className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-400 rounded-b"
+                        initial={false}
+                        transition={{
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 30,
+                        }}
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desktop Primary Activity Bar - Hidden on mobile */}
+          <div className="hidden md:flex w-12 bg-neutral-950 border-r border-neutral-800/50 flex-col items-center py-3 flex-shrink-0">
+            {activityBarItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeView === item.id;
+
+              return (
+                <motion.button
+                  key={item.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleViewChange(item.id)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-lg mb-2 transition-all duration-200 relative group ${
+                    isActive
+                      ? "bg-neutral-800/80 text-blue-400"
+                      : "text-neutral-400 hover:bg-neutral-800/50 hover:text-white"
+                  }`}
+                  title={item.tooltip}
+                >
+                  <Icon className="w-4 h-4" />
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeIndicator"
+                      className="absolute left-0 top-0 w-1 h-full bg-blue-400 rounded-r"
+                      initial={false}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Main Content with Resizable Panels */}
+          <div className="flex-1 pb-16 md:pb-0">
+            {/* Mobile: Single panel layout */}
+            <div className="md:hidden h-full">
+              <div className="h-full bg-neutral-900">{renderMainContent()}</div>
+            </div>
+
+            {/* Desktop: Resizable panels layout */}
+            <div className="hidden md:block h-full">
+              <PanelGroup direction="horizontal">
+                {/* Main Content Area */}
+                <Panel defaultSize={75} minSize={50}>
+                  <div className="h-full bg-neutral-900">
+                    {renderMainContent()}
+                  </div>
+                </Panel>
+
+                {/* Secondary Sidebar - Context-aware based on view */}
+                {!secondarySidebarCollapsed && secondarySidebarContent && (
+                  <>
+                    <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
+                    <Panel defaultSize={25} minSize={15} maxSize={40}>
+                      <div className="h-full min-h-0 flex flex-col bg-neutral-950 border-l border-neutral-800">
+                        {/* Secondary Sidebar Header */}
+                        <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3 flex-shrink-0">
+                          <span className="text-sm font-medium text-white heading">
+                            {secondarySidebarContent?.title}
+                          </span>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setSecondarySidebarCollapsed(true)}
+                            className="p-1 rounded hover:bg-neutral-800 transition-colors"
+                          >
+                            <FaChevronRight className="w-3 h-3 text-neutral-400" />
+                          </motion.button>
+                        </div>
+
+                        {/* Secondary Sidebar Content */}
+                        <div className="flex-1 min-h-0 overflow-auto custom-scrollbar">
+                          {secondarySidebarContent?.content}
+                        </div>
+                      </div>
+                    </Panel>
+                  </>
+                )}
+              </PanelGroup>
+            </div>
+
+            {/* Collapsed Secondary Sidebar Toggle - Desktop only */}
+            {secondarySidebarCollapsed && secondarySidebarContent && (
+              <div className="hidden md:block fixed top-1/2 right-0 z-50 -translate-y-1/2">
+                <motion.button
+                  whileHover={{ scale: 1.02, x: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSecondarySidebarCollapsed(false)}
+                  className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
+                  title="Show Sidebar"
+                >
+                  <FaChevronLeft className="w-3 h-3 text-neutral-400" />
+                </motion.button>
+              </div>
             )}
-          </motion.button>
-
-          <div className="flex items-center gap-2 ml-2">
-            <ProfileAvatar user={user} />
           </div>
         </div>
       </div>
-
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Primary Activity Bar */}
-        <div className="w-12 bg-neutral-950 border-r border-neutral-800/50 flex flex-col items-center py-3 flex-shrink-0">
-          {activityBarItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-
-            return (
-              <motion.button
-                key={item.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleViewChange(item.id)}
-                className={`w-9 h-9 flex items-center justify-center rounded-lg mb-2 transition-all duration-200 relative group ${
-                  isActive
-                    ? "bg-neutral-800/80 text-blue-400"
-                    : "text-neutral-400 hover:bg-neutral-800/50 hover:text-white"
-                }`}
-                title={item.tooltip}
-              >
-                <Icon className="w-4 h-4" />
-                {isActive && (
-                  <motion.div
-                    layoutId="activeIndicator"
-                    className="absolute left-0 top-0 w-1 h-full bg-blue-400 rounded-r"
-                    initial={false}
-                    transition={{
-                      type: "spring",
-                      stiffness: 500,
-                      damping: 30,
-                    }}
-                  />
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Main Content with Resizable Panels */}
-        <div className="flex-1">
-          <PanelGroup direction="horizontal">
-            {/* Main Content Area */}
-            <Panel defaultSize={75} minSize={50}>
-              <div className="h-full bg-neutral-900">{renderMainContent()}</div>
-            </Panel>
-
-            {/* Secondary Sidebar - Context-aware based on view */}
-            {!secondarySidebarCollapsed && secondarySidebarContent && (
-              <>
-                <PanelResizeHandle className="w-1 bg-neutral-800 hover:bg-neutral-600 transition-colors" />
-                <Panel defaultSize={25} minSize={15} maxSize={40}>
-                  <div className="h-full min-h-0 flex flex-col bg-neutral-950 border-l border-neutral-800">
-                    {/* Secondary Sidebar Header */}
-                    <div className="h-10 border-b border-neutral-800 flex items-center justify-between px-3 flex-shrink-0">
-                      <span className="text-sm font-medium text-white heading">
-                        {secondarySidebarContent?.title}
-                      </span>
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setSecondarySidebarCollapsed(true)}
-                        className="p-1 rounded hover:bg-neutral-800 transition-colors"
-                      >
-                        <FaChevronRight className="w-3 h-3 text-neutral-400" />
-                      </motion.button>
-                    </div>
-
-                    {/* Secondary Sidebar Content */}
-                    <div className="flex-1 min-h-0 overflow-auto custom-scrollbar">
-                      {secondarySidebarContent?.content}
-                    </div>
-                  </div>
-                </Panel>
-              </>
-            )}
-          </PanelGroup>
-
-          {/* Collapsed Secondary Sidebar Toggle */}
-          {secondarySidebarCollapsed && secondarySidebarContent && (
-            <div className="fixed top-1/2 right-0 z-50 -translate-y-1/2">
-              <motion.button
-                whileHover={{ scale: 1.02, x: -2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSecondarySidebarCollapsed(false)}
-                className="w-6 h-16 bg-neutral-800/90 backdrop-blur-sm border border-neutral-700/50 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-neutral-700/90 transition-all duration-200 shadow-xl"
-                title="Show Sidebar"
-              >
-                <FaChevronLeft className="w-3 h-3 text-neutral-400" />
-              </motion.button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
     </>
   );
 };

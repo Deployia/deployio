@@ -121,7 +121,7 @@ const BusinessChatbot = () => {
       {!isOpen && (
         <motion.button
           onClick={toggleChat}
-          className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-2xl transition-all duration-300 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 hover:from-blue-700 hover:via-purple-700 hover:to-green-700"
+          className="fixed bottom-4 right-4 z-50 w-12 h-12 sm:bottom-6 sm:right-6 sm:w-16 sm:h-16 rounded-full shadow-2xl transition-all duration-300 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 hover:from-blue-700 hover:via-purple-700 hover:to-green-700"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           initial={{ scale: 0 }}
@@ -133,16 +133,16 @@ const BusinessChatbot = () => {
             animate={{ rotate: 0, opacity: 1 }}
             className="flex items-center justify-center w-full h-full"
           >
-            <FaComments className="w-7 h-7 text-white" />
+            <FaComments className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
           </motion.div>
 
           {/* Notification dot for new users */}
           <motion.div
-            className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center"
+            className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:-top-1 sm:-right-1 sm:w-5 sm:h-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center"
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full animate-pulse" />
           </motion.div>
         </motion.button>
       )}
@@ -157,7 +157,7 @@ const BusinessChatbot = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.4 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black z-30"
+              className="fixed inset-0 bg-black z-30 md:hidden"
               onClick={toggleChat}
             />
 
@@ -167,20 +167,24 @@ const BusinessChatbot = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed bottom-4 right-4 z-40 w-[360px] h-[80vh] max-h-[90vh] bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden md:bottom-6 md:right-6 md:w-[400px] md:h-[600px] flex flex-col"
+              className="fixed inset-4 z-40 bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden flex flex-col
+                         md:bottom-4 md:right-4 md:top-auto md:left-auto md:w-[360px] md:h-[70vh] md:max-h-[600px]
+                         lg:w-[400px] lg:h-[600px] lg:bottom-6 lg:right-6"
             >
               {/* Header */}
-              <div className="flex-none bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 p-2 text-white relative">
+              <div className="flex-none bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 p-3 md:p-2 text-white relative">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                      <FaRobot className="w-5 h-5" />
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                      <FaRobot className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg heading">DeployBot</h3>
+                      <h3 className="font-bold text-base md:text-lg heading">
+                        DeployBot
+                      </h3>
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                        <p className="text-sm text-white/90 body">
+                        <p className="text-xs md:text-sm text-white/90 body">
                           AI Assistant
                         </p>
                       </div>
@@ -198,7 +202,7 @@ const BusinessChatbot = () => {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1 bg-neutral-950/60 custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-2 space-y-2 md:space-y-1 bg-neutral-950/60 custom-scrollbar">
                 {messages.map((msg, index) => (
                   <div
                     key={index}
@@ -207,13 +211,13 @@ const BusinessChatbot = () => {
                     }`}
                   >
                     <div
-                      className={`flex items-end gap-2 max-w-[92%] ${
+                      className={`flex items-end gap-2 max-w-[95%] md:max-w-[92%] ${
                         msg.isBot ? "" : "flex-row-reverse"
                       }`}
                     >
                       {/* Avatar */}
                       <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow ${
+                        className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow ${
                           msg.isBot
                             ? "bg-gradient-to-r from-blue-500 to-purple-500"
                             : "bg-gradient-to-r from-green-500 to-blue-500"
@@ -221,25 +225,25 @@ const BusinessChatbot = () => {
                       >
                         {msg.isBot ? (
                           <span className="flex items-center justify-center w-full h-full">
-                            <FaRobot className="w-3.5 h-3.5 text-white" />
+                            <FaRobot className="w-3 h-3 md:w-3.5 md:h-3.5 text-white" />
                           </span>
                         ) : (
                           <span className="flex items-center justify-center w-full h-full">
-                            <FaUser className="w-3.5 h-3.5 text-white" />
+                            <FaUser className="w-3 h-3 md:w-3.5 md:h-3.5 text-white" />
                           </span>
                         )}
                       </div>
 
                       {/* Message Bubble */}
                       <div
-                        className={`px-2.5 py-1.5 rounded-xl shadow ${
+                        className={`px-3 py-2 md:px-2.5 md:py-1.5 rounded-xl shadow ${
                           msg.isBot
                             ? "bg-neutral-800/90 backdrop-blur-sm text-gray-100 border border-neutral-700/50"
                             : "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
                         }`}
                         style={{
-                          fontSize: "0.89rem",
-                          lineHeight: 1.32,
+                          fontSize: "0.9rem",
+                          lineHeight: 1.4,
                           minWidth: 0,
                           maxWidth: "100%",
                           wordBreak: "break-word",
@@ -262,7 +266,7 @@ const BusinessChatbot = () => {
                               ),
                               code: ({ node, ...props }) => (
                                 <code
-                                  className="bg-neutral-700/80 px-2 py-0.5 rounded text-xs font-mono text-green-300 border border-neutral-600/50"
+                                  className="bg-neutral-700/80 px-1.5 py-0.5 md:px-2 md:py-0.5 rounded text-xs font-mono text-green-300 border border-neutral-600/50"
                                   {...props}
                                 />
                               ),
@@ -280,14 +284,14 @@ const BusinessChatbot = () => {
 
                         {/* Suggestions */}
                         {msg.suggestions && msg.suggestions.length > 0 && (
-                          <div className="mt-1 space-y-0.5">
+                          <div className="mt-2 md:mt-1 space-y-1 md:space-y-0.5">
                             {msg.suggestions.map((suggestion, idx) => (
                               <button
                                 key={idx}
                                 onClick={() =>
                                   handleSuggestionClick(suggestion)
                                 }
-                                className="block w-full text-left px-2 py-1 text-xs bg-neutral-700/80 hover:bg-neutral-600/80 rounded transition-all duration-200 text-gray-300 hover:text-white border border-neutral-600/50 hover:border-neutral-500/50 backdrop-blur-sm"
+                                className="block w-full text-left px-2.5 py-1.5 md:px-2 md:py-1 text-xs bg-neutral-700/80 hover:bg-neutral-600/80 rounded transition-all duration-200 text-gray-300 hover:text-white border border-neutral-600/50 hover:border-neutral-500/50 backdrop-blur-sm"
                               >
                                 {suggestion}
                               </button>
@@ -302,10 +306,10 @@ const BusinessChatbot = () => {
                 {/* Loading indicator */}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="flex items-end gap-2 max-w-[92%]">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center shadow">
+                    <div className="flex items-end gap-2 max-w-[95%] md:max-w-[92%]">
+                      <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center shadow">
                         <span className="flex items-center justify-center w-full h-full">
-                          <FaRobot className="w-3.5 h-3.5 text-white" />
+                          <FaRobot className="w-3 h-3 md:w-3.5 md:h-3.5 text-white" />
                         </span>
                       </div>
                       <div className="px-3 py-2 bg-neutral-800/90 backdrop-blur-sm rounded-xl border border-neutral-700/50">
@@ -324,7 +328,7 @@ const BusinessChatbot = () => {
               </div>
 
               {/* Input Area */}
-              <div className="flex-none p-2 border-t border-neutral-700/50 bg-neutral-900/80 backdrop-blur-xl">
+              <div className="flex-none p-3 md:p-2 border-t border-neutral-700/50 bg-neutral-900/80 backdrop-blur-xl">
                 <div className="flex items-end space-x-2">
                   <div className="flex-1">
                     <input
@@ -334,21 +338,21 @@ const BusinessChatbot = () => {
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder="Ask me anything about Deployia..."
-                      className="w-full px-4 py-2.5 bg-neutral-800/80 backdrop-blur-sm border border-neutral-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all duration-200 text-sm body"
+                      className="w-full px-3 py-3 md:px-4 md:py-2.5 bg-neutral-800/80 backdrop-blur-sm border border-neutral-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all duration-200 text-sm md:text-sm body"
                       disabled={isLoading}
                     />
                   </div>
                   <button
                     onClick={() => handleSendMessage()}
                     disabled={!inputMessage.trim() || isLoading}
-                    className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 rounded-xl flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:shadow-none"
+                    className="w-11 h-11 md:w-10 md:h-10 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 rounded-xl flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:shadow-none"
                   >
                     <FaPaperPlane className="w-4 h-4 text-white" />
                   </button>
                 </div>
 
                 {/* Quick actions */}
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-3 md:mt-2 flex flex-wrap gap-2 md:gap-1.5">
                   {["Pricing", "Demo", "Features"].map((action) => (
                     <button
                       key={action}
@@ -357,7 +361,7 @@ const BusinessChatbot = () => {
                           `Tell me about ${action.toLowerCase()}`
                         )
                       }
-                      className="px-3 py-1.5 text-xs bg-neutral-800/60 hover:bg-neutral-700/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 border border-neutral-700/50 hover:border-neutral-600/50 backdrop-blur-sm body"
+                      className="px-3 py-2 md:px-3 md:py-1.5 text-xs bg-neutral-800/60 hover:bg-neutral-700/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 border border-neutral-700/50 hover:border-neutral-600/50 backdrop-blur-sm body"
                       disabled={isLoading}
                     >
                       {action}

@@ -267,18 +267,18 @@ const CodeEditor = ({
   const renderWelcomeScreen = () => {
     return (
       <div className="flex items-center justify-center h-full bg-neutral-900">
-        <div className="text-center max-w-md">
+        <div className="text-center max-w-xs md:max-w-md mx-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-6 md:mb-8"
           >
-            <FaCode className="w-20 h-20 text-neutral-600 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-4 heading">
+            <FaCode className="w-16 h-16 md:w-20 md:h-20 text-neutral-600 mx-auto mb-4 md:mb-6" />
+            <h2 className="text-xl md:text-2xl font-bold text-white mb-3 md:mb-4 heading">
               Welcome to Deployio Code Editor
             </h2>
             {selectedRepo ? (
-              <p className="text-neutral-400 leading-relaxed body">
+              <p className="text-sm md:text-base text-neutral-400 leading-relaxed body">
                 Explore the GitHub repository structure from the file explorer
                 and select a file to start coding. This playground is connected
                 to the{" "}
@@ -288,23 +288,23 @@ const CodeEditor = ({
                 repository.
               </p>
             ) : (
-              <p className="text-neutral-400 leading-relaxed body">
+              <p className="text-sm md:text-base text-neutral-400 leading-relaxed body">
                 Please select a repository to start exploring code.
               </p>
             )}
           </motion.div>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
-              <FiFile className="w-4 h-4" />
+          <div className="space-y-2 md:space-y-3">
+            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-neutral-500 body">
+              <FiFile className="w-3 h-3 md:w-4 md:h-4" />
               <span>Browse files in the explorer</span>
             </div>
-            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
-              <FiCode className="w-4 h-4" />
+            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-neutral-500 body">
+              <FiCode className="w-3 h-3 md:w-4 md:h-4" />
               <span>View code with syntax highlighting</span>
             </div>
-            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
-              <FiLock className="w-4 h-4" />
+            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-neutral-500 body">
+              <FiLock className="w-3 h-3 md:w-4 md:h-4" />
               <span>Learn from DevOps configurations</span>
             </div>
           </div>
@@ -316,38 +316,38 @@ const CodeEditor = ({
   // Render binary file viewer
   const renderBinaryFile = (file) => (
     <div className="flex items-center justify-center h-full bg-neutral-900">
-      <div className="text-center max-w-md">
+      <div className="text-center max-w-xs md:max-w-md mx-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6 md:mb-8"
         >
-          <FiImage className="w-20 h-20 text-neutral-600 mx-auto mb-6" />
-          <h3 className="text-xl font-bold text-white mb-4 heading">
+          <FiImage className="w-16 h-16 md:w-20 md:h-20 text-neutral-600 mx-auto mb-4 md:mb-6" />
+          <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4 heading">
             Binary File
           </h3>
-          <p className="text-neutral-400 leading-relaxed body mb-4">
+          <p className="text-sm md:text-base text-neutral-400 leading-relaxed body mb-4">
             This file{" "}
             <span className="text-blue-400 font-medium">{file.name}</span> is a
             binary file and cannot be displayed as text.
           </p>
 
-          <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
+          <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-3 md:p-4 space-y-2">
+            <div className="flex justify-between text-xs md:text-sm">
               <span className="text-neutral-400">File Type:</span>
               <span className="text-white">
                 {file.name?.split(".").pop()?.toUpperCase() || "Unknown"}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs md:text-sm">
               <span className="text-neutral-400">Size:</span>
               <span className="text-white">
                 {file.size ? `${(file.size / 1024).toFixed(2)} KB` : "Unknown"}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs md:text-sm">
               <span className="text-neutral-400">Path:</span>
-              <span className="text-blue-400 font-mono text-xs">
+              <span className="text-blue-400 font-mono text-xs break-all">
                 {file.path}
               </span>
             </div>
@@ -370,8 +370,8 @@ const CodeEditor = ({
   return (
     <div className="h-full flex flex-col bg-neutral-900">
       {/* Editor Toolbar */}
-      <div className="flex items-center justify-between bg-neutral-950 border-b border-neutral-800/50 px-3 py-2">
-        <div className="text-sm text-neutral-400">
+      <div className="flex items-center justify-between bg-neutral-950 border-b border-neutral-800/50 px-2 md:px-3 py-2">
+        <div className="text-xs md:text-sm text-neutral-400 truncate">
           {activeFile ? `Viewing: ${activeFile.name}` : "No file selected"}
         </div>
 
@@ -381,14 +381,14 @@ const CodeEditor = ({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setTerminalVisible(!terminalVisible)}
-            className={`p-2 rounded-md transition-all duration-200 ${
+            className={`p-1.5 md:p-2 rounded-md transition-all duration-200 ${
               terminalVisible
                 ? "bg-green-600 text-white shadow-md shadow-green-600/25"
                 : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
             }`}
             title={`${terminalVisible ? "Hide" : "Show"} DevOps Terminal`}
           >
-            <FaTerminal className="w-3.5 h-3.5" />
+            <FaTerminal className="w-3 h-3 md:w-3.5 md:h-3.5" />
           </motion.button>
         )}
       </div>
@@ -411,22 +411,25 @@ const CodeEditor = ({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm border-r border-neutral-800/50 cursor-pointer group min-w-0 ${
+                  className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm border-r border-neutral-800/50 cursor-pointer group min-w-0 ${
                     isActive
                       ? "bg-neutral-900 text-white border-b-2 border-blue-500"
                       : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
                   }`}
                   onClick={() => setActiveFile(file)}
                 >
-                  <FiFile className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate max-w-32" title={file.name}>
+                  <FiFile className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                  <span
+                    className="truncate max-w-20 md:max-w-32"
+                    title={file.name}
+                  >
                     {file.name}
                   </span>
                   {file.isLoading && (
-                    <FaSpinner className="w-3 h-3 text-blue-400 flex-shrink-0 animate-spin" />
+                    <FaSpinner className="w-2.5 h-2.5 md:w-3 md:h-3 text-blue-400 flex-shrink-0 animate-spin" />
                   )}
                   {file.isBinary && (
-                    <FiImage className="w-3 h-3 text-orange-400 flex-shrink-0" />
+                    <FiImage className="w-2.5 h-2.5 md:w-3 md:h-3 text-orange-400 flex-shrink-0" />
                   )}
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -435,10 +438,10 @@ const CodeEditor = ({
                       e.stopPropagation();
                       closeFile(file);
                     }}
-                    className="p-1 rounded hover:bg-neutral-700/50 opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0"
+                    className="p-0.5 md:p-1 rounded hover:bg-neutral-700/50 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 md:ml-1 flex-shrink-0"
                     aria-label={`Close ${file.name}`}
                   >
-                    <FiX className="w-3 h-3" />
+                    <FiX className="w-2.5 h-2.5 md:w-3 md:h-3" />
                   </motion.button>
                 </motion.div>
               );
