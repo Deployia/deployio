@@ -43,23 +43,6 @@ const EditorView = ({
             </div>
           )}
 
-          {/* File Explorer - Mobile */}
-          <div className="h-48 border-b border-neutral-700/50 bg-neutral-950/50">
-            <div className="h-8 border-b border-neutral-700/50 flex items-center px-3">
-              <span className="text-xs font-medium text-white heading">
-                Repository Explorer
-              </span>
-            </div>
-            <div className="h-40 overflow-hidden">
-              <FileExplorer
-                onFileSelect={handleFileSelect}
-                githubToken={githubToken}
-                readOnlyMode={true}
-                selectedRepo={selectedRepo}
-              />
-            </div>
-          </div>
-
           {/* Code Editor - Mobile */}
           <div className="flex-1 min-h-0">
             <CodeEditor

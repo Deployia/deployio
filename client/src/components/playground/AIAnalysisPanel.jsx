@@ -19,15 +19,19 @@ import {
   FiCopy,
   FiLayers,
   FiActivity,
-  FiFileText,
-  FiTarget,
 } from "react-icons/fi";
-import { FaGithub, FaBrain, FaCode, FaChartLine, FaRocket, FaCog } from "react-icons/fa";
+import {
+  FaGithub,
+  FaBrain,
+  FaCode,
+  FaChartLine,
+  FaRocket,
+  FaCog,
+} from "react-icons/fa";
 import { analysisApi } from "@utils/api";
 import websocketService from "@/services/websocketService";
-import AnalysisResults from "@components/analysis/AnalysisResults";
 
-const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
+const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
   const [activeTab, setActiveTab] = useState("analysis");
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [branch, setBranch] = useState("main");
@@ -40,7 +44,7 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
   const [realProgress, setRealProgress] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [operationId, setOperationId] = useState(null);
-  const [analysisSettings, setAnalysisSettings] = useState({
+  const [analysisSettings] = useState({
     stackAnalysis: true,
     dependencyAnalysis: true,
     codeAnalysis: true,
@@ -53,22 +57,22 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
     generateDockerfile: true,
     generateDockerCompose: true,
     generateGithubActions: true,
-    analysisScope: 'full_project',
+    analysisScope: "full_project",
   });
 
   const socketRef = useRef(null);
   const progressPollingRef = useRef(null);
 
   // Handle settings change from sidebar
-  const handleSettingsChange = (newSettings) => {
-    setAnalysisSettings(newSettings);
-    if (setWorkspace) {
-      setWorkspace(prev => ({
-        ...prev,
-        settings: newSettings,
-      }));
-    }
-  };
+  // const handleSettingsChange = (newSettings) => {
+  //   setAnalysisSettings(newSettings);
+  //   if (setWorkspace) {
+  //     setWorkspace((prev) => ({
+  //       ...prev,
+  //       settings: newSettings,
+  //     }));
+  //   }
+  // };
 
   // Progress steps with icons and descriptions
   const progressSteps = [
@@ -178,7 +182,7 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
         // Check if this progress is for any active operation (more flexible matching)
         if (!operationId || data.sessionId === operationId || !data.sessionId) {
           setRealProgress(data);
-          
+
           // Update step based on progress
           const stepIndex = Math.min(
             Math.floor((data.progress / 100) * progressSteps.length),
@@ -198,7 +202,7 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
           // Update workspace if setWorkspace is available
           if (setWorkspace) {
-            setWorkspace(prev => ({
+            setWorkspace((prev) => ({
               ...prev,
               analysisResults: data.data || data.results,
               lastAnalysis: new Date().toISOString(),
@@ -216,7 +220,7 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
           // Update workspace if setWorkspace is available
           if (setWorkspace) {
-            setWorkspace(prev => ({
+            setWorkspace((prev) => ({
               ...prev,
               generatedConfigs: data.data || data.results,
               lastGeneration: new Date().toISOString(),
@@ -242,7 +246,6 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
       socket.on("ai:status", (data) => {
         console.log("AI service status:", data);
       });
-
     } catch (err) {
       console.error("Failed to connect to AI WebSocket:", err);
       setError("Failed to connect to real-time updates");
@@ -252,10 +255,10 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
   // Setup WebSocket on mount
   useEffect(() => {
     let isMounted = true;
-    
+
     const initWebSocket = async () => {
       if (!isMounted) return;
-      
+
       try {
         await setupWebSocketConnection();
       } catch (error) {
@@ -312,26 +315,35 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
     try {
       const normalizedUrl = normalizeRepositoryUrl(repositoryUrl);
-      
+
       // Build analysis types based on settings
       const analysisTypes = [];
-      if (analysisSettings.stackAnalysis) analysisTypes.push('stack');
-      if (analysisSettings.dependencyAnalysis) analysisTypes.push('dependencies');
-      if (analysisSettings.codeAnalysis) analysisTypes.push('code');
-      
+      if (analysisSettings.stackAnalysis) analysisTypes.push("stack");
+      if (analysisSettings.dependencyAnalysis)
+        analysisTypes.push("dependencies");
+      if (analysisSettings.codeAnalysis) analysisTypes.push("code");
+
       // Build config types based on settings
       const configTypes = [];
-      if (analysisSettings.generateDockerfile) configTypes.push('dockerfile');
-      if (analysisSettings.generateDockerCompose) configTypes.push('docker_compose');
-      if (analysisSettings.generateGithubActions) configTypes.push('github_actions');
-      
+      if (analysisSettings.generateDockerfile) configTypes.push("dockerfile");
+      if (analysisSettings.generateDockerCompose)
+        configTypes.push("docker_compose");
+      if (analysisSettings.generateGithubActions)
+        configTypes.push("github_actions");
+
       const response = await analysisApi.post(
         "/ai/analysis/demo/complete-pipeline",
         {
           repositoryUrl: normalizedUrl,
           branch: branch || "main",
-          analysisTypes: analysisTypes.length > 0 ? analysisTypes : ["stack", "dependencies", "code"],
-          configTypes: configTypes.length > 0 ? configTypes : ["dockerfile", "github_actions", "docker_compose"],
+          analysisTypes:
+            analysisTypes.length > 0
+              ? analysisTypes
+              : ["stack", "dependencies", "code"],
+          configTypes:
+            configTypes.length > 0
+              ? configTypes
+              : ["dockerfile", "github_actions", "docker_compose"],
           forceLlm: analysisSettings.llmEnhancement,
           includeInsights: analysisSettings.includeInsights,
           includeRecommendations: analysisSettings.includeRecommendations,
@@ -345,36 +357,41 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
       let data = response.data;
       if (data && data.data) data = data.data;
-      
+
       // Set operation ID for WebSocket tracking
       if (data.sessionId) {
         setOperationId(data.sessionId);
       }
-      
+
       setAnalysisResults(data.analysis || data.analysisResults || null);
-      setGenerationResults(data.configurations || data.generationResults || null);
+      setGenerationResults(
+        data.configurations || data.generationResults || null
+      );
 
       // Optionally update workspace
       if (setWorkspace) {
-        setWorkspace(prev => ({
+        setWorkspace((prev) => ({
           ...prev,
           analysisResults: data.analysis || data.analysisResults || null,
-          generationResults: data.configurations || data.generationResults || null,
+          generationResults:
+            data.configurations || data.generationResults || null,
           lastAnalysis: new Date().toISOString(),
         }));
       }
       setIsAnalyzing(false);
       setCurrentStep(progressSteps.length - 1);
-      
+
       // Auto-switch to overview tab to show results
       if (data.analysis || data.analysisResults) {
         setTimeout(() => setActiveTab("overview"), 500);
-        
+
         // Show notification if configs were generated
         if (data.configurations || data.generationResults) {
           setTimeout(() => {
             // You could add a toast notification here if you have a toast system
-            console.log("✅ Configurations generated! View them in the 'Generate Configs' tab.");
+            console.log(
+              "✅ Configurations generated! View them in the 'Generate Configs' tab."
+            );
           }, 1000);
         }
       }
@@ -392,7 +409,9 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
   // No-op: generation is handled in unified analysis now
   const handleGenerateConfigs = () => {
-    setError("Generation is now part of the unified analysis. Please re-run analysis.");
+    setError(
+      "Generation is now part of the unified analysis. Please re-run analysis."
+    );
   };
 
   const handleSampleRepo = (repo) => {
@@ -404,26 +423,28 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
     switch (activeTab) {
       case "analysis":
         return (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             {/* Repository Input */}
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <FaGithub className="w-5 h-5 text-white" />
-                <h3 className="text-lg font-semibold text-white heading">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 md:p-6">
+              <div className="flex items-center gap-2 mb-3 md:mb-4">
+                <FaGithub className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                <h3 className="text-base md:text-lg font-semibold text-white heading">
                   Repository Analysis
                 </h3>
                 {wsConnected && (
-                  <div className="ml-auto flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-green-400 body">Live Updates</span>
+                  <div className="ml-auto flex items-center gap-1 md:gap-2">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-green-400 body hidden sm:inline">
+                      Live Updates
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-3 md:space-y-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-neutral-300 mb-2 body">
+                    <label className="block text-xs md:text-sm font-medium text-neutral-300 mb-1 md:mb-2 body">
                       Repository URL
                     </label>
                     <input
@@ -431,21 +452,21 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                       value={repositoryUrl}
                       onChange={(e) => setRepositoryUrl(e.target.value)}
                       placeholder="https://github.com/username/repository"
-                      className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-4 py-3 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all"
+                      className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-3 py-2 md:px-4 md:py-3 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-2 body">
+                    <label className="block text-xs md:text-sm font-medium text-neutral-300 mb-1 md:mb-2 body">
                       Branch
                     </label>
                     <div className="relative">
-                      <FiGitBranch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                      <FiGitBranch className="absolute left-2 md:left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-3 h-3 md:w-4 md:h-4" />
                       <input
                         type="text"
                         value={branch}
                         onChange={(e) => setBranch(e.target.value)}
                         placeholder="main"
-                        className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg pl-10 pr-4 py-3 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all"
+                        className="w-full bg-neutral-800/50 border border-neutral-700/50 rounded-lg pl-8 md:pl-10 pr-3 md:pr-4 py-2 md:py-3 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 body transition-all text-sm"
                       />
                     </div>
                   </div>
@@ -453,19 +474,19 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
                 {/* Sample Repositories */}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-300 mb-2 body">
+                  <label className="block text-xs md:text-sm font-medium text-neutral-300 mb-1 md:mb-2 body">
                     Quick Start (Sample Repositories)
                   </label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                     {sampleRepos.map((repo, index) => (
                       <motion.button
                         key={index}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleSampleRepo(repo)}
-                        className="text-left p-3 bg-neutral-800/30 border border-neutral-700/30 rounded-lg hover:bg-neutral-700/50 transition-colors"
+                        className="text-left p-2 md:p-3 bg-neutral-800/30 border border-neutral-700/30 rounded-lg hover:bg-neutral-700/50 transition-colors"
                       >
-                        <div className="text-sm font-medium text-white body">
+                        <div className="text-xs md:text-sm font-medium text-white body truncate">
                           {repo.name}
                         </div>
                         <div className="text-xs text-neutral-400 body">
@@ -477,9 +498,11 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                 </div>
 
                 {error && (
-                  <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <FiAlertTriangle className="w-4 h-4 text-red-400" />
-                    <span className="text-sm text-red-400 body">{error}</span>
+                  <div className="flex items-center gap-2 p-2 md:p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <FiAlertTriangle className="w-3 h-3 md:w-4 md:h-4 text-red-400" />
+                    <span className="text-xs md:text-sm text-red-400 body">
+                      {error}
+                    </span>
                   </div>
                 )}
 
@@ -488,16 +511,16 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAnalyze}
                   disabled={!repositoryUrl || isAnalyzing}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed body"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 md:px-6 md:py-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed body text-sm md:text-base"
                 >
                   {isAnalyzing ? (
                     <>
-                      <FiLoader className="w-4 h-4 animate-spin" />
+                      <FiLoader className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
                       Analyzing Repository...
                     </>
                   ) : (
                     <>
-                      <FiPlay className="w-4 h-4" />
+                      <FiPlay className="w-3 h-3 md:w-4 md:h-4" />
                       Start Analysis
                     </>
                   )}
@@ -507,10 +530,10 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
             {/* Progress Tracking */}
             {isAnalyzing && (
-              <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <FiLoader className="w-5 h-5 text-blue-400 animate-spin" />
-                  <h3 className="text-lg font-semibold text-white heading">
+              <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 md:p-6">
+                <div className="flex items-center gap-2 mb-3 md:mb-4">
+                  <FiLoader className="w-4 h-4 md:w-5 md:h-5 text-blue-400 animate-spin" />
+                  <h3 className="text-base md:text-lg font-semibold text-white heading">
                     Analysis Progress
                   </h3>
                 </div>
@@ -521,7 +544,10 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                     <div
                       className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
                       style={{
-                        width: `${realProgress?.progress || (currentStep / progressSteps.length) * 100}%`
+                        width: `${
+                          realProgress?.progress ||
+                          (currentStep / progressSteps.length) * 100
+                        }%`,
                       }}
                     ></div>
                   </div>
@@ -539,21 +565,28 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className={`text-center p-3 rounded-lg transition-all ${isActive
+                          className={`text-center p-3 rounded-lg transition-all ${
+                            isActive
                               ? isCurrent
                                 ? "bg-blue-500/20 border border-blue-500/50"
                                 : "bg-green-500/20 border border-green-500/50"
                               : "bg-neutral-800/50 border border-neutral-700/50"
-                            }`}
+                          }`}
                         >
-                          <StepIcon className={`w-4 h-4 mx-auto mb-1 ${isActive
-                              ? isCurrent
-                                ? "text-blue-400"
-                                : "text-green-400"
-                              : "text-neutral-500"
-                            }`} />
-                          <div className={`text-xs font-medium ${isActive ? "text-white" : "text-neutral-500"
-                            }`}>
+                          <StepIcon
+                            className={`w-4 h-4 mx-auto mb-1 ${
+                              isActive
+                                ? isCurrent
+                                  ? "text-blue-400"
+                                  : "text-green-400"
+                                : "text-neutral-500"
+                            }`}
+                          />
+                          <div
+                            className={`text-xs font-medium ${
+                              isActive ? "text-white" : "text-neutral-500"
+                            }`}
+                          >
                             {step.label}
                           </div>
                         </motion.div>
@@ -564,7 +597,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   {realProgress && (
                     <div className="text-center">
                       <div className="text-sm text-neutral-300 body">
-                        {realProgress.message || progressSteps[currentStep]?.description}
+                        {realProgress.message ||
+                          progressSteps[currentStep]?.description}
                       </div>
                       <div className="text-xs text-neutral-500 body mt-1">
                         {realProgress.progress}% complete
@@ -584,25 +618,35 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                     {
                       icon: FiCode,
                       label: "Code Quality",
-                      value: `${Math.round((analysisResults.code_analysis?.quality_score || 0) * 100)}%`,
+                      value: `${Math.round(
+                        (analysisResults.code_analysis?.quality_score || 0) *
+                          100
+                      )}%`,
                       color: "green",
                     },
                     {
                       icon: FiShield,
                       label: "Security",
-                      value: `${Math.round((analysisResults.dependency_analysis?.health_score || 0) * 100)}%`,
+                      value: `${Math.round(
+                        (analysisResults.dependency_analysis?.health_score ||
+                          0) * 100
+                      )}%`,
                       color: "yellow",
                     },
                     {
                       icon: FiTrendingUp,
                       label: "Confidence",
-                      value: `${Math.round((analysisResults.confidence_score || 0) * 100)}%`,
+                      value: `${Math.round(
+                        (analysisResults.confidence_score || 0) * 100
+                      )}%`,
                       color: "blue",
                     },
                     {
                       icon: FiZap,
                       label: "Dependencies",
-                      value: analysisResults.dependency_analysis?.total_dependencies || 'N/A',
+                      value:
+                        analysisResults.dependency_analysis
+                          ?.total_dependencies || "N/A",
                       color: "purple",
                     },
                   ].map((metric, index) => (
@@ -638,7 +682,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                         Analysis Complete! 🎉
                       </h4>
                       <p className="text-neutral-400 text-sm body">
-                        Explore detailed insights, security analysis, and generated configurations in the tabs above.
+                        Explore detailed insights, security analysis, and
+                        generated configurations in the tabs above.
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -674,34 +719,74 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
             {analysisResults ? (
               <>
                 {/* Project Summary */}
-                <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 heading">
+                <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 md:p-6">
+                  <h3 className="text-base md:text-lg font-semibold text-white mb-3 md:mb-4 heading">
                     Project Summary
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-neutral-800/50 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-blue-400 heading mb-1">
-                        {Math.round((analysisResults.confidence_score || 0) * 100)}%
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                    <div className="bg-neutral-800/50 rounded-lg p-2 md:p-4 text-center">
+                      <div className="text-lg md:text-2xl font-bold text-blue-400 heading mb-1">
+                        {Math.round(
+                          (analysisResults.confidence_score || 0) * 100
+                        )}
+                        %
                       </div>
-                      <div className="text-sm text-neutral-400 body">Confidence</div>
+                      <div className="text-xs md:text-sm text-neutral-400 body">
+                        Confidence
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800/50 rounded-lg p-2 md:p-4 text-center">
+                      <div className="text-lg md:text-2xl font-bold text-green-400 heading mb-1">
+                        {analysisResults.processing_time
+                          ? `${analysisResults.processing_time.toFixed(1)}s`
+                          : "N/A"}
+                      </div>
+                      <div className="text-xs md:text-sm text-neutral-400 body">
+                        Processing Time
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800/50 rounded-lg p-2 md:p-4 text-center">
+                      <div className="text-lg md:text-2xl font-bold text-purple-400 heading mb-1">
+                        {analysisResults.llm_enhanced ? "Enhanced" : "Standard"}
+                      </div>
+                      <div className="text-xs md:text-sm text-neutral-400 body">
+                        Analysis Type
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800/50 rounded-lg p-2 md:p-4 text-center">
+                      <div className="text-lg md:text-2xl font-bold text-orange-400 heading mb-1">
+                        {analysisResults.files_analyzed || "N/A"}
+                      </div>
+                      <div className="text-xs md:text-sm text-neutral-400 body">
+                        Files Analyzed
+                      </div>
                     </div>
                     <div className="bg-neutral-800/50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-green-400 heading mb-1">
-                        {analysisResults.processing_time ? `${analysisResults.processing_time.toFixed(1)}s` : 'N/A'}
+                        {analysisResults.processing_time
+                          ? `${analysisResults.processing_time.toFixed(1)}s`
+                          : "N/A"}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Processing Time</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Processing Time
+                      </div>
                     </div>
                     <div className="bg-neutral-800/50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-purple-400 heading mb-1">
-                        {analysisResults.llm_enhanced ? 'Enhanced' : 'Standard'}
+                        {analysisResults.llm_enhanced ? "Enhanced" : "Standard"}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Analysis Type</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Analysis Type
+                      </div>
                     </div>
                     <div className="bg-neutral-800/50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-400 heading mb-1">
-                        {analysisResults.dependency_analysis?.total_dependencies || 0}
+                        {analysisResults.dependency_analysis
+                          ?.total_dependencies || 0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Dependencies</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Dependencies
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -714,7 +799,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                         Explore Detailed Analysis
                       </h4>
                       <p className="text-neutral-400 text-sm body">
-                        Navigate to specific sections for in-depth insights and recommendations.
+                        Navigate to specific sections for in-depth insights and
+                        recommendations.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -783,11 +869,21 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Object.entries(analysisResults.technology_stack)
-                      .filter(([key, value]) => value && value !== 'null' && value !== null && !['confidence', 'detection_method'].includes(key))
+                      .filter(
+                        ([key, value]) =>
+                          value &&
+                          value !== "null" &&
+                          value !== null &&
+                          !["confidence", "detection_method"].includes(key)
+                      )
                       .map(([key, value]) => {
-                        const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        const displayValue = Array.isArray(value) ? value.join(', ') : value;
-                        
+                        const displayKey = key
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (l) => l.toUpperCase());
+                        const displayValue = Array.isArray(value)
+                          ? value.join(", ")
+                          : value;
+
                         return (
                           <motion.div
                             key={key}
@@ -797,24 +893,36 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                           >
                             <div className="flex items-center mb-2">
                               <FaCode className="w-4 h-4 text-blue-400 mr-2" />
-                              <h4 className="text-neutral-300 font-medium text-sm">{displayKey}</h4>
+                              <h4 className="text-neutral-300 font-medium text-sm">
+                                {displayKey}
+                              </h4>
                             </div>
-                            <p className="text-white font-semibold">{displayValue}</p>
+                            <p className="text-white font-semibold">
+                              {displayValue}
+                            </p>
                           </motion.div>
                         );
                       })}
                   </div>
-                  
+
                   {/* Detection Confidence */}
                   <div className="mt-6 p-4 bg-neutral-800/30 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-white font-medium text-sm">Detection Confidence</h4>
-                        <p className="text-neutral-400 text-sm">How confident we are in the technology stack detection</p>
+                        <h4 className="text-white font-medium text-sm">
+                          Detection Confidence
+                        </h4>
+                        <p className="text-neutral-400 text-sm">
+                          How confident we are in the technology stack detection
+                        </p>
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-400 heading">
-                          {Math.round((analysisResults.technology_stack.confidence || 0) * 100)}%
+                          {Math.round(
+                            (analysisResults.technology_stack.confidence || 0) *
+                              100
+                          )}
+                          %
                         </div>
                         <div className="text-xs text-neutral-500 body">
                           {analysisResults.technology_stack.detection_method}
@@ -842,22 +950,32 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   <h3 className="text-lg font-semibold text-white mb-4 heading">
                     Dependencies Analysis
                   </h3>
-                  
+
                   {/* Health Score Banner */}
                   <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-lg p-4 mb-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <FiCheckCircle className="w-6 h-6 text-green-400 mr-3" />
                         <div>
-                          <h4 className="text-white font-semibold">Dependency Health Score</h4>
-                          <p className="text-neutral-300 text-sm">Overall project health assessment</p>
+                          <h4 className="text-white font-semibold">
+                            Dependency Health Score
+                          </h4>
+                          <p className="text-neutral-300 text-sm">
+                            Overall project health assessment
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-3xl font-bold text-green-400 heading">
-                          {Math.round((analysisResults.dependency_analysis.health_score || 0) * 100)}%
+                          {Math.round(
+                            (analysisResults.dependency_analysis.health_score ||
+                              0) * 100
+                          )}
+                          %
                         </div>
-                        <div className="text-sm text-neutral-400">Excellent</div>
+                        <div className="text-sm text-neutral-400">
+                          Excellent
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -866,67 +984,102 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-blue-400 heading">
-                        {analysisResults.dependency_analysis.total_dependencies || 0}
+                        {analysisResults.dependency_analysis
+                          .total_dependencies || 0}
                       </div>
                       <div className="text-sm text-neutral-400 body">Total</div>
                     </div>
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-green-400 heading">
-                        {analysisResults.dependency_analysis.production_dependencies || 0}
+                        {analysisResults.dependency_analysis
+                          .production_dependencies || 0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Production</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Production
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-yellow-400 heading">
-                        {analysisResults.dependency_analysis.development_dependencies || 0}
+                        {analysisResults.dependency_analysis
+                          .development_dependencies || 0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Development</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Development
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-red-400 heading">
-                        {analysisResults.dependency_analysis.vulnerable_count || 0}
+                        {analysisResults.dependency_analysis.vulnerable_count ||
+                          0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Vulnerable</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Vulnerable
+                      </div>
                     </div>
                   </div>
 
                   {/* Dependencies List */}
-                  {analysisResults.dependency_analysis.dependencies && analysisResults.dependency_analysis.dependencies.length > 0 && (
-                    <div>
-                      <h4 className="text-white font-medium mb-3">Dependencies ({analysisResults.dependency_analysis.dependencies.length})</h4>
-                      <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {analysisResults.dependency_analysis.dependencies.map((dep, index) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="flex items-center justify-between p-3 bg-neutral-800/30 rounded-lg"
-                          >
-                            <div className="flex items-center">
-                              <FiZap className={`w-4 h-4 mr-3 ${dep.is_vulnerable ? 'text-red-400' : 'text-green-400'}`} />
-                              <div>
-                                <div className="text-white font-medium text-sm">{dep.name}</div>
-                                <div className="text-neutral-400 text-xs">v{dep.version} • {dep.manager}</div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                dep.type === 'production' ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'
-                              }`}>
-                                {dep.type}
-                              </span>
-                              {dep.is_vulnerable && (
-                                <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">
-                                  Vulnerable
-                                </span>
-                              )}
-                            </div>
-                          </motion.div>
-                        ))}
+                  {analysisResults.dependency_analysis.dependencies &&
+                    analysisResults.dependency_analysis.dependencies.length >
+                      0 && (
+                      <div>
+                        <h4 className="text-white font-medium mb-3">
+                          Dependencies (
+                          {
+                            analysisResults.dependency_analysis.dependencies
+                              .length
+                          }
+                          )
+                        </h4>
+                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                          {analysisResults.dependency_analysis.dependencies.map(
+                            (dep, index) => (
+                              <motion.div
+                                key={index}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="flex items-center justify-between p-3 bg-neutral-800/30 rounded-lg"
+                              >
+                                <div className="flex items-center">
+                                  <FiZap
+                                    className={`w-4 h-4 mr-3 ${
+                                      dep.is_vulnerable
+                                        ? "text-red-400"
+                                        : "text-green-400"
+                                    }`}
+                                  />
+                                  <div>
+                                    <div className="text-white font-medium text-sm">
+                                      {dep.name}
+                                    </div>
+                                    <div className="text-neutral-400 text-xs">
+                                      v{dep.version} • {dep.manager}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs ${
+                                      dep.type === "production"
+                                        ? "bg-blue-500/20 text-blue-400"
+                                        : "bg-yellow-500/20 text-yellow-400"
+                                    }`}
+                                  >
+                                    {dep.type}
+                                  </span>
+                                  {dep.is_vulnerable && (
+                                    <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">
+                                      Vulnerable
+                                    </span>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </>
             ) : (
@@ -940,7 +1093,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
       case "insights":
         return (
           <div className="space-y-6">
-            {analysisResults?.insights && analysisResults.insights.length > 0 ? (
+            {analysisResults?.insights &&
+            analysisResults.insights.length > 0 ? (
               <>
                 <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
                   <h3 className="text-lg font-semibold text-white mb-4 heading">
@@ -957,36 +1111,64 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex-shrink-0 mt-1">
-                            {insight.category === 'security' && <FiShield className="w-5 h-5 text-red-400" />}
-                            {insight.category === 'performance' && <FiTrendingUp className="w-5 h-5 text-green-400" />}
-                            {insight.category === 'technology' && <FiCpu className="w-5 h-5 text-blue-400" />}
-                            {insight.category === 'code_quality' && <FiCode className="w-5 h-5 text-purple-400" />}
-                            {insight.category === 'dependencies' && <FiZap className="w-5 h-5 text-yellow-400" />}
-                            {!['security', 'performance', 'technology', 'code_quality', 'dependencies'].includes(insight.category) &&
-                              <FiCheckCircle className="w-5 h-5 text-green-400" />}
+                            {insight.category === "security" && (
+                              <FiShield className="w-5 h-5 text-red-400" />
+                            )}
+                            {insight.category === "performance" && (
+                              <FiTrendingUp className="w-5 h-5 text-green-400" />
+                            )}
+                            {insight.category === "technology" && (
+                              <FiCpu className="w-5 h-5 text-blue-400" />
+                            )}
+                            {insight.category === "code_quality" && (
+                              <FiCode className="w-5 h-5 text-purple-400" />
+                            )}
+                            {insight.category === "dependencies" && (
+                              <FiZap className="w-5 h-5 text-yellow-400" />
+                            )}
+                            {![
+                              "security",
+                              "performance",
+                              "technology",
+                              "code_quality",
+                              "dependencies",
+                            ].includes(insight.category) && (
+                              <FiCheckCircle className="w-5 h-5 text-green-400" />
+                            )}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-start justify-between mb-2">
-                              <h4 className="text-white font-medium">{insight.title}</h4>
+                              <h4 className="text-white font-medium">
+                                {insight.title}
+                              </h4>
                               <div className="flex items-center gap-2 ml-4">
-                                <span className={`px-2 py-1 rounded text-xs ${
-                                  insight.impact === 'high' ? 'bg-red-500/20 text-red-400' :
-                                  insight.impact === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                  'bg-green-500/20 text-green-400'
-                                }`}>
+                                <span
+                                  className={`px-2 py-1 rounded text-xs ${
+                                    insight.impact === "high"
+                                      ? "bg-red-500/20 text-red-400"
+                                      : insight.impact === "medium"
+                                      ? "bg-yellow-500/20 text-yellow-400"
+                                      : "bg-green-500/20 text-green-400"
+                                  }`}
+                                >
                                   {insight.impact} impact
                                 </span>
                                 <span className="text-xs text-neutral-500">
-                                  {Math.round((insight.confidence || 0) * 100)}% confidence
+                                  {Math.round((insight.confidence || 0) * 100)}%
+                                  confidence
                                 </span>
                               </div>
                             </div>
-                            <p className="text-neutral-300 text-sm mb-3">{insight.description}</p>
-                            {insight.evidence && insight.evidence.length > 0 && (
-                              <div className="text-xs text-neutral-500">
-                                <strong>Evidence:</strong> {insight.evidence.join(', ')}
-                              </div>
-                            )}
+                            <p className="text-neutral-300 text-sm mb-3">
+                              {insight.description}
+                            </p>
+                            {insight.evidence &&
+                              insight.evidence.length > 0 && (
+                                <div className="text-xs text-neutral-500">
+                                  <strong>Evidence:</strong>{" "}
+                                  {insight.evidence.join(", ")}
+                                </div>
+                              )}
                           </div>
                         </div>
                       </motion.div>
@@ -1005,11 +1187,13 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
       case "recommendations":
         return (
           <div className="space-y-6">
-            {analysisResults?.recommendations && analysisResults.recommendations.length > 0 ? (
+            {analysisResults?.recommendations &&
+            analysisResults.recommendations.length > 0 ? (
               <>
                 <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
                   <h3 className="text-lg font-semibold text-white mb-4 heading">
-                    AI Recommendations ({analysisResults.recommendations.length})
+                    AI Recommendations ({analysisResults.recommendations.length}
+                    )
                   </h3>
                   <div className="space-y-4">
                     {analysisResults.recommendations.map((rec, index) => (
@@ -1019,28 +1203,39 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
                         className={`p-4 bg-neutral-800/50 rounded-lg border-l-4 ${
-                          rec.priority === 'high' ? 'border-l-red-500' :
-                          rec.priority === 'medium' ? 'border-l-yellow-500' :
-                          'border-l-green-500'
+                          rec.priority === "high"
+                            ? "border-l-red-500"
+                            : rec.priority === "medium"
+                            ? "border-l-yellow-500"
+                            : "border-l-green-500"
                         }`}
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <h4 className="text-white font-medium">{rec.title}</h4>
-                          <span className={`px-3 py-1 rounded text-sm font-medium ${
-                            rec.priority === 'high' ? 'bg-red-500/20 text-red-400' :
-                            rec.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-green-500/20 text-green-400'
-                          }`}>
+                          <h4 className="text-white font-medium">
+                            {rec.title}
+                          </h4>
+                          <span
+                            className={`px-3 py-1 rounded text-sm font-medium ${
+                              rec.priority === "high"
+                                ? "bg-red-500/20 text-red-400"
+                                : rec.priority === "medium"
+                                ? "bg-yellow-500/20 text-yellow-400"
+                                : "bg-green-500/20 text-green-400"
+                            }`}
+                          >
                             {rec.priority} priority
                           </span>
                         </div>
-                        <p className="text-neutral-300 text-sm mb-3">{rec.description}</p>
+                        <p className="text-neutral-300 text-sm mb-3">
+                          {rec.description}
+                        </p>
                         <div className="text-xs text-neutral-500 bg-neutral-900/50 rounded p-3">
                           <strong>Reasoning:</strong> {rec.reasoning}
                         </div>
                         {rec.implementation && (
                           <div className="text-xs text-neutral-400 mt-2">
-                            <strong>Implementation:</strong> {rec.implementation}
+                            <strong>Implementation:</strong>{" "}
+                            {rec.implementation}
                           </div>
                         )}
                       </motion.div>
@@ -1065,77 +1260,110 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   <h3 className="text-lg font-semibold text-white mb-4 heading">
                     Security Analysis
                   </h3>
-                  
+
                   {/* Vulnerability Overview */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="text-center p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
                       <div className="text-2xl font-bold text-red-400 heading">
-                        {analysisResults.dependency_analysis.critical_vulnerabilities || 0}
+                        {analysisResults.dependency_analysis
+                          .critical_vulnerabilities || 0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Critical</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Critical
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
                       <div className="text-2xl font-bold text-orange-400 heading">
-                        {analysisResults.dependency_analysis.high_vulnerabilities || 0}
+                        {analysisResults.dependency_analysis
+                          .high_vulnerabilities || 0}
                       </div>
                       <div className="text-sm text-neutral-400 body">High</div>
                     </div>
                     <div className="text-center p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                       <div className="text-2xl font-bold text-yellow-400 heading">
-                        {analysisResults.dependency_analysis.medium_vulnerabilities || 0}
+                        {analysisResults.dependency_analysis
+                          .medium_vulnerabilities || 0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Medium</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Medium
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                       <div className="text-2xl font-bold text-blue-400 heading">
-                        {analysisResults.dependency_analysis.low_vulnerabilities || 0}
+                        {analysisResults.dependency_analysis
+                          .low_vulnerabilities || 0}
                       </div>
                       <div className="text-sm text-neutral-400 body">Low</div>
                     </div>
                   </div>
 
                   {/* Security Status */}
-                  <div className={`p-4 rounded-lg mb-6 ${
-                    analysisResults.dependency_analysis.vulnerable_count === 0 
-                      ? 'bg-green-500/10 border border-green-500/20' 
-                      : 'bg-red-500/10 border border-red-500/20'
-                  }`}>
+                  <div
+                    className={`p-4 rounded-lg mb-6 ${
+                      analysisResults.dependency_analysis.vulnerable_count === 0
+                        ? "bg-green-500/10 border border-green-500/20"
+                        : "bg-red-500/10 border border-red-500/20"
+                    }`}
+                  >
                     <div className="flex items-center gap-3">
-                      {analysisResults.dependency_analysis.vulnerable_count === 0 ? (
+                      {analysisResults.dependency_analysis.vulnerable_count ===
+                      0 ? (
                         <FiCheckCircle className="w-6 h-6 text-green-400" />
                       ) : (
                         <FiAlertTriangle className="w-6 h-6 text-red-400" />
                       )}
                       <div>
-                        <h4 className={`font-semibold ${
-                          analysisResults.dependency_analysis.vulnerable_count === 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {analysisResults.dependency_analysis.vulnerable_count === 0
-                            ? 'No Security Vulnerabilities Found'
+                        <h4
+                          className={`font-semibold ${
+                            analysisResults.dependency_analysis
+                              .vulnerable_count === 0
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {analysisResults.dependency_analysis
+                            .vulnerable_count === 0
+                            ? "No Security Vulnerabilities Found"
                             : `${analysisResults.dependency_analysis.vulnerable_count} Security Issues Found`}
                         </h4>
                         <p className="text-neutral-400 text-sm">
-                          Health Score: {Math.round((analysisResults.dependency_analysis.health_score || 0) * 100)}%
+                          Health Score:{" "}
+                          {Math.round(
+                            (analysisResults.dependency_analysis.health_score ||
+                              0) * 100
+                          )}
+                          %
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Security Recommendations */}
-                  {analysisResults.dependency_analysis.security_recommendations && 
-                   analysisResults.dependency_analysis.security_recommendations.length > 0 && (
-                    <div>
-                      <h4 className="text-white font-medium mb-3">Security Recommendations</h4>
-                      <div className="space-y-2">
-                        {analysisResults.dependency_analysis.security_recommendations.map((rec, index) => (
-                          <div key={index} className="flex items-center gap-2 p-3 bg-neutral-800/50 rounded-lg">
-                            <FiCheckCircle className="w-4 h-4 text-green-400" />
-                            <span className="text-neutral-300 text-sm">{rec}</span>
-                          </div>
-                        ))}
+                  {analysisResults.dependency_analysis
+                    .security_recommendations &&
+                    analysisResults.dependency_analysis.security_recommendations
+                      .length > 0 && (
+                      <div>
+                        <h4 className="text-white font-medium mb-3">
+                          Security Recommendations
+                        </h4>
+                        <div className="space-y-2">
+                          {analysisResults.dependency_analysis.security_recommendations.map(
+                            (rec, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center gap-2 p-3 bg-neutral-800/50 rounded-lg"
+                              >
+                                <FiCheckCircle className="w-4 h-4 text-green-400" />
+                                <span className="text-neutral-300 text-sm">
+                                  {rec}
+                                </span>
+                              </div>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </>
             ) : (
@@ -1155,106 +1383,162 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   <h3 className="text-lg font-semibold text-white mb-4 heading">
                     Code Quality Analysis
                   </h3>
-                  
+
                   {/* Quality Metrics */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-green-400 heading">
-                        {Math.round((analysisResults.code_analysis.quality_score || 0) * 100)}%
+                        {Math.round(
+                          (analysisResults.code_analysis.quality_score || 0) *
+                            100
+                        )}
+                        %
                       </div>
-                      <div className="text-sm text-neutral-400 body">Quality Score</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Quality Score
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-blue-400 heading">
-                        {Math.round((analysisResults.code_analysis.maintainability_score || 0) * 100)}%
+                        {Math.round(
+                          (analysisResults.code_analysis
+                            .maintainability_score || 0) * 100
+                        )}
+                        %
                       </div>
-                      <div className="text-sm text-neutral-400 body">Maintainability</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Maintainability
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-purple-400 heading">
                         {analysisResults.code_analysis.total_files || 0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Files Analyzed</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Files Analyzed
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-neutral-800/50 rounded-lg">
                       <div className="text-2xl font-bold text-yellow-400 heading">
-                        {analysisResults.code_analysis.total_lines?.toLocaleString() || 0}
+                        {analysisResults.code_analysis.total_lines?.toLocaleString() ||
+                          0}
                       </div>
-                      <div className="text-sm text-neutral-400 body">Lines of Code</div>
+                      <div className="text-sm text-neutral-400 body">
+                        Lines of Code
+                      </div>
                     </div>
                   </div>
 
                   {/* Complexity Analysis */}
                   <div className="bg-neutral-800/30 rounded-lg p-4 mb-6">
                     <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-white font-medium">Complexity Analysis</h4>
+                      <h4 className="text-white font-medium">
+                        Complexity Analysis
+                      </h4>
                       <span className="text-neutral-400 text-sm">
-                        Score: {(analysisResults.code_analysis.complexity_score || 0).toFixed(3)}
+                        Score:{" "}
+                        {(
+                          analysisResults.code_analysis.complexity_score || 0
+                        ).toFixed(3)}
                       </span>
                     </div>
                     <div className="w-full bg-neutral-700 rounded-full h-3">
                       <div
                         className="h-3 bg-green-500 rounded-full transition-all"
                         style={{
-                          width: `${Math.min((1 - (analysisResults.code_analysis.complexity_score || 0)) * 100, 100)}%`
+                          width: `${Math.min(
+                            (1 -
+                              (analysisResults.code_analysis.complexity_score ||
+                                0)) *
+                              100,
+                            100
+                          )}%`,
                         }}
                       ></div>
                     </div>
                     <p className="text-xs text-neutral-500 mt-2">
-                      Lower complexity indicates better maintainability and readability
+                      Lower complexity indicates better maintainability and
+                      readability
                     </p>
                   </div>
 
                   {/* Architecture Patterns */}
-                  {analysisResults.code_analysis.architecture_patterns && 
-                   analysisResults.code_analysis.architecture_patterns.length > 0 && (
-                    <div className="mb-6">
-                      <h4 className="text-white font-medium mb-3">Architecture Patterns</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {analysisResults.code_analysis.architecture_patterns.map((pattern, index) => (
-                          <span key={index} className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm">
-                            {pattern}
-                          </span>
-                        ))}
+                  {analysisResults.code_analysis.architecture_patterns &&
+                    analysisResults.code_analysis.architecture_patterns.length >
+                      0 && (
+                      <div className="mb-6">
+                        <h4 className="text-white font-medium mb-3">
+                          Architecture Patterns
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {analysisResults.code_analysis.architecture_patterns.map(
+                            (pattern, index) => (
+                              <span
+                                key={index}
+                                className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm"
+                              >
+                                {pattern}
+                              </span>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Design Patterns */}
-                  {analysisResults.code_analysis.patterns_detected && 
-                   analysisResults.code_analysis.patterns_detected.length > 0 && (
-                    <div className="mb-6">
-                      <h4 className="text-white font-medium mb-3">Design Patterns</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {analysisResults.code_analysis.patterns_detected.map((pattern, index) => (
-                          <span key={index} className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm">
-                            {pattern}
-                          </span>
-                        ))}
+                  {analysisResults.code_analysis.patterns_detected &&
+                    analysisResults.code_analysis.patterns_detected.length >
+                      0 && (
+                      <div className="mb-6">
+                        <h4 className="text-white font-medium mb-3">
+                          Design Patterns
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {analysisResults.code_analysis.patterns_detected.map(
+                            (pattern, index) => (
+                              <span
+                                key={index}
+                                className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm"
+                              >
+                                {pattern}
+                              </span>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Code Issues */}
-                  {analysisResults.code_analysis.code_smells && 
-                   analysisResults.code_analysis.code_smells.length > 0 && (
-                    <div>
-                      <h4 className="text-white font-medium mb-3">Code Issues</h4>
-                      <div className="space-y-2">
-                        {analysisResults.code_analysis.code_smells.slice(0, 5).map((smell, index) => (
-                          <div key={index} className="flex items-start gap-2 p-3 bg-neutral-800/50 rounded-lg">
-                            <FiAlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5" />
-                            <div>
-                              <div className="text-neutral-300 text-sm">{smell.type || smell}</div>
-                              {smell.description && (
-                                <div className="text-neutral-500 text-xs">{smell.description}</div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                  {analysisResults.code_analysis.code_smells &&
+                    analysisResults.code_analysis.code_smells.length > 0 && (
+                      <div>
+                        <h4 className="text-white font-medium mb-3">
+                          Code Issues
+                        </h4>
+                        <div className="space-y-2">
+                          {analysisResults.code_analysis.code_smells
+                            .slice(0, 5)
+                            .map((smell, index) => (
+                              <div
+                                key={index}
+                                className="flex items-start gap-2 p-3 bg-neutral-800/50 rounded-lg"
+                              >
+                                <FiAlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5" />
+                                <div>
+                                  <div className="text-neutral-300 text-sm">
+                                    {smell.type || smell}
+                                  </div>
+                                  {smell.description && (
+                                    <div className="text-neutral-500 text-xs">
+                                      {smell.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </>
             ) : (
@@ -1275,24 +1559,36 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
               {analysisResults ? (
                 <div className="space-y-4">
                   <div className="text-sm text-neutral-400 body mb-4">
-                    Generate deployment configurations based on your analysis results
+                    Generate deployment configurations based on your analysis
+                    results
                   </div>
 
                   {/* Analysis Summary for Generation */}
                   <div className="bg-neutral-800/50 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-medium text-white mb-2 heading">Analysis Summary</h4>
+                    <h4 className="text-sm font-medium text-white mb-2 heading">
+                      Analysis Summary
+                    </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                       <div>
                         <span className="text-neutral-400">Language:</span>
-                        <span className="text-white ml-1">{analysisResults.technology_stack?.language || 'Unknown'}</span>
+                        <span className="text-white ml-1">
+                          {analysisResults.technology_stack?.language ||
+                            "Unknown"}
+                        </span>
                       </div>
                       <div>
                         <span className="text-neutral-400">Framework:</span>
-                        <span className="text-white ml-1">{analysisResults.technology_stack?.framework || 'None'}</span>
+                        <span className="text-white ml-1">
+                          {analysisResults.technology_stack?.framework ||
+                            "None"}
+                        </span>
                       </div>
                       <div>
                         <span className="text-neutral-400">Build Tool:</span>
-                        <span className="text-white ml-1">{analysisResults.technology_stack?.build_tool || 'Unknown'}</span>
+                        <span className="text-white ml-1">
+                          {analysisResults.technology_stack?.build_tool ||
+                            "Unknown"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1322,7 +1618,9 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                     /* Generation Results */
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-lg font-medium text-white heading">Generated Configurations</h4>
+                        <h4 className="text-lg font-medium text-white heading">
+                          Generated Configurations
+                        </h4>
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
@@ -1342,7 +1640,9 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                             <div className="flex items-center justify-between mb-4">
                               <div className="flex items-center gap-3">
                                 <FiCode className="w-5 h-5 text-blue-400" />
-                                <span className="text-lg font-medium text-white heading">Dockerfile</span>
+                                <span className="text-lg font-medium text-white heading">
+                                  Dockerfile
+                                </span>
                                 {generationResults.dockerfile.success && (
                                   <FiCheckCircle className="w-5 h-5 text-green-400" />
                                 )}
@@ -1350,7 +1650,10 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(generationResults.dockerfile.dockerfile || generationResults.dockerfile.content);
+                                    navigator.clipboard.writeText(
+                                      generationResults.dockerfile.dockerfile ||
+                                        generationResults.dockerfile.content
+                                    );
                                   }}
                                   className="p-2 hover:bg-neutral-700 rounded-lg text-neutral-400 hover:text-white transition-colors"
                                   title="Copy to clipboard"
@@ -1359,12 +1662,16 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    const content = generationResults.dockerfile.dockerfile || generationResults.dockerfile.content;
-                                    const blob = new Blob([content], { type: 'text/plain' });
+                                    const content =
+                                      generationResults.dockerfile.dockerfile ||
+                                      generationResults.dockerfile.content;
+                                    const blob = new Blob([content], {
+                                      type: "text/plain",
+                                    });
                                     const url = URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
+                                    const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = 'Dockerfile';
+                                    a.download = "Dockerfile";
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
@@ -1379,26 +1686,56 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                             </div>
                             <div className="text-sm text-neutral-400 bg-neutral-900/50 rounded-lg p-4 font-mono max-h-80 overflow-y-auto border border-neutral-700/50">
                               <pre className="whitespace-pre-wrap text-neutral-200 leading-relaxed">
-                                {generationResults.dockerfile.dockerfile || generationResults.dockerfile.content || ''}
+                                {generationResults.dockerfile.dockerfile ||
+                                  generationResults.dockerfile.content ||
+                                  ""}
                               </pre>
                             </div>
                             {generationResults.dockerfile.metadata && (
                               <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                                 <div className="bg-neutral-900/50 rounded-lg p-3">
-                                  <div className="text-neutral-400 mb-1">Base Image</div>
-                                  <div className="text-white font-semibold">{generationResults.dockerfile.metadata.base_image}</div>
+                                  <div className="text-neutral-400 mb-1">
+                                    Base Image
+                                  </div>
+                                  <div className="text-white font-semibold">
+                                    {
+                                      generationResults.dockerfile.metadata
+                                        .base_image
+                                    }
+                                  </div>
                                 </div>
                                 <div className="bg-neutral-900/50 rounded-lg p-3">
-                                  <div className="text-neutral-400 mb-1">Multi-stage</div>
-                                  <div className="text-white font-semibold">{generationResults.dockerfile.metadata.multi_stage ? 'Yes' : 'No'}</div>
+                                  <div className="text-neutral-400 mb-1">
+                                    Multi-stage
+                                  </div>
+                                  <div className="text-white font-semibold">
+                                    {generationResults.dockerfile.metadata
+                                      .multi_stage
+                                      ? "Yes"
+                                      : "No"}
+                                  </div>
                                 </div>
                                 <div className="bg-neutral-900/50 rounded-lg p-3">
-                                  <div className="text-neutral-400 mb-1">Estimated Size</div>
-                                  <div className="text-white font-semibold">{generationResults.dockerfile.metadata.size_estimate}</div>
+                                  <div className="text-neutral-400 mb-1">
+                                    Estimated Size
+                                  </div>
+                                  <div className="text-white font-semibold">
+                                    {
+                                      generationResults.dockerfile.metadata
+                                        .size_estimate
+                                    }
+                                  </div>
                                 </div>
                                 <div className="bg-neutral-900/50 rounded-lg p-3">
-                                  <div className="text-neutral-400 mb-1">Build Time</div>
-                                  <div className="text-white font-semibold">{generationResults.dockerfile.metadata.build_time_estimate}</div>
+                                  <div className="text-neutral-400 mb-1">
+                                    Build Time
+                                  </div>
+                                  <div className="text-white font-semibold">
+                                    {
+                                      generationResults.dockerfile.metadata
+                                        .build_time_estimate
+                                    }
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1411,7 +1748,9 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                             <div className="flex items-center justify-between mb-4">
                               <div className="flex items-center gap-3">
                                 <FiLayers className="w-5 h-5 text-purple-400" />
-                                <span className="text-lg font-medium text-white heading">Docker Compose</span>
+                                <span className="text-lg font-medium text-white heading">
+                                  Docker Compose
+                                </span>
                                 {generationResults.docker_compose.success && (
                                   <FiCheckCircle className="w-5 h-5 text-green-400" />
                                 )}
@@ -1419,7 +1758,11 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(generationResults.docker_compose.docker_compose || generationResults.docker_compose.content);
+                                    navigator.clipboard.writeText(
+                                      generationResults.docker_compose
+                                        .docker_compose ||
+                                        generationResults.docker_compose.content
+                                    );
                                   }}
                                   className="p-2 hover:bg-neutral-700 rounded-lg text-neutral-400 hover:text-white transition-colors"
                                   title="Copy to clipboard"
@@ -1428,12 +1771,17 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    const content = generationResults.docker_compose.docker_compose || generationResults.docker_compose.content;
-                                    const blob = new Blob([content], { type: 'text/plain' });
+                                    const content =
+                                      generationResults.docker_compose
+                                        .docker_compose ||
+                                      generationResults.docker_compose.content;
+                                    const blob = new Blob([content], {
+                                      type: "text/plain",
+                                    });
                                     const url = URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
+                                    const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = 'docker-compose.yml';
+                                    a.download = "docker-compose.yml";
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
@@ -1448,15 +1796,26 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                             </div>
                             <div className="text-sm text-neutral-400 bg-neutral-900/50 rounded-lg p-4 font-mono max-h-80 overflow-y-auto border border-neutral-700/50">
                               <pre className="whitespace-pre-wrap text-neutral-200 leading-relaxed">
-                                {generationResults.docker_compose.docker_compose || generationResults.docker_compose.content || ''}
+                                {generationResults.docker_compose
+                                  .docker_compose ||
+                                  generationResults.docker_compose.content ||
+                                  ""}
                               </pre>
                             </div>
                             {generationResults.docker_compose.metadata && (
                               <div className="mt-4 text-xs">
-                                <div className="text-neutral-400 mb-2">Services:</div>
+                                <div className="text-neutral-400 mb-2">
+                                  Services:
+                                </div>
                                 <div className="flex flex-wrap gap-2">
-                                  {Object.keys(generationResults.docker_compose.metadata.services || {}).map(service => (
-                                    <span key={service} className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs">
+                                  {Object.keys(
+                                    generationResults.docker_compose.metadata
+                                      .services || {}
+                                  ).map((service) => (
+                                    <span
+                                      key={service}
+                                      className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs"
+                                    >
                                       {service}
                                     </span>
                                   ))}
@@ -1472,7 +1831,9 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                             <div className="flex items-center justify-between mb-4">
                               <div className="flex items-center gap-3">
                                 <FiActivity className="w-5 h-5 text-green-400" />
-                                <span className="text-lg font-medium text-white heading">GitHub Actions CI/CD</span>
+                                <span className="text-lg font-medium text-white heading">
+                                  GitHub Actions CI/CD
+                                </span>
                                 {generationResults.github_actions.success && (
                                   <FiCheckCircle className="w-5 h-5 text-green-400" />
                                 )}
@@ -1480,7 +1841,11 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(generationResults.github_actions.github_actions || generationResults.github_actions.content);
+                                    navigator.clipboard.writeText(
+                                      generationResults.github_actions
+                                        .github_actions ||
+                                        generationResults.github_actions.content
+                                    );
                                   }}
                                   className="p-2 hover:bg-neutral-700 rounded-lg text-neutral-400 hover:text-white transition-colors"
                                   title="Copy to clipboard"
@@ -1489,12 +1854,17 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    const content = generationResults.github_actions.github_actions || generationResults.github_actions.content;
-                                    const blob = new Blob([content], { type: 'text/plain' });
+                                    const content =
+                                      generationResults.github_actions
+                                        .github_actions ||
+                                      generationResults.github_actions.content;
+                                    const blob = new Blob([content], {
+                                      type: "text/plain",
+                                    });
                                     const url = URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
+                                    const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = 'deploy.yml';
+                                    a.download = "deploy.yml";
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
@@ -1509,15 +1879,26 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                             </div>
                             <div className="text-sm text-neutral-400 bg-neutral-900/50 rounded-lg p-4 font-mono max-h-80 overflow-y-auto border border-neutral-700/50">
                               <pre className="whitespace-pre-wrap text-neutral-200 leading-relaxed">
-                                {generationResults.github_actions.github_actions || generationResults.github_actions.content || ''}
+                                {generationResults.github_actions
+                                  .github_actions ||
+                                  generationResults.github_actions.content ||
+                                  ""}
                               </pre>
                             </div>
                             {generationResults.github_actions.metadata && (
                               <div className="mt-4 text-xs">
-                                <div className="text-neutral-400 mb-2">Pipeline Jobs:</div>
+                                <div className="text-neutral-400 mb-2">
+                                  Pipeline Jobs:
+                                </div>
                                 <div className="flex flex-wrap gap-2">
-                                  {Object.keys(generationResults.github_actions.metadata.jobs || {}).map(job => (
-                                    <span key={job} className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                                  {Object.keys(
+                                    generationResults.github_actions.metadata
+                                      .jobs || {}
+                                  ).map((job) => (
+                                    <span
+                                      key={job}
+                                      className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs"
+                                    >
                                       {job}
                                     </span>
                                   ))}
@@ -1531,20 +1912,39 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                       {/* Generation Metadata */}
                       {generationResults.metadata && (
                         <div className="bg-neutral-800/50 rounded-lg p-4 mt-4">
-                          <h4 className="text-sm font-medium text-white mb-2 heading">Generation Details</h4>
+                          <h4 className="text-sm font-medium text-white mb-2 heading">
+                            Generation Details
+                          </h4>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                             <div>
-                              <span className="text-neutral-400">Processing Time:</span>
-                              <span className="text-white ml-1">{generationResults.metadata.processing_time?.toFixed(2)}s</span>
-                            </div>
-                            <div>
-                              <span className="text-neutral-400">LLM Enhanced:</span>
-                              <span className="text-white ml-1">{generationResults.metadata.llm_enhanced ? 'Yes' : 'No'}</span>
-                            </div>
-                            <div>
-                              <span className="text-neutral-400">Generated:</span>
+                              <span className="text-neutral-400">
+                                Processing Time:
+                              </span>
                               <span className="text-white ml-1">
-                                {new Date(generationResults.metadata.generated_at * 1000).toLocaleTimeString()}
+                                {generationResults.metadata.processing_time?.toFixed(
+                                  2
+                                )}
+                                s
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-neutral-400">
+                                LLM Enhanced:
+                              </span>
+                              <span className="text-white ml-1">
+                                {generationResults.metadata.llm_enhanced
+                                  ? "Yes"
+                                  : "No"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-neutral-400">
+                                Generated:
+                              </span>
+                              <span className="text-white ml-1">
+                                {new Date(
+                                  generationResults.metadata.generated_at * 1000
+                                ).toLocaleTimeString()}
                               </span>
                             </div>
                           </div>
@@ -1555,7 +1955,8 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                 </div>
               ) : (
                 <div className="text-center text-neutral-400 body py-8">
-                  Complete an analysis first to generate optimized configurations
+                  Complete an analysis first to generate optimized
+                  configurations
                 </div>
               )}
             </div>
@@ -1569,15 +1970,16 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
 
   return (
     <div className="h-full w-full flex flex-col bg-neutral-900">
+      <SEO title="AI Code Analysis" />
       {/* Header */}
-      <div className="p-6 border-b border-neutral-800/50 flex-shrink-0 w-full">
-        <div className="flex items-center gap-3 mb-4">
-          <FaBrain className="w-6 h-6 text-purple-400" />
-          <div>
-            <h2 className="text-2xl font-bold text-white heading">
+      <div className="p-3 md:p-6 border-b border-neutral-800/50 flex-shrink-0 w-full">
+        <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+          <FaBrain className="w-5 h-5 md:w-6 md:h-6 text-purple-400" />
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg md:text-2xl font-bold text-white heading">
               AI Code Analysis
             </h2>
-            <p className="text-neutral-400 body">
+            <p className="text-xs md:text-sm text-neutral-400 body">
               Analyze your repository with AI-powered insights
             </p>
           </div>
@@ -1588,9 +1990,12 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   // Download analysis report
-                  const blob = new Blob([JSON.stringify(analysisResults, null, 2)], {
-                    type: "application/json",
-                  });
+                  const blob = new Blob(
+                    [JSON.stringify(analysisResults, null, 2)],
+                    {
+                      type: "application/json",
+                    }
+                  );
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
@@ -1600,17 +2005,18 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                   document.body.removeChild(a);
                   URL.revokeObjectURL(url);
                 }}
-                className="flex items-center gap-2 px-3 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 border border-neutral-700/50 rounded-lg text-neutral-300 hover:text-white transition-colors text-sm body"
+                className="flex items-center gap-1 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 bg-neutral-800/50 hover:bg-neutral-700/50 border border-neutral-700/50 rounded-lg text-neutral-300 hover:text-white transition-colors text-xs md:text-sm body"
               >
-                <FiDownload className="w-4 h-4" />
-                Export Report
+                <FiDownload className="w-3 h-3 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Export Report</span>
+                <span className="sm:hidden">Export</span>
               </motion.button>
             </div>
           )}
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1 md:gap-2 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -1619,13 +2025,15 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all body ${activeTab === tab.id
+                className={`flex items-center gap-1 md:gap-2 px-2 py-1.5 md:px-4 md:py-2 rounded-lg transition-all body text-xs md:text-sm whitespace-nowrap ${
+                  activeTab === tab.id
                     ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                     : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
-                  }`}
+                }`}
               >
-                <Icon className="w-4 h-4" />
-                {tab.label}
+                <Icon className="w-3 h-3 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
               </motion.button>
             );
           })}
@@ -1640,7 +2048,7 @@ const AIAnalysisPanel = ({ workspace, setWorkspace }) => {
           scrollbarColor: "#525252 #262626",
         }}
       >
-        <div className="max-w-5xl mx-auto px-6 py-6 w-full">
+        <div className="max-w-5xl mx-auto px-3 md:px-6 py-3 md:py-6 w-full">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

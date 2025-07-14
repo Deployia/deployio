@@ -7,11 +7,14 @@ import {
   FiFile,
   FiImage,
   FiFileText,
+  FiFolder,
 } from "react-icons/fi";
 import { FaCode, FaSpinner, FaTerminal } from "react-icons/fa";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import repositoryService from "@services/repositoryService";
+import { useSidebar } from "@context/SidebarContext";
+import FileExplorer from "./FileExplorer";
 
 // Helper function to determine language from filename
 const getLanguageFromFilename = (filename) => {
@@ -61,11 +64,15 @@ const CodeEditor = ({
   selectedRepo,
   terminalVisible,
   setTerminalVisible,
+  githubToken,
 }) => {
   const [activeFile, setActiveFile] = useState(null);
   const [openFiles, setOpenFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Sidebar context for repository explorer
+  const { openSidebar } = useSidebar();
 
   // Set repository service provider
   useEffect(() => {
@@ -267,18 +274,18 @@ const CodeEditor = ({
   const renderWelcomeScreen = () => {
     return (
       <div className="flex items-center justify-center h-full bg-neutral-900">
-        <div className="text-center max-w-xs md:max-w-md mx-4">
+        <div className="text-center max-w-md">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 md:mb-8"
+            className="mb-8"
           >
-            <FaCode className="w-16 h-16 md:w-20 md:h-20 text-neutral-600 mx-auto mb-4 md:mb-6" />
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-3 md:mb-4 heading">
+            <FaCode className="w-20 h-20 text-neutral-600 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-4 heading">
               Welcome to Deployio Code Editor
             </h2>
             {selectedRepo ? (
-              <p className="text-sm md:text-base text-neutral-400 leading-relaxed body">
+              <p className="text-neutral-400 leading-relaxed body">
                 Explore the GitHub repository structure from the file explorer
                 and select a file to start coding. This playground is connected
                 to the{" "}
@@ -288,23 +295,23 @@ const CodeEditor = ({
                 repository.
               </p>
             ) : (
-              <p className="text-sm md:text-base text-neutral-400 leading-relaxed body">
+              <p className="text-neutral-400 leading-relaxed body">
                 Please select a repository to start exploring code.
               </p>
             )}
           </motion.div>
 
-          <div className="space-y-2 md:space-y-3">
-            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-neutral-500 body">
-              <FiFile className="w-3 h-3 md:w-4 md:h-4" />
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
+              <FiFile className="w-4 h-4" />
               <span>Browse files in the explorer</span>
             </div>
-            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-neutral-500 body">
-              <FiCode className="w-3 h-3 md:w-4 md:h-4" />
+            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
+              <FiCode className="w-4 h-4" />
               <span>View code with syntax highlighting</span>
             </div>
-            <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-neutral-500 body">
-              <FiLock className="w-3 h-3 md:w-4 md:h-4" />
+            <div className="flex items-center gap-3 text-sm text-neutral-500 body">
+              <FiLock className="w-4 h-4" />
               <span>Learn from DevOps configurations</span>
             </div>
           </div>
@@ -316,38 +323,38 @@ const CodeEditor = ({
   // Render binary file viewer
   const renderBinaryFile = (file) => (
     <div className="flex items-center justify-center h-full bg-neutral-900">
-      <div className="text-center max-w-xs md:max-w-md mx-4">
+      <div className="text-center max-w-md">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 md:mb-8"
+          className="mb-8"
         >
-          <FiImage className="w-16 h-16 md:w-20 md:h-20 text-neutral-600 mx-auto mb-4 md:mb-6" />
-          <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4 heading">
+          <FiImage className="w-20 h-20 text-neutral-600 mx-auto mb-6" />
+          <h3 className="text-xl font-bold text-white mb-4 heading">
             Binary File
           </h3>
-          <p className="text-sm md:text-base text-neutral-400 leading-relaxed body mb-4">
+          <p className="text-neutral-400 leading-relaxed body mb-4">
             This file{" "}
             <span className="text-blue-400 font-medium">{file.name}</span> is a
             binary file and cannot be displayed as text.
           </p>
 
-          <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-3 md:p-4 space-y-2">
-            <div className="flex justify-between text-xs md:text-sm">
+          <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-4 space-y-2">
+            <div className="flex justify-between text-sm">
               <span className="text-neutral-400">File Type:</span>
               <span className="text-white">
                 {file.name?.split(".").pop()?.toUpperCase() || "Unknown"}
               </span>
             </div>
-            <div className="flex justify-between text-xs md:text-sm">
+            <div className="flex justify-between text-sm">
               <span className="text-neutral-400">Size:</span>
               <span className="text-white">
                 {file.size ? `${(file.size / 1024).toFixed(2)} KB` : "Unknown"}
               </span>
             </div>
-            <div className="flex justify-between text-xs md:text-sm">
+            <div className="flex justify-between text-sm">
               <span className="text-neutral-400">Path:</span>
-              <span className="text-blue-400 font-mono text-xs break-all">
+              <span className="text-blue-400 font-mono text-xs">
                 {file.path}
               </span>
             </div>
@@ -375,22 +382,50 @@ const CodeEditor = ({
           {activeFile ? `Viewing: ${activeFile.name}` : "No file selected"}
         </div>
 
-        {/* Terminal Toggle Button */}
-        {setTerminalVisible && (
+        <div className="flex items-center gap-2">
+          {/* Repository Files Button - Mobile Only */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => setTerminalVisible(!terminalVisible)}
-            className={`p-1.5 md:p-2 rounded-md transition-all duration-200 ${
-              terminalVisible
-                ? "bg-green-600 text-white shadow-md shadow-green-600/25"
-                : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
-            }`}
-            title={`${terminalVisible ? "Hide" : "Show"} DevOps Terminal`}
+            onClick={() => {
+              // Open sidebar with repository explorer on mobile
+              if (window.innerWidth < 768) {
+                const repositoryContent = (
+                  <div className="h-full">
+                    <FileExplorer
+                      onFileSelect={onFileSelect?.current}
+                      githubToken={githubToken}
+                      readOnlyMode={true}
+                      selectedRepo={selectedRepo}
+                    />
+                  </div>
+                );
+                openSidebar(repositoryContent);
+              }
+            }}
+            className="md:hidden p-1.5 rounded-md text-neutral-400 hover:bg-neutral-800/80 hover:text-white transition-all duration-200"
+            title="Browse Repository Files"
           >
-            <FaTerminal className="w-3 h-3 md:w-3.5 md:h-3.5" />
+            <FiFolder className="w-3 h-3" />
           </motion.button>
-        )}
+
+          {/* Terminal Toggle Button */}
+          {setTerminalVisible && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setTerminalVisible(!terminalVisible)}
+              className={`p-1.5 md:p-2 rounded-md transition-all duration-200 ${
+                terminalVisible
+                  ? "bg-green-600 text-white shadow-md shadow-green-600/25"
+                  : "text-neutral-400 hover:bg-neutral-800/80 hover:text-white"
+              }`}
+              title={`${terminalVisible ? "Hide" : "Show"} DevOps Terminal`}
+            >
+              <FaTerminal className="w-3 h-3 md:w-3.5 md:h-3.5" />
+            </motion.button>
+          )}
+        </div>
       </div>
 
       {/* File Tabs */}

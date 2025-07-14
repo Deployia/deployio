@@ -241,29 +241,29 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
       <SEO page="playground-learning" />
       <div className="h-full flex flex-col bg-neutral-900">
         {/* Header */}
-        <div className="p-6 border-b border-neutral-800/50 bg-gradient-to-r from-neutral-900/50 to-neutral-800/30">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <FiBookOpen className="w-6 h-6 text-green-400" />
+        <div className="p-3 md:p-6 border-b border-neutral-800/50 bg-gradient-to-r from-neutral-900/50 to-neutral-800/30">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <FiBookOpen className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h2 className="text-2xl font-bold text-white heading">
+                <div className="flex items-center gap-2 md:gap-3 mb-1">
+                  <h2 className="text-lg md:text-2xl font-bold text-white heading">
                     DevOps Learning Center
                   </h2>
-                  <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-xs font-medium text-yellow-400 body">
+                  <span className="px-1.5 py-0.5 md:px-2 md:py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-md text-xs font-medium text-yellow-400 body">
                     Coming Soon
                   </span>
-                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs font-medium text-blue-400 body">
+                  <span className="hidden sm:inline px-1.5 py-0.5 md:px-2 md:py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs font-medium text-blue-400 body">
                     Static Preview
                   </span>
                 </div>
-                <p className="text-neutral-400 body">
+                <p className="text-xs md:text-sm text-neutral-400 body">
                   Master DevOps skills with hands-on tutorials and interactive
                   lessons
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-xs font-medium body">
                 🚀 Coming Soon
               </span>
@@ -274,87 +274,98 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
           </div>
 
           {/* Progress Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FiAward className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm font-medium text-white heading">
-                  Completed Modules
+          <div className="grid grid-cols-3 gap-2 md:gap-4">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-2 md:p-4">
+              <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                <FiAward className="w-3 h-3 md:w-4 md:h-4 text-yellow-400" />
+                <span className="text-xs md:text-sm font-medium text-white heading">
+                  <span className="hidden sm:inline">Completed Modules</span>
+                  <span className="sm:hidden">Modules</span>
                 </span>
               </div>
-              <div className="text-2xl font-bold text-white heading">1/4</div>
+              <div className="text-lg md:text-2xl font-bold text-white heading">
+                1/4
+              </div>
             </div>
 
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FiClock className="w-4 h-4 text-blue-400" />
-                <span className="text-sm font-medium text-white heading">
-                  Total Hours
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-2 md:p-4">
+              <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                <FiClock className="w-3 h-3 md:w-4 md:h-4 text-blue-400" />
+                <span className="text-xs md:text-sm font-medium text-white heading">
+                  <span className="hidden sm:inline">Total Hours</span>
+                  <span className="sm:hidden">Hours</span>
                 </span>
               </div>
-              <div className="text-2xl font-bold text-white heading">18h</div>
+              <div className="text-lg md:text-2xl font-bold text-white heading">
+                18h
+              </div>
             </div>
 
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FiUsers className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-medium text-white heading">
-                  Community Rank
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-2 md:p-4">
+              <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                <FiUsers className="w-3 h-3 md:w-4 md:h-4 text-purple-400" />
+                <span className="text-xs md:text-sm font-medium text-white heading">
+                  <span className="hidden sm:inline">Community Rank</span>
+                  <span className="sm:hidden">Rank</span>
                 </span>
               </div>
-              <div className="text-2xl font-bold text-white heading">#47</div>
+              <div className="text-lg md:text-2xl font-bold text-white heading">
+                #47
+              </div>
             </div>
           </div>
         </div>
 
         <div className="flex-1 flex overflow-hidden">
           {/* Module Content */}
-          <div className="flex-1 overflow-auto custom-scrollbar p-6">
+          <div className="flex-1 overflow-auto custom-scrollbar p-3 md:p-6">
             {currentModuleData && (
               <div>
                 {/* Module Header */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-3 mb-4">
+                <div className="mb-4 md:mb-6">
+                  <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
                     <currentModuleData.icon
-                      className={`w-8 h-8 text-${currentModuleData.color}-400`}
+                      className={`w-6 h-6 md:w-8 md:h-8 text-${currentModuleData.color}-400`}
                     />
                     <div>
-                      <h2 className="text-2xl font-bold text-white heading">
+                      <h2 className="text-lg md:text-2xl font-bold text-white heading">
                         {currentModuleData.title}
                       </h2>
-                      <p className="text-neutral-400 body">
+                      <p className="text-xs md:text-sm text-neutral-400 body">
                         {currentModuleData.description}
                       </p>
                     </div>
                   </div>
 
                   {/* Module Stats */}
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
-                      <div className="text-lg font-bold text-white heading">
+                  <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
+                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-2 md:p-4 text-center">
+                      <div className="text-sm md:text-lg font-bold text-white heading">
                         {currentModuleData.totalLessons}
                       </div>
-                      <div className="text-sm text-neutral-400 body">
-                        Total Lessons
+                      <div className="text-xs md:text-sm text-neutral-400 body">
+                        <span className="hidden sm:inline">Total Lessons</span>
+                        <span className="sm:hidden">Lessons</span>
                       </div>
                     </div>
-                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
-                      <div className="text-lg font-bold text-white heading">
+                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-2 md:p-4 text-center">
+                      <div className="text-sm md:text-lg font-bold text-white heading">
                         {currentModuleData.estimatedTime}
                       </div>
-                      <div className="text-sm text-neutral-400 body">
-                        Estimated Time
+                      <div className="text-xs md:text-sm text-neutral-400 body">
+                        <span className="hidden sm:inline">Estimated Time</span>
+                        <span className="sm:hidden">Time</span>
                       </div>
                     </div>
-                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 text-center">
+                    <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-2 md:p-4 text-center">
                       <div
-                        className={`text-lg font-bold heading ${getDifficultyColor(
+                        className={`text-sm md:text-lg font-bold heading ${getDifficultyColor(
                           currentModuleData.difficulty
                         )}`}
                       >
                         {currentModuleData.difficulty}
                       </div>
-                      <div className="text-sm text-neutral-400 body">
+                      <div className="text-xs md:text-sm text-neutral-400 body">
                         Difficulty
                       </div>
                     </div>
@@ -362,8 +373,8 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
                 </div>
 
                 {/* Lessons List */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white heading">
+                <div className="space-y-3 md:space-y-4">
+                  <h3 className="text-base md:text-lg font-semibold text-white heading">
                     Lessons
                   </h3>
 
@@ -373,34 +384,36 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4"
+                      className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 md:p-4"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-start gap-4 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">
+                        <div className="flex items-start gap-2 md:gap-4 flex-1">
+                          <div className="flex items-center gap-1 md:gap-2">
+                            <span className="text-sm md:text-lg">
                               {getLessonTypeIcon(lesson.type)}
                             </span>
                             {lesson.completed ? (
-                              <FiCheckCircle className="w-5 h-5 text-green-400" />
+                              <FiCheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
                             ) : (
-                              <div className="w-5 h-5 rounded-full border-2 border-neutral-600" />
+                              <div className="w-4 h-4 md:w-5 md:h-5 rounded-full border-2 border-neutral-600" />
                             )}
                           </div>
 
-                          <div className="flex-1">
-                            <h4 className="text-lg font-semibold text-white mb-1 heading">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm md:text-lg font-semibold text-white mb-1 heading truncate">
                               {lesson.title}
                             </h4>
-                            <p className="text-sm text-neutral-400 mb-2 body">
+                            <p className="text-xs md:text-sm text-neutral-400 mb-1 md:mb-2 body line-clamp-2">
                               {lesson.description}
                             </p>
-                            <div className="flex items-center gap-4 text-xs text-neutral-500 body">
+                            <div className="flex items-center gap-2 md:gap-4 text-xs text-neutral-500 body">
                               <span className="flex items-center gap-1">
                                 <FiClock className="w-3 h-3" />
                                 {lesson.duration}
                               </span>
-                              <span className="capitalize">{lesson.type}</span>
+                              <span className="capitalize hidden sm:inline">
+                                {lesson.type}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -409,7 +422,7 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => startLesson(lesson)}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors body ${
+                          className={`flex items-center gap-1 md:gap-2 px-2 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors body text-xs md:text-sm ${
                             lesson.completed
                               ? "bg-green-500/20 border border-green-500/30 text-green-400"
                               : `bg-${currentModuleData.color}-500/20 border border-${currentModuleData.color}-500/30 text-${currentModuleData.color}-400 hover:bg-${currentModuleData.color}-500/30`
@@ -417,13 +430,15 @@ const LearningPanel = ({ workspace, setWorkspace: _setWorkspace }) => {
                         >
                           {lesson.completed ? (
                             <>
-                              <FiCheckCircle className="w-4 h-4" />
-                              Review
+                              <FiCheckCircle className="w-3 h-3 md:w-4 md:h-4" />
+                              <span className="hidden sm:inline">Review</span>
+                              <span className="sm:hidden">✓</span>
                             </>
                           ) : (
                             <>
-                              <FiPlay className="w-4 h-4" />
-                              Start
+                              <FiPlay className="w-3 h-3 md:w-4 md:h-4" />
+                              <span className="hidden sm:inline">Start</span>
+                              <span className="sm:hidden">▶</span>
                             </>
                           )}
                         </motion.button>

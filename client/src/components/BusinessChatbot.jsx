@@ -167,7 +167,7 @@ const BusinessChatbot = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed inset-4 z-40 bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden flex flex-col
+              className="fixed bottom-4 left-4 right-4 z-40 h-[85vh] max-h-[600px] bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden flex flex-col
                          md:bottom-4 md:right-4 md:top-auto md:left-auto md:w-[360px] md:h-[70vh] md:max-h-[600px]
                          lg:w-[400px] lg:h-[600px] lg:bottom-6 lg:right-6"
             >

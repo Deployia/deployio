@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import ProfileAvatar from "@components/ProfileAvatar";
 import { useSelector } from "react-redux";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaCode,
@@ -14,9 +14,11 @@ import {
   FaComments,
   FaBrain,
   FaSignInAlt,
+  FaTimes,
 } from "react-icons/fa";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useModal } from "@context/ModalContext";
+import { useSidebar } from "@context/SidebarContext";
 
 // Import view components
 import EditorView from "@components/playground/views/EditorView";
@@ -60,6 +62,8 @@ const PlaygroundLayout = () => {
   const location = useLocation();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { openModal } = useModal();
+  const { isSidebarOpen, sidebarContent, openSidebar, closeSidebar } =
+    useSidebar();
 
   // Layout state
   const [activeView, setActiveView] = useState("editor");
@@ -288,6 +292,11 @@ const PlaygroundLayout = () => {
   const handleViewChange = (viewId) => {
     setActiveView(viewId);
     navigate(`/playground/${viewId}`);
+
+    // On mobile, open sidebar when switching views
+    if (window.innerWidth < 768) {
+      openSidebar();
+    }
   };
 
   // Sync active view with URL
@@ -621,9 +630,89 @@ const PlaygroundLayout = () => {
             )}
           </div>
         </div>
+
+        {/* Mobile Sliding Sidebar Overlay */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={closeSidebar}
+                className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              />
+
+              {/* Sliding Sidebar */}
+              <motion.div
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className="fixed left-0 top-0 bottom-0 w-80 bg-neutral-900 border-r border-neutral-800/50 z-50 md:hidden overflow-hidden"
+              >
+                {/* Sidebar Header */}
+                <div className="flex items-center justify-between p-4 border-b border-neutral-800/50">
+                  <h3 className="text-lg font-semibold text-white">
+                    {getSidebarTitle(activeView)}
+                  </h3>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={closeSidebar}
+                    className="p-2 rounded-lg hover:bg-neutral-800 transition-colors"
+                  >
+                    <FaTimes className="w-4 h-4 text-neutral-400" />
+                  </motion.button>
+                </div>
+
+                {/* Sidebar Content */}
+                <div className="flex-1 overflow-auto custom-scrollbar">
+                  {sidebarContent || renderCurrentSidebar()}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );
+
+  // Helper function to get sidebar title
+  function getSidebarTitle(view) {
+    const titles = {
+      editor: "File Explorer",
+      analysis: "Analysis Settings",
+      generation: "Generation Settings",
+      chatbot: "Chat Settings",
+      learning: "Learning Path",
+    };
+    return titles[view] || "Sidebar";
+  }
+
+  // Helper function to render current sidebar content
+  function renderCurrentSidebar() {
+    switch (activeView) {
+      case "editor":
+        return (
+          <EditorSidebar
+            selectedRepo={selectedRepo}
+            githubToken={githubToken}
+          />
+        );
+      case "analysis":
+        return <AnalysisSidebar />;
+      case "generation":
+        return <GenerationSidebar />;
+      case "chatbot":
+        return <ChatbotSidebar />;
+      case "learning":
+        return <LearningSidebar />;
+      default:
+        return null;
+    }
+  }
 };
 
 export default PlaygroundLayout;

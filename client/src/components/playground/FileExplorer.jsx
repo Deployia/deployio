@@ -353,13 +353,7 @@ const FileExplorer = ({ onFileSelect, selectedRepo }) => {
       </div>
 
       {/* Content */}
-      <div
-        className="flex-1 overflow-auto"
-        style={{
-          scrollbarWidth: "thin",
-          scrollbarColor: "#525252 #262626",
-        }}
-      >
+      <div className="flex-1 overflow-auto custom-scrollbar">
         {loading ? (
           <div className="flex items-center justify-center h-24 md:h-32">
             <div className="flex items-center gap-2 md:gap-3">

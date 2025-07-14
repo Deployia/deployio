@@ -178,18 +178,18 @@ Click on a suggestion below or ask me anything about DevOps!`,
       <SEO page="playground-chatbot" />
       <div className="h-full flex flex-col bg-neutral-900">
         {/* Header */}
-        <div className="p-6 border-b border-neutral-800/50 flex-shrink-0">
+        <div className="p-3 md:p-6 border-b border-neutral-800/50 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <FiZap className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <FiZap className="w-4 h-4 md:w-5 md:h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white heading">
+                <h2 className="text-lg md:text-xl font-bold text-white heading">
                   DeployBot
                 </h2>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-neutral-400 body">
+                <div className="flex items-center gap-1 md:gap-2">
+                  <p className="text-xs md:text-sm text-neutral-400 body">
                     Your DevOps AI Assistant
                   </p>
                   <div className="flex items-center gap-1">
@@ -198,24 +198,26 @@ Click on a suggestion below or ask me anything about DevOps!`,
                         llmConnected ? "bg-green-500" : "bg-yellow-500"
                       }`}
                     ></div>
-                    <span className="text-xs text-neutral-500">
+                    <span className="text-xs text-neutral-500 hidden md:inline">
                       {llmConnected ? "AI Active" : "Demo Mode"}
                     </span>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={clearChat}
-                className="p-2 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
+                className="p-1.5 md:p-2 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
                 title="Clear Chat"
               >
-                <FiTrash2 className="w-4 h-4" />
+                <FiTrash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
               </motion.button>
-              <ProfileAvatar user={user} />
+              <div className="hidden md:block">
+                <ProfileAvatar user={user} />
+              </div>
             </div>
           </div>
         </div>
@@ -228,40 +230,40 @@ Click on a suggestion below or ask me anything about DevOps!`,
             scrollbarColor: "#525252 #262626",
           }}
         >
-          <div className="p-6 space-y-6">
+          <div className="p-3 md:p-6 space-y-3 md:space-y-4">
             {messages.map((message) => (
               <motion.div
                 key={message.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex gap-4 ${
+                className={`flex gap-2 md:gap-3 ${
                   message.type === "user" ? "justify-end" : ""
                 }`}
               >
                 {message.type === "ai" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                    <FiZap className="w-4 h-4 text-white" />
+                  <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                    <FiZap className="w-3 h-3 md:w-4 md:h-4 text-white" />
                   </div>
                 )}
 
                 <div
                   className={`flex flex-col ${
                     message.type === "user" ? "items-end" : ""
-                  } max-w-2xl`}
+                  } max-w-[85%] md:max-w-2xl`}
                 >
                   <div
-                    className={`rounded-2xl px-5 py-4 ${
+                    className={`rounded-xl md:rounded-2xl px-3 py-2 md:px-4 md:py-3 ${
                       message.type === "user"
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white max-w-md ml-auto shadow-lg"
-                        : "bg-neutral-800/80 border border-neutral-700/30 text-neutral-100 max-w-3xl backdrop-blur-sm"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white max-w-xs md:max-w-md ml-auto shadow-lg"
+                        : "bg-neutral-800/80 border border-neutral-700/30 text-neutral-100 max-w-full backdrop-blur-sm"
                     }`}
                   >
                     {message.type === "user" ? (
-                      <div className="text-white font-medium">
+                      <div className="text-white font-medium text-sm md:text-base">
                         {message.content}
                       </div>
                     ) : (
-                      <div className="prose prose-sm prose-invert max-w-none">
+                      <div className="prose prose-sm prose-invert max-w-none [&>*]:text-sm md:[&>*]:text-base [&>*]:leading-relaxed">
                         <ReactMarkdown
                           components={{
                             code: ({
@@ -276,7 +278,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                               );
                               return !inline && match ? (
                                 <pre
-                                  className="bg-neutral-900/80 border border-neutral-600/30 rounded-lg p-4 my-3 overflow-x-auto"
+                                  className="bg-neutral-900/80 border border-neutral-600/30 rounded-lg p-3 md:p-4 my-2 md:my-3 overflow-x-auto text-xs md:text-sm"
                                   style={{
                                     scrollbarWidth: "thin",
                                     scrollbarColor: "#525252 #262626",
@@ -288,7 +290,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                                 </pre>
                               ) : (
                                 <code
-                                  className="bg-neutral-800/70 px-2 py-1 rounded text-blue-300 text-sm font-mono"
+                                  className="bg-neutral-800/70 px-1.5 py-0.5 rounded text-blue-300 text-xs md:text-sm font-mono"
                                   {...props}
                                 >
                                   {children}
@@ -396,12 +398,12 @@ Click on a suggestion below or ask me anything about DevOps!`,
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="flex gap-4"
+                  className="flex gap-2 md:gap-4"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <FiZap className="w-4 h-4 text-white" />
+                  <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <FiZap className="w-3 h-3 md:w-4 md:h-4 text-white" />
                   </div>
-                  <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl px-4 py-3">
+                  <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl px-3 py-2 md:px-4 md:py-3">
                     <div className="flex gap-1">
                       <div
                         className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"
@@ -432,12 +434,12 @@ Click on a suggestion below or ask me anything about DevOps!`,
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="px-6 pb-4"
+              className="px-3 md:px-6 pb-2 md:pb-3"
             >
-              <div className="text-sm text-neutral-400 mb-3">
+              <div className="text-xs text-neutral-400 mb-1.5 md:mb-2">
                 Quick suggestions:
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-1.5">
                 {suggestions.map((suggestion, index) => {
                   const Icon = suggestion.icon;
                   return (
@@ -446,10 +448,10 @@ Click on a suggestion below or ask me anything about DevOps!`,
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleSuggestionClick(suggestion.text)}
-                      className="flex items-center gap-2 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-sm text-neutral-300 hover:bg-neutral-700/50 hover:text-white transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-800/50 border border-neutral-700/50 rounded-md text-xs text-neutral-300 hover:bg-neutral-700/50 hover:text-white transition-colors text-left min-w-0"
                     >
-                      <Icon className="w-3 h-3" />
-                      {suggestion.text}
+                      <Icon className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate flex-1">{suggestion.text}</span>
                     </motion.button>
                   );
                 })}
@@ -460,7 +462,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
 
         {/* Input Area */}
         <div className="border-t border-neutral-800/50 bg-neutral-900/50 backdrop-blur-sm flex-shrink-0">
-          <div className="p-4">
+          <div className="p-3 md:p-4">
             <div className="relative">
               <textarea
                 ref={inputRef}
@@ -470,13 +472,19 @@ Click on a suggestion below or ask me anything about DevOps!`,
                   // Auto-resize textarea
                   e.target.style.height = "auto";
                   e.target.style.height =
-                    Math.min(e.target.scrollHeight, 120) + "px";
+                    Math.min(
+                      e.target.scrollHeight,
+                      window.innerWidth < 768 ? 80 : 120
+                    ) + "px";
                 }}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask DeployBot about DevOps, containers, CI/CD, security..."
-                className="w-full bg-neutral-800/90 border border-neutral-600/30 rounded-xl px-4 py-3 pr-12 text-white placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm leading-relaxed shadow-lg backdrop-blur-sm"
+                placeholder="Ask DeployBot about DevOps, containers, CI/CD..."
+                className="w-full bg-neutral-800/90 border border-neutral-600/30 rounded-xl px-3 py-2.5 md:px-4 md:py-3 pr-12 md:pr-16 text-white placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm leading-relaxed shadow-lg backdrop-blur-sm"
                 rows={1}
-                style={{ minHeight: "48px", maxHeight: "120px" }}
+                style={{
+                  minHeight: window.innerWidth < 768 ? "44px" : "48px",
+                  maxHeight: window.innerWidth < 768 ? "80px" : "120px",
+                }}
               />
 
               {/* Submit button inside input */}
@@ -500,7 +508,7 @@ Click on a suggestion below or ask me anything about DevOps!`,
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowSuggestions(true)}
-                  className="absolute right-14 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-blue-400 transition-colors"
+                  className="absolute right-12 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-blue-400 transition-colors"
                   title="Show Suggestions"
                 >
                   <FiZap className="w-4 h-4" />

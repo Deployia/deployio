@@ -108,7 +108,7 @@ const EditorSidebar = ({ workspace }) => {
     };
   };
 
-  const analysis = workspace.activeFile
+  const analysis = workspace?.activeFile
     ? getDevOpsAnalysis(workspace.activeFile.name)
     : null;
 
@@ -124,7 +124,7 @@ const EditorSidebar = ({ workspace }) => {
         <div className="text-xs text-neutral-400 uppercase tracking-wide font-medium body">
           DevOps Analysis
         </div>
-        {workspace.activeFile && analysis ? (
+        {workspace?.activeFile && analysis ? (
           <div className="space-y-4">
             {/* DevOps File Analysis */}
             <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
