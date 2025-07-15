@@ -20,6 +20,10 @@ class EmailChannel {
       }
       const templateName = this.getTemplateName(notification.type);
       const templateVariables = this.prepareTemplateVariables(notification);
+      logger.debug("[EmailChannel] Template variables for email", {
+        templateName,
+        templateVariables,
+      });
       const subject = this.getEmailSubject(
         notification.type,
         notification.title,
@@ -27,7 +31,13 @@ class EmailChannel {
       );
 
       // Render the template with variables (fix: ensure all placeholders are replaced)
+      logger.debug("[EmailChannel] Rendering template", { templateName });
       const rendered = this.templates.render(templateName, templateVariables);
+      logger.debug("[EmailChannel] Rendered output", {
+        subject: rendered.subject,
+        html: !!rendered.html,
+        text: !!rendered.text,
+      });
 
       // Send email using rendered content
       const result = await emailService.sendEmail({
@@ -77,34 +87,34 @@ class EmailChannel {
       "auth.account_security": "auth.account_security",
       "auth.login_attempt": "auth.login_attempt",
 
-      // Deployment templates
-      "deployment.started": "deployment-started",
-      "deployment.success": "deployment-success",
-      "deployment.failed": "deployment-failed",
-      "deployment.stopped": "deployment-stopped",
+      // Deployment templates (fix: use dot notation keys)
+      "deployment.started": "deployment.started",
+      "deployment.success": "deployment.success",
+      "deployment.failed": "deployment.failed",
+      "deployment.stopped": "deployment.stopped",
 
-      // Project templates
-      "project.analysis_complete": "project-analysis-complete",
-      "project.analysis_failed": "project-analysis-failed",
-      "project.collaborator_added": "project-collaborator-added",
+      // Project templates (fix: use dot notation keys)
+      "project.analysis_complete": "project.analysis_complete",
+      "project.analysis_failed": "project.analysis_failed",
+      "project.collaborator_added": "project.collaborator_added",
 
-      // Security templates
-      "security.login_new_device": "security-new-device-login",
-      "security.password_changed": "security-password-changed",
-      "security.2fa_enabled": "security-2fa-enabled",
-      "security.2fa_disabled": "security-2fa-disabled",
-      "security.api_key_created": "security-api-key-created",
+      // Security templates (fix: use dot notation keys)
+      "security.login_new_device": "security.login_new_device",
+      "security.password_changed": "security.password_changed",
+      "security.2fa_enabled": "security.2fa_enabled",
+      "security.2fa_disabled": "security.2fa_disabled",
+      "security.api_key_created": "security.api_key_created",
 
-      // System templates
-      "system.maintenance": "system-maintenance",
-      "system.update": "system-update",
-      "system.quota_warning": "system-quota-warning",
-      "system.quota_exceeded": "system-quota-exceeded",
+      // System templates (fix: use dot notation keys)
+      "system.maintenance": "system.maintenance",
+      "system.update": "system.update",
+      "system.quota_warning": "system.quota_warning",
+      "system.quota_exceeded": "system.quota_exceeded",
       "system.test": "generic-notification",
 
-      // General templates
-      "general.welcome": "general-welcome",
-      "general.announcement": "general-announcement",
+      // General templates (fix: use dot notation keys)
+      "general.welcome": "general.welcome",
+      "general.announcement": "general.announcement",
     };
 
     return templateMap[type] || "generic-notification";
@@ -128,8 +138,8 @@ class EmailChannel {
       title: title,
       message: message,
 
-      // Context data - spread all context properties
-      ...context,
+      // Context data - spread all context properties (fix: flatten context.data if present)
+      ...(context && context.data ? context.data : context),
 
       // Action data
       action: action || null,
@@ -139,19 +149,25 @@ class EmailChannel {
       dashboardUrl: `${
         process.env.FRONTEND_URL || "https://deployio.com"
       }/dashboard`,
-      docsUrl: `${process.env.FRONTEND_URL || "https://deployio.com"}/docs`,
+      docsUrl: `${process.env.FRONTEND_URL || "https://deployio.com"}/resources/docs`,
       supportEmail: process.env.SUPPORT_EMAIL || "support@deployio.com",
       unsubscribeUrl: `${
         process.env.FRONTEND_URL || "https://deployio.com"
-      }/settings/notifications`,
+      }/dashboard/profile?tab=notifications`,
       securityUrl: `${
         process.env.FRONTEND_URL || "https://deployio.com"
-      }/settings/security`,
+      }/dashboard/profile?tab=security`,
 
       // Timestamps
       timestamp:
         notification.createdAt?.toISOString() || new Date().toISOString(),
     };
+
+    // Ensure all context.data fields are at the top level for plain text interpolation
+    if (context && context.data && typeof context.data === "object") {
+      Object.assign(baseVariables, context.data);
+    }
+    logger.debug("[EmailChannel] Final template variables", baseVariables);
 
     return baseVariables;
   }

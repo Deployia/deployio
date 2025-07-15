@@ -73,6 +73,10 @@ class NotificationService {
         expiresAt,
         action,
       });
+      logger.debug(
+        "[NotificationService.createNotification] notification object",
+        notification.toObject()
+      );
 
       await notification.save();
 

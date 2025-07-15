@@ -20,12 +20,12 @@ router.post("/register", getRateLimiters().auth.register, user.auth.register);
 router.post("/login", getRateLimiters().auth.login, user.auth.login);
 router.post(
   "/forgot-password",
-  getRateLimiters().auth.passwordReset,
+  // getRateLimiters().auth.passwordReset,
   user.auth.forgotPassword
 );
 router.post(
   "/reset-password/:token",
-  getRateLimiters().auth.passwordReset,
+  // getRateLimiters().auth.passwordReset,
   user.auth.resetPassword
 );
 router.post("/verify-otp", getRateLimiters().auth.otp, user.auth.verifyOtp);

@@ -1,10 +1,8 @@
 const nodemailer = require("nodemailer");
-const EmailTemplateRenderer = require("../../utils/EmailTemplateRenderer");
 const NotificationTemplates = require("../notification/templates/notificationTemplates");
 const logger = require("../../config/logger");
 
 // Initialize template renderers
-const templateRenderer = new EmailTemplateRenderer();
 const notificationTemplates = new NotificationTemplates();
 
 /**
@@ -73,13 +71,6 @@ const sendEmail = async (options) => {
           html = rendered.html;
           finalSubject = rendered.subject; // Use template subject if not provided
           logger.info(`Using notification template: ${options.template}`);
-        } else {
-          // Fallback to old template renderer for backward compatibility
-          html = templateRenderer.render(
-            options.template,
-            options.variables || {}
-          );
-          logger.info(`Using legacy template: ${options.template}`);
         }
       } catch (templateError) {
         logger.error(

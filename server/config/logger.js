@@ -5,7 +5,7 @@ const fs = require("fs");
 const { combine, timestamp, printf, colorize, align, json } = winston.format;
 
 // Determine log level based on environment
-const level = process.env.NODE_ENV === "production" ? "warn" : "info";
+const level = process.env.NODE_ENV === "production" ? "warn" : "debug";
 
 // Ensure logs directory exists
 const logsDir = path.join(__dirname, "..", "logs");

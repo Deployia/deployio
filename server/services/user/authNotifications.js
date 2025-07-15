@@ -65,6 +65,14 @@ class AuthNotifications {
     try {
       const { username, email } = userData;
       const resetLink = `${resetUrl}/auth/reset-password/${resetToken}`;
+      logger.debug("[AuthNotifications.sendPasswordReset] args", {
+        userId,
+        username,
+        email,
+        resetToken,
+        resetUrl,
+        resetLink,
+      });
 
       return await notificationService.createNotification({
         userId,
@@ -79,14 +87,14 @@ class AuthNotifications {
           email,
           resetToken,
           resetLink,
-          expiresIn: "1 hour",
+          expiresIn: "30 minutes",
         },
         action: {
           label: "Reset Password",
           url: resetLink,
           type: "button",
         },
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
       });
     } catch (error) {
       logger.error("Failed to send password reset notification", {

@@ -121,7 +121,7 @@ const BusinessChatbot = () => {
       {!isOpen && (
         <motion.button
           onClick={toggleChat}
-          className="fixed bottom-4 right-4 z-50 w-12 h-12 sm:bottom-6 sm:right-6 sm:w-16 sm:h-16 rounded-full shadow-2xl transition-all duration-300 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 hover:from-blue-700 hover:via-purple-700 hover:to-green-700"
+          className="fixed bottom-4 right-2 z-50 w-12 h-12 sm:bottom-6 sm:right-6 sm:w-16 sm:h-16 rounded-full shadow-2xl transition-all duration-300 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 hover:from-blue-700 hover:via-purple-700 hover:to-green-700"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           initial={{ scale: 0 }}
@@ -167,7 +167,7 @@ const BusinessChatbot = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed bottom-4 left-4 right-4 z-40 h-[85vh] max-h-[600px] bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden flex flex-col
+              className="fixed bottom-4 left-4 right-4 z-100 h-[85vh] max-h-[600px] bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden flex flex-col
                          md:bottom-4 md:right-4 md:top-auto md:left-auto md:w-[360px] md:h-[70vh] md:max-h-[600px]
                          lg:w-[400px] lg:h-[600px] lg:bottom-6 lg:right-6"
             >
