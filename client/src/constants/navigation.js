@@ -16,7 +16,6 @@ import {
   FaChartLine,
   FaCog,
   FaLock,
-  FaPlay,
   FaLaptopCode,
 } from "react-icons/fa";
 
@@ -135,7 +134,7 @@ export const dashboardItems = [
   {
     label: "Playground",
     href: "/playground",
-    icon: FaPlay,
+    icon: FaLaptopCode,
     description: "AI-powered DevOps IDE",
     highlight: true,
   },
