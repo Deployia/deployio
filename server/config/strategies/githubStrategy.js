@@ -125,6 +125,7 @@ const githubIntegrationStrategy = new GitHubStrategy(
 );
 
 module.exports = {
+  sanitizeUsername,
   githubBasicStrategy,
   githubIntegrationStrategy,
 };

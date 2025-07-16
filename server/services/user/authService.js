@@ -52,7 +52,7 @@ const generateOtp = () => {
 const registerUser = async (userData) => {
   const { username, email, password } = userData;
   // Import sanitizeUsername utility
-  const { sanitizeUsername } = require("../config/strategies/githubStrategy");
+  const { sanitizeUsername } = require("@config/strategies/githubStrategy"); 
   const safeUsername = sanitizeUsername(username);
 
   // Check if user already exists

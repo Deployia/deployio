@@ -28,15 +28,22 @@ class AuthNotifications {
         priority: "high",
         channels: ["email"], // Only email for OTP
         context: {
-          otp,
-          username,
-          email,
-          isResend,
-          expiresIn: "10 minutes",
+          data: {
+            otp,
+            username,
+            email,
+            isResend,
+            expiresIn: "10 minutes",
+            actionUrl: `${
+              process.env.FRONTEND_URL || "https://deployio.tech"
+            }/auth/verify`,
+          },
         },
         action: {
           label: "Verify Account",
-          url: `${process.env.FRONTEND_URL}/auth/verify`,
+          url: `${
+            process.env.FRONTEND_URL || "https://deployio.tech"
+          }/auth/verify`,
           type: "button",
         },
         expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
@@ -119,13 +126,17 @@ class AuthNotifications {
         priority: "normal",
         channels: ["email", "in_app"], // Both email and in-app
         context: {
-          username,
-          email,
-          isNewUser: true,
+          data: {
+            username,
+            email,
+            isNewUser: true,
+          },
         },
         action: {
           label: "Get Started",
-          url: `${process.env.FRONTEND_URL}/getting-started`,
+          url: `${
+            process.env.FRONTEND_URL || "https://deployio.tech"
+          }/getting-started`,
           type: "button",
         },
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -157,13 +168,17 @@ class AuthNotifications {
         priority: "normal",
         channels: ["in_app"], // In-app only - they just verified via email
         context: {
-          username,
-          email,
-          verifiedAt: new Date(),
+          data: {
+            username,
+            email,
+            verifiedAt: new Date(),
+          },
         },
         action: {
           label: "Go to Dashboard",
-          url: `${process.env.FRONTEND_URL}/dashboard`,
+          url: `${
+            process.env.FRONTEND_URL || "https://deployio.tech"
+          }/dashboard`,
           type: "button",
         },
       });
@@ -195,15 +210,19 @@ class AuthNotifications {
         priority: "high",
         channels: ["email", "in_app"], // Both channels for security
         context: {
-          username,
-          email,
-          changedAt: new Date(),
-          ipAddress: userData.ipAddress || "Unknown",
-          userAgent: userData.userAgent || "Unknown",
+          data: {
+            username,
+            email,
+            changedAt: new Date(),
+            ipAddress: userData.ipAddress || "Unknown",
+            userAgent: userData.userAgent || "Unknown",
+          },
         },
         action: {
           label: "Security Settings",
-          url: `${process.env.FRONTEND_URL}/settings/security`,
+          url: `${
+            process.env.FRONTEND_URL || "https://deployio.tech"
+          }/settings/security`,
           type: "button",
         },
       });
@@ -237,16 +256,20 @@ class AuthNotifications {
         priority: "high",
         channels: ["email", "in_app"], // Both channels for security
         context: {
-          username,
-          email,
-          device: userAgent || "Unknown device",
-          location: location || "Unknown location",
-          ipAddress: ipAddress || "Unknown IP",
-          loginTime: loginTime || new Date(),
+          data: {
+            username,
+            email,
+            device: userAgent || "Unknown device",
+            location: location || "Unknown location",
+            ipAddress: ipAddress || "Unknown IP",
+            loginTime: loginTime || new Date(),
+          },
         },
         action: {
           label: "Review Security Settings",
-          url: `${process.env.FRONTEND_URL}/settings/security`,
+          url: `${
+            process.env.FRONTEND_URL || "https://deployio.tech"
+          }/settings/security`,
           type: "button",
         },
       });
@@ -282,14 +305,18 @@ class AuthNotifications {
         priority: "normal",
         channels: ["email", "in_app"],
         context: {
-          username,
-          email,
-          enabled,
-          changedAt: new Date(),
+          data: {
+            username,
+            email,
+            enabled,
+            changedAt: new Date(),
+          },
         },
         action: {
           label: "Security Settings",
-          url: `${process.env.FRONTEND_URL}/settings/security`,
+          url: `${
+            process.env.FRONTEND_URL || "https://deployio.tech"
+          }/settings/security`,
           type: "button",
         },
       });
@@ -323,16 +350,18 @@ class AuthNotifications {
         priority: "high",
         channels: ["email"],
         context: {
-          username,
-          email,
-          reason,
-          lockUntil,
-          attempts,
-          lockedAt: new Date(),
+          data: {
+            username,
+            email,
+            reason,
+            lockUntil,
+            attempts,
+            lockedAt: new Date(),
+          },
         },
         action: {
           label: "Contact Support",
-          url: `${process.env.FRONTEND_URL}/support`,
+          url: `${process.env.FRONTEND_URL || "https://deployio.tech"}/support`,
           type: "button",
         },
       });
@@ -366,17 +395,21 @@ class AuthNotifications {
         priority: "high",
         channels: ["email"],
         context: {
-          username,
-          email,
-          securityAction,
-          timestamp,
-          ipAddress,
-          location,
-          device,
+          data: {
+            username,
+            email,
+            securityAction,
+            timestamp,
+            ipAddress,
+            location,
+            device,
+          },
         },
         action: {
           label: "Review Account Security",
-          url: `${process.env.FRONTEND_URL}/account/security`,
+          url: `${
+            process.env.FRONTEND_URL || "https://deployio.tech"
+          }/account/security`,
           type: "button",
         },
       });
