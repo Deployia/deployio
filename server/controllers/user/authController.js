@@ -278,7 +278,7 @@ const forgotPassword = async (req, res) => {
       process.env.NODE_ENV === "development"
         ? process.env.FRONTEND_URL_DEV
         : process.env.FRONTEND_URL_PROD
-    }/auth/reset-password`;
+    }`;
     const message = await authService.forgotPassword(
       email.toLowerCase().trim(),
       resetUrl,
