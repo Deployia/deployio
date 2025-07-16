@@ -1,0 +1,482 @@
+import { motion } from "framer-motion";
+import {
+  FaBell,
+  FaEnvelope,
+  FaMobile,
+  FaCog,
+  FaVolumeOff,
+  FaCalendarAlt,
+  FaShieldAlt,
+} from "react-icons/fa";
+
+const NotificationsPreferences = ({
+  notificationPreferences,
+  isLoading,
+  handleTogglePreference,
+  handleQuietHoursChange,
+  handleDigestSettingsChange,
+  testNotification,
+  getCurrentQuietHours,
+  getCurrentDigestSettings,
+}) => {
+  const quietHours = getCurrentQuietHours();
+  const digestSettings = getCurrentDigestSettings();
+
+  const notificationCategories = [
+    {
+      title: "Deployment Notifications",
+      description: "Get notified about deployment status changes",
+      categories: [
+        {
+          key: "deploymentSuccess",
+          label: "Successful Deployments",
+          icon: FaBell,
+          description: "When deployments complete successfully",
+        },
+        {
+          key: "deploymentFailure",
+          label: "Failed Deployments",
+          icon: FaShieldAlt,
+          description: "When deployments fail or encounter errors",
+        },
+        {
+          key: "deploymentStarted",
+          label: "Deployment Started",
+          icon: FaCog,
+          description: "When new deployments begin",
+        },
+        {
+          key: "deploymentStopped",
+          label: "Deployment Stopped",
+          icon: FaCog,
+          description: "When deployments are stopped or cancelled",
+        },
+      ],
+    },
+    {
+      title: "Project Notifications",
+      description: "Notifications related to your projects",
+      categories: [
+        {
+          key: "projectAnalysisComplete",
+          label: "Analysis Complete",
+          icon: FaBell,
+          description: "When project analysis completes",
+        },
+        {
+          key: "projectAnalysisFailed",
+          label: "Analysis Failed",
+          icon: FaShieldAlt,
+          description: "When project analysis fails",
+        },
+        {
+          key: "projectCollaboratorAdded",
+          label: "New Collaborator",
+          icon: FaCog,
+          description: "When collaborators are added to your projects",
+        },
+      ],
+    },
+    {
+      title: "Security & Account",
+      description: "Important security and account-related notifications",
+      categories: [
+        {
+          key: "securityAlerts",
+          label: "Security Alerts",
+          icon: FaShieldAlt,
+          description: "Login attempts and security warnings",
+        },
+        {
+          key: "accountChanges",
+          label: "Account Changes",
+          icon: FaCog,
+          description: "Profile updates, settings changes",
+        },
+        {
+          key: "newDeviceLogin",
+          label: "New Device Logins",
+          icon: FaCog,
+          description: "When you log in from a new device",
+        },
+        {
+          key: "passwordChanged",
+          label: "Password Changes",
+          icon: FaShieldAlt,
+          description: "When your password is changed",
+        },
+        {
+          key: "twoFactorEnabled",
+          label: "2FA Enabled",
+          icon: FaShieldAlt,
+          description: "When two-factor authentication is enabled",
+        },
+        {
+          key: "twoFactorDisabled",
+          label: "2FA Disabled",
+          icon: FaShieldAlt,
+          description: "When two-factor authentication is disabled",
+        },
+        {
+          key: "apiKeyCreated",
+          label: "API Key Created",
+          icon: FaCog,
+          description: "When new API keys are created",
+        },
+      ],
+    },
+    {
+      title: "System Notifications",
+      description: "System maintenance and quota notifications",
+      categories: [
+        {
+          key: "systemMaintenance",
+          label: "System Maintenance",
+          icon: FaCog,
+          description: "Scheduled maintenance and downtime alerts",
+        },
+        {
+          key: "systemUpdates",
+          label: "System Updates",
+          icon: FaBell,
+          description: "Platform updates and new features",
+        },
+        {
+          key: "quotaWarning",
+          label: "Quota Warning",
+          icon: FaShieldAlt,
+          description: "When approaching usage limits",
+        },
+        {
+          key: "quotaExceeded",
+          label: "Quota Exceeded",
+          icon: FaShieldAlt,
+          description: "When usage limits are exceeded",
+        },
+      ],
+    },
+    {
+      title: "Communication",
+      description: "Marketing and product update notifications",
+      categories: [
+        {
+          key: "welcomeMessage",
+          label: "Welcome Messages",
+          icon: FaBell,
+          description: "Welcome and onboarding messages",
+        },
+        {
+          key: "announcements",
+          label: "Announcements",
+          icon: FaEnvelope,
+          description: "Important platform announcements",
+        },
+        {
+          key: "productUpdates",
+          label: "Product Updates",
+          icon: FaBell,
+          description: "New features and improvements",
+        },
+        {
+          key: "tips",
+          label: "Tips & Best Practices",
+          icon: FaCog,
+          description: "Helpful tips and tutorials",
+        },
+      ],
+    },
+  ];
+
+  const deliveryMethods = [
+    {
+      key: "email",
+      label: "Email Notifications",
+      icon: FaEnvelope,
+      description: "Receive notifications via email",
+    },
+    {
+      key: "inApp",
+      label: "In-App Notifications",
+      icon: FaBell,
+      description: "Show notifications in the application",
+    },
+    {
+      key: "push",
+      label: "Push Notifications",
+      icon: FaMobile,
+      description: "Browser push notifications",
+    },
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Delivery Methods */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Delivery Methods
+            </h3>
+            <p className="text-gray-400">
+              Choose how you want to receive notifications
+            </p>
+          </div>
+          <button
+            onClick={testNotification}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Test Notification
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {deliveryMethods.map(({ key, label, icon: Icon, description }) => (
+            <div
+              key={key}
+              className="p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Icon className="text-blue-400 text-lg" />
+                  <span className="font-medium text-white">{label}</span>
+                </div>
+                <button
+                  onClick={() => handleTogglePreference(key)}
+                  disabled={isLoading}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    notificationPreferences?.[key]
+                      ? "bg-blue-500"
+                      : "bg-neutral-600"
+                  }`}
+                >
+                  <div
+                    className={`absolute w-5 h-5 bg-white rounded-full top-0.5 transition-transform ${
+                      notificationPreferences?.[key]
+                        ? "translate-x-6"
+                        : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+              <p className="text-sm text-gray-400">{description}</p>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Notification Categories */}
+      {notificationCategories.map((category, categoryIndex) => (
+        <motion.div
+          key={category.title}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: categoryIndex * 0.1 }}
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+        >
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-white mb-2">
+              {category.title}
+            </h3>
+            <p className="text-gray-400">{category.description}</p>
+          </div>
+
+          <div className="space-y-4">
+            {category.categories.map(
+              ({ key, label, icon: Icon, description }) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between p-4 bg-neutral-800/50 border border-neutral-700/50 rounded-lg hover:border-neutral-600/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-white">{label}</h4>
+                      <p className="text-sm text-gray-400">{description}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleTogglePreference(key)}
+                    disabled={isLoading}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      notificationPreferences?.[key]
+                        ? "bg-green-500"
+                        : "bg-neutral-600"
+                    }`}
+                  >
+                    <div
+                      className={`absolute w-5 h-5 bg-white rounded-full top-0.5 transition-transform ${
+                        notificationPreferences?.[key]
+                          ? "translate-x-6"
+                          : "translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        </motion.div>
+      ))}
+
+      {/* Quiet Hours */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <FaVolumeOff className="text-purple-400 text-xl" />
+            <div>
+              <h3 className="text-xl font-semibold text-white">Quiet Hours</h3>
+              <p className="text-gray-400">
+                Set times when you don&apos;t want to receive notifications
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() =>
+              handleQuietHoursChange({
+                ...quietHours,
+                enabled: !quietHours.enabled,
+              })
+            }
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              quietHours.enabled ? "bg-purple-500" : "bg-neutral-600"
+            }`}
+          >
+            <div
+              className={`absolute w-5 h-5 bg-white rounded-full top-0.5 transition-transform ${
+                quietHours.enabled ? "translate-x-6" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+
+        {quietHours.enabled && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Start Time
+              </label>
+              <input
+                type="time"
+                value={quietHours.start}
+                onChange={(e) =>
+                  handleQuietHoursChange({
+                    ...quietHours,
+                    start: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                End Time
+              </label>
+              <input
+                type="time"
+                value={quietHours.end}
+                onChange={(e) =>
+                  handleQuietHoursChange({
+                    ...quietHours,
+                    end: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Digest Settings */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <FaCalendarAlt className="text-orange-400 text-xl" />
+            <div>
+              <h3 className="text-xl font-semibold text-white">
+                Notification Digest
+              </h3>
+              <p className="text-gray-400">
+                Receive a summary of your notifications
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() =>
+              handleDigestSettingsChange({
+                ...digestSettings,
+                enabled: !digestSettings.enabled,
+              })
+            }
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              digestSettings.enabled ? "bg-orange-500" : "bg-neutral-600"
+            }`}
+          >
+            <div
+              className={`absolute w-5 h-5 bg-white rounded-full top-0.5 transition-transform ${
+                digestSettings.enabled ? "translate-x-6" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+
+        {digestSettings.enabled && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Frequency
+              </label>
+              <select
+                value={digestSettings.frequency}
+                onChange={(e) =>
+                  handleDigestSettingsChange({
+                    ...digestSettings,
+                    frequency: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Time
+              </label>
+              <input
+                type="time"
+                value={digestSettings.time}
+                onChange={(e) =>
+                  handleDigestSettingsChange({
+                    ...digestSettings,
+                    time: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+export default NotificationsPreferences;

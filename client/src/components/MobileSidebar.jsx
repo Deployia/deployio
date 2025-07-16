@@ -8,6 +8,7 @@ import {
   FaSignInAlt,
   FaUserPlus,
   FaTimes,
+  FaBell,
 } from "react-icons/fa";
 
 const MobileSidebar = memo(
@@ -326,6 +327,18 @@ const MobileSidebar = memo(
                   transition={{ delay: 0.5 }}
                   className="p-4 border-t border-neutral-800/50 bg-neutral-900/50"
                 >
+                  {/* Quick Actions */}
+                  <div className="flex gap-2 mb-3">
+                    <Link
+                      to="/dashboard/profile?tab=notifications"
+                      onClick={onClose}
+                      className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 transition-all duration-200 flex-1"
+                    >
+                      <FaBell className="w-4 h-4" />
+                      <span className="text-sm font-medium">Notifications</span>
+                    </Link>
+                  </div>
+
                   <div className="flex items-center gap-3">
                     {/* Profile Avatar and Info */}{" "}
                     <Link

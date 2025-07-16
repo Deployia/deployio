@@ -69,6 +69,21 @@ export const fetchUnreadCount = createAsyncThunk(
   }
 );
 
+// Delete notification
+export const deleteNotification = createAsyncThunk(
+  "notifications/deleteNotification",
+  async (notificationId, thunkAPI) => {
+    try {
+      await api.delete(`/external/notifications/${notificationId}`);
+      return notificationId;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
 // Initial state following the established pattern
 const initialState = {
   // Loading states - specific and granular
@@ -77,6 +92,7 @@ const initialState = {
     markRead: false,
     markAllRead: false,
     unreadCount: false,
+    delete: false,
   },
 
   // Error states - matching loading states
@@ -85,12 +101,14 @@ const initialState = {
     markRead: null,
     markAllRead: null,
     unreadCount: null,
+    delete: null,
   },
 
   // Success states - for UI feedback
   success: {
     markRead: false,
     markAllRead: false,
+    delete: false,
   },
 
   // Data

@@ -345,8 +345,20 @@ const Navbar = memo(() => {
                 {isAuthenticated ? (
                   <>
                     {/* Notification Bell for authenticated users */}
-                    <li>
-                      <NotificationBell />
+                    <li
+                      className="relative"
+                      onMouseEnter={() =>
+                        handleDropdownMouseEnter("notifications")
+                      }
+                      onMouseLeave={() =>
+                        handleDropdownMouseLeave("notifications")
+                      }
+                    >
+                      <NotificationBell
+                        isOpen={openDropdown === "notifications"}
+                        onToggle={() => toggleDropdown("notifications")}
+                        onClose={() => setOpenDropdown(null)}
+                      />
                     </li>
                     <li>
                       <ProfileAvatar

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FaBell } from "react-icons/fa";
 import { motion } from "framer-motion";
@@ -12,9 +12,10 @@ import {
 import NotificationCenter from "./NotificationCenter";
 import useNotifications from "@hooks/useNotifications";
 
-const NotificationBell = () => {
+const NotificationBell = ({ isOpen, onToggle, onClose }) => {
   const dispatch = useDispatch();
-  const [isOpen, setIsOpen] = useState(false);
+  const bellRef = useRef(null);
+  const hoverTimeoutRef = useRef(null);
 
   // Redux state
   const unreadCount = useSelector(selectUnreadCount);
@@ -75,24 +76,38 @@ const NotificationBell = () => {
     };
   }, [dispatch, wsConnected, addListener, removeListener]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    const currentTimeout = hoverTimeoutRef.current;
+    return () => {
+      if (currentTimeout) {
+        clearTimeout(currentTimeout);
+      }
+    };
+  }, []);
+
   const handleToggle = () => {
-    setIsOpen(!isOpen);
+    if (onToggle) {
+      onToggle();
+    }
   };
 
   const handleClose = () => {
-    setIsOpen(false);
+    if (onClose) {
+      onClose();
+    }
   };
   return (
-    <div className="relative">
+    <div className="relative" ref={bellRef}>
       <motion.button
         onClick={handleToggle}
-        className={`relative p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+        className={`relative inline-flex items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 font-medium text-sm border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 ${
           loading.unreadCount
             ? "text-gray-500 cursor-not-allowed"
-            : "text-gray-400 hover:text-white hover:bg-neutral-800/50"
+            : "text-gray-300 hover:text-white hover:bg-neutral-800/50 hover:border-neutral-700"
         }`}
-        whileHover={!loading.unreadCount ? { scale: 1.05 } : {}}
-        whileTap={!loading.unreadCount ? { scale: 0.95 } : {}}
+        whileHover={!loading.unreadCount ? { scale: 1.02 } : {}}
+        whileTap={!loading.unreadCount ? { scale: 0.98 } : {}}
         disabled={loading.unreadCount}
       >
         {/* Bell Icon */}
@@ -119,15 +134,6 @@ const NotificationBell = () => {
               className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full"
             />
           </div>
-        )}
-
-        {/* Pulse animation for new notifications */}
-        {unreadCount > 0 && !loading.unreadCount && (
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="absolute inset-0 bg-blue-500/20 rounded-lg"
-          />
         )}
       </motion.button>
 

@@ -173,6 +173,7 @@ export {
   incrementUnreadCount,
   setUnreadCount,
   setLastFetch,
+  deleteNotification,
   selectNotifications,
   selectUnreadCount,
   selectNotificationLoading,

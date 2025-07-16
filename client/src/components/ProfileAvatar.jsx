@@ -10,6 +10,7 @@ import {
   FaShieldAlt,
   FaHistory,
   FaUserShield,
+  FaBell,
 } from "react-icons/fa";
 
 const ProfileAvatar = memo(
@@ -36,6 +37,12 @@ const ProfileAvatar = memo(
         href: "/dashboard/profile?tab=profile",
         icon: FaCog,
         description: "Manage your profile settings",
+      },
+      {
+        label: "Notifications",
+        href: "/dashboard/profile?tab=notifications",
+        icon: FaBell,
+        description: "Manage notification preferences",
       },
       {
         label: "Security",
