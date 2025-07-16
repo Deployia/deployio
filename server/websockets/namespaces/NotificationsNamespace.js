@@ -271,16 +271,34 @@ class NotificationsNamespace {
    * @param {String} userId - User ID
    * @param {Object} notification - Notification object
    */
-  static sendNotificationToUser(userId, notification) {
+  static async sendNotificationToUser(userId, notification) {
     const namespace = webSocketRegistry.get("/notifications");
     if (namespace) {
       namespace.emitToUser(userId, "new_notification", notification);
 
       // Also send updated unread count
-      namespace.emitToUser(userId, "unread_count_update", {
-        userId,
-        timestamp: new Date().toISOString(),
-      });
+      try {
+        const Notification = require("../../models/Notification");
+        const unreadCount = await Notification.countDocuments({
+          user: userId,
+          status: "unread",
+        });
+
+        namespace.emitToUser(userId, "unread_count", {
+          count: unreadCount,
+        });
+
+        logger.debug("Sent notification and unread count update", {
+          userId,
+          notificationId: notification.id,
+          unreadCount,
+        });
+      } catch (error) {
+        logger.error("Failed to send unread count update", {
+          userId,
+          error: error.message,
+        });
+      }
     }
   }
 

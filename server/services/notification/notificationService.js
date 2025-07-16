@@ -75,7 +75,48 @@ class NotificationService {
       });
       await notification.save();
 
-      // Queue for delivery if channels are specified
+      // **IMMEDIATE REAL-TIME DELIVERY** - Send via WebSocket right away
+      if (deliveryChannels.includes("inApp")) {
+        try {
+          const NotificationsNamespace = require("../../websockets/namespaces/NotificationsNamespace");
+
+          // Prepare notification data for real-time delivery
+          const notificationData = {
+            _id: notification._id,
+            id: notification._id,
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            priority: notification.priority,
+            status: notification.status,
+            context: notification.context,
+            action: notification.action,
+            createdAt: notification.createdAt,
+            expiresAt: notification.expiresAt,
+          };
+
+          // Send immediately via WebSocket
+          await NotificationsNamespace.sendNotificationToUser(
+            userId,
+            notificationData
+          );
+
+          logger.debug("Real-time notification sent immediately", {
+            notificationId: notification._id,
+            userId,
+            type: notification.type,
+          });
+        } catch (wsError) {
+          logger.error("Failed to send real-time notification", {
+            notificationId: notification._id,
+            userId,
+            error: wsError.message,
+          });
+          // Don't fail the entire notification creation if WebSocket fails
+        }
+      }
+
+      // Queue for delivery via other channels (email, push, etc.)
       if (deliveryChannels.length > 0) {
         await this.queue.addNotification(notification._id, deliveryChannels);
       }

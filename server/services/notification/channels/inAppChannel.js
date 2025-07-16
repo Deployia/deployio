@@ -95,29 +95,16 @@ class InAppChannel {
    */
   async sendViaWebSocket(userId, notificationData) {
     try {
-      // Use the new WebSocket architecture
-      const { getWebSocketManager } = require("../../../websockets");
-      const webSocketManager = getWebSocketManager();
+      // Use the NotificationsNamespace for WebSocket delivery
+      const NotificationsNamespace = require("../../../websockets/namespaces/NotificationsNamespace");
 
-      if (webSocketManager) {
-        // Send notification to user via WebSocket
-        webSocketManager.emitToUser(
-          userId,
-          "new_notification",
-          notificationData
-        );
+      // Send notification to user via WebSocket
+      NotificationsNamespace.sendNotificationToUser(userId, notificationData);
 
-        // Send notification count update
-        const notificationCount = await this.getUnreadCount(userId);
-        webSocketManager.emitToUser(userId, "unread_count", {
-          count: notificationCount,
-        });
-
-        logger.debug("WebSocket notification sent", {
-          userId,
-          notificationId: notificationData.id,
-        });
-      }
+      logger.debug("WebSocket notification sent via NotificationsNamespace", {
+        userId,
+        notificationId: notificationData.id,
+      });
     } catch (error) {
       logger.error("WebSocket notification failed", {
         userId,
