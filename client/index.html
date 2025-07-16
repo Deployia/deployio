@@ -169,6 +169,30 @@
         "dateModified": "2024-12-20"
       }
     </script>
+    <script>
+      const darkIcon = "/favicon.png";
+      const lightIcon = "/favicon-black.png";
+
+      function setFavicon(theme) {
+        const link = document.querySelector("link[rel~='icon']");
+        if (link) {
+          link.href = theme === "dark" ? darkIcon : lightIcon;
+        }
+      }
+
+      // Detect theme on initial load
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      setFavicon(prefersDark ? "dark" : "light");
+
+      // Listen for changes
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (e) => {
+          setFavicon(e.matches ? "dark" : "light");
+        });
+    </script>
   </head>
 
   <body>
