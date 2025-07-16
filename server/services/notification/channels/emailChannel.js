@@ -20,25 +20,14 @@ class EmailChannel {
       }
       const templateName = this.getTemplateName(notification.type);
       const templateVariables = this.prepareTemplateVariables(notification);
-      logger.debug("[EmailChannel] Template variables for email", {
-        templateName,
-        templateVariables,
-      });
       const subject = this.getEmailSubject(
         notification.type,
         notification.title,
         notification.context
       );
 
-      // Render the template with variables (fix: ensure all placeholders are replaced)
-      logger.debug("[EmailChannel] Rendering template", { templateName });
       const rendered = this.templates.render(templateName, templateVariables);
-      logger.debug("[EmailChannel] Rendered output", {
-        subject: rendered.subject,
-        html: !!rendered.html,
-        text: !!rendered.text,
-      });
-
+      
       // Send email using rendered content
       const result = await emailService.sendEmail({
         to: notification.user.email,
@@ -138,24 +127,23 @@ class EmailChannel {
       title: title,
       message: message,
 
-      // Context data - spread all context properties (fix: flatten context.data if present)
-      ...(context && context.data ? context.data : context),
-
       // Action data
       action: action || null,
 
       // System URLs
-      appUrl: process.env.FRONTEND_URL || "https://deployio.com",
+      appUrl: process.env.FRONTEND_URL || "https://deployio.tech",
       dashboardUrl: `${
-        process.env.FRONTEND_URL || "https://deployio.com"
+        process.env.FRONTEND_URL || "https://deployio.tech"
       }/dashboard`,
-      docsUrl: `${process.env.FRONTEND_URL || "https://deployio.com"}/resources/docs`,
-      supportEmail: process.env.SUPPORT_EMAIL || "support@deployio.com",
+      docsUrl: `${
+        process.env.FRONTEND_URL || "https://deployio.tech"
+      }/resources/docs`,
+      supportEmail: process.env.SUPPORT_EMAIL || "support@deployio.tech",
       unsubscribeUrl: `${
-        process.env.FRONTEND_URL || "https://deployio.com"
+        process.env.FRONTEND_URL || "https://deployio.tech"
       }/dashboard/profile?tab=notifications`,
       securityUrl: `${
-        process.env.FRONTEND_URL || "https://deployio.com"
+        process.env.FRONTEND_URL || "https://deployio.tech"
       }/dashboard/profile?tab=security`,
 
       // Timestamps
@@ -163,13 +151,85 @@ class EmailChannel {
         notification.createdAt?.toISOString() || new Date().toISOString(),
     };
 
-    // Ensure all context.data fields are at the top level for plain text interpolation
-    if (context && context.data && typeof context.data === "object") {
-      Object.assign(baseVariables, context.data);
+    // Spread context data at the root level (fix: ensure all context fields are accessible)
+    if (context) {
+      // If context has a data property, spread both the data and the context itself
+      if (context.data && typeof context.data === "object") {
+        Object.assign(baseVariables, context.data);
+      }
+      // Also spread the context directly to catch properties like resetLink, otp, etc.
+      Object.assign(baseVariables, context);
     }
-    logger.debug("[EmailChannel] Final template variables", baseVariables);
+
+    // Add template-specific variable mappings for backward compatibility
+    this.addTemplateSpecificVariables(baseVariables, type, notification);
+
 
     return baseVariables;
+  }
+
+  /**
+   * Add template-specific variables for better template compatibility
+   * @param {Object} variables - Base variables object to modify
+   * @param {string} type - Notification type
+   * @param {Object} notification - Full notification object
+   */
+  addTemplateSpecificVariables(variables, type, notification) {
+    const { action, context } = notification;
+
+    // Add common action-based variables
+    if (action && action.url) {
+      variables.actionUrl = action.url;
+      variables.actionLabel = action.label;
+    }
+
+    // Type-specific variable mappings
+    switch (type) {
+      case "auth.password_reset":
+        // Ensure resetLink is available for password reset templates
+        if (context && context.resetLink) {
+          variables.resetLink = context.resetLink;
+        } else if (action && action.url) {
+          variables.resetLink = action.url;
+        }
+        if (context && context.expiresIn) {
+          variables.expiresIn = context.expiresIn;
+        }
+        break;
+
+      case "auth.otp_verification":
+        // Ensure OTP variables are available
+        if (context && context.otp) {
+          variables.otp = context.otp;
+        }
+        if (context && context.expiresIn) {
+          variables.expiresIn = context.expiresIn;
+        }
+        break;
+
+      case "deployment.started":
+      case "deployment.success":
+      case "deployment.failed":
+      case "deployment.stopped":
+        // Ensure deployment variables are available
+        if (context && context.projectName) {
+          variables.projectName = context.projectName;
+        }
+        if (context && context.environment) {
+          variables.environment = context.environment;
+        }
+        if (context && context.duration) {
+          variables.duration = context.duration;
+        }
+        if (context && context.reason) {
+          variables.reason = context.reason;
+        }
+        break;
+
+      default:
+        // For other types, ensure all context properties are available
+        break;
+    }
   }
 
   /**

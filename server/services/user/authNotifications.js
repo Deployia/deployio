@@ -65,14 +65,6 @@ class AuthNotifications {
     try {
       const { username, email } = userData;
       const resetLink = `${resetUrl}/auth/reset-password/${resetToken}`;
-      logger.debug("[AuthNotifications.sendPasswordReset] args", {
-        userId,
-        username,
-        email,
-        resetToken,
-        resetUrl,
-        resetLink,
-      });
 
       return await notificationService.createNotification({
         userId,
@@ -83,11 +75,13 @@ class AuthNotifications {
         priority: "high",
         channels: ["email"], // Only email for password reset
         context: {
-          username,
-          email,
-          resetToken,
-          resetLink,
-          expiresIn: "30 minutes",
+          data: {
+            username,
+            email,
+            resetToken,
+            resetLink,
+            expiresIn: "30 minutes",
+          },
         },
         action: {
           label: "Reset Password",

@@ -267,7 +267,11 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    const resetUrl = `${req.protocol}://${req.get("host")}`;
+    const resetUrl = `${
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD
+    }/auth/reset-password`;
     const message = await authService.forgotPassword(
       email.toLowerCase().trim(),
       resetUrl
@@ -292,7 +296,7 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
-    const { newPassword } = req.body;
+    const { password: newPassword } = req.body;
 
     if (!newPassword) {
       return res.status(400).json({

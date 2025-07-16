@@ -103,6 +103,22 @@ const sendEmail = async (options) => {
       },
     };
 
+    // Debug log the email content being sent
+    logger.debug("Email content being sent", {
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      hasHTML: !!mailOptions.html,
+      hasText: !!mailOptions.text,
+      htmlLength: mailOptions.html ? mailOptions.html.length : 0,
+      textLength: mailOptions.text ? mailOptions.text.length : 0,
+      htmlPreview: mailOptions.html
+        ? mailOptions.html.substring(0, 500)
+        : "No HTML content",
+      textPreview: mailOptions.text
+        ? mailOptions.text.substring(0, 200)
+        : "No text content",
+    });
+
     // Send email with retry logic
     const result = await transporter.sendMail(mailOptions);
 
@@ -115,7 +131,7 @@ const sendEmail = async (options) => {
       messageId: result.messageId,
       response: result.response,
       to: options.to,
-      subject: options.subject,
+      subject: finalSubject || options.subject,
     };
   } catch (error) {
     // Log the error for debugging (but don't expose sensitive details to the caller)

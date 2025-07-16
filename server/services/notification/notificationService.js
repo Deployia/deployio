@@ -73,11 +73,6 @@ class NotificationService {
         expiresAt,
         action,
       });
-      logger.debug(
-        "[NotificationService.createNotification] notification object",
-        notification.toObject()
-      );
-
       await notification.save();
 
       // Queue for delivery if channels are specified

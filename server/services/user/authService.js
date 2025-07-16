@@ -316,14 +316,6 @@ const forgotPassword = async (email, resetUrl) => {
 
   // Create reset URL
   const resetLink = `${resetUrl}/auth/reset-password/${resetToken}`;
-  logger.debug("[ForgotPassword] user, resetToken, resetUrl, resetLink", {
-    userId: user._id,
-    username: user.username,
-    email: user.email,
-    resetToken,
-    resetUrl,
-    resetLink,
-  });
   try {
     // Send password reset email via notification system
     await AuthNotifications.sendPasswordReset(

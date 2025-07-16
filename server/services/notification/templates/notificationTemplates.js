@@ -86,39 +86,56 @@ class NotificationTemplates {
       throw new Error(`Template not found: ${templateName}`);
     }
     try {
+      logger.debug(
+        `[NotificationTemplates] Rendering template: ${templateName}`,
+        {
+          templateName,
+          variableKeys: Object.keys(variables),
+          variables,
+        }
+      );
+
       // Render HTML with Handlebars
       let html = "";
       if (template.hbs) {
         const hbsPath = path.join(__dirname, "html", template.hbs);
         const hbsContent = fs.readFileSync(hbsPath, "utf8");
+
         const compiled = Handlebars.compile(hbsContent);
         // Render into base layout
         const basePath = path.join(__dirname, "html", "base.hbs");
         const baseContent = fs.readFileSync(basePath, "utf8");
         const baseCompiled = Handlebars.compile(baseContent);
         const body = compiled(variables);
+
         html = baseCompiled({ ...variables, body });
       }
       // Render text and subject with simple interpolation
       const text = this.interpolateString(template.text, variables);
       const subject = this.interpolateString(template.subject, variables);
+
       return { html, text, subject };
     } catch (error) {
       logger.error("Template rendering failed", {
         templateName,
         error: error.message,
+        stack: error.stack,
       });
       throw error;
     }
   }
 
   /**
-   * Simple interpolation for text/subject
+   * Simple interpolation for text/subject with support for nested properties
    */
   interpolateString(template, variables) {
     if (!template) return "";
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return variables[key] !== undefined ? variables[key] : match;
+    return template.replace(/\{\{([\w.]+)\}\}/g, (match, key) => {
+      // Handle nested properties like action.url
+      const value = key.split(".").reduce((obj, prop) => {
+        return obj && obj[prop] !== undefined ? obj[prop] : undefined;
+      }, variables);
+      return value !== undefined ? value : match;
     });
   }
 }
