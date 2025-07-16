@@ -1,15 +1,32 @@
-{{> brand}}
-<div class="badge">⏹️ Deployment Stopped</div>
-<div class="main-title">Deployment Stopped</div>
-<div class="subtitle">Your deployment for {{projectName}} has been stopped.</div>
-<div class="card">
-  <h3 style="color:#fbbf24;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;font-size:1.2rem;">Deployment Details</h3>
-  <ul style="color:#a3a3a3;font-size:1rem;">
-    <li>Project: {{projectName}}</li>
-    <li>Environment: {{environment}}</li>
-    <li>Stopped: {{timestamp}}</li>
-    <li>Reason: {{reason}}</li>
+<div class="badge warning-badge">⏹️ Deployment Stopped</div>
+
+<h1 class="title">Deployment Stopped</h1>
+<p class="subtitle">Your deployment for <strong>{{projectName}}</strong> has been stopped and is no longer running.</p>
+
+<div class="feature-list">
+  <h3>Deployment Details</h3>
+  <ul>
+    <li><strong>Project:</strong> {{projectName}}</li>
+    <li><strong>Environment:</strong> {{environment}}</li>
+    <li><strong>Stopped:</strong> {{timestamp}}</li>
+    <li><strong>Reason:</strong> {{reason}}</li>
+    {{#if commitHash}}
+    <li><strong>Last Commit:</strong> {{commitHash}}</li>
+    {{/if}}
   </ul>
 </div>
-<p>You can restart the deployment from your project dashboard.</p>
-{{> button url=(concat appUrl "/projects/" projectName) label="Go to Project"}}
+
+<p style="color: #a3a3a3; margin: 24px 0; font-size: 14px;">
+  You can restart the deployment anytime from your project dashboard. All your configuration and settings have been preserved.
+</p>
+
+{{#if dashboardUrl}}
+{{> button url=dashboardUrl label="Go to Project Dashboard"}}
+{{/if}}
+
+{{#if logsUrl}}
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+  <a href="{{logsUrl}}" class="text-link">View Deployment Logs</a> • 
+  <a href="mailto:support@deployio.tech" class="text-link">Contact Support</a>
+</p>
+{{/if}}

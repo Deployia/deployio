@@ -1,0 +1,27 @@
+<div class="badge warning-badge">🚨 New Device Login</div>
+
+<h1 class="title">New Device Login Detected</h1>
+<p class="subtitle">We detected a login to your DeployIO account from a new device.</p>
+
+<div class="feature-list">
+  <h3>Login Details</h3>
+  <ul>
+    <li><strong>Time:</strong> {{loginTime}}</li>
+    <li><strong>Device:</strong> {{device}}</li>
+    <li><strong>Location:</strong> {{location}}</li>
+    <li><strong>IP Address:</strong> {{ipAddress}}</li>
+  </ul>
+</div>
+
+<div class="security-info">
+  <strong>Security Notice:</strong> If this wasn't you, please secure your account immediately by changing your password and enabling two-factor authentication.
+</div>
+
+{{#if securityUrl}}
+{{> button url=securityUrl label="Review Security Settings"}}
+{{/if}}
+
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+  <a href="mailto:support@deployio.tech" class="text-link">Report Unauthorized Access</a> • 
+  <a href="https://deployio.tech/security" class="text-link">Security Help</a>
+</p>

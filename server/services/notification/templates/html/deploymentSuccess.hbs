@@ -1,19 +1,34 @@
-{{> brand}}
-<div class="badge">✅ Deployment Success</div>
-<div class="main-title">Deployment Successful!</div>
-<div class="subtitle">Great news! Your deployment for {{projectName}} has completed successfully.</div>
-<div class="card">
-  <h3 style="color:#22d3ee;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;font-size:1.2rem;">Deployment Details</h3>
-  <ul style="color:#a3a3a3;font-size:1rem;">
-    <li>Project: {{projectName}}</li>
-    <li>Environment: {{environment}}</li>
-    <li>Completed: {{timestamp}}</li>
+<div class="badge success-badge">✅ Deployment Success</div>
+
+<h1 class="title">Deployment Successful!</h1>
+<p class="subtitle">Great news! Your deployment for <strong>{{projectName}}</strong> has completed successfully and is now live.</p>
+
+<div class="feature-list">
+  <h3>Deployment Details</h3>
+  <ul>
+    <li><strong>Project:</strong> {{projectName}}</li>
+    <li><strong>Environment:</strong> {{environment}}</li>
+    <li><strong>Completed:</strong> {{timestamp}}</li>
     {{#if duration}}
-      <li>Duration: {{duration}}</li>
+    <li><strong>Duration:</strong> {{duration}}</li>
+    {{/if}}
+    {{#if commitHash}}
+    <li><strong>Commit:</strong> {{commitHash}}</li>
     {{/if}}
   </ul>
 </div>
-<p>Your application is now live and accessible to users.</p>
+
+<p style="color: #a3a3a3; margin: 24px 0; font-size: 14px;">
+  Your application is now live and accessible to users. All health checks have passed and your deployment is ready to serve traffic.
+</p>
+
 {{#if deploymentUrl}}
-  {{> button url=deploymentUrl label="View Live Application"}}
+{{> button url=deploymentUrl label="View Live Application"}}
+{{/if}}
+
+{{#if dashboardUrl}}
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+  <a href="{{dashboardUrl}}" class="text-link">View in Dashboard</a> • 
+  <a href="{{logsUrl}}" class="text-link">View Logs</a>
+</p>
 {{/if}}

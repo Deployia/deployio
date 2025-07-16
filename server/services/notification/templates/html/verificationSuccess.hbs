@@ -1,0 +1,24 @@
+<div class="badge success-badge">✅ Verified</div>
+
+<h1 class="title">Account Verified Successfully!</h1>
+<p class="subtitle">Congratulations {{username}}! Your account has been verified and you now have full access to all DeployIO features.</p>
+
+<div class="feature-list">
+  <h3>You're all set! Here's what you can do now:</h3>
+  <ul>
+    <li><strong>Create Projects:</strong> Start deploying your applications</li>
+    <li><strong>Access Dashboard:</strong> Monitor your deployments and performance</li>
+    <li><strong>Configure Settings:</strong> Customize your account preferences</li>
+    <li><strong>Explore Features:</strong> Discover all the tools available to you</li>
+  </ul>
+</div>
+
+{{#if dashboardUrl}}
+{{> button url=dashboardUrl label="Go to Dashboard"}}
+{{/if}}
+
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+  Need help getting started? Check out our 
+  <a href="https://deployio.tech/docs" class="text-link">documentation</a> or 
+  <a href="mailto:support@deployio.tech" class="text-link">contact support</a>.
+</p>

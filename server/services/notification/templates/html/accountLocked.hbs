@@ -1,0 +1,29 @@
+<div class="badge error-badge">🔒 Account Locked</div>
+
+<h1 class="title">Account Temporarily Locked</h1>
+<p class="subtitle">Your DeployIO account has been temporarily locked for security reasons.</p>
+
+<div class="feature-list">
+  <h3>Lock Details</h3>
+  <ul>
+    <li><strong>Reason:</strong> {{reason}}</li>
+    <li><strong>Locked At:</strong> {{lockedAt}}</li>
+    <li><strong>Auto-unlock:</strong> {{lockUntil}}</li>
+    {{#if attempts}}
+    <li><strong>Failed Attempts:</strong> {{attempts}}</li>
+    {{/if}}
+  </ul>
+</div>
+
+<div class="security-info">
+  <strong>What this means:</strong> Your account has been temporarily locked to protect it from unauthorized access. The lock will be automatically removed after the specified time, or you can contact support for immediate assistance.
+</div>
+
+{{#if supportUrl}}
+{{> button url=supportUrl label="Contact Support"}}
+{{/if}}
+
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+  <a href="mailto:support@deployio.tech" class="text-link">Get Help</a> • 
+  <a href="https://deployio.tech/security" class="text-link">Security Information</a>
+</p>

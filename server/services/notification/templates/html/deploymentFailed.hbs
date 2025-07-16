@@ -1,20 +1,34 @@
-{{> brand}}
-<div class="badge">❌ Deployment Failed</div>
-<div class="main-title">Deployment Failed</div>
-<div class="subtitle">Unfortunately, your deployment for {{projectName}} has failed.</div>
-<div class="card">
-  <h3 style="color:#ef4444;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;font-size:1.2rem;">Deployment Details</h3>
-  <ul style="color:#a3a3a3;font-size:1rem;">
-    <li>Project: {{projectName}}</li>
-    <li>Environment: {{environment}}</li>
-    <li>Failed: {{timestamp}}</li>
+<div class="badge error-badge">❌ Deployment Failed</div>
+
+<h1 class="title">Deployment Failed</h1>
+<p class="subtitle">Unfortunately, your deployment for <strong>{{projectName}}</strong> has failed. Don't worry - we'll help you get it fixed.</p>
+
+<div class="feature-list">
+  <h3>Deployment Details</h3>
+  <ul>
+    <li><strong>Project:</strong> {{projectName}}</li>
+    <li><strong>Environment:</strong> {{environment}}</li>
+    <li><strong>Failed:</strong> {{timestamp}}</li>
     {{#if errorMessage}}
-      <li style="color:#ef4444;">Error: {{errorMessage}}</li>
+    <li><strong>Error:</strong> <span style="color: #fecaca;">{{errorMessage}}</span></li>
+    {{/if}}
+    {{#if commitHash}}
+    <li><strong>Commit:</strong> {{commitHash}}</li>
     {{/if}}
   </ul>
 </div>
-<p>Please check the deployment logs for more details and try again.</p>
+
+<div class="security-info">
+  <strong>Next Steps:</strong> Check the deployment logs for detailed error information, verify your configuration, and try deploying again. Our support team is here to help if needed.
+</div>
+
 {{#if logsUrl}}
-  {{> button url=logsUrl label="View Logs"}}
+{{> button url=logsUrl label="View Deployment Logs"}}
 {{/if}}
-{{> button url=(concat appUrl "/projects/" projectName) label="Go to Project"}}
+
+{{#if dashboardUrl}}
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+  <a href="{{dashboardUrl}}" class="text-link">Go to Project Dashboard</a> • 
+  <a href="mailto:support@deployio.tech" class="text-link">Contact Support</a>
+</p>
+{{/if}}

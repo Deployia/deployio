@@ -1,23 +1,22 @@
-<div class="badge">� Email Verification</div>
-<h2 class="title">Verify Your Account</h2>
-<p class="subtitle">Enter this verification code to complete your account setup:</p>
+<div class="badge">Email Verification</div>
+<h1 class="title">Verify Your Email Address</h1>
+<p class="subtitle">Please use this verification code to complete your account setup. Enter it in the verification form or click the button below.</p>
 
 <div class="highlight-box">
   <div class="code">{{otp}}</div>
-  <p style="margin: 8px 0 0 0; color: #a1a1aa; font-size: 14px;">Expires in
-    {{expiresIn}}</p>
+  <p style="margin: 16px 0 0 0; color: #737373; font-size: 13px; font-weight: 500;">
+    This code expires in {{expiresIn}}
+  </p>
 </div>
 
 {{#if actionUrl}}
-  <a href="{{actionUrl}}" class="cta">Verify Account</a>
+{{> button url=actionUrl label="Verify Email Address"}}
 {{/if}}
 
 <div class="security-info">
-  <strong>Security Note:</strong>
-  Never share this code with anyone. DeployIO will never ask for your
-  verification code.
+  <strong>Security Notice:</strong> Never share this verification code with anyone. DeployIO will never ask for your verification code via phone or email.
 </div>
 
-<p style="color: #71717a; font-size: 14px; margin: 16px 0 0 0;">
-  If you didn't request this code, you can safely ignore this email.
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px;">
+  If you didn't request this verification code, you can safely ignore this email. Your account will remain secure.
 </p>

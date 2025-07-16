@@ -1,25 +1,28 @@
-<div class="badge">🎉 Welcome to DeployIO</div>
-<h2 class="title">Welcome, {{username}}!</h2>
-<p class="subtitle">Your account is verified and ready. Let's get you started
-  with your first deployment.</p>
+<div class="badge success-badge">Welcome</div>
 
-<div class="highlight-box">
-  <h3 style="color: #ffffff; margin: 0 0 16px 0; font-size: 18px;">What you can
-    do with DeployIO:</h3>
-  <ul style="color: #a1a1aa; margin: 0; padding-left: 20px; text-align: left;">
-    <li>Deploy applications in minutes with AI-powered automation</li>
-    <li>Monitor performance with real-time analytics</li>
-    <li>Scale effortlessly based on demand</li>
-    <li>Secure infrastructure with built-in security features</li>
+<h1 class="title">Welcome to DeployIO</h1>
+<p class="subtitle">Your account has been successfully verified! We're excited to have you on board and can't wait to see what you build.</p>
+
+<div class="feature-list">
+  <h3>What you can do with DeployIO:</h3>
+  <ul>
+    <li><strong>Deploy Applications:</strong> Seamlessly deploy your applications with our intuitive platform</li>
+    <li><strong>Monitor Performance:</strong> Track your deployments and get real-time insights</li>
+    <li><strong>Scale Efficiently:</strong> Auto-scale your applications based on demand</li>
+    <li><strong>Secure Infrastructure:</strong> Built-in security features to protect your deployments</li>
   </ul>
 </div>
 
-<a href="{{dashboardUrl}}" class="cta">Start Deploying Now</a>
+{{#if dashboardUrl}}
+{{> button url=dashboardUrl label="Get Started"}}
+{{/if}}
 
-<p style="color: #71717a; font-size: 14px; margin: 20px 0 0 0;">
-  Need help getting started? Check out our
-  <a href="{{docsUrl}}" style="color: #60a5fa;">documentation</a>
-  or
-  <a href="mailto:{{supportEmail}}" style="color: #60a5fa;">contact our support
-    team</a>.
+<div class="security-info">
+  <strong>Security Notice:</strong> If you didn't create this account, please contact our support team immediately at support@deployio.tech
+</div>
+
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px;">
+  Need help getting started? Check out our 
+  <a href="{{docsUrl}}" class="text-link">documentation</a> or 
+  <a href="mailto:support@deployio.tech" class="text-link">contact our support team</a>.
 </p>

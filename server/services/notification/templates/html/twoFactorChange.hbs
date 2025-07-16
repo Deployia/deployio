@@ -1,0 +1,38 @@
+<div class="badge {{#if enabled}}success-badge{{else}}warning-badge{{/if}}">
+  {{#if enabled}}✅ 2FA Enabled{{else}}⚠️ 2FA Disabled{{/if}}
+</div>
+
+<h1 class="title">
+  {{#if enabled}}Two-Factor Authentication Enabled{{else}}Two-Factor Authentication Disabled{{/if}}
+</h1>
+<p class="subtitle">
+  {{#if enabled}}
+    Two-factor authentication has been enabled for your account. Your account is now more secure with an additional layer of protection.
+  {{else}}
+    Two-factor authentication has been disabled for your account. Consider re-enabling it for better security.
+  {{/if}}
+</p>
+
+<div class="feature-list">
+  <h3>Change Details</h3>
+  <ul>
+    <li><strong>Action:</strong> {{#if enabled}}Enabled{{else}}Disabled{{/if}}</li>
+    <li><strong>Changed:</strong> {{changedAt}}</li>
+    <li><strong>Account:</strong> {{email}}</li>
+  </ul>
+</div>
+
+{{#unless enabled}}
+<div class="security-info">
+  <strong>Security Recommendation:</strong> Two-factor authentication adds an extra layer of security to your account. We recommend re-enabling it to keep your account safe.
+</div>
+{{/unless}}
+
+{{#if securityUrl}}
+{{> button url=securityUrl label="Security Settings"}}
+{{/if}}
+
+<p style="color: #737373; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+  <a href="https://deployio.tech/docs/security/2fa" class="text-link">Learn about 2FA</a> • 
+  <a href="mailto:support@deployio.tech" class="text-link">Contact Support</a>
+</p>

@@ -301,6 +301,24 @@ const verifyOtp = async (email, otp, verificationInfo = {}) => {
     });
   }
 
+  // Send verification success notification
+  try {
+    await AuthNotifications.sendVerificationSuccess(user._id, {
+      username: user.username,
+      email: user.email,
+    });
+    logger.info(`Verification success notification sent to ${user.email}`);
+  } catch (verificationError) {
+    logger.error(
+      `Failed to send verification success notification to ${user.email}:`,
+      {
+        error: verificationError.message,
+        userId: user._id,
+        email: user.email,
+      }
+    );
+  }
+
   // Send welcome notification to newly verified user
   try {
     await AuthNotifications.sendWelcome(user._id, {
@@ -435,27 +453,19 @@ const resetPassword = async (token, newPassword, resetInfo = {}) => {
     });
   }
 
-  // Send security notification for password change
+  // Send password change confirmation notification
   try {
-    await AuthNotifications.sendAccountSecurity(
-      user._id,
-      {
-        username: user.username,
-        email: user.email,
-      },
-      {
-        securityAction: "Password Changed",
-        timestamp: new Date().toISOString(),
-        ipAddress: resetInfo.ip || "Password reset via email",
-        location: "Unknown",
-        device: resetInfo.userAgent || "Password reset via email",
-      }
-    );
-    logger.info(`Password change security notification sent to ${user.email}`);
+    await AuthNotifications.sendPasswordChangeConfirmation(user._id, {
+      username: user.username,
+      email: user.email,
+      ipAddress: resetInfo.ip || "Password reset via email",
+      userAgent: resetInfo.userAgent || "Password reset via email",
+    });
+    logger.info(`Password change confirmation sent to ${user.email}`);
   } catch (securityError) {
     // Don't fail the password reset if notification fails
     logger.error(
-      `Failed to send security notification for password change to ${user.email}:`,
+      `Failed to send password change confirmation to ${user.email}:`,
       {
         error: securityError.message,
         userId: user._id,
@@ -853,6 +863,27 @@ const enable2FA = async (userId, token, secret) => {
     user.backupCodes = backupCodes;
     await user.save();
 
+    // Send 2FA enabled notification
+    try {
+      await AuthNotifications.send2FAChange(
+        user._id,
+        {
+          username: user.username,
+          email: user.email,
+        },
+        true
+      );
+      logger.info(`2FA enabled notification sent to ${user.email}`);
+    } catch (notificationError) {
+      logger.error(
+        `Failed to send 2FA enabled notification to ${user.email}:`,
+        {
+          error: notificationError.message,
+          userId: user._id,
+        }
+      );
+    }
+
     return {
       message: "2FA enabled successfully",
       backupCodes: backupCodes.map((bc) => bc.code),
@@ -965,6 +996,27 @@ const disable2FA = async (userId, password) => {
     user.lastTOTPToken = undefined;
     user.lastTOTPTimestamp = undefined;
     await user.save();
+
+    // Send 2FA disabled notification
+    try {
+      await AuthNotifications.send2FAChange(
+        user._id,
+        {
+          username: user.username,
+          email: user.email,
+        },
+        false
+      );
+      logger.info(`2FA disabled notification sent to ${user.email}`);
+    } catch (notificationError) {
+      logger.error(
+        `Failed to send 2FA disabled notification to ${user.email}:`,
+        {
+          error: notificationError.message,
+          userId: user._id,
+        }
+      );
+    }
 
     return "2FA disabled successfully";
   } catch (error) {
@@ -1223,6 +1275,31 @@ async function incrementFailedAttempts(user) {
 
     if (user.loginAttempts >= maxAttempts) {
       user.lockUntil = new Date(Date.now() + lockDuration);
+
+      // Send account locked notification
+      try {
+        await AuthNotifications.sendAccountLocked(
+          user._id,
+          {
+            username: user.username,
+            email: user.email,
+          },
+          {
+            reason: "multiple failed login attempts",
+            lockUntil: user.lockUntil,
+            attempts: user.loginAttempts,
+          }
+        );
+        logger.info(`Account locked notification sent to ${user.email}`);
+      } catch (notificationError) {
+        logger.error(
+          `Failed to send account locked notification to ${user.email}:`,
+          {
+            error: notificationError.message,
+            userId: user._id,
+          }
+        );
+      }
     }
 
     await user.save();
@@ -1296,6 +1373,32 @@ async function logSuccessfulLogin(userId, loginInfo) {
           lastActivity: new Date(),
           isActive: true,
         });
+
+        // Send new device login notification
+        try {
+          await AuthNotifications.sendNewDeviceLogin(
+            user._id,
+            {
+              username: user.username,
+              email: user.email,
+            },
+            {
+              ipAddress: loginInfo.ip,
+              userAgent: loginInfo.userAgent,
+              location: loginInfo.location || "Unknown location",
+              loginTime: new Date(),
+            }
+          );
+          logger.info(`New device login notification sent to ${user.email}`);
+        } catch (notificationError) {
+          logger.error(
+            `Failed to send new device login notification to ${user.email}:`,
+            {
+              error: notificationError.message,
+              userId: user._id,
+            }
+          );
+        }
       }
 
       await user.save();

@@ -8,54 +8,212 @@
       rel="stylesheet"
     />
     <style>
-      body { background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-      color: #e4e4e7; font-family: 'Inter', -apple-system, BlinkMacSystemFont,
-      sans-serif; margin: 0; padding: 20px 10px; line-height: 1.6; } .container
-      { max-width: 480px; margin: 0 auto; background: linear-gradient(145deg,
-      #18181b 0%, #27272a 100%); border: 1px solid #3f3f46; border-radius: 16px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); overflow: hidden; } .header {
-      background: linear-gradient(90deg, #3b82f6, #8b5cf6); padding: 24px;
-      text-align: center; } .logo { color: white; font-size: 24px; font-weight:
-      700; letter-spacing: -0.025em; margin: 0; } .content { padding: 32px 24px;
-      } .badge { display: inline-flex; align-items: center; gap: 8px;
-      background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246,
-      0.3); color: #60a5fa; padding: 6px 12px; border-radius: 8px; font-size:
-      14px; font-weight: 500; margin-bottom: 20px; } .title { color: #ffffff;
-      font-size: 28px; font-weight: 700; margin: 0 0 12px 0; letter-spacing:
-      -0.025em; } .subtitle { color: #a1a1aa; font-size: 16px; margin: 0 0 24px
-      0; } .highlight-box { background: rgba(34, 197, 94, 0.1); border: 1px
-      solid rgba(34, 197, 94, 0.3); border-radius: 12px; padding: 20px; margin:
-      24px 0; text-align: center; } .code { font-family: 'SF Mono', Monaco,
-      monospace; font-size: 32px; font-weight: 700; color: #22c55e;
-      letter-spacing: 8px; margin: 8px 0; } .cta { display: inline-block;
-      background: linear-gradient(90deg, #3b82f6, #8b5cf6); color: white;
-      text-decoration: none; padding: 14px 24px; border-radius: 8px;
-      font-weight: 600; font-size: 16px; margin: 20px 0; transition: transform
-      0.2s; } .cta:hover { transform: translateY(-1px); } .footer { background:
-      #09090b; padding: 20px 24px; text-align: center; color: #71717a;
-      font-size: 14px; border-top: 1px solid #27272a; } .footer a { color:
-      #60a5fa; text-decoration: none; } .security-info { background: rgba(251,
-      191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius:
-      8px; padding: 16px; margin: 16px 0; font-size: 14px; color: #fbbf24; }
+      body { 
+        background: linear-gradient(135deg, #262626 0%, #171717 100%); 
+        color: #a3a3a3; 
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+        margin: 0; 
+        padding: 20px; 
+        line-height: 1.6; 
+      } 
+      .email-container { 
+        margin: 0 auto; 
+        background: #171717; 
+        border: 1px solid #404040; 
+        overflow: hidden;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      } 
+      .header { 
+        background: linear-gradient(135deg, #171717 0%, #0a0a0a 100%);
+        padding: 24px 32px; 
+        text-align: left; 
+        border-bottom: 1px solid #404040; 
+      } 
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .brand-logo {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+      }
+      .brand-title { 
+        color: #ffffff; 
+        font-size: 22px; 
+        font-weight: 700; 
+        margin: 0; 
+        letter-spacing: -0.025em; 
+      } 
+      .content { 
+        padding: 32px; 
+        background: #171717;
+      } 
+      .badge { 
+        display: inline-block; 
+        background: #262626; 
+        color: #d4d4d8; 
+        padding: 6px 12px; 
+        border-radius: 6px; 
+        font-size: 12px; 
+        font-weight: 500; 
+        margin-bottom: 20px; 
+        border: 1px solid #404040; 
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      } 
+      .title { 
+        color: #ffffff; 
+        font-size: 24px; 
+        font-weight: 700; 
+        margin: 0 0 12px 0; 
+        letter-spacing: -0.025em; 
+      } 
+      .subtitle { 
+        color: #a3a3a3; 
+        font-size: 16px; 
+        margin: 0 0 24px 0; 
+        line-height: 1.5;
+      } 
+      .highlight-box { 
+        background: #0a0a0a; 
+        border: 1px solid #404040; 
+        border-radius: 12px; 
+        padding: 24px; 
+        margin: 24px 0; 
+        text-align: center; 
+      } 
+      .code { 
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; 
+        font-size: 32px; 
+        font-weight: 700; 
+        color: #ffffff; 
+        letter-spacing: 4px; 
+        margin: 16px 0; 
+        background: #262626; 
+        padding: 16px 24px; 
+        border-radius: 8px; 
+        border: 1px solid #525252; 
+        display: inline-block;
+      } 
+      .cta { 
+        display: inline-block; 
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+        color: #ffffff !important;  
+        text-decoration: none; 
+        padding: 12px 24px; 
+        border-radius: 8px; 
+        font-weight: 600; 
+        font-size: 14px; 
+        margin: 20px 0; 
+        border: 1px solid #2563eb; 
+        transition: all 0.2s ease;
+      } 
+      .cta:hover { 
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); 
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); 
+      } 
+      .footer { 
+        background: #0a0a0a; 
+        padding: 24px 32px; 
+        text-align: center; 
+        color: #737373; 
+        font-size: 13px; 
+        border-top: 1px solid #404040; 
+      } 
+      .footer a { 
+        color: #d4d4d8; 
+        text-decoration: none; 
+        font-weight: 500; 
+        transition: color 0.2s ease;
+      } 
+      .footer a:hover {
+        color: #ffffff;
+      }
+      .security-info { 
+        background: #1c1917; 
+        border: 1px solid #78716c; 
+        border-radius: 8px; 
+        padding: 16px; 
+        margin: 24px 0; 
+        font-size: 13px; 
+        color: #a8a29e; 
+        border-left: 4px solid #f59e0b;
+      } 
+      .feature-list { 
+        background: #0a0a0a; 
+        border: 1px solid #404040; 
+        border-radius: 8px; 
+        padding: 20px; 
+        margin: 24px 0; 
+      } 
+      .feature-list h3 {
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+      }
+      .feature-list ul { 
+        margin: 0; 
+        padding-left: 16px; 
+        color: #a3a3a3; 
+      } 
+      .feature-list li { 
+        margin-bottom: 8px; 
+        line-height: 1.5;
+      }
+      .feature-list strong {
+        color: #d4d4d8;
+      }
+      .text-link {
+        color: #60a5fa;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .text-link:hover {
+        color: #93c5fd;
+      }
+      .success-badge {
+        background: #166534;
+        color: #bbf7d0;
+        border: 1px solid #15803d;
+      }
+      .warning-badge {
+        background: #92400e;
+        color: #fef3c7;
+        border: 1px solid #d97706;
+      }
+      .error-badge {
+        background: #991b1b;
+        color: #fecaca;
+        border: 1px solid #dc2626;
+      }
     </style>
   </head>
   <body>
-    <div class="container">
+    <div class="email-container">
       <div class="header">
-        <h1 class="logo">DeployIO</h1>
+        {{> brand}}
       </div>
       <div class="content">
         {{{body}}}
       </div>
       <div class="footer">
-        <p>© 2025 DeployIO. All rights reserved.</p>
-        <p>
-          <a href="{{unsubscribeUrl}}">Unsubscribe</a>
-          •
-          <a href="{{supportEmail}}">Support</a>
-          •
-          <a href="{{appUrl}}">Visit DeployIO</a>
+        <p style="margin: 0 0 12px 0;">
+          © 2025 DeployIO. All rights reserved.
         </p>
+        <p style="margin: 0;">
+          <a href="mailto:support@deployio.tech">Contact Support</a> • 
+          <a href="https://deployio.tech/privacy-policy">Privacy Policy</a> • 
+          <a href="https://deployio.tech/terms-of-service">Terms of Service</a>
+        </p>
+        {{#if unsubscribeUrl}}
+        <p style="margin: 12px 0 0 0;">
+          <a href="{{unsubscribeUrl}}">Unsubscribe from emails</a>
+        </p>
+        {{/if}}
       </div>
     </div>
   </body>

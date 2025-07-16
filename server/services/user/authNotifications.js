@@ -120,7 +120,7 @@ class AuthNotifications {
 
       return await notificationService.createNotification({
         userId,
-        type: "general.welcome",
+        type: "auth.welcome",
         title: "Welcome to DeployIO!",
         message: `Welcome ${username}! We're excited to have you on board. Get started by creating your first project.`,
         priority: "normal",
