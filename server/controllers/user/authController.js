@@ -101,11 +101,14 @@ const register = async (req, res) => {
       });
     }
 
-    const result = await authService.registerUser({
-      username: username.trim(),
-      email: email.toLowerCase().trim(),
-      password,
-    });
+    const result = await authService.registerUser(
+      {
+        username: username.trim(),
+        email: email.toLowerCase().trim(),
+        password,
+      },
+      getLoginInfo(req)
+    );
 
     res.status(201).json({
       success: true,
@@ -203,7 +206,11 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    const result = await authService.verifyOtp(email.toLowerCase().trim(), otp);
+    const result = await authService.verifyOtp(
+      email.toLowerCase().trim(),
+      otp,
+      getLoginInfo(req)
+    );
 
     // Set cookies using tokens from service
     setAuthCookies(res, result.token, result.refreshToken);
@@ -274,7 +281,8 @@ const forgotPassword = async (req, res) => {
     }/auth/reset-password`;
     const message = await authService.forgotPassword(
       email.toLowerCase().trim(),
-      resetUrl
+      resetUrl,
+      getLoginInfo(req)
     );
 
     res.json({
@@ -312,7 +320,11 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    const message = await authService.resetPassword(token, newPassword);
+    const message = await authService.resetPassword(
+      token,
+      newPassword,
+      getLoginInfo(req)
+    );
 
     res.json({
       success: true,
@@ -333,9 +345,14 @@ const resetPassword = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
+    const loginInfo = getLoginInfo(req);
 
     if (refreshToken) {
-      await authService.logoutUser(req.user._id, refreshToken);
+      await authService.logoutUser(
+        req.user._id,
+        refreshToken,
+        loginInfo.deviceFingerprint
+      );
     }
 
     // Clear authentication cookies
@@ -688,7 +705,11 @@ const githubAuthCallback = async (req, res) => {
 const getActiveSessions = async (req, res) => {
   try {
     const userId = req.user._id;
-    const sessions = await authService.getActiveSessions(userId);
+    const currentLoginInfo = getLoginInfo(req);
+    const sessions = await authService.getActiveSessions(
+      userId,
+      currentLoginInfo.deviceFingerprint
+    );
 
     res.json({
       success: true,
@@ -722,7 +743,11 @@ const revokeSession = async (req, res) => {
       });
     }
 
-    const result = await authService.revokeSession(userId, sessionId);
+    const result = await authService.revokeSession(
+      userId,
+      sessionId,
+      getLoginInfo(req)
+    );
 
     res.json({
       success: true,

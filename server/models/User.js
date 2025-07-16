@@ -516,6 +516,7 @@ const userSchema = new mongoose.Schema(
       default: Date.now,
     },
     lastLoginIP: String,
+    currentDeviceFingerprint: String, // Track current session
     loginAttempts: {
       type: Number,
       default: 0,

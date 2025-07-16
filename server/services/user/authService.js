@@ -7,6 +7,7 @@ const external = require("../external");
 const logger = require("@config/logger");
 const { getRedisClient } = require("@config/redisClient");
 const AuthNotifications = require("./authNotifications");
+const AuthActivityLogger = require("./authActivityLogger");
 
 /**
  * Authentication Service - Pure JWT Implementation
@@ -49,10 +50,10 @@ const generateOtp = () => {
  * @param {Object} userData - User data including username, email, password
  * @returns {Object} User object and token
  */
-const registerUser = async (userData) => {
+const registerUser = async (userData, registrationInfo = {}) => {
   const { username, email, password } = userData;
   // Import sanitizeUsername utility
-  const { sanitizeUsername } = require("@config/strategies/githubStrategy"); 
+  const { sanitizeUsername } = require("@config/strategies/githubStrategy");
   const safeUsername = sanitizeUsername(username);
 
   // Check if user already exists
@@ -72,6 +73,21 @@ const registerUser = async (userData) => {
     otp,
     otpExpire,
   });
+
+  // Log registration activity
+  try {
+    await AuthActivityLogger.logRegistration(user._id, {
+      email,
+      username: safeUsername,
+      ip: registrationInfo.ip,
+      userAgent: registrationInfo.userAgent,
+    });
+  } catch (activityError) {
+    logger.warn("Failed to log registration activity", {
+      error: activityError.message,
+      userId: user._id,
+    });
+  }
 
   // Send OTP verification email via notification system
   try {
@@ -146,6 +162,11 @@ const loginUser = async (email, password, loginInfo = {}) => {
     if (!user || !(await user.comparePassword(password))) {
       // Log failed attempt
       await logFailedLoginAttempt(email, loginInfo.ip);
+      await AuthActivityLogger.logFailedLogin(
+        email,
+        loginInfo,
+        "invalid_credentials"
+      );
 
       // Increment user's failed attempts if user exists
       if (user) {
@@ -204,8 +225,11 @@ const loginUser = async (email, password, loginInfo = {}) => {
       };
     }
 
-    // Log successful login
+    // Log successful login session management
     await logSuccessfulLogin(user._id, loginInfo);
+
+    // Log login activity for audit trail
+    await AuthActivityLogger.logLogin(user._id, loginInfo, "email");
 
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {
@@ -222,11 +246,6 @@ const loginUser = async (email, password, loginInfo = {}) => {
 
     // Store refresh token
     await storeRefreshToken(user._id, refreshToken);
-
-    // Log successful login (for audit trail)
-    if (loginInfo.ip) {
-      await logSuccessfulLogin(user._id, loginInfo);
-    }
     return {
       user: {
         _id: user._id,
@@ -256,7 +275,7 @@ const loginUser = async (email, password, loginInfo = {}) => {
  * @param {String} otp - OTP code
  * @returns {Object} Success message
  */
-const verifyOtp = async (email, otp) => {
+const verifyOtp = async (email, otp, verificationInfo = {}) => {
   const user = await User.findOne({ email });
   if (!user) throw new Error("User not found");
   if (!user.otp || !user.otpExpire) throw new Error("No OTP requested");
@@ -267,6 +286,20 @@ const verifyOtp = async (email, otp) => {
   user.otpExpire = undefined;
   user.isVerified = true;
   await user.save();
+
+  // Log email verification activity
+  try {
+    await AuthActivityLogger.logEmailVerification(user._id, {
+      email: user.email,
+      ip: verificationInfo.ip,
+      userAgent: verificationInfo.userAgent,
+    });
+  } catch (activityError) {
+    logger.warn("Failed to log email verification activity", {
+      error: activityError.message,
+      userId: user._id,
+    });
+  }
 
   // Send welcome notification to newly verified user
   try {
@@ -302,7 +335,7 @@ const verifyOtp = async (email, otp) => {
  * @param {String} resetUrl - Base URL for reset link
  * @returns {String} Success message
  */
-const forgotPassword = async (email, resetUrl) => {
+const forgotPassword = async (email, resetUrl, requestInfo = {}) => {
   // Find user by email
   const user = await User.findOne({ email });
 
@@ -313,6 +346,20 @@ const forgotPassword = async (email, resetUrl) => {
   // Generate reset token
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
+
+  // Log password reset request activity
+  try {
+    await AuthActivityLogger.logPasswordResetRequest(user._id, {
+      email: user.email,
+      ip: requestInfo.ip,
+      userAgent: requestInfo.userAgent,
+    });
+  } catch (activityError) {
+    logger.warn("Failed to log password reset request activity", {
+      error: activityError.message,
+      userId: user._id,
+    });
+  }
 
   // Create reset URL
   const resetLink = `${resetUrl}/auth/reset-password/${resetToken}`;
@@ -355,7 +402,7 @@ const forgotPassword = async (email, resetUrl) => {
  * @param {String} newPassword - New password
  * @returns {String} Success message
  */
-const resetPassword = async (token, newPassword) => {
+const resetPassword = async (token, newPassword, resetInfo = {}) => {
   // Hash token to compare with stored token
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -375,6 +422,19 @@ const resetPassword = async (token, newPassword) => {
   user.resetPasswordExpire = undefined;
   await user.save();
 
+  // Log password reset completion activity
+  try {
+    await AuthActivityLogger.logPasswordResetComplete(user._id, {
+      ip: resetInfo.ip,
+      userAgent: resetInfo.userAgent,
+    });
+  } catch (activityError) {
+    logger.warn("Failed to log password reset completion activity", {
+      error: activityError.message,
+      userId: user._id,
+    });
+  }
+
   // Send security notification for password change
   try {
     await AuthNotifications.sendAccountSecurity(
@@ -386,9 +446,9 @@ const resetPassword = async (token, newPassword) => {
       {
         securityAction: "Password Changed",
         timestamp: new Date().toISOString(),
-        ipAddress: "Password reset via email", // In real implementation, capture actual IP
+        ipAddress: resetInfo.ip || "Password reset via email",
         location: "Unknown",
-        device: "Password reset via email",
+        device: resetInfo.userAgent || "Password reset via email",
       }
     );
     logger.info(`Password change security notification sent to ${user.email}`);
@@ -410,15 +470,15 @@ const resetPassword = async (token, newPassword) => {
 /**
  * Logout user
  * @param {String} userId - The ID of the user logging out
+ * @param {String} refreshToken - The refresh token to invalidate
+ * @param {String} deviceFingerprint - The device fingerprint to deactivate
  * @returns {String} Success message
- *
- * Note: In a real-world implementation, you might invalidate tokens server-side using
- * Redis or a similar database. This simplified implementation relies on client-side
- * token removal only.
  */
-const logoutUser = async (userId, refreshToken) => {
+const logoutUser = async (userId, refreshToken, deviceFingerprint) => {
   try {
-    const redisClient = getRedisClient(); // Remove refresh token from database using atomic update
+    const redisClient = getRedisClient();
+
+    // Remove refresh token from database using atomic update
     if (refreshToken) {
       try {
         await User.findByIdAndUpdate(
@@ -435,7 +495,49 @@ const logoutUser = async (userId, refreshToken) => {
           }
         );
       }
-    } // Remove refresh token from Redis (only if Redis is available)
+    }
+
+    // Deactivate the current session
+    if (deviceFingerprint) {
+      try {
+        const user = await User.findById(userId);
+        if (user) {
+          const session = user.loginSessions.find(
+            (s) => s.deviceFingerprint === deviceFingerprint
+          );
+          if (session) {
+            session.isActive = false;
+          }
+
+          // Clear current device fingerprint if it matches
+          if (user.currentDeviceFingerprint === deviceFingerprint) {
+            user.currentDeviceFingerprint = null;
+          }
+
+          await user.save();
+        }
+      } catch (error) {
+        logger.warn("Failed to deactivate session during logout", {
+          error: error.message,
+          userId,
+          deviceFingerprint,
+        });
+      }
+    }
+
+    // Log logout activity
+    try {
+      await AuthActivityLogger.logLogout(userId, {
+        deviceFingerprint,
+      });
+    } catch (activityError) {
+      logger.warn("Failed to log logout activity", {
+        error: activityError.message,
+        userId,
+      });
+    }
+
+    // Remove refresh token from Redis (only if Redis is available)
     if (redisClient && redisClient.isReady) {
       try {
         if (refreshToken) {
@@ -1150,6 +1252,7 @@ async function logSuccessfulLogin(userId, loginInfo) {
       // Update basic login info
       user.lastLogin = new Date();
       user.lastLoginIP = loginInfo.ip;
+      user.currentDeviceFingerprint = loginInfo.deviceFingerprint; // Set current session
 
       // Manage login sessions (keep track of where user is logged in)
       const existingSession = user.loginSessions.find(
@@ -1342,7 +1445,7 @@ async function refreshAccessToken(refreshToken) {
  * @param {String} userId - User ID
  * @returns {Array} Array of active login sessions
  */
-const getActiveSessions = async (userId) => {
+const getActiveSessions = async (userId, currentDeviceFingerprint = null) => {
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -1360,7 +1463,9 @@ const getActiveSessions = async (userId) => {
         userAgent: session.userAgent,
         location: session.location,
         lastActivity: session.lastActivity,
-        isCurrent: session.deviceFingerprint === user.currentDeviceFingerprint,
+        isCurrent: currentDeviceFingerprint
+          ? session.deviceFingerprint === currentDeviceFingerprint
+          : session.deviceFingerprint === user.currentDeviceFingerprint,
       }));
 
     return activeSessions;
@@ -1380,7 +1485,7 @@ const getActiveSessions = async (userId) => {
  * @param {String} sessionId - Session ID to revoke
  * @returns {String} Success message
  */
-const revokeSession = async (userId, sessionId) => {
+const revokeSession = async (userId, sessionId, revokeInfo = {}) => {
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -1395,6 +1500,22 @@ const revokeSession = async (userId, sessionId) => {
     // Mark session as inactive
     session.isActive = false;
     await user.save();
+
+    // Log session termination activity
+    try {
+      await AuthActivityLogger.logSessionTermination(userId, {
+        sessionId,
+        ip: revokeInfo.ip,
+        userAgent: revokeInfo.userAgent,
+        terminatedBy: "user",
+      });
+    } catch (activityError) {
+      logger.warn("Failed to log session termination activity", {
+        error: activityError.message,
+        userId,
+        sessionId,
+      });
+    }
 
     logger.info(`Session revoked for user ${userId}`, {
       sessionId,
