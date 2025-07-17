@@ -24,6 +24,7 @@ const AuthGuard = ({
   allowClose = false,
   onClose = null,
   _context = "default", // for analytics/tracking
+  icon: Icon = FaCode, // main icon component
 }) => {
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -78,27 +79,23 @@ const AuthGuard = ({
   };
 
   return (
-    <div className="h-screen bg-neutral-900 relative overflow-hidden">
-      {/* Blurred background */}
-      <div className="absolute inset-0 bg-neutral-900 opacity-40">
+    <div className="h-screen relative overflow-hidden">
+      {/* Background with blur */}
+      <div className="absolute inset-0">
         {children}
+        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" />
       </div>
-      <div className="absolute inset-0 backdrop-blur-md bg-black/40" />
 
-      {/* Auth overlay */}
-      <div className="absolute inset-0 flex items-center justify-center p-4 z-50">
+      {/* Auth overlay card */}
+      <div className="relative z-50 flex items-center justify-center p-4 h-full">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 30 }}
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="bg-neutral-800/95 backdrop-blur-xl border border-neutral-700/60 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(23, 23, 31, 0.95) 0%, rgba(31, 31, 41, 0.95) 100%)",
-          }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="bg-neutral-900/90 backdrop-blur-lg border border-neutral-700 rounded-lg p-4 sm:p-6 max-w-md w-full shadow-lg"
         >
           {/* Header controls */}
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start mb-4">
             {showBackButton && (
               <motion.button
                 initial={{ opacity: 0, x: -10 }}
@@ -126,7 +123,7 @@ const AuthGuard = ({
           </div>
 
           {/* Main content */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-4">
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
@@ -136,20 +133,20 @@ const AuthGuard = ({
                 type: "spring",
                 stiffness: 200,
               }}
-              className="w-20 h-20 bg-gradient-to-br from-blue-500 via-purple-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"
+              className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl"
               style={{
                 boxShadow:
                   "0 0 40px rgba(59, 130, 246, 0.3), 0 0 80px rgba(147, 51, 234, 0.2)",
               }}
             >
-              <FaCode className="w-10 h-10 text-white" />
+              <Icon className="w-8 h-8 text-white" />
             </motion.div>
 
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.4 }}
-              className="text-2xl sm:text-3xl font-bold text-white mb-4 heading"
+              className="text-xl sm:text-2xl font-bold text-white mb-2 heading"
             >
               {title}
             </motion.h2>
@@ -170,7 +167,7 @@ const AuthGuard = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.4 }}
-              className="grid grid-cols-2 gap-3 sm:gap-4 mb-8"
+              className="grid grid-cols-2 gap-3 sm:gap-4 mb-4"
             >
               {displayFeatures.map((feature, index) => {
                 const Icon = feature.icon;
@@ -195,22 +192,22 @@ const AuthGuard = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8, duration: 0.4 }}
-            className="space-y-3"
+            className="space-y-2"
           >
             <button
               onClick={handleLogin}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3 sm:py-4 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-blue-500/30 text-sm sm:text-base"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-md shadow-md transition duration-200"
             >
-              <FaSignInAlt className="w-4 h-4" />
-              Sign In
+              <FaSignInAlt className="w-5 h-5" />
+              <span>Sign In</span>
             </button>
 
             <button
               onClick={handleRegister}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl text-white font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-purple-500/30 text-sm sm:text-base"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-neutral-800/30 border border-neutral-700 rounded-md text-neutral-300 hover:bg-neutral-800/50 transition duration-200"
             >
-              <FaUserPlus className="w-4 h-4" />
-              Create Account
+              <FaUserPlus className="w-5 h-5 text-purple-400" />
+              <span>Create Account</span>
             </button>
           </motion.div>
 
@@ -219,7 +216,7 @@ const AuthGuard = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 0.4 }}
-            className="text-center mt-6"
+            className="text-center mt-4"
           >
             <p className="text-xs text-neutral-500">
               Join thousands of developers building with Deployio

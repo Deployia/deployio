@@ -1,5 +1,11 @@
 import AuthGuard from "./AuthGuard";
-import { FaCode, FaBrain, FaRocket, FaChartLine } from "react-icons/fa";
+import {
+  FaCode,
+  FaBrain,
+  FaRocket,
+  FaChartLine,
+  FaLaptopCode,
+} from "react-icons/fa";
 
 /**
  * PlaygroundAuthGuard - Specialized AuthGuard for the playground page
@@ -21,6 +27,7 @@ const PlaygroundAuthGuard = ({ children }) => {
       backPath="/"
       allowClose={false}
       context="playground"
+      icon={FaLaptopCode}
     >
       {children}
     </AuthGuard>
