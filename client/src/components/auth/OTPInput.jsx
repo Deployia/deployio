@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FiShield, FiKey, FiSmartphone } from "react-icons/fi";
 import { verify2FALogin } from "@redux/slices/twoFactorSlice";
-import toast from "react-hot-toast";
 import AuthButton from "./Button";
 
 const OTPInput = ({ userId, onSuccess, onCancel }) => {
@@ -88,11 +87,7 @@ const OTPInput = ({ userId, onSuccess, onCancel }) => {
     e.preventDefault();
 
     if (!code || (code.length !== 6 && code.length !== 8)) {
-      toast.error(
-        useBackupCode
-          ? "Please enter a valid backup code"
-          : "Please enter a 6-digit verification code"
-      );
+      // Error display is now handled through AuthCard error prop
       return;
     }
 
@@ -102,11 +97,8 @@ const OTPInput = ({ userId, onSuccess, onCancel }) => {
       ).unwrap();
       onSuccess();
     } catch (error) {
-      // Display the error message from the API or fallback
-      const msg =
-        (error && (error.message || error.toString())) ||
-        "Verification failed. Please try again.";
-      toast.error(msg);
+      // Error display is now handled through AuthCard error prop
+      console.error("2FA verification error:", error);
     }
   };
 

@@ -13,12 +13,11 @@ import {
   FaFolderOpen,
   FaComments,
   FaBrain,
-  FaSignInAlt,
   FaTimes,
 } from "react-icons/fa";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useModal } from "@context/ModalContext";
 import { useSidebar } from "@context/SidebarContext";
+import { usePlaygroundAuthModal } from "@/utils/AuthModal";
 
 // Import view components
 import EditorView from "@components/playground/views/EditorView";
@@ -61,7 +60,7 @@ const PlaygroundLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
-  const { openModal } = useModal();
+  const { showPlaygroundAuthModal } = usePlaygroundAuthModal();
   const { isSidebarOpen, sidebarContent, openSidebar, closeSidebar } =
     useSidebar();
 
@@ -85,33 +84,9 @@ const PlaygroundLayout = () => {
   // Authentication check
   useEffect(() => {
     if (!isAuthenticated) {
-      openModal(
-        <div className="p-6 text-center">
-          <FaSignInAlt className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-4 heading">
-            Authentication Required
-          </h3>
-          <p className="text-neutral-400 mb-6 body">
-            Please sign in to access the Deployio Playground
-          </p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => navigate("/auth/login")}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => navigate("/auth/register")}
-              className="px-6 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-white font-medium transition-colors"
-            >
-              Register
-            </button>
-          </div>
-        </div>
-      );
+      showPlaygroundAuthModal();
     }
-  }, [isAuthenticated, openModal, navigate]);
+  }, [isAuthenticated, showPlaygroundAuthModal]);
 
   // Fullscreen functionality
   const handleFullscreen = () => {

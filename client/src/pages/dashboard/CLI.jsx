@@ -10,11 +10,8 @@ import {
   FaCog,
   FaRocket,
   FaExclamationCircle,
-  FaDownload,
-  FaSync,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
-import { toast } from "react-hot-toast";
 
 const CLI = () => {
   const [selectedCommand, setSelectedCommand] = useState("deploy");
@@ -135,9 +132,10 @@ const CLI = () => {
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copied to clipboard!");
+      console.log("Copied to clipboard!");
+      // Could trigger a visual indicator here instead of toast
     } catch {
-      toast.error("Failed to copy to clipboard");
+      console.error("Failed to copy to clipboard");
     }
   };
 

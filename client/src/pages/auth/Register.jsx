@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
 import { registerUser, reset } from "@redux/index";
 import zxcvbn from "zxcvbn";
 import {
@@ -101,11 +100,9 @@ function Register() {
     if (isSubmitting) {
       if (error?.signup) {
         setFormError(error.signup);
-        toast.error(error.signup);
         setIsSubmitting(false);
       } else if (user?.email) {
         // Registration successful, redirect to OTP verification
-        toast.success("Registration successful! Please verify your email.");
         navigate("/auth/verify-otp", {
           state: {
             email: user.email,
@@ -175,7 +172,6 @@ function Register() {
     if (Object.keys(errors).length > 0) {
       const firstError = Object.values(errors)[0];
       setFormError(firstError);
-      toast.error("Please fix the form errors");
       return;
     }
 

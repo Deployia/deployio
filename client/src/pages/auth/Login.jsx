@@ -19,7 +19,7 @@ import OAuthSection from "@components/auth/OAuthSection";
 import OTPInput from "@components/auth/OTPInput";
 import SEO from "@components/SEO.jsx";
 import { getRedirectPath } from "@utils/authRedirect";
-import { toast } from "react-hot-toast";
+import { getAndClearIntendedDestination } from "@utils/AuthModal";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -77,15 +77,24 @@ function Login() {
     }
   }, [email, password, hasSubmitted, validateForm]);
   useEffect(() => {
+    // Handle OAuth success
+    const oauthSuccess = searchParams.get("oauth");
+    if (oauthSuccess === "success" && isAuthenticated) {
+      // Get intended destination or use default
+      const intendedDestination = getAndClearIntendedDestination();
+      const redirectPath =
+        intendedDestination || getRedirectPath(searchParams, "/dashboard");
+      navigate(redirectPath, { replace: true });
+      return;
+    }
+
     if (isAuthenticated) {
-      toast.success("Welcome back!");
       const redirectPath = getRedirectPath(searchParams, "/dashboard");
       navigate(redirectPath);
     }
 
     // Redirect to OTP verification if needed
     if (needsVerification && pendingVerificationEmail) {
-      toast.success("Please verify your account to continue");
       navigate("/auth/verify-otp", {
         state: { email: pendingVerificationEmail, fromLogin: true },
       });
@@ -129,12 +138,10 @@ function Login() {
     setHasSubmitted(true);
 
     if (!validateForm()) {
-      toast.error("Please fix the errors below");
       return;
     }
 
     if (!email || !password) {
-      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -164,7 +171,6 @@ function Login() {
             // Clear 2FA state and params, then redirect to profile
             setSearchParams({});
             dispatch(reset2FA());
-            toast.success("Login successful!");
             navigate("/dashboard");
           }}
           onCancel={() => {

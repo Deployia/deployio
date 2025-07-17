@@ -642,13 +642,34 @@ const googleAuthCallback = async (req, res) => {
     // Set cookies using tokens from service
     setAuthCookies(res, result.token, result.refreshToken);
 
-    // Redirect to frontend with success
+    // Redirect to frontend with success parameter
     const frontUrl =
       process.env.NODE_ENV === "development"
         ? process.env.FRONTEND_URL_DEV
         : process.env.FRONTEND_URL_PROD;
 
-    res.redirect(`${frontUrl}/dashboard?oauth=success`);
+    // Check if there's a state parameter for redirect path
+    const state = req.query.state;
+    let redirectPath = "/dashboard";
+
+    if (state) {
+      try {
+        const decodedState = decodeURIComponent(state);
+        // Validate that it's a safe relative path
+        if (
+          decodedState.startsWith("/") &&
+          !decodedState.startsWith("//") &&
+          !decodedState.startsWith("/auth/")
+        ) {
+          redirectPath = decodedState;
+        }
+      } catch (e) {
+        // Use default if state is invalid
+        console.warn("Invalid OAuth state parameter:", state);
+      }
+    }
+
+    res.redirect(`${frontUrl}${redirectPath}?oauth=success`);
   } catch (error) {
     logger.error("Google OAuth callback error:", error);
     const frontUrl =
@@ -682,13 +703,34 @@ const githubAuthCallback = async (req, res) => {
     // Set cookies using tokens from service
     setAuthCookies(res, result.token, result.refreshToken);
 
-    // Redirect to frontend with success
+    // Redirect to frontend with success parameter
     const frontUrl =
       process.env.NODE_ENV === "development"
         ? process.env.FRONTEND_URL_DEV
         : process.env.FRONTEND_URL_PROD;
 
-    res.redirect(`${frontUrl}/dashboard?oauth=success`);
+    // Check if there's a state parameter for redirect path
+    const state = req.query.state;
+    let redirectPath = "/dashboard";
+
+    if (state) {
+      try {
+        const decodedState = decodeURIComponent(state);
+        // Validate that it's a safe relative path
+        if (
+          decodedState.startsWith("/") &&
+          !decodedState.startsWith("//") &&
+          !decodedState.startsWith("/auth/")
+        ) {
+          redirectPath = decodedState;
+        }
+      } catch (e) {
+        // Use default if state is invalid
+        console.warn("Invalid OAuth state parameter:", state);
+      }
+    }
+
+    res.redirect(`${frontUrl}${redirectPath}?oauth=success`);
   } catch (error) {
     logger.error("GitHub OAuth callback error:", error);
     const frontUrl =

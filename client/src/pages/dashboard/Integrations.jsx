@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { toast } from "react-hot-toast";
 import {
   FaGithub,
   FaGitlab,
@@ -70,10 +69,7 @@ const Integrations = () => {
       const displayName = providerDisplayNames[connected] || connected;
 
       if (status === "success") {
-        toast.success(`🎉 Successfully connected to ${displayName}!`, {
-          duration: 5000,
-          icon: "🔗",
-        });
+        console.log(`Successfully connected to ${displayName}!`);
 
         // Refresh provider data to show new connection
         dispatch(fetchConnectedProviders());
@@ -105,9 +101,7 @@ const Integrations = () => {
             ? decodeURIComponent(error)
             : "Connection failed due to an unknown error";
 
-        toast.error(`❌ Failed to connect to ${displayName}: ${errorMessage}`, {
-          duration: 8000,
-        });
+        console.error(`Failed to connect to ${displayName}: ${errorMessage}`);
 
         // Log error for debugging
         console.error(`OAuth connection failed for ${connected}:`, {

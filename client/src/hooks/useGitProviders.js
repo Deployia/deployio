@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { toast } from "react-hot-toast";
 
 import {
   fetchConnectedProviders,
@@ -52,12 +51,12 @@ export const useGitProviders = () => {
 
   const connectProvider = useCallback((provider) => {
     if (provider.comingSoon) {
-      toast.error(`${provider.name} integration is coming in Q3 2025`);
+      console.log(`${provider.name} integration is coming in Q3 2025`);
       return;
     }
 
     if (!provider.enabled) {
-      toast.error(`${provider.name} integration is currently disabled`);
+      console.log(`${provider.name} integration is currently disabled`);
       return;
     }
 
@@ -65,7 +64,6 @@ export const useGitProviders = () => {
       gitProviderService.initiateConnection(provider.id);
     } catch (error) {
       console.error("Connection initiation failed:", error);
-      toast.error(`Failed to initiate connection to ${provider.name}`);
     }
   }, []);
 
@@ -76,11 +74,10 @@ export const useGitProviders = () => {
       ) {
         try {
           await dispatch(disconnectProvider(provider.id)).unwrap();
-          toast.success(`Successfully disconnected from ${provider.name}`);
+          console.log(`Successfully disconnected from ${provider.name}`);
           fetchConnections();
         } catch (error) {
           console.error("Disconnection failed:", error);
-          toast.error(`Failed to disconnect from ${provider.name}`);
         }
       }
     },
@@ -91,10 +88,9 @@ export const useGitProviders = () => {
     async (providerId) => {
       try {
         await dispatch(refreshProviderConnection(providerId)).unwrap();
-        toast.success("Provider connection refreshed");
+        console.log("Provider connection refreshed");
       } catch (error) {
         console.error("Refresh failed:", error);
-        toast.error("Failed to refresh provider connection");
       }
     },
     [dispatch]
@@ -109,7 +105,6 @@ export const useGitProviders = () => {
         ).unwrap();
       } catch (error) {
         console.error("Failed to fetch repositories:", error);
-        toast.error(`Failed to fetch ${providerId} repositories`);
       }
     },
     [dispatch]
@@ -123,7 +118,6 @@ export const useGitProviders = () => {
         ).unwrap();
       } catch (error) {
         console.error("Failed to search repositories:", error);
-        toast.error(`Failed to search ${providerId} repositories`);
       }
     },
     [dispatch]
