@@ -2,7 +2,6 @@
 // Stateless JWT authentication using HTTP-only cookies
 
 const authService = require("@services/user/authService");
-const userService = require("@services/user/userService");
 const logger = require("@config/logger");
 
 /**
@@ -642,12 +641,6 @@ const googleAuthCallback = async (req, res) => {
     // Set cookies using tokens from service
     setAuthCookies(res, result.token, result.refreshToken);
 
-    // Redirect to frontend with success parameter
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
-
     // Check if there's a state parameter for redirect path
     const state = req.query.state;
     let redirectPath = "/dashboard";
@@ -669,9 +662,14 @@ const googleAuthCallback = async (req, res) => {
       }
     }
 
-    // Redirect directly to the intended path without oauth=success parameter
-    // The presence of auth cookies indicates successful authentication
-    res.redirect(`${frontUrl}${redirectPath}`);
+    // Prepare front-end URL for assets and messaging
+    const frontUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
+
+    // Redirect directly to frontend with the intended path
+    return res.redirect(`${frontUrl}${redirectPath}`);
   } catch (error) {
     logger.error("Google OAuth callback error:", error);
     const frontUrl =
@@ -705,20 +703,12 @@ const githubAuthCallback = async (req, res) => {
     // Set cookies using tokens from service
     setAuthCookies(res, result.token, result.refreshToken);
 
-    // Redirect to frontend with success parameter
-    const frontUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.FRONTEND_URL_DEV
-        : process.env.FRONTEND_URL_PROD;
-
-    // Check if there's a state parameter for redirect path
+    // Determine target path from state
     const state = req.query.state;
     let redirectPath = "/dashboard";
-
     if (state) {
       try {
         const decodedState = decodeURIComponent(state);
-        // Validate that it's a safe relative path
         if (
           decodedState.startsWith("/") &&
           !decodedState.startsWith("//") &&
@@ -726,15 +716,16 @@ const githubAuthCallback = async (req, res) => {
         ) {
           redirectPath = decodedState;
         }
-      } catch (e) {
-        // Use default if state is invalid
-        console.warn("Invalid OAuth state parameter:", state);
-      }
+      } catch {}
     }
+    // Redirect to static callback page
+    const frontUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.FRONTEND_URL_DEV
+        : process.env.FRONTEND_URL_PROD;
 
-    // Redirect directly to the intended path without oauth=success parameter
-    // The presence of auth cookies indicates successful authentication
-    res.redirect(`${frontUrl}${redirectPath}`);
+    // Redirect directly to frontend with the intended path
+    return res.redirect(`${frontUrl}${redirectPath}`);
   } catch (error) {
     logger.error("GitHub OAuth callback error:", error);
     const frontUrl =

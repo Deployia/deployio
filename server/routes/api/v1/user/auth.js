@@ -5,6 +5,11 @@ const express = require("express");
 const { user } = require("@controllers");
 const { protect } = require("@middleware/authMiddleware");
 const passport = require("passport");
+// OAuth redirect middlewares for capturing and encoding redirect paths
+const {
+  captureOAuthRedirect,
+  generateOAuthState,
+} = require("@middleware/oauthRedirectMiddleware");
 const { getRateLimiters } = require("@middleware/rateLimitMiddleware");
 
 const router = express.Router();
@@ -35,10 +40,16 @@ router.post("/resend-otp", getRateLimiters().auth.otp, user.auth.resendOtp);
 router.get("/logout", protect, user.auth.logout);
 router.get("/me", protect, user.auth.getMe);
 
-// Google OAuth
+// Google OAuth with state for redirect
 router.get(
   "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
+  captureOAuthRedirect,
+  generateOAuthState,
+  (req, res, next) =>
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      state: req.oauthState,
+    })(req, res, next)
 );
 
 router.get(
@@ -50,10 +61,16 @@ router.get(
   user.auth.googleAuthCallback
 );
 
-// GitHub OAuth (Basic login with limited scope)
+// GitHub OAuth (Basic login with limited scope) with state
 router.get(
   "/github",
-  passport.authenticate("github-basic", { scope: ["user:email"] })
+  captureOAuthRedirect,
+  generateOAuthState,
+  (req, res, next) =>
+    passport.authenticate("github-basic", {
+      scope: ["user:email"],
+      state: req.oauthState,
+    })(req, res, next)
 );
 
 router.get(

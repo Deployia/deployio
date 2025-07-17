@@ -1,3 +1,6 @@
+import React from "react";
+import { getRedirectPath } from "../../utils/authUtils";
+
 const OAuthButton = ({ href, children }) => {
   return (
     <a
@@ -12,7 +15,13 @@ const OAuthButton = ({ href, children }) => {
 const OAuthSection = () => {
   const getOAuthUrl = (provider) => {
     const baseUrl = `${import.meta.env.VITE_APP_BACKEND_URL}/api/v1/users/auth`;
-    return `${baseUrl}/${provider}`;
+    // Determine safe next path using utility
+    const next = getRedirectPath(new URLSearchParams(window.location.search));
+    const url = new URL(`${baseUrl}/${provider}`);
+    if (next) {
+      url.searchParams.set("redirect", next);
+    }
+    return url.toString();
   };
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-3">
