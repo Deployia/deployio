@@ -17,7 +17,7 @@ import {
 } from "react-icons/fa";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useSidebar } from "@context/SidebarContext";
-import { usePlaygroundAuthModal } from "@/utils/AuthModal";
+import PlaygroundAuthGuard from "@components/PlaygroundAuthGuard";
 
 // Import view components
 import EditorView from "@components/playground/views/EditorView";
@@ -59,8 +59,7 @@ const ALLOWED_REPOS = [
 const PlaygroundLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated } = useSelector((state) => state.auth);
-  const { showPlaygroundAuthModal } = usePlaygroundAuthModal();
+  const { user } = useSelector((state) => state.auth);
   const { isSidebarOpen, sidebarContent, openSidebar, closeSidebar } =
     useSidebar();
 
@@ -80,13 +79,6 @@ const PlaygroundLayout = () => {
       import.meta.env.VITE_APP_GITHUB_TOKEN ||
       "your_github_token_here"
   );
-
-  // Authentication check
-  useEffect(() => {
-    if (!isAuthenticated) {
-      showPlaygroundAuthModal();
-    }
-  }, [isAuthenticated, showPlaygroundAuthModal]);
 
   // Fullscreen functionality
   const handleFullscreen = () => {
@@ -342,7 +334,7 @@ const PlaygroundLayout = () => {
   const secondarySidebarContent = getSecondarySidebarContent();
 
   return (
-    <>
+    <PlaygroundAuthGuard>
       {/* Global select/option styles for playground */}
       <style>{`
         select {
@@ -651,7 +643,7 @@ const PlaygroundLayout = () => {
           )}
         </AnimatePresence>
       </div>
-    </>
+    </PlaygroundAuthGuard>
   );
 
   // Helper function to get sidebar title

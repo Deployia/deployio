@@ -12,7 +12,7 @@ const AuthButton = ({
   ...props
 }) => {
   const baseClasses =
-    "flex justify-center items-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900 min-h-[44px]";
+    "flex justify-center items-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900 min-h-[40px] sm:min-h-[44px]";
 
   const variants = {
     primary:
@@ -26,9 +26,9 @@ const AuthButton = ({
   };
 
   const sizes = {
-    sm: "px-3 py-2 text-sm",
-    md: "px-4 py-2.5 text-sm sm:text-base",
-    lg: "px-6 py-3 text-base sm:text-lg",
+    sm: "px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm",
+    md: "px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base",
+    lg: "px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base lg:text-lg",
   };
 
   const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`;

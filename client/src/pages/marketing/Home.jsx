@@ -42,16 +42,12 @@ function Home() {
     if (isAuthenticated) {
       navigate("/dashboard");
     } else {
-      navigate("/auth/login");
+      navigate("/auth/login?next=/dashboard");
     }
   };
 
   const handleWatchDemo = () => {
-    if (isAuthenticated) {
-      navigate("/playground");
-    } else {
-      navigate("/auth/login");
-    }
+    navigate("/playground");
   };
   return (
     <>

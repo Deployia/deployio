@@ -1,5 +1,5 @@
 import { useSelector } from "react-redux";
-import { useCTAAuthModal } from "@/utils/AuthModal";
+import { useAuthActions } from "@/utils/authUtils";
 import PropTypes from "prop-types";
 
 /**
@@ -14,14 +14,16 @@ const AuthCTA = ({
   ...props
 }) => {
   const { isAuthenticated } = useSelector((state) => state.auth);
-  const { showCTAAuthModal } = useCTAAuthModal();
+  const { redirectToAuth } = useAuthActions();
 
   const handleClick = (e) => {
     if (disabled) return;
 
     if (!isAuthenticated) {
       e.preventDefault();
-      showCTAAuthModal(ctaContext);
+      // Default to register for CTAs, but allow override via ctaContext
+      const authType = ctaContext === "login" ? "login" : "register";
+      redirectToAuth(authType);
       return;
     }
 

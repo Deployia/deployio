@@ -2,7 +2,7 @@ const OAuthButton = ({ href, children }) => {
   return (
     <a
       href={href}
-      className="flex items-center justify-center py-2.5 px-3 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white hover:bg-neutral-700 transition-all duration-200 group min-h-[44px]"
+      className="flex items-center justify-center py-3 px-3 sm:py-2.5 sm:px-3 border border-neutral-700 rounded-lg bg-neutral-800/50 text-white hover:bg-neutral-700 transition-all duration-200 group min-h-[44px] sm:min-h-[40px]"
     >
       {children}
     </a>
@@ -15,7 +15,7 @@ const OAuthSection = () => {
     return `${baseUrl}/${provider}`;
   };
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:gap-3">
       <OAuthButton provider="google" href={getOAuthUrl("google")}>
         <svg className="w-5 h-5 sm:w-4 sm:h-4" viewBox="0 0 48 48">
           <g>

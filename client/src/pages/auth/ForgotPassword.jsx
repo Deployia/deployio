@@ -162,7 +162,7 @@ function ForgotPassword() {
             </div>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
             <AuthInput
               type="email"
               name="email"
@@ -192,7 +192,7 @@ function ForgotPassword() {
                 : "Send Reset Link"}
             </AuthButton>
 
-            <div className="text-center pt-4">
+            <div className="text-center pt-2 sm:pt-4">
               <p className="text-sm text-neutral-400">
                 Remember your password?{" "}
                 <Link

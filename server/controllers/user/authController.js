@@ -669,7 +669,9 @@ const googleAuthCallback = async (req, res) => {
       }
     }
 
-    res.redirect(`${frontUrl}${redirectPath}?oauth=success`);
+    // Redirect directly to the intended path without oauth=success parameter
+    // The presence of auth cookies indicates successful authentication
+    res.redirect(`${frontUrl}${redirectPath}`);
   } catch (error) {
     logger.error("Google OAuth callback error:", error);
     const frontUrl =
@@ -730,7 +732,9 @@ const githubAuthCallback = async (req, res) => {
       }
     }
 
-    res.redirect(`${frontUrl}${redirectPath}?oauth=success`);
+    // Redirect directly to the intended path without oauth=success parameter
+    // The presence of auth cookies indicates successful authentication
+    res.redirect(`${frontUrl}${redirectPath}`);
   } catch (error) {
     logger.error("GitHub OAuth callback error:", error);
     const frontUrl =

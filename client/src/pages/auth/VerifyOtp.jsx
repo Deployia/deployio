@@ -250,7 +250,7 @@ function VerifyOtp() {
         error={formError}
         icon={FaEnvelopeOpen}
       >
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
           <div className="space-y-3">
             <label
               htmlFor="otp-input-0"
@@ -313,7 +313,7 @@ function VerifyOtp() {
           </AuthButton>
         </form>
 
-        <div className="space-y-4 pt-6 border-t border-neutral-800">
+        <div className="space-y-3 sm:space-y-4 pt-4 sm:pt-6 border-t border-neutral-800">
           {isFromLogin && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
               <p className="text-xs text-amber-300 flex items-center">

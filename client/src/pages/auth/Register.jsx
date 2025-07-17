@@ -209,7 +209,7 @@ function Register() {
         subtitle="Join Deployio and experience AI-powered DevOps automation"
         error={formError}
       >
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5">
           <AuthInput
             type="text"
             name="username"

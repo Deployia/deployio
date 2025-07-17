@@ -18,8 +18,8 @@ import AuthDivider from "@components/auth/Divider";
 import OAuthSection from "@components/auth/OAuthSection";
 import OTPInput from "@components/auth/OTPInput";
 import SEO from "@components/SEO.jsx";
-import { getRedirectPath } from "@utils/authRedirect";
-import { getAndClearIntendedDestination } from "@utils/AuthModal";
+import { getRedirectPath } from "@utils/authUtils";
+import { getAndClearIntendedDestination } from "@utils/authUtils";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -196,7 +196,7 @@ function Login() {
         error={error?.login}
         maxWidth="max-w-lg"
       >
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4">
           <AuthInput
             label="Email Address"
             type="email"
@@ -223,10 +223,14 @@ function Login() {
             />
             <button
               type="button"
-              className="absolute right-3 top-8 text-neutral-400 hover:text-white transition-colors"
+              className="absolute right-2.5 sm:right-3 top-7 sm:top-8 text-neutral-400 hover:text-white transition-colors"
               onClick={() => setShowPassword(!showPassword)}
             >
-              {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+              {showPassword ? (
+                <FaEyeSlash size={14} className="sm:w-4 sm:h-4" />
+              ) : (
+                <FaEye size={14} className="sm:w-4 sm:h-4" />
+              )}
             </button>
           </div>
 
@@ -251,8 +255,8 @@ function Login() {
           </AuthButton>
 
           {hasSubmitted && !isFormValid && !loading.login && (
-            <div className="flex items-center justify-center p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <FaExclamationTriangle className="text-red-400 mr-2 text-sm" />
+            <div className="flex items-center justify-center p-2 sm:p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <FaExclamationTriangle className="text-red-400 mr-2 text-xs sm:text-sm flex-shrink-0" />
               <span className="text-red-400 text-xs">
                 Please fix the errors above
               </span>
@@ -263,10 +267,10 @@ function Login() {
         <AuthDivider />
         <OAuthSection />
 
-        <div className="mt-6 text-center">
-          <div className="flex items-center justify-center p-3 bg-neutral-800/30 border border-neutral-700 rounded-lg">
-            <FaUserPlus className="text-purple-400 mr-2" />
-            <span className="text-neutral-400 text-sm">
+        <div className="mt-3 sm:mt-6 text-center">
+          <div className="flex items-center justify-center p-2 sm:p-3 bg-neutral-800/30 border border-neutral-700 rounded-lg">
+            <FaUserPlus className="text-purple-400 mr-2 text-sm flex-shrink-0" />
+            <span className="text-neutral-400 text-xs sm:text-sm">
               Don&apos;t have an account?{" "}
               <Link
                 to="/auth/register"

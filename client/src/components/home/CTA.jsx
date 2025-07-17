@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useInView } from "react-intersection-observer";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
   FaArrowRight,
@@ -12,6 +12,7 @@ import {
 } from "react-icons/fa";
 
 const CTA = ({ onGetStarted }) => {
+  const navigate = useNavigate();
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
@@ -146,8 +147,13 @@ const CTA = ({ onGetStarted }) => {
                   </span>
                 </button>
               ) : (
-                <Link
-                  to="/auth/register"
+                <button
+                  onClick={() => {
+                    const currentPath = encodeURIComponent(
+                      window.location.pathname + window.location.search
+                    );
+                    navigate(`/auth/register?next=${currentPath}`);
+                  }}
                   className="group relative px-8 py-4 bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 text-white font-bold rounded-2xl hover:shadow-2xl hover:shadow-blue-500/25 transition-all duration-500 transform hover:scale-105 overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -156,16 +162,21 @@ const CTA = ({ onGetStarted }) => {
                     Start Free Forever
                     <FaArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-2 transition-transform duration-300" />
                   </span>
-                </Link>
+                </button>
               )}
 
-              <Link
-                to="/auth/register"
+              <button
+                onClick={() => {
+                  const currentPath = encodeURIComponent(
+                    window.location.pathname + window.location.search
+                  );
+                  navigate(`/auth/register?next=${currentPath}`);
+                }}
                 className="group px-8 py-4 bg-transparent border-2 border-gray-600/50 backdrop-blur-sm text-white font-semibold rounded-2xl hover:border-blue-400 hover:bg-blue-400/10 transition-all duration-300 flex items-center"
               >
                 <FaGithub className="mr-3 w-5 h-5" />
                 View on GitHub
-              </Link>
+              </button>
             </motion.div>
             {/* Additional Info */}
             <motion.div

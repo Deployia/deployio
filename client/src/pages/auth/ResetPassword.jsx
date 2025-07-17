@@ -204,7 +204,7 @@ function ResetPassword() {
             </div>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
             <div className="space-y-1">
               <AuthInput
                 type={showPassword ? "text" : "password"}
@@ -279,7 +279,7 @@ function ResetPassword() {
                 : "Reset Password"}
             </AuthButton>
 
-            <div className="text-center pt-4">
+            <div className="text-center pt-2 sm:pt-4">
               <p className="text-sm text-neutral-400">
                 Remember your password?{" "}
                 <Link

@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import { FaCheck, FaRocket, FaStar, FaBuilding } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const Pricing = () => {
+  const navigate = useNavigate();
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
@@ -232,18 +233,23 @@ const Pricing = () => {
                       {plan.cta}
                     </button>
                   ) : (
-                    <Link
-                      to="/auth/register"
-                      className={`block w-full py-4 px-6 bg-gradient-to-r ${
+                    <button
+                      onClick={() => {
+                        const currentPath = encodeURIComponent(
+                          window.location.pathname + window.location.search
+                        );
+                        navigate(`/auth/register?next=${currentPath}`);
+                      }}
+                      className={`w-full py-4 px-6 bg-gradient-to-r ${
                         plan.gradient
-                      } text-white font-bold rounded-2xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-center ${
+                      } text-white font-bold rounded-2xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 ${
                         plan.popular
                           ? "hover:shadow-blue-500/25"
                           : "hover:shadow-gray-500/25"
                       }`}
                     >
                       {plan.cta}
-                    </Link>
+                    </button>
                   )}
                 </div>
               </motion.div>

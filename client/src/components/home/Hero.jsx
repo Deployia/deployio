@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
   FaArrowRight,
@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { NeuralNetworkBackground } from "@components/ui";
 
 const Hero = ({ onGetStarted, onWatchDemo }) => {
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const [typedText, setTypedText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -164,8 +165,13 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
               </span>
             </button>
           ) : (
-            <Link
-              to="/auth/register"
+            <button
+              onClick={() => {
+                const currentPath = encodeURIComponent(
+                  window.location.pathname + window.location.search
+                );
+                navigate(`/auth/register?next=${currentPath}`);
+              }}
               className="group relative px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-blue-500/25 transition-all duration-500 transform hover:scale-105 overflow-hidden w-full max-w-xs sm:max-w-sm"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -174,7 +180,7 @@ const Hero = ({ onGetStarted, onWatchDemo }) => {
                 <span className="text-sm sm:text-base">Start Free Forever</span>
                 <FaArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform duration-300 flex-shrink-0" />
               </span>
-            </Link>
+            </button>
           )}
 
           <button

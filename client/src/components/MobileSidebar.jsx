@@ -1,5 +1,5 @@
 import { memo, useEffect, useCallback, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaChevronDown,
@@ -22,6 +22,7 @@ const MobileSidebar = memo(
     isLoggingOut,
     user,
   }) => {
+    const navigate = useNavigate();
     // Create internal state for mobile dropdown management
     const [mobileOpenDropdown, setMobileOpenDropdown] = useState(null);
 
@@ -389,23 +390,33 @@ const MobileSidebar = memo(
                   className="p-4 border-t border-neutral-800/50 bg-neutral-900/50"
                 >
                   <div className="space-y-3">
-                    <Link
-                      to="/auth/login"
-                      onClick={onClose}
+                    <button
+                      onClick={() => {
+                        const currentPath = encodeURIComponent(
+                          window.location.pathname + window.location.search
+                        );
+                        onClose();
+                        navigate(`/auth/login?next=${currentPath}`);
+                      }}
                       className="flex items-center justify-center gap-3 px-6 py-3 rounded-lg text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 transition-all duration-200 font-medium text-sm body w-full"
                     >
                       <FaSignInAlt className="w-4 h-4" />
                       <span>Sign In</span>
-                    </Link>
+                    </button>
 
-                    <Link
-                      to="/auth/register"
-                      onClick={onClose}
+                    <button
+                      onClick={() => {
+                        const currentPath = encodeURIComponent(
+                          window.location.pathname + window.location.search
+                        );
+                        onClose();
+                        navigate(`/auth/register?next=${currentPath}`);
+                      }}
                       className="flex items-center justify-center gap-3 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-all duration-200 font-medium text-sm body transform hover:scale-105 shadow-lg hover:shadow-blue-500/25 w-full"
                     >
                       <FaUserPlus className="w-4 h-4" />
                       <span>Get Started</span>
-                    </Link>
+                    </button>
                   </div>
                 </motion.div>
               )}

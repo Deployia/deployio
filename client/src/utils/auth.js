@@ -1,4 +1,7 @@
-// Utility to get authentication token from cookies
+/**
+ * Essential authentication utilities
+ * Get authentication token from cookies
+ */
 export function getAuthToken() {
   const cookies = document.cookie.split(";");
   for (const cookie of cookies) {

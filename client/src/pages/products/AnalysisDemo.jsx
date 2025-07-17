@@ -18,16 +18,14 @@ import {
 import SEO from "@components/SEO";
 import AnalysisResults from "@components/analysis/AnalysisResults";
 import api from "@utils/api";
-import { useAuthRedirect } from "@utils/authRedirect";
+import { useAuthActions } from "@utils/authUtils";
 import webSocketService from "@services/websocketService";
 import SmartConfigCodeBlock from "@components/common/SmartConfigCodeBlock";
 import ConfigMetadata from "@components/common/ConfigMetadata";
 
 const AnalysisDemo = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, checkAuth } = useAuthRedirect(
-    "/products/analysis-demo"
-  );
+  const { isAuthenticated } = useAuthActions();
 
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [branch, setBranch] = useState("main");
@@ -150,16 +148,10 @@ const AnalysisDemo = () => {
     }
   }, [currentStep, progressSteps.length]); // Include all dependencies
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && !checkAuth()) {
-      return; // checkAuth will handle the redirect
-    }
-  }, [isLoading, checkAuth]);
   // Check service health on mount
   useEffect(() => {
+    checkServiceHealth();
     if (isAuthenticated) {
-      checkServiceHealth();
       setupWebSocketConnection();
     }
   }, [isAuthenticated, setupWebSocketConnection]); // Include the memoized function
@@ -184,17 +176,8 @@ const AnalysisDemo = () => {
     };
   }, []);
 
-  // Don't render anything while checking auth or redirecting
-  if (isLoading || !isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <FaSpinner className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-white">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Don't render anything while checking auth - removed since this is a demo page
+  // Now render for both authenticated and non-authenticated users
 
   // Sample repositories for quick testing
   const sampleRepos = [
@@ -947,12 +930,12 @@ const AnalysisDemo = () => {
                             .filter(([configType, config]) => {
                               // Skip metadata entry
                               if (configType === "metadata") return false;
-                              
+
                               // Skip empty or invalid configurations
                               if (!config) return false;
-                              
+
                               // Check for valid configuration content
-                              const hasValidContent = 
+                              const hasValidContent =
                                 config.dockerfile_content ||
                                 config.docker_compose_content ||
                                 config.workflow_content ||
@@ -963,19 +946,28 @@ const AnalysisDemo = () => {
                                 config.terraform ||
                                 config.code ||
                                 config.content ||
-                                (typeof config === "string" && config.trim().length > 0) ||
-                                (typeof config === "object" && 
-                                 Object.keys(config).some(key => 
-                                   key.includes('content') || 
-                                   ['dockerfile', 'docker_compose', 'github_actions', 'terraform', 'code', 'content'].includes(key)
-                                 ));
-                              
+                                (typeof config === "string" &&
+                                  config.trim().length > 0) ||
+                                (typeof config === "object" &&
+                                  Object.keys(config).some(
+                                    (key) =>
+                                      key.includes("content") ||
+                                      [
+                                        "dockerfile",
+                                        "docker_compose",
+                                        "github_actions",
+                                        "terraform",
+                                        "code",
+                                        "content",
+                                      ].includes(key)
+                                  ));
+
                               return hasValidContent;
                             })
                             .map(([configType, config]) => {
                               // Determine the main config value to display
                               let configValue = config;
-                              
+
                               // Extract content from various possible formats in priority order
                               if (config?.dockerfile_content) {
                                 configValue = config.dockerfile_content;
@@ -985,13 +977,25 @@ const AnalysisDemo = () => {
                                 configValue = config.workflow_content;
                               } else if (config?.terraform_content) {
                                 configValue = config.terraform_content;
-                              } else if (configType === "dockerfile" && config.dockerfile) {
+                              } else if (
+                                configType === "dockerfile" &&
+                                config.dockerfile
+                              ) {
                                 configValue = config.dockerfile;
-                              } else if (configType === "docker_compose" && config.docker_compose) {
+                              } else if (
+                                configType === "docker_compose" &&
+                                config.docker_compose
+                              ) {
                                 configValue = config.docker_compose;
-                              } else if (configType === "github_actions" && config.github_actions) {
+                              } else if (
+                                configType === "github_actions" &&
+                                config.github_actions
+                              ) {
                                 configValue = config.github_actions;
-                              } else if (configType === "terraform" && config.terraform) {
+                              } else if (
+                                configType === "terraform" &&
+                                config.terraform
+                              ) {
                                 configValue = config.terraform;
                               } else if (config?.code) {
                                 configValue = config.code;
@@ -1000,9 +1004,11 @@ const AnalysisDemo = () => {
                               }
 
                               // Generate clean config type display name
-                              const displayName = config.filename || 
-                                configType.replace(/_/g, ' ')
-                                  .replace(/\b\w/g, l => l.toUpperCase());
+                              const displayName =
+                                config.filename ||
+                                configType
+                                  .replace(/_/g, " ")
+                                  .replace(/\b\w/g, (l) => l.toUpperCase());
 
                               return (
                                 <motion.div
@@ -1017,28 +1023,30 @@ const AnalysisDemo = () => {
                                       {displayName}
                                     </h4>
                                   </div>
-                                  
+
                                   <div className="p-6">
                                     {/* Configuration Code */}
                                     <SmartConfigCodeBlock
                                       value={configValue}
                                       title={config.filename || configType}
                                     />
-                                    
+
                                     {/* Configuration Metadata */}
                                     {config.metadata && (
                                       <div className="mt-4">
-                                        <ConfigMetadata 
-                                          metadata={config.metadata} 
-                                          configType={configType.replace(/_/g, ' ')}
+                                        <ConfigMetadata
+                                          metadata={config.metadata}
+                                          configType={configType.replace(
+                                            /_/g,
+                                            " "
+                                          )}
                                         />
                                       </div>
                                     )}
                                   </div>
                                 </motion.div>
                               );
-                            })
-                        }
+                            })}
                       </div>
                     </div>
                   )}

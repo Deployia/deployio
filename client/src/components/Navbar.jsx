@@ -376,20 +376,30 @@ const Navbar = memo(() => {
                 ) : (
                   <>
                     <li>
-                      <Link
-                        to="/auth/login"
+                      <button
+                        onClick={() => {
+                          const currentPath = encodeURIComponent(
+                            window.location.pathname + window.location.search
+                          );
+                          navigate(`/auth/login?next=${currentPath}`);
+                        }}
                         className="inline-flex items-center justify-center px-6 py-2 rounded-lg text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 transition-all duration-200 font-medium text-sm body"
                       >
                         Sign In
-                      </Link>
+                      </button>
                     </li>
                     <li>
-                      <Link
-                        to="/auth/register"
+                      <button
+                        onClick={() => {
+                          const currentPath = encodeURIComponent(
+                            window.location.pathname + window.location.search
+                          );
+                          navigate(`/auth/register?next=${currentPath}`);
+                        }}
                         className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-all duration-200 font-medium text-sm body transform hover:scale-105 shadow-lg hover:shadow-blue-500/25"
                       >
                         Get Started
-                      </Link>
+                      </button>
                     </li>
                   </>
                 )}
