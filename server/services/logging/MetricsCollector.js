@@ -16,7 +16,7 @@ class MetricsCollector extends EventEmitter {
     this.historicalMetricsFile = path.join(this.metricsPath, "historical.json");
     this.collectionInterval = null;
     this.config = {
-      collectionIntervalMs: 30000, // 30 seconds
+      collectionIntervalMs: 60000, // 30 seconds
       retentionHours: 24,
       maxHistoricalEntries: 1000,
     };

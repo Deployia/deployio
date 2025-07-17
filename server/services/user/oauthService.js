@@ -354,8 +354,8 @@ const completeOAuthLogin = async (
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Store refresh token
-    await storeRefreshToken(user._id, refreshToken);
+    // Store refresh token with login information
+    await storeRefreshToken(user._id, refreshToken, loginInfo);
 
     // Log successful OAuth login
     const { logSuccessfulLogin } = require("./securityService");

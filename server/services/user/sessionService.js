@@ -20,7 +20,7 @@ const User = require("@models/User");
  * @param {String} refreshToken - Refresh token to store
  * @returns {Promise} Promise that resolves when token is stored
  */
-const storeRefreshToken = async (userId, refreshToken) => {
+const storeRefreshToken = async (userId, refreshToken, loginInfo = {}) => {
   try {
     const redisClient = getRedisClient();
     const tokenKey = `refresh_token:${userId}:${refreshToken}`;
@@ -29,17 +29,19 @@ const storeRefreshToken = async (userId, refreshToken) => {
     // Store token with expiration (24 hours)
     const expirationTime = 24 * 60 * 60; // 24 hours in seconds
 
+    const tokenData = {
+      userId,
+      createdAt: new Date().toISOString(),
+      lastUsed: new Date().toISOString(),
+      userAgent: loginInfo.userAgent || "Unknown Device",
+      ip: loginInfo.ip || "Unknown Location",
+      location: loginInfo.location || null,
+      deviceFingerprint: loginInfo.deviceFingerprint,
+    };
+
     // Use the newer Redis API
     const multi = redisClient.multi();
-    multi.setEx(
-      tokenKey,
-      expirationTime,
-      JSON.stringify({
-        userId,
-        createdAt: new Date().toISOString(),
-        lastUsed: new Date().toISOString(),
-      })
-    );
+    multi.setEx(tokenKey, expirationTime, JSON.stringify(tokenData));
     multi.sAdd(userTokensKey, refreshToken);
     multi.expire(userTokensKey, expirationTime);
     await multi.exec();
@@ -92,22 +94,28 @@ const refreshAccessToken = async (refreshToken) => {
       decoded.family
     );
 
+    // Get the old token data to preserve session information
+    const oldTokenDataStr = await redisClient.get(tokenKey);
+    let loginInfo = {};
+    if (oldTokenDataStr) {
+      try {
+        const oldTokenData = JSON.parse(oldTokenDataStr);
+        loginInfo = {
+          userAgent: oldTokenData.userAgent,
+          ip: oldTokenData.ip,
+          location: oldTokenData.location,
+          deviceFingerprint: oldTokenData.deviceFingerprint,
+        };
+      } catch (parseError) {
+        logger.warn("Could not parse old token data:", parseError);
+      }
+    }
+
     // Remove old refresh token
     await redisClient.del(tokenKey);
 
-    // Store new refresh token
-    await storeRefreshToken(user._id, newRefreshToken);
-
-    // Update last used timestamp
-    await redisClient.setEx(
-      `refresh_token:${user._id}:${newRefreshToken}`,
-      24 * 60 * 60,
-      JSON.stringify({
-        userId: user._id,
-        createdAt: new Date().toISOString(),
-        lastUsed: new Date().toISOString(),
-      })
-    );
+    // Store new refresh token with preserved login info
+    await storeRefreshToken(user._id, newRefreshToken, loginInfo);
 
     logger.info(`Token refreshed for user: ${user._id}`);
 
@@ -135,7 +143,7 @@ const refreshAccessToken = async (refreshToken) => {
  * @param {String} userId - User ID
  * @returns {Array} Array of active sessions
  */
-const getActiveSessions = async (userId) => {
+const getActiveSessions = async (userId, currentDeviceFingerprint) => {
   try {
     const redisClient = getRedisClient();
     const userTokensKey = `user_tokens:${userId}`;
@@ -154,12 +162,23 @@ const getActiveSessions = async (userId) => {
           const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
           const tokenData = JSON.parse(tokenDataStr);
 
+          // Check if this is the current session
+          const isCurrent =
+            currentDeviceFingerprint &&
+            tokenData.deviceFingerprint === currentDeviceFingerprint;
+
           sessions.push({
             id: decoded.sessionId || crypto.randomUUID(),
             createdAt: tokenData.createdAt,
-            lastUsed: tokenData.lastUsed,
+            lastUsed: tokenData.lastUsed || tokenData.createdAt,
+            lastActivity: tokenData.lastUsed || tokenData.createdAt,
             family: decoded.family,
-            isCurrentSession: false, // This would need to be determined by the caller
+            userAgent: tokenData.userAgent || "Unknown Device",
+            ip: tokenData.ip || "Unknown Location",
+            location: tokenData.location || null,
+            deviceFingerprint: tokenData.deviceFingerprint,
+            isCurrent: isCurrent,
+            isCurrentSession: isCurrent, // Keep both for compatibility
           });
         } catch (jwtError) {
           // Token is invalid, remove it

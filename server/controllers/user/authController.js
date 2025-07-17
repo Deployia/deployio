@@ -515,15 +515,10 @@ const verify2FALogin = async (req, res) => {
       });
     }
 
-    const result = await authService.verify2FALogin(userId, token);
+    const loginInfo = getLoginInfo(req);
+    const result = await authService.verify2FALogin(userId, token, loginInfo);
 
     if (result.verified) {
-      const loginInfo = {
-        ip: req.ip,
-        userAgent: req.headers["user-agent"],
-        location: "Unknown",
-      };
-
       const loginResult = await authService.complete2FALogin(userId, loginInfo);
 
       // Use tokens from auth service

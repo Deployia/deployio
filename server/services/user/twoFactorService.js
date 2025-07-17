@@ -211,7 +211,7 @@ const disable2FA = async (userId, token) => {
  * @param {String} token - TOTP token or backup code
  * @returns {Object} Verification result and user data
  */
-const verify2FALogin = async (userId, token) => {
+const verify2FALogin = async (userId, token, loginInfo = {}) => {
   try {
     const user = await User.findById(userId).select(
       "+twoFactorSecret +twoFactorBackupCodes"
@@ -275,8 +275,8 @@ const verify2FALogin = async (userId, token) => {
     const token_jwt = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Store refresh token
-    await storeRefreshToken(user._id, refreshToken);
+    // Store refresh token with login information
+    await storeRefreshToken(user._id, refreshToken, loginInfo);
 
     logger.info(`2FA verification successful for user: ${userId}`);
 
@@ -441,8 +441,8 @@ const complete2FALogin = async (userId, loginInfo = {}) => {
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Store refresh token
-    await storeRefreshToken(user._id, refreshToken);
+    // Store refresh token with login information
+    await storeRefreshToken(user._id, refreshToken, loginInfo);
 
     // Log successful login
     const { logSuccessfulLogin } = require("./securityService");

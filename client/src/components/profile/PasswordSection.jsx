@@ -1,12 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaKey, FaEye, FaEyeSlash, FaCheck, FaTimes } from "react-icons/fa";
 import toast from "react-hot-toast";
-import api from "@utils/api";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  updatePassword,
+  setInitialPassword,
+  clearError,
+  clearSuccess,
+} from "@redux/slices/userSlice";
 
 const PasswordSection = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const { loading, error, success } = useSelector((state) => state.userProfile);
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -17,11 +24,51 @@ const PasswordSection = () => {
     new: false,
     confirm: false,
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
 
   // Check if user has OAuth-only account (no password set)
   const isOAuthOnlyUser = !user?.hasPassword;
+
+  // Get loading states
+  const isSubmitting = loading.updatePassword || loading.setInitialPassword;
+
+  // Handle success/error messages
+  useEffect(() => {
+    if (success.updatePassword) {
+      toast.success("Password updated successfully!");
+      setFormData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setPasswordStrength(0);
+      dispatch(clearSuccess("updatePassword"));
+    }
+    if (success.setInitialPassword) {
+      toast.success("Password set successfully!");
+      setFormData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setPasswordStrength(0);
+      dispatch(clearSuccess("setInitialPassword"));
+    }
+    if (error.updatePassword) {
+      toast.error(error.updatePassword);
+      dispatch(clearError("updatePassword"));
+    }
+    if (error.setInitialPassword) {
+      toast.error(error.setInitialPassword);
+      dispatch(clearError("setInitialPassword"));
+    }
+  }, [
+    success.updatePassword,
+    success.setInitialPassword,
+    error.updatePassword,
+    error.setInitialPassword,
+    dispatch,
+  ]);
 
   // Password strength validation
   const checkPasswordStrength = (password) => {
@@ -85,39 +132,26 @@ const PasswordSection = () => {
 
     if (!validateForm()) return;
 
-    setIsSubmitting(true);
     try {
-      const payload = {
-        newPassword: formData.newPassword,
-      };
-
-      // Only include current password if user has one set
-      if (!isOAuthOnlyUser) {
-        payload.currentPassword = formData.currentPassword;
+      if (isOAuthOnlyUser) {
+        // Set initial password for OAuth users
+        await dispatch(
+          setInitialPassword({ newPassword: formData.newPassword })
+        ).unwrap();
+      } else {
+        // Update password for existing users
+        await dispatch(
+          updatePassword({
+            currentPassword: formData.currentPassword,
+            newPassword: formData.newPassword,
+          })
+        ).unwrap();
       }
-
-      await api.put("/users/password", payload);
-
-      toast.success(
-        isOAuthOnlyUser
-          ? "Password set successfully!"
-          : "Password updated successfully!"
-      );
-
-      // Reset form
-      setFormData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setPasswordStrength(0);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update password");
-    } finally {
-      setIsSubmitting(false);
+      // Error handling is done in the useEffect above
+      console.error("Password update error:", error);
     }
   };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

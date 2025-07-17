@@ -301,9 +301,9 @@ const loginUser = async (email, password, loginInfo = {}) => {
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Store refresh token
+    // Store refresh token with login information
     const { storeRefreshToken } = require("./sessionService");
-    await storeRefreshToken(user._id, refreshToken);
+    await storeRefreshToken(user._id, refreshToken, loginInfo);
 
     return {
       user: {
@@ -402,9 +402,9 @@ const verifyOtp = async (email, otp, verificationInfo = {}) => {
   const token = generateToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  // Store refresh token
+  // Store refresh token with verification information (contains login info)
   const { storeRefreshToken } = require("./sessionService");
-  await storeRefreshToken(user._id, refreshToken);
+  await storeRefreshToken(user._id, refreshToken, verificationInfo);
 
   return {
     user: { id: user?._id, username: user?.username, email: user?.email },
