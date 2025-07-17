@@ -78,12 +78,49 @@ const githubBasicStrategy = new GitHubStrategy(
             sanitizeUsername(profile.username) || `github_${profile.id}`,
           fullName: profile.displayName || profile.username || "GitHub User",
           profileImage: profile.photos?.[0]?.value,
+          isVerified: true, // Auto-verify OAuth users
           isEmailVerified: true,
           lastLogin: new Date(),
         });
 
         await newUser.save();
         console.log("New user created via GitHub basic auth:", newUser.email);
+
+        // Follow the same flow as regular registration for consistency
+        try {
+          // Import required services
+          const AuthNotifications = require("../../services/user/authNotifications");
+          const AuthActivityLogger = require("../../services/user/authActivityLogger");
+
+          // Log registration activity (similar to regular registration)
+          await AuthActivityLogger.logRegistration(newUser._id, {
+            email: newUser.email,
+            username: newUser.username,
+            provider: "github",
+            githubId: profile.id,
+          });
+
+          // Send welcome notification (same as regular users after verification)
+          await AuthNotifications.sendWelcome(newUser._id, {
+            username: newUser.username,
+            email: newUser.email,
+          });
+
+          console.log(
+            `Welcome notification sent to new GitHub user ${newUser.email}`
+          );
+        } catch (notificationError) {
+          // Don't fail the OAuth flow if notifications fail
+          console.error(
+            `Failed to send welcome notification to GitHub user ${newUser.email}:`,
+            {
+              error: notificationError.message,
+              userId: newUser._id,
+              email: newUser.email,
+            }
+          );
+        }
+
         return done(null, newUser, { accessToken, refreshToken });
       }
     } catch (error) {

@@ -54,9 +54,44 @@ passport.use(
               profile.photos && profile.photos[0]
                 ? profile.photos[0].value
                 : "",
-            isVerified: true,
+            isVerified: true, // Auto-verify OAuth users
             lastLogin: new Date(),
           });
+
+          // Follow the same flow as regular registration for consistency
+          try {
+            // Import required services
+            const AuthNotifications = require("../services/user/authNotifications");
+            const AuthActivityLogger = require("../services/user/authActivityLogger");
+
+            // Log registration activity (similar to regular registration)
+            await AuthActivityLogger.logRegistration(user._id, {
+              email: user.email,
+              username: user.username,
+              provider: "google",
+              googleId: profile.id,
+            });
+
+            // Send welcome notification (same as regular users after verification)
+            await AuthNotifications.sendWelcome(user._id, {
+              username: user.username,
+              email: user.email,
+            });
+
+            console.log(
+              `Welcome notification sent to new Google user ${user.email}`
+            );
+          } catch (notificationError) {
+            // Don't fail the OAuth flow if notifications fail
+            console.error(
+              `Failed to send welcome notification to Google user ${user.email}:`,
+              {
+                error: notificationError.message,
+                userId: user._id,
+                email: user.email,
+              }
+            );
+          }
         } else {
           let updated = false;
           // Always update email if changed and present
