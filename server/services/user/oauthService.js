@@ -282,31 +282,39 @@ const unlinkProvider = async (userId, provider) => {
 /**
  * Complete OAuth login flow
  * @param {String} provider - Provider name
- * @param {Object} profile - OAuth profile data
+ * @param {Object} userOrProfile - User object (from passport) or OAuth profile data
  * @param {Object} tokens - OAuth tokens
  * @param {Object} loginInfo - Login information
  * @returns {Object} User and authentication tokens
  */
 const completeOAuthLogin = async (
   provider,
-  profile,
+  userOrProfile,
   tokens,
   loginInfo = {}
 ) => {
   try {
-    let user = await findUserByProvider(provider, profile.id);
+    let user;
 
-    // If not found by provider ID, try to find by email for account linking
-    if (!user && profile.emails && profile.emails[0]) {
-      user = await User.findOne({ email: profile.emails[0].value });
-      if (user) {
-        // Link the provider to existing account
-        await linkProvider(user._id, provider, {
-          id: profile.id,
-          username: profile.username,
-          email: profile.emails[0].value,
-          ...tokens,
-        });
+    // Check if userOrProfile is already a User object (from passport strategy)
+    if (userOrProfile._id) {
+      user = userOrProfile;
+    } else {
+      // Original flow for profile data
+      user = await findUserByProvider(provider, userOrProfile.id);
+
+      // If not found by provider ID, try to find by email for account linking
+      if (!user && userOrProfile.emails && userOrProfile.emails[0]) {
+        user = await User.findOne({ email: userOrProfile.emails[0].value });
+        if (user) {
+          // Link the provider to existing account
+          await linkProvider(user._id, provider, {
+            id: userOrProfile.id,
+            username: userOrProfile.username,
+            email: userOrProfile.emails[0].value,
+            ...tokens,
+          });
+        }
       }
     }
 
@@ -316,8 +324,16 @@ const completeOAuthLogin = async (
       );
     }
 
-    // Update user's last login and provider data
-    await updateUserProviderData(user, provider, profile, tokens);
+    // Update user's last login and provider data (only if we have profile data)
+    if (!userOrProfile._id && userOrProfile.id) {
+      await updateUserProviderData(user, provider, userOrProfile, tokens);
+    } else {
+      // Update last login for existing user
+      await User.findByIdAndUpdate(user._id, {
+        lastLogin: new Date(),
+        isVerified: true,
+      });
+    }
 
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {
@@ -381,6 +397,12 @@ const completeOAuthLogin = async (
  */
 const findUserByProvider = async (provider, providerId) => {
   const query = {};
+
+  if (typeof provider !== "string" || !provider) {
+    // Optionally log the error for debugging
+    logger.error("Invalid provider in findUserByProvider", { provider });
+    return null;
+  }
 
   switch (provider.toLowerCase()) {
     case "github":

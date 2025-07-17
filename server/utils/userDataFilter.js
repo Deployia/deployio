@@ -22,6 +22,7 @@ const getSafeUserData = (user) => {
     role: user.role || "user",
     isVerified: user.isVerified,
     twoFactorEnabled: user.twoFactorEnabled || false,
+    hasPassword: !!user.password, // Check if user has a password set
     lastLogin: user.lastLogin,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

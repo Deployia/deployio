@@ -654,7 +654,12 @@ const googleAuthCallback = async (req, res) => {
 
     // Complete OAuth login through service
     const loginInfo = getLoginInfo(req);
-    const result = await authService.completeOAuthLogin(user._id, loginInfo);
+    const result = await authService.completeOAuthLogin(
+      "google",
+      user,
+      {},
+      loginInfo
+    );
 
     // Set cookies using tokens from service
     setAuthCookies(res, result.token, result.refreshToken);
@@ -716,7 +721,12 @@ const githubAuthCallback = async (req, res) => {
 
     // Complete OAuth login through service
     const loginInfo = getLoginInfo(req);
-    const result = await authService.completeOAuthLogin(user._id, loginInfo);
+    const result = await authService.completeOAuthLogin(
+      "github",
+      user,
+      {},
+      loginInfo
+    );
 
     // Set cookies using tokens from service
     setAuthCookies(res, result.token, result.refreshToken);

@@ -7,3 +7,4 @@ export { default as ActivityTab } from "./ActivityTab";
 export { default as ActivityAnalytics } from "./ActivityAnalytics";
 export { default as ProfileErrorBoundary } from "./ProfileErrorBoundary";
 export { default as OAuthAccountsSection } from "./OAuthAccountsSection";
+export { default as PasswordSection } from "./PasswordSection";

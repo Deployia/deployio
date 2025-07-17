@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import TwoFactorSection from "./TwoFactorSection";
 import OAuthAccountsSection from "./OAuthAccountsSection";
+import PasswordSection from "./PasswordSection";
 import ProfileErrorBoundary from "./ProfileErrorBoundary";
 import { FormSectionSkeleton, StatsGridSkeleton } from "./LoadingState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
@@ -244,9 +245,20 @@ const SecurityTab = () => {
               </div>
             )}
           </div>
-        </motion.div>{" "}
+        </motion.div>
+
+        {/* Password Management */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <PasswordSection />
+        </motion.div>
+
         {/* Two-Factor Authentication */}
         <TwoFactorSection />
+
         {/* OAuth Connected Accounts */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

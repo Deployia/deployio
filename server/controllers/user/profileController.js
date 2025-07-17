@@ -74,7 +74,7 @@ const updateProfile = async (req, res) => {
 
     // Handle file upload if present
     if (req.file) {
-      profileImageUrl = await handleImageUpload(req.file);
+      profileImageUrl = await handleImageUpload(req.file.buffer);
     } // Update user profile in database
     const updatedUser = await user.user.updateProfile(
       userId,

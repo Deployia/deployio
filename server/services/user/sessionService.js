@@ -29,20 +29,20 @@ const storeRefreshToken = async (userId, refreshToken) => {
     // Store token with expiration (24 hours)
     const expirationTime = 24 * 60 * 60; // 24 hours in seconds
 
-    await redisClient
-      .multi()
-      .setex(
-        tokenKey,
-        expirationTime,
-        JSON.stringify({
-          userId,
-          createdAt: new Date().toISOString(),
-          lastUsed: new Date().toISOString(),
-        })
-      )
-      .sadd(userTokensKey, refreshToken)
-      .expire(userTokensKey, expirationTime)
-      .exec();
+    // Use the newer Redis API
+    const multi = redisClient.multi();
+    multi.setEx(
+      tokenKey,
+      expirationTime,
+      JSON.stringify({
+        userId,
+        createdAt: new Date().toISOString(),
+        lastUsed: new Date().toISOString(),
+      })
+    );
+    multi.sAdd(userTokensKey, refreshToken);
+    multi.expire(userTokensKey, expirationTime);
+    await multi.exec();
 
     logger.debug(`Refresh token stored for user: ${userId}`);
   } catch (error) {
@@ -99,7 +99,7 @@ const refreshAccessToken = async (refreshToken) => {
     await storeRefreshToken(user._id, newRefreshToken);
 
     // Update last used timestamp
-    await redisClient.setex(
+    await redisClient.setEx(
       `refresh_token:${user._id}:${newRefreshToken}`,
       24 * 60 * 60,
       JSON.stringify({
@@ -141,7 +141,7 @@ const getActiveSessions = async (userId) => {
     const userTokensKey = `user_tokens:${userId}`;
 
     // Get all refresh tokens for the user
-    const refreshTokens = await redisClient.smembers(userTokensKey);
+    const refreshTokens = await redisClient.sMembers(userTokensKey);
 
     const sessions = [];
 
@@ -188,7 +188,7 @@ const revokeSession = async (userId, sessionId) => {
     const userTokensKey = `user_tokens:${userId}`;
 
     // Get all refresh tokens for the user
-    const refreshTokens = await redisClient.smembers(userTokensKey);
+    const refreshTokens = await redisClient.sMembers(userTokensKey);
 
     let sessionFound = false;
 
@@ -200,7 +200,7 @@ const revokeSession = async (userId, sessionId) => {
           // Remove the token
           const tokenKey = `refresh_token:${userId}:${token}`;
           await redisClient.del(tokenKey);
-          await redisClient.srem(userTokensKey, token);
+          await redisClient.sRem(userTokensKey, token);
           sessionFound = true;
           logger.info(`Session revoked: ${sessionId} for user: ${userId}`);
         }
@@ -208,7 +208,7 @@ const revokeSession = async (userId, sessionId) => {
         // Token is invalid, remove it anyway
         const tokenKey = `refresh_token:${userId}:${token}`;
         await redisClient.del(tokenKey);
-        await redisClient.srem(userTokensKey, token);
+        await redisClient.sRem(userTokensKey, token);
       }
     }
 
@@ -235,7 +235,7 @@ const revokeAllOtherSessions = async (userId, currentSessionId = null) => {
     const userTokensKey = `user_tokens:${userId}`;
 
     // Get all refresh tokens for the user
-    const refreshTokens = await redisClient.smembers(userTokensKey);
+    const refreshTokens = await redisClient.sMembers(userTokensKey);
 
     let revokedCount = 0;
 
@@ -255,13 +255,13 @@ const revokeAllOtherSessions = async (userId, currentSessionId = null) => {
         // Remove the token
         const tokenKey = `refresh_token:${userId}:${token}`;
         await redisClient.del(tokenKey);
-        await redisClient.srem(userTokensKey, token);
+        await redisClient.sRem(userTokensKey, token);
         revokedCount++;
       } catch (jwtError) {
         // Token is invalid, remove it anyway
         const tokenKey = `refresh_token:${userId}:${token}`;
         await redisClient.del(tokenKey);
-        await redisClient.srem(userTokensKey, token);
+        await redisClient.sRem(userTokensKey, token);
         revokedCount++;
       }
     }
@@ -290,7 +290,7 @@ const logoutUser = async (userId, refreshToken = null) => {
       const userTokensKey = `user_tokens:${userId}`;
 
       await redisClient.del(tokenKey);
-      await redisClient.srem(userTokensKey, refreshToken);
+      await redisClient.sRem(userTokensKey, refreshToken);
 
       logger.info(`User logged out: ${userId}`);
       return "Logged out successfully";
@@ -316,7 +316,7 @@ const cleanupExpiredSessions = async () => {
 
     for (const userTokenKey of userTokenKeys) {
       const userId = userTokenKey.split(":")[1];
-      const refreshTokens = await redisClient.smembers(userTokenKey);
+      const refreshTokens = await redisClient.sMembers(userTokenKey);
 
       for (const token of refreshTokens) {
         const tokenKey = `refresh_token:${userId}:${token}`;
@@ -324,12 +324,12 @@ const cleanupExpiredSessions = async () => {
 
         if (!exists) {
           // Token doesn't exist, remove from user's token set
-          await redisClient.srem(userTokenKey, token);
+          await redisClient.sRem(userTokenKey, token);
         }
       }
 
       // If no tokens left, remove the user token key
-      const remainingTokens = await redisClient.scard(userTokenKey);
+      const remainingTokens = await redisClient.sCard(userTokenKey);
       if (remainingTokens === 0) {
         await redisClient.del(userTokenKey);
       }
@@ -354,7 +354,7 @@ const getSessionStats = async () => {
 
     let totalSessions = 0;
     for (const userTokenKey of userTokenKeys) {
-      const sessionCount = await redisClient.scard(userTokenKey);
+      const sessionCount = await redisClient.sCard(userTokenKey);
       totalSessions += sessionCount;
     }
 
