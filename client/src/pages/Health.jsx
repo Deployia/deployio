@@ -784,7 +784,7 @@ function Health() {
                   <h4 className="text-sm font-medium text-white mb-2">
                     Recent Notifications:
                   </h4>
-                  <div className="max-h-40 overflow-auto space-y-2">
+                  <div className="max-h-40 overflow-auto space-y-2 custom-scrollbar">
                     {notifications.slice(-5).map((notification, index) => (
                       <div
                         key={index}

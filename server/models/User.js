@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
       minlength: [8, "Password must be at least 8 characters long"],
       select: false,
     },
-    isEmailVerified: {
+    isVerified: {
       type: Boolean,
       default: false,
     },
@@ -42,12 +42,6 @@ const userSchema = new mongoose.Schema(
     // OTP for email verification
     otp: String,
     otpExpire: Date,
-
-    // Email verification status
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
 
     // Password Reset
     resetPasswordToken: String,
@@ -406,14 +400,6 @@ const userSchema = new mongoose.Schema(
     lastTOTPToken: String,
     lastTOTPTimestamp: Date,
 
-    // Security & Authentication
-    loginAttempts: {
-      type: Number,
-      default: 0,
-    },
-    lockUntil: Date,
-    lastLogin: Date,
-    lastLoginIP: String,
     // Resource Usage & Limits (Per Architecture)
     resourceLimits: {
       maxProjects: {
@@ -591,11 +577,6 @@ const userSchema = new mongoose.Schema(
     },
     lastLoginIP: String,
     currentDeviceFingerprint: String, // Track current session
-    loginAttempts: {
-      type: Number,
-      default: 0,
-    },
-    lockUntil: Date,
   },
   {
     timestamps: true,
@@ -637,7 +618,7 @@ userSchema.index({ "github.username": 1 });
 userSchema.index({ "refreshTokens.token": 1 });
 userSchema.index({ status: 1, role: 1 });
 userSchema.index({ lastLogin: 1 });
-userSchema.index({ email: 1, isEmailVerified: 1 });
+userSchema.index({ email: 1, isVerified: 1 });
 
 // Virtual for account lock status
 userSchema.virtual("isLocked").get(function () {
@@ -650,8 +631,46 @@ userSchema.pre("save", async function (next) {
   if (!this.password) return next();
 
   try {
+    // Store the plain password for history check before hashing
+    const plainPassword = this.password;
+
+    // Hash the password
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    const hashedPassword = await bcrypt.hash(this.password, salt);
+    this.password = hashedPassword;
+
+    // Add to password history if this is an existing user (not new registration)
+    if (!this.isNew) {
+      // Check if this password was used before
+      const isReused = await this.isPasswordReused(plainPassword);
+      if (isReused) {
+        const error = new Error(
+          "Password has been used recently. Please choose a different password."
+        );
+        return next(error);
+      }
+
+      // Add current password to history
+      this.passwordHistory.push({
+        hashedPassword,
+        createdAt: new Date(),
+      });
+
+      // Keep only last 5 passwords
+      if (this.passwordHistory.length > 5) {
+        this.passwordHistory = this.passwordHistory.slice(-5);
+      }
+    } else {
+      // For new users, initialize password history with the first password
+      this.passwordHistory = [
+        {
+          hashedPassword,
+          createdAt: new Date(),
+        },
+      ];
+    }
+
+    this.passwordChangedAt = new Date();
     next();
   } catch (error) {
     next(error);

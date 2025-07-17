@@ -338,7 +338,6 @@ const registerUser = async (userData, registrationInfo = {}) => {
     password,
     otp,
     otpExpire,
-    passwordHistory: [password], // Track password history
     passwordChangedAt: new Date(),
   });
 
@@ -2004,4 +2003,6 @@ module.exports = {
   getActiveSessions,
   revokeSession,
   revokeAllOtherSessions,
+  // Password validation
+  validatePasswordPolicy,
 };

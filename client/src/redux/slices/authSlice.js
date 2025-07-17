@@ -68,12 +68,23 @@ export const registerUser = createAsyncThunk(
       const response = await api.post("/users/auth/register", userData);
       return response.data.data;
     } catch (error) {
-      const message =
-        (error.response &&
-          error.response.data &&
-          error.response.data.message) ||
-        error.message ||
-        error.toString();
+      // Extract detailed error information
+      let message = "Registration failed";
+      let details = null;
+
+      if (error.response?.data) {
+        message = error.response.data.message || message;
+        details = error.response.data.errors || error.response.data.details;
+      } else {
+        message = error.message || error.toString();
+      }
+
+      // For password validation errors, include additional context
+      if (message.includes("Password does not meet security requirements")) {
+        if (details && Array.isArray(details)) {
+          message = `Password requirements: ${details.join(". ")}`;
+        }
+      }
 
       return thunkAPI.rejectWithValue(message);
     }

@@ -9,6 +9,7 @@ const router = express.Router();
 
 // Protected user routes
 router.put("/password", protect, user.user.updatePassword);
+router.post("/set-initial-password", protect, user.user.setInitialPassword);
 router.delete("/account", protect, user.user.deleteAccount);
 
 // Notification preferences

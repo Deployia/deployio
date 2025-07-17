@@ -64,11 +64,15 @@ function Register() {
     // Password validation
     if (!password || password.length === 0) {
       errors.password = "Password is required";
-    } else if (password.length < 8) {
-      errors.password = "Password must be at least 8 characters long";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+    } else if (password.length < 12) {
+      errors.password = "Password must be at least 12 characters long";
+    } else if (
+      !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/.test(
+        password
+      )
+    ) {
       errors.password =
-        "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character";
     }
 
     // Confirm password validation
@@ -99,7 +103,17 @@ function Register() {
   useEffect(() => {
     if (isSubmitting) {
       if (error?.signup) {
-        setFormError(error.signup);
+        // Handle detailed password validation errors
+        if (
+          typeof error.signup === "string" &&
+          error.signup.includes("Password does not meet security requirements")
+        ) {
+          setFormError(
+            "Password does not meet security requirements. Please ensure it's at least 12 characters long with uppercase, lowercase, numbers, and special characters."
+          );
+        } else {
+          setFormError(error.signup);
+        }
         setIsSubmitting(false);
       } else if (user?.email) {
         // Registration successful, redirect to OTP verification

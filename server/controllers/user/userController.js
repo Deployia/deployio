@@ -44,6 +44,51 @@ const updatePassword = async (req, res) => {
 };
 
 /**
+ * Set initial password for OAuth users
+ */
+const setInitialPassword = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    // Validate required fields
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a new password",
+      });
+    }
+
+    const result = await user.user.setInitialPassword(req.user.id, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: result,
+    });
+  } catch (error) {
+    logger.error("Set initial password error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+    });
+
+    // Handle password validation errors
+    if (error.details && Array.isArray(error.details)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password does not meet security requirements",
+        errors: error.details,
+        passwordStrength: error.strength,
+        type: "PASSWORD_POLICY_ERROR",
+      });
+    }
+
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
  * Delete user account
  */
 const deleteAccount = async (req, res) => {
@@ -237,6 +282,7 @@ const getDashboardStats = async (req, res) => {
 
 module.exports = {
   updatePassword,
+  setInitialPassword,
   deleteAccount,
   getNotificationPreferences,
   updateNotificationPreferences,

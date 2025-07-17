@@ -84,6 +84,49 @@ export const fetchDashboardStats = createAsyncThunk(
   }
 );
 
+// Update password
+export const updatePassword = createAsyncThunk(
+  "userProfile/updatePassword",
+  async ({ currentPassword, newPassword }, thunkAPI) => {
+    try {
+      const response = await api.put("/users/password", {
+        currentPassword,
+        newPassword,
+      });
+      return response.data.message;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
+// Set initial password for OAuth users
+export const setInitialPassword = createAsyncThunk(
+  "userProfile/setInitialPassword",
+  async ({ newPassword }, thunkAPI) => {
+    try {
+      const response = await api.post("/users/set-initial-password", {
+        newPassword,
+      });
+      return response.data.message;
+    } catch (error) {
+      // Handle detailed password validation errors
+      let message = error.response?.data?.message || error.message;
+      let details = error.response?.data?.errors;
+
+      if (message.includes("Password does not meet security requirements")) {
+        if (details && Array.isArray(details)) {
+          message = `Password requirements: ${details.join(". ")}`;
+        }
+      }
+
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 const userProfileSlice = createSlice({
   name: "userProfile",
   initialState: {
@@ -94,6 +137,8 @@ const userProfileSlice = createSlice({
       userActivity: false,
       logActivity: false,
       dashboardStats: false,
+      updatePassword: false,
+      setInitialPassword: false,
     },
 
     // Error states
@@ -103,12 +148,18 @@ const userProfileSlice = createSlice({
       userActivity: null,
       logActivity: null,
       dashboardStats: null,
+      updatePassword: null,
+      setInitialPassword: null,
     },
 
     // Success states
     success: {
       updateNotificationPreferences: false,
-    }, // Data
+      updatePassword: false,
+      setInitialPassword: false,
+    },
+
+    // Data
     notificationPreferences: null,
     activities: [],
     activityPagination: null,

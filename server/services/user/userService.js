@@ -59,15 +59,37 @@ const updateProfile = async (
 
 // Update user password
 const updatePassword = async (userId, currentPassword, newPassword) => {
-  const user = await User.findById(userId).select("+password googleId");
+  const user = await User.findById(userId).select(
+    "+password githubId googleId gitlabId bitbucketId azureDevOpsId"
+  );
   const redisClient = getRedisClient(); // Get redisClient from singleton
   const cacheKey = `user:${userId}`;
 
   if (!user) throw new Error("User not found");
-  if (user.googleId)
-    throw new Error("Password update not allowed for OAuth users");
+
+  // Check if user is OAuth-only (has OAuth ID but no password)
+  const isOAuthUser =
+    user.githubId ||
+    user.googleId ||
+    user.gitlabId ||
+    user.bitbucketId ||
+    user.azureDevOpsId;
+
+  if (isOAuthUser && !user.password) {
+    // This is an OAuth user setting their first password
+    return setInitialPassword(userId, newPassword);
+  }
+
+  // Regular password update flow
+  if (!user.password) {
+    throw new Error(
+      "No current password set. Use set initial password instead."
+    );
+  }
+
   const isMatch = await user.comparePassword(currentPassword);
   if (!isMatch) throw new Error("Current password is incorrect");
+
   user.password = newPassword;
   await user.save();
 
@@ -75,6 +97,54 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
   await invalidateUserCache(userId);
 
   return "Password updated successfully";
+};
+
+// Set initial password for OAuth users
+const setInitialPassword = async (userId, newPassword) => {
+  const user = await User.findById(userId).select(
+    "+password githubId googleId gitlabId bitbucketId azureDevOpsId"
+  );
+
+  if (!user) throw new Error("User not found");
+
+  // Verify this is an OAuth user
+  const isOAuthUser =
+    user.githubId ||
+    user.googleId ||
+    user.gitlabId ||
+    user.bitbucketId ||
+    user.azureDevOpsId;
+  if (!isOAuthUser) {
+    throw new Error(
+      "This endpoint is only for OAuth users setting their first password"
+    );
+  }
+
+  // Check if user already has a password
+  if (user.password) {
+    throw new Error(
+      "User already has a password. Use update password instead."
+    );
+  }
+
+  // Import password validation from auth service
+  const { validatePasswordPolicy } = require("./authService");
+  const passwordValidation = validatePasswordPolicy(newPassword, user);
+
+  if (!passwordValidation.isValid) {
+    const error = new Error("Password does not meet security requirements");
+    error.details = passwordValidation.errors;
+    error.strength = passwordValidation.strength;
+    throw error;
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  // Invalidate cache comprehensively
+  await invalidateUserCache(userId);
+
+  return "Initial password set successfully";
 };
 
 // Get user by ID
@@ -414,6 +484,7 @@ const getDashboardStats = async (userId) => {
 module.exports = {
   updateProfile,
   updatePassword,
+  setInitialPassword,
   getUserById,
   deleteUser,
   getNotificationPreferences,
