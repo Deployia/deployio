@@ -1,12 +1,14 @@
 """
-Authentication middleware for AI Service
-Handles JWT token validation for backend communication with database verification
+Enhanced Authentication middleware for AI Service
+Handles JWT token validation with caching and improved fallback mechanisms
 """
 
 import os
 import jwt
 import httpx
 import logging
+import time
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, Header, Depends
@@ -28,24 +30,77 @@ REQUIRED_INTERNAL_SERVICE = "deployio-backend"
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
 TOKEN_VALIDATION_URL = f"{BACKEND_URL}/api/internal/auth/validate-token"
 
+# Enhanced caching configuration
+TOKEN_CACHE_TTL = 300  # 5 minutes
+TOKEN_CACHE = {}
+
 # Security scheme for FastAPI docs
 security = HTTPBearer()
 
 
 class AuthUser:
-    """Represents an authenticated user"""
+    """Represents an authenticated user with enhanced context"""
 
     def __init__(
-        self, user_id: str, email: str, username: str, token_type: str = "user"
+        self,
+        user_id: str,
+        email: str,
+        username: str,
+        token_type: str = "user",
+        session_id: str = None,
     ):
         self.id = user_id
         self.email = email
         self.username = username
         self.token_type = token_type
+        self.session_id = session_id
         self.is_demo = token_type == "demo"
+        self.is_system = token_type == "system"
 
     def __str__(self):
         return f"User(id={self.id}, email={self.email}, type={self.token_type})"
+
+
+def _get_cache_key(token: str) -> str:
+    """Generate cache key for token"""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _is_cache_valid(cache_entry: Dict) -> bool:
+    """Check if cache entry is still valid"""
+    return cache_entry["expires"] > time.time()
+
+
+def _cache_token_result(token: str, result: Dict, ttl: int = TOKEN_CACHE_TTL):
+    """Cache token validation result"""
+    cache_key = _get_cache_key(token)
+    TOKEN_CACHE[cache_key] = {
+        "result": result,
+        "expires": time.time() + ttl,
+        "cached_at": time.time(),
+    }
+
+    # Simple cache cleanup - remove expired entries
+    current_time = time.time()
+    expired_keys = [k for k, v in TOKEN_CACHE.items() if v["expires"] < current_time]
+    for key in expired_keys:
+        del TOKEN_CACHE[key]
+
+
+def _get_cached_result(token: str) -> Optional[Dict]:
+    """Get cached token validation result"""
+    cache_key = _get_cache_key(token)
+    cache_entry = TOKEN_CACHE.get(cache_key)
+
+    if cache_entry and _is_cache_valid(cache_entry):
+        logger.debug(f"Cache hit for token validation")
+        return cache_entry["result"]
+
+    if cache_entry:
+        # Remove expired entry
+        del TOKEN_CACHE[cache_key]
+
+    return None
 
 
 async def validate_token_with_backend(token: str) -> Dict[str, Any]:
@@ -61,6 +116,14 @@ async def validate_token_with_backend(token: str) -> Dict[str, Any]:
     Raises:
         HTTPException: If token is invalid or backend validation fails
     """
+    # Check cache first
+    cached_result = _get_cached_result(token)
+    if cached_result is not None:
+        logger.info(
+            f"Token validation cache hit for {cached_result['user']['username']}"
+        )
+        return cached_result
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
@@ -72,6 +135,8 @@ async def validate_token_with_backend(token: str) -> Dict[str, Any]:
             if response.status_code == 200:
                 result = response.json()
                 if result.get("success") and result.get("data", {}).get("valid"):
+                    # Cache the valid result
+                    _cache_token_result(token, result["data"])
                     return result["data"]
                 else:
                     raise HTTPException(

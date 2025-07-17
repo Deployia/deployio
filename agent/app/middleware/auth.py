@@ -1,12 +1,14 @@
 """
-Authentication middleware for DeployIO Agent
-Robust JWT validation for backend-to-agent communication, with fallback and clear logging
+Enhanced Authentication middleware for DeployIO Agent
+Robust JWT validation with caching, enhanced service validation, and improved security
 """
 
 import os
 import logging
 import httpx
 import jwt
+import time
+import hashlib
 from datetime import datetime, timezone
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -16,7 +18,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Configuration
+# Enhanced Configuration
 BACKEND_URL = settings.platform_url
 TOKEN_VALIDATION_URL = f"{BACKEND_URL}/api/internal/auth/validate-token"
 JWT_SECRET = (
@@ -25,11 +27,30 @@ JWT_SECRET = (
     or "default_secret_key_change_in_production"
 )
 JWT_ALGORITHM = "HS256"
-REQUIRED_INTERNAL_SERVICE = "deployio-backend"
+
+# Enhanced service validation configuration
+SERVICE_CONFIG = {
+    "deployio-backend": {
+        "allowed_ips": ["127.0.0.1", "::1"],  # Add production IPs as needed
+        "rate_limit": 1000,  # requests per minute
+        "require_token": True,
+        "allowed_endpoints": ["*"],  # All endpoints allowed for backend
+    },
+    "deployio-ai-service": {
+        "allowed_ips": [],  # No IP restriction for AI service
+        "rate_limit": 500,
+        "require_token": True,
+        "allowed_endpoints": ["/agent/v1/deploy", "/agent/v1/status"],
+    },
+}
+
+# Token caching
+TOKEN_CACHE_TTL = 300  # 5 minutes
+TOKEN_CACHE = {}
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    """Authentication middleware for DeployIO Agent (backend-first JWT validation, fallback to local)"""
+    """Enhanced Authentication middleware for DeployIO Agent"""
 
     def __init__(self, app, agent_secret: str):
         super().__init__(app)
@@ -50,14 +71,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        # Internal service header check
-        x_internal_service = request.headers.get("X-Internal-Service")
-        if x_internal_service != REQUIRED_INTERNAL_SERVICE:
+        # Enhanced internal service validation
+        if not self._enhanced_service_validation(request):
+            x_internal_service = request.headers.get("X-Internal-Service")
             logger.warning(
-                f"Blocked request to {request.url.path} from non-backend-service: {x_internal_service}"
+                f"Enhanced service validation failed for {request.url.path} from service: {x_internal_service}"
             )
             return Response(
-                content='{"error": true, "message": "Forbidden: Only backend service allowed", "service": "deployio-agent"}',
+                content='{"error": true, "message": "Forbidden: Service validation failed", "service": "deployio-agent"}',
                 status_code=403,
                 media_type="application/json",
             )
@@ -76,12 +97,29 @@ class AuthMiddleware(BaseHTTPMiddleware):
         token = auth_header.split(" ", 1)[1]
         logger.info(f"Validating token for {request.url.path}")
 
+        # Check cache first
+        cached_result = self._get_cached_result(token)
+        if cached_result is not None:
+            if cached_result:
+                logger.debug("Using cached token validation result")
+                return await call_next(request)
+            else:
+                logger.warning(f"Cached token validation failed for {request.url.path}")
+                return Response(
+                    content='{"error": true, "message": "Unauthorized: Invalid token (cached)", "service": "deployio-agent"}',
+                    status_code=401,
+                    media_type="application/json",
+                )
+
         # Validate token (backend, fallback to local)
         try:
             is_valid = await self._validate_token_with_backend(token)
         except Exception as e:
             logger.error(f"Error validating token with backend: {str(e)}")
             is_valid = self._decode_jwt_token_fallback(token)
+
+        # Cache the result
+        self._cache_token_result(token, is_valid)
 
         if not is_valid:
             logger.warning(f"Token validation failed for {request.url.path}")
@@ -135,3 +173,77 @@ class AuthMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"Error in fallback token decode: {str(e)}")
             return False
+
+    def _get_cache_key(self, token: str) -> str:
+        """Generate cache key for token"""
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def _is_cache_valid(self, cache_entry: dict) -> bool:
+        """Check if cache entry is still valid"""
+        return cache_entry["expires"] > time.time()
+
+    def _cache_token_result(self, token: str, result: bool, ttl: int = TOKEN_CACHE_TTL):
+        """Cache token validation result"""
+        cache_key = self._get_cache_key(token)
+        TOKEN_CACHE[cache_key] = {
+            "result": result,
+            "expires": time.time() + ttl,
+            "cached_at": time.time(),
+        }
+
+    def _get_cached_result(self, token: str) -> bool:
+        """Get cached token validation result"""
+        cache_key = self._get_cache_key(token)
+        cache_entry = TOKEN_CACHE.get(cache_key)
+
+        if cache_entry and self._is_cache_valid(cache_entry):
+            logger.debug("Cache hit for token validation")
+            return cache_entry["result"]
+
+        if cache_entry:
+            # Remove expired entry
+            del TOKEN_CACHE[cache_key]
+
+        return None
+
+    def _enhanced_service_validation(self, request: Request) -> bool:
+        """Enhanced internal service validation with IP and endpoint checking"""
+        service_header = request.headers.get("X-Internal-Service")
+
+        # Check if service is in allowed list
+        if service_header not in SERVICE_CONFIG:
+            logger.warning(f"Unknown service header: {service_header}")
+            return False
+
+        service_config = SERVICE_CONFIG[service_header]
+
+        # Check source IP if configured
+        if service_config.get("allowed_ips"):
+            client_ip = request.client.host if request.client else None
+            allowed_ips = service_config["allowed_ips"]
+
+            if allowed_ips and client_ip not in allowed_ips:
+                logger.warning(
+                    f"Service {service_header} accessed from unauthorized IP: {client_ip}. "
+                    f"Allowed IPs: {allowed_ips}"
+                )
+                # Don't block in development, just log
+                if settings.environment == "production":
+                    return False
+
+        # Check endpoint permissions
+        endpoint = request.url.path
+        allowed_endpoints = service_config.get("allowed_endpoints", ["*"])
+
+        if allowed_endpoints != ["*"]:
+            endpoint_allowed = any(
+                allowed_ep in endpoint for allowed_ep in allowed_endpoints
+            )
+            if not endpoint_allowed:
+                logger.warning(
+                    f"Service {service_header} tried to access unauthorized endpoint: {endpoint}. "
+                    f"Allowed endpoints: {allowed_endpoints}"
+                )
+                return False
+
+        return True

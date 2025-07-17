@@ -82,6 +82,7 @@ const register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Please provide username, email, and password",
+        type: "VALIDATION_ERROR",
       });
     }
 
@@ -90,13 +91,7 @@ const register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Username must be at least 3 characters long",
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 6 characters long",
+        type: "VALIDATION_ERROR",
       });
     }
 
@@ -120,9 +115,32 @@ const register = async (req, res) => {
     });
   } catch (error) {
     logger.error("Registration error:", error);
+
+    // Handle enhanced password validation errors
+    if (error.details && Array.isArray(error.details)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password does not meet security requirements",
+        errors: error.details,
+        passwordStrength: error.strength,
+        type: "PASSWORD_POLICY_ERROR",
+      });
+    }
+
+    // Handle rate limiting errors
+    if (error.retryAfter) {
+      return res.status(429).json({
+        success: false,
+        message: error.message,
+        retryAfter: error.retryAfter,
+        type: "RATE_LIMIT_ERROR",
+      });
+    }
+
     res.status(400).json({
       success: false,
       message: error.message,
+      type: "REGISTRATION_ERROR",
     });
   }
 };

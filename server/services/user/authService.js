@@ -29,16 +29,254 @@ const AuthActivityLogger = require("./authActivityLogger");
  * @param {Object} user - User document from MongoDB
  * @returns {String} JWT token
  */
-const generateToken = (user) => {
-  return jwt.sign({ id: user?._id }, process.env.JWT_SECRET, {
+const generateToken = (user, sessionId = null) => {
+  const payload = {
+    id: user?._id,
+    email: user?.email,
+    sessionId: sessionId,
+    type: "access",
+  };
+  return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
 
-const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user?._id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+const generateRefreshToken = (user, sessionId = null, tokenFamily = null) => {
+  const payload = {
+    id: user?._id,
+    sessionId: sessionId,
+    family: tokenFamily || crypto.randomUUID(),
+    type: "refresh",
+  };
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "24h", // Reduced from 7d for security
   });
+};
+
+// Enhanced password validation with security policies
+const passwordPolicy = {
+  minLength: 12,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSpecialChars: true,
+  maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days
+  preventPasswordReuse: 5, // Last 5 passwords
+  patterns: {
+    uppercase: /[A-Z]/,
+    lowercase: /[a-z]/,
+    numbers: /[0-9]/,
+    specialChars: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
+  },
+  commonPasswords: [
+    "password",
+    "password123",
+    "123456789",
+    "qwerty123",
+    "admin123",
+    "letmein",
+    "welcome123",
+    "password1",
+    "abc123456",
+    "iloveyou",
+    "princess",
+    "1234567890",
+    "password!",
+    "admin",
+    "user123",
+  ],
+};
+
+/**
+ * Validate password against security policy
+ * @param {String} password - Password to validate
+ * @param {Object} user - User object (for checking history)
+ * @returns {Object} Validation result with errors
+ */
+const validatePasswordPolicy = (password, user = null) => {
+  const errors = [];
+
+  if (!password || password.length < passwordPolicy.minLength) {
+    errors.push(
+      `Password must be at least ${passwordPolicy.minLength} characters long`
+    );
+  }
+
+  if (
+    passwordPolicy.requireUppercase &&
+    !passwordPolicy.patterns.uppercase.test(password)
+  ) {
+    errors.push("Password must contain at least one uppercase letter");
+  }
+
+  if (
+    passwordPolicy.requireLowercase &&
+    !passwordPolicy.patterns.lowercase.test(password)
+  ) {
+    errors.push("Password must contain at least one lowercase letter");
+  }
+
+  if (
+    passwordPolicy.requireNumbers &&
+    !passwordPolicy.patterns.numbers.test(password)
+  ) {
+    errors.push("Password must contain at least one number");
+  }
+
+  if (
+    passwordPolicy.requireSpecialChars &&
+    !passwordPolicy.patterns.specialChars.test(password)
+  ) {
+    errors.push("Password must contain at least one special character");
+  }
+
+  // Check against common passwords
+  if (passwordPolicy.commonPasswords.includes(password.toLowerCase())) {
+    errors.push("Password is too common, please choose a more secure password");
+  }
+
+  // Check for sequential characters
+  if (/123|abc|qwe|asd|zxc/i.test(password)) {
+    errors.push("Password should not contain sequential characters");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    strength: calculatePasswordStrength(password),
+  };
+};
+
+/**
+ * Calculate password strength score
+ * @param {String} password - Password to analyze
+ * @returns {Object} Strength analysis
+ */
+const calculatePasswordStrength = (password) => {
+  let score = 0;
+  const feedback = [];
+
+  // Length scoring
+  if (password.length >= 12) score += 25;
+  else if (password.length >= 8) score += 15;
+  else feedback.push("Use at least 12 characters");
+
+  // Character variety
+  if (/[a-z]/.test(password)) score += 15;
+  else feedback.push("Add lowercase letters");
+
+  if (/[A-Z]/.test(password)) score += 15;
+  else feedback.push("Add uppercase letters");
+
+  if (/[0-9]/.test(password)) score += 15;
+  else feedback.push("Add numbers");
+
+  if (/[^A-Za-z0-9]/.test(password)) score += 20;
+  else feedback.push("Add special characters");
+
+  // Bonus for variety
+  const uniqueChars = new Set(password).size;
+  if (uniqueChars > password.length * 0.7) score += 10;
+
+  let strength = "Very Weak";
+  if (score >= 80) strength = "Very Strong";
+  else if (score >= 60) strength = "Strong";
+  else if (score >= 40) strength = "Medium";
+  else if (score >= 20) strength = "Weak";
+
+  return {
+    score,
+    strength,
+    feedback: feedback.length > 0 ? feedback : ["Password strength is good"],
+  };
+};
+
+// Adaptive rate limiting configuration
+const rateLimitConfig = {
+  baseLimit: 5,
+  failureMultiplier: 2,
+  successResetTime: 60 * 60 * 1000, // 1 hour
+  maxPenalty: 24 * 60 * 60 * 1000, // 24 hours
+  endpoints: {
+    "/api/auth/login": { max: 5, window: 15 * 60 * 1000 },
+    "/api/auth/register": { max: 3, window: 60 * 60 * 1000 },
+    "/api/auth/2fa/verify": { max: 3, window: 15 * 60 * 1000 },
+    "/api/auth/refresh": { max: 10, window: 60 * 60 * 1000 },
+  },
+};
+
+/**
+ * Check adaptive rate limit for authentication endpoints
+ * @param {String} ip - Client IP address
+ * @param {String} endpoint - API endpoint
+ * @param {Boolean} isFailure - Whether this is a failed attempt
+ * @returns {Object} Rate limit result
+ */
+const checkAdaptiveRateLimit = async (ip, endpoint, isFailure = false) => {
+  try {
+    const redisClient = getRedisClient();
+    const key = `adaptive_rate:${ip}:${endpoint}`;
+    const failureKey = `failures:${ip}:${endpoint}`;
+
+    const currentAttempts = parseInt(await redisClient.get(key)) || 0;
+    const recentFailures = parseInt(await redisClient.get(failureKey)) || 0;
+
+    // Calculate adaptive limit based on recent failures
+    const baseConfig = rateLimitConfig.endpoints[endpoint] || {
+      max: 5,
+      window: 15 * 60 * 1000,
+    };
+    const adaptiveLimit = Math.max(
+      1,
+      baseConfig.max - Math.floor(recentFailures / 2)
+    );
+
+    if (currentAttempts >= adaptiveLimit) {
+      const backoffTime = Math.min(
+        baseConfig.window * Math.pow(2, Math.floor(recentFailures / 3)),
+        rateLimitConfig.maxPenalty
+      );
+
+      return {
+        allowed: false,
+        retryAfter: Math.ceil(backoffTime / 1000),
+        reason: "Rate limit exceeded",
+        adaptiveLimit,
+        currentAttempts,
+        recentFailures,
+      };
+    }
+
+    // Update attempt counter
+    await redisClient
+      .multi()
+      .incr(key)
+      .expire(key, Math.ceil(baseConfig.window / 1000))
+      .exec();
+
+    // Update failure counter if this is a failure
+    if (isFailure) {
+      await redisClient
+        .multi()
+        .incr(failureKey)
+        .expire(failureKey, 3600) // 1 hour
+        .exec();
+    } else {
+      // Reset failures on success
+      await redisClient.del(failureKey);
+    }
+
+    return {
+      allowed: true,
+      adaptiveLimit,
+      currentAttempts: currentAttempts + 1,
+      recentFailures: isFailure ? recentFailures + 1 : 0,
+    };
+  } catch (error) {
+    logger.error("Adaptive rate limit check failed:", error);
+    // Allow request if rate limiting fails
+    return { allowed: true, error: "Rate limit check failed" };
+  }
 };
 
 const generateOtp = () => {
@@ -52,6 +290,16 @@ const generateOtp = () => {
  */
 const registerUser = async (userData, registrationInfo = {}) => {
   const { username, email, password } = userData;
+
+  // Enhanced password validation
+  const passwordValidation = validatePasswordPolicy(password);
+  if (!passwordValidation.isValid) {
+    const error = new Error("Password does not meet security requirements");
+    error.details = passwordValidation.errors;
+    error.strength = passwordValidation.strength;
+    throw error;
+  }
+
   // Import sanitizeUsername utility
   const { sanitizeUsername } = require("@config/strategies/githubStrategy");
   const safeUsername = sanitizeUsername(username);
@@ -61,6 +309,24 @@ const registerUser = async (userData, registrationInfo = {}) => {
   if (userExists) {
     throw new Error("Email already registered");
   }
+
+  // Rate limiting check for registration
+  if (registrationInfo.ip) {
+    const rateLimitCheck = await checkAdaptiveRateLimit(
+      registrationInfo.ip,
+      "/api/auth/register",
+      false
+    );
+
+    if (!rateLimitCheck.allowed) {
+      const error = new Error(
+        "Too many registration attempts. Please try again later."
+      );
+      error.retryAfter = rateLimitCheck.retryAfter;
+      throw error;
+    }
+  }
+
   // Generate OTP for email verification
   const otp = generateOtp();
   const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -72,6 +338,8 @@ const registerUser = async (userData, registrationInfo = {}) => {
     password,
     otp,
     otpExpire,
+    passwordHistory: [password], // Track password history
+    passwordChangedAt: new Date(),
   });
 
   // Log registration activity
@@ -625,8 +893,8 @@ const resendOtp = async (email) => {
   return "OTP resent to your email";
 };
 
-// New function to store refresh tokens for rotation with Redis support
-async function storeRefreshToken(userId, token) {
+// Enhanced function to store refresh tokens with family tracking
+async function storeRefreshToken(userId, token, tokenFamily = null) {
   try {
     const redisClient = getRedisClient();
     const decoded = jwt.decode(token);
@@ -678,12 +946,14 @@ async function storeRefreshToken(userId, token) {
                           else: "$$filteredTokens",
                         },
                       },
-                      // Add the new token
+                      // Add the new token with family tracking
                       [
                         {
                           token: token,
+                          family: tokenFamily || decoded.family,
                           expiresAt: expiresAt,
                           createdAt: "$$NOW",
+                          isActive: true,
                         },
                       ],
                     ],
@@ -699,6 +969,13 @@ async function storeRefreshToken(userId, token) {
       if (!updatedUser) {
         throw new Error("User not found for storing refresh token");
       }
+
+      logger.info("Refresh token stored successfully", {
+        userId,
+        tokenFamily: tokenFamily || decoded.family,
+        expiresAt: expiresAt.toISOString(),
+        activeTokenCount: updatedUser.refreshTokens.length,
+      });
     } catch (dbError) {
       logger.error("Failed to store refresh token in database", {
         error: dbError.message,
@@ -1438,13 +1715,13 @@ async function clearLoginAttempts(email, ip) {
 }
 
 /**
- * Refresh access token using refresh token
+ * Enhanced refresh access token with rotation and family tracking
  */
 async function refreshAccessToken(refreshToken) {
   try {
     // Verify the refresh token
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    const { id: userId } = decoded;
+    const { id: userId, family: tokenFamily } = decoded;
 
     if (!userId) {
       throw new Error("Invalid refresh token format");
@@ -1477,29 +1754,40 @@ async function refreshAccessToken(refreshToken) {
       );
     }
 
-    // Check if the refresh token exists in user's refresh tokens
+    // Check if the refresh token exists and validate token family
     const now = new Date();
-    const tokenExists = user.refreshTokens.some((tokenObj) => {
+    const tokenIndex = user.refreshTokens.findIndex((tokenObj) => {
       const isTokenMatch = tokenObj.token === refreshToken;
       const isNotExpired = new Date(tokenObj.expiresAt) > now;
       const isActive = tokenObj.isActive !== false;
 
-      // Debug logging for troubleshooting
-      if (isTokenMatch) {
-        logger.debug("Refresh token validation:", {
-          tokenMatch: isTokenMatch,
-          expiresAt: tokenObj.expiresAt,
-          currentTime: now,
-          isNotExpired,
-          isActive,
-          timeDiff: new Date(tokenObj.expiresAt) - now,
-        });
-      }
-
       return isTokenMatch && isNotExpired && isActive;
     });
 
-    if (!tokenExists) {
+    if (tokenIndex === -1) {
+      // Check if this token family has been compromised
+      const familyTokenExists = user.refreshTokens.some(
+        (tokenObj) => tokenObj.family === tokenFamily
+      );
+
+      if (familyTokenExists && tokenFamily) {
+        // Potential token theft detected - invalidate all tokens in family
+        logger.warn(
+          "Potential refresh token theft detected - invalidating token family:",
+          {
+            userId,
+            tokenFamily,
+            tokenPreview: refreshToken.substring(0, 20) + "...",
+          }
+        );
+
+        await User.findByIdAndUpdate(userId, {
+          $pull: { refreshTokens: { family: tokenFamily } },
+        });
+
+        throw new Error("Token theft detected - all tokens invalidated");
+      }
+
       // Log detailed information for debugging
       logger.warn("Refresh token validation failed:", {
         userId,
@@ -1507,32 +1795,45 @@ async function refreshAccessToken(refreshToken) {
         tokenCount: user.refreshTokens.length,
         currentTime: now.toISOString(),
         tokenPreview: refreshToken.substring(0, 20) + "...",
+        tokenFamily,
       });
       throw new Error("Invalid or expired refresh token");
     }
 
-    // Generate new access token
-    const payload = { id: userId };
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
+    // Generate new session ID for token rotation
+    const newSessionId = crypto.randomUUID();
+    const newTokenFamily = crypto.randomUUID();
 
-    // Generate new refresh token for rotation
-    const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-    });
+    // Generate new access token with session ID
+    const accessToken = generateToken(user, newSessionId);
 
-    // Remove old refresh token and store new one
+    // Generate new refresh token with new family for rotation
+    const newRefreshToken = generateRefreshToken(
+      user,
+      newSessionId,
+      newTokenFamily
+    );
+
+    // Remove old refresh token and store new one atomically
     await User.findByIdAndUpdate(userId, {
       $pull: { refreshTokens: { token: refreshToken } },
     });
 
-    await storeRefreshToken(userId, newRefreshToken);
+    await storeRefreshToken(userId, newRefreshToken, newTokenFamily);
+
+    // Log successful token rotation
+    logger.info("Refresh token rotated successfully:", {
+      userId,
+      oldTokenFamily: tokenFamily,
+      newTokenFamily,
+      sessionId: newSessionId,
+    });
 
     return {
       accessToken,
       refreshToken: newRefreshToken,
       user,
+      sessionId: newSessionId,
     };
   } catch (error) {
     logger.error("Refresh token error:", {

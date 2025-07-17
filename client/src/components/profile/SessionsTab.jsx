@@ -8,9 +8,7 @@ import ProfileErrorBoundary from "./ProfileErrorBoundary";
 
 const SessionsTab = () => {
   const dispatch = useDispatch();
-  const { currentSessionId, sessions, loading } = useSelector(
-    (state) => state.auth
-  );
+  const { sessions, loading } = useSelector((state) => state.auth);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Load sessions data on mount
@@ -97,11 +95,9 @@ const SessionsTab = () => {
         ) : (
           <div className="space-y-4">
             {sessions.map((session) => {
-              const isCurrentSession = session._id === currentSessionId;
-
               return (
                 <div
-                  key={session._id}
+                  key={session.id}
                   className="flex items-center justify-between p-4 border border-neutral-700/50 rounded-lg bg-neutral-800/50 hover:border-neutral-600/50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
@@ -113,7 +109,7 @@ const SessionsTab = () => {
                         <h4 className="font-medium text-white">
                           {formatDeviceName(session.userAgent)}
                         </h4>
-                        {isCurrentSession && (
+                        {session?.isCurrent && (
                           <span className="px-2 py-1 bg-green-500/20 text-green-400 border border-green-500/30 text-xs rounded-full">
                             Current
                           </span>
@@ -123,13 +119,13 @@ const SessionsTab = () => {
                         {session.ip || "Unknown location"}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {formatLastActive(session.createdAt)}
+                        {formatLastActive(session.lastActivity)}
                       </p>
                     </div>
                   </div>
-                  {!isCurrentSession && (
+                  {!session?.isCurrent && (
                     <button
-                      onClick={() => terminateSession(session._id)}
+                      onClick={() => terminateSession(session.id)}
                       disabled={loading.deleteSession}
                       className="px-4 py-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >

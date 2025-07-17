@@ -476,10 +476,14 @@ const userSchema = new mongoose.Schema(
           city: String,
         },
       },
-    ], // Refresh Tokens for JWT
+    ], // Refresh Tokens for JWT with enhanced security
     refreshTokens: [
       {
         token: String,
+        family: {
+          type: String,
+          default: () => crypto.randomUUID(),
+        },
         createdAt: {
           type: Date,
           default: Date.now,
@@ -488,6 +492,76 @@ const userSchema = new mongoose.Schema(
         isActive: {
           type: Boolean,
           default: true,
+        },
+      },
+    ],
+
+    // Enhanced Password Security
+    passwordHistory: [
+      {
+        hashedPassword: String,
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    passwordChangedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    passwordExpiresAt: Date,
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+
+    // Enhanced Security Fields
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: Date,
+    lastFailedLogin: Date,
+    consecutiveFailedLogins: {
+      type: Number,
+      default: 0,
+    },
+    lastPasswordChange: Date,
+    securityQuestions: [
+      {
+        question: String,
+        hashedAnswer: String,
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // Account Security Status
+    isAccountLocked: {
+      type: Boolean,
+      default: false,
+    },
+    accountLockedReason: String,
+    accountLockedAt: Date,
+    securityAlerts: [
+      {
+        type: String,
+        message: String,
+        severity: {
+          type: String,
+          enum: ["low", "medium", "high", "critical"],
+          default: "medium",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        acknowledged: {
+          type: Boolean,
+          default: false,
         },
       },
     ],
@@ -789,6 +863,151 @@ userSchema.methods.getPreferredOAuthProvider = function () {
   if (this.github?.accessToken && this.isGitHubTokenValid()) return "github";
   if (this.google?.accessToken && this.isGoogleTokenValid()) return "google";
   return null;
+};
+
+// Enhanced Password Security Methods
+userSchema.methods.addPasswordToHistory = async function (hashedPassword) {
+  try {
+    this.passwordHistory.push({
+      hashedPassword,
+      createdAt: new Date(),
+    });
+
+    // Keep only last 5 passwords
+    if (this.passwordHistory.length > 5) {
+      this.passwordHistory = this.passwordHistory.slice(-5);
+    }
+
+    this.passwordChangedAt = new Date();
+    this.lastPasswordChange = new Date();
+
+    await this.save();
+  } catch (error) {
+    logger.error("Error adding password to history:", error);
+    throw error;
+  }
+};
+
+userSchema.methods.isPasswordReused = async function (newPassword) {
+  try {
+    if (!this.passwordHistory || this.passwordHistory.length === 0) {
+      return false;
+    }
+
+    for (const historyEntry of this.passwordHistory) {
+      const isMatch = await bcrypt.compare(
+        newPassword,
+        historyEntry.hashedPassword
+      );
+      if (isMatch) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    logger.error("Error checking password reuse:", error);
+    return false;
+  }
+};
+
+userSchema.methods.isPasswordExpired = function () {
+  if (!this.passwordExpiresAt) {
+    return false;
+  }
+  return new Date() > this.passwordExpiresAt;
+};
+
+userSchema.methods.setPasswordExpiry = function (days = 90) {
+  this.passwordExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+};
+
+userSchema.methods.incrementFailedLogins = function () {
+  this.consecutiveFailedLogins = (this.consecutiveFailedLogins || 0) + 1;
+  this.lastFailedLogin = new Date();
+
+  // Lock account after 5 failed attempts
+  if (this.consecutiveFailedLogins >= 5) {
+    this.isAccountLocked = true;
+    this.accountLockedAt = new Date();
+    this.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    this.accountLockedReason = "Multiple failed login attempts";
+  }
+};
+
+userSchema.methods.resetFailedLogins = function () {
+  this.consecutiveFailedLogins = 0;
+  this.lastFailedLogin = null;
+  this.isAccountLocked = false;
+  this.accountLockedAt = null;
+  this.lockUntil = null;
+  this.accountLockedReason = null;
+};
+
+userSchema.methods.addSecurityAlert = function (
+  type,
+  message,
+  severity = "medium"
+) {
+  this.securityAlerts.push({
+    type,
+    message,
+    severity,
+    createdAt: new Date(),
+    acknowledged: false,
+  });
+
+  // Keep only last 50 alerts
+  if (this.securityAlerts.length > 50) {
+    this.securityAlerts = this.securityAlerts.slice(-50);
+  }
+};
+
+userSchema.methods.acknowledgeSecurityAlert = function (alertId) {
+  const alert = this.securityAlerts.id(alertId);
+  if (alert) {
+    alert.acknowledged = true;
+    return true;
+  }
+  return false;
+};
+
+userSchema.methods.getUnacknowledgedAlerts = function () {
+  return this.securityAlerts.filter((alert) => !alert.acknowledged);
+};
+
+userSchema.methods.validateTokenFamily = function (tokenFamily) {
+  if (!this.refreshTokens || !tokenFamily) {
+    return false;
+  }
+
+  return this.refreshTokens.some(
+    (token) =>
+      token.family === tokenFamily &&
+      token.isActive &&
+      new Date(token.expiresAt) > new Date()
+  );
+};
+
+userSchema.methods.invalidateTokenFamily = async function (tokenFamily) {
+  if (!this.refreshTokens || !tokenFamily) {
+    return;
+  }
+
+  this.refreshTokens.forEach((token) => {
+    if (token.family === tokenFamily) {
+      token.isActive = false;
+    }
+  });
+
+  await this.save();
+
+  // Add security alert
+  this.addSecurityAlert(
+    "token_family_invalidated",
+    "Token family invalidated due to potential security threat",
+    "high"
+  );
 };
 
 module.exports = mongoose.model("User", userSchema);
