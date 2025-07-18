@@ -17,6 +17,7 @@ import {
   FaCog,
   FaLock,
   FaLaptopCode,
+  FaPlug,
 } from "react-icons/fa";
 
 // Products navigation items
@@ -154,16 +155,16 @@ export const dashboardItems = [
 // Tools navigation items
 export const toolsItems = [
   {
+    label: "Integrations",
+    href: "/dashboard/integrations",
+    icon: FaPlug,
+    description: "Third-party integrations",
+  },
+  {
     label: "Monitoring",
     href: "/dashboard/monitoring",
     icon: FaChartLine,
     description: "System monitoring",
-  },
-  {
-    label: "Integrations",
-    href: "/dashboard/integrations",
-    icon: FaGithub,
-    description: "Third-party integrations",
   },
   {
     label: "CLI Generator",

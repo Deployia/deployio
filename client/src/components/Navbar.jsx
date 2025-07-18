@@ -42,8 +42,8 @@ const Navbar = memo(() => {
     }
     if (isAuthenticated) {
       return [
-        ...dashboardNavigationItems.filter((item) => item.id === "dashboard"),
         ...homeNavigationItems,
+        ...dashboardNavigationItems.filter((item) => item.id === "dashboard"),
       ];
     }
     // Otherwise show home navigation
