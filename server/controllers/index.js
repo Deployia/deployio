@@ -2,7 +2,7 @@
 // Enables clean imports like: const { user, project, ai } = require('@controllers');
 
 const ai = require("./ai");
-const deployment = require("./deployment");
+const deployment = require("./deployment/deploymentController");
 const user = require("./user");
 const project = require("./project");
 const git = require("./git");

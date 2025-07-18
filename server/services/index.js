@@ -2,11 +2,12 @@
 // Enables clean imports like: const { user, project, ai } = require('@services');
 
 const ai = require("./ai");
-const deployment = require("./deployment");
+const deployment = require("./deployment/deploymentService");
 const user = require("./user");
-const project = require("./project");
+const project = require("./project/projectService");
 const external = require("./external");
 const notification = require("./notification");
+const analytics = require("./analytics/analyticsService");
 
 module.exports = {
   // New modular structure
@@ -16,4 +17,5 @@ module.exports = {
   project,
   external,
   notification,
+  analytics,
 };

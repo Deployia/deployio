@@ -1,6 +1,7 @@
 const express = require("express");
 const { body, param, query } = require("express-validator");
 const projectController = require("@controllers/project/projectController");
+const deploymentController = require("@controllers/deployment/deploymentController");
 
 const router = express.Router();
 
@@ -138,6 +139,42 @@ router.get(
     query("sortOrder").optional().isIn(["asc", "desc"]),
   ],
   projectController.getProjectDeployments
+);
+
+// Validation for deployment creation
+const validateDeploymentCreation = [
+  body("environment")
+    .optional()
+    .isIn(["development", "staging", "production"])
+    .withMessage("Environment must be development, staging, or production"),
+  body("branch")
+    .optional()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Branch name must be between 1 and 100 characters"),
+  body("commit.hash")
+    .notEmpty()
+    .withMessage("Commit hash is required")
+    .isLength({ min: 7, max: 40 })
+    .withMessage("Commit hash must be between 7 and 40 characters"),
+  body("commit.message")
+    .optional()
+    .isLength({ max: 500 })
+    .withMessage("Commit message cannot exceed 500 characters"),
+  body("customDomain")
+    .optional()
+    .isFQDN()
+    .withMessage("Custom domain must be a valid FQDN"),
+];
+
+/**
+ * @desc Create new deployment for project
+ * @route POST /api/v1/projects/:id/deployments
+ */
+router.post(
+  "/:id/deployments",
+  validateObjectId,
+  validateDeploymentCreation,
+  deploymentController.createDeployment
 );
 
 module.exports = router;
