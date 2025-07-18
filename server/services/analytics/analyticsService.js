@@ -491,6 +491,7 @@ class AnalyticsService {
         environment: deployment.config?.environment || "unknown",
         status: deployment.status,
         timestamp: deployment.updatedAt || deployment.createdAt,
+        projectId: deployment.project?._id,
       }));
     } catch (error) {
       throw new Error(`Failed to get recent activity: ${error.message}`);

@@ -199,9 +199,7 @@ const Dashboard = () => {
               Total Projects
             </h3>
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-white">
-            {stats.totalProjects}
-          </p>
+          <p className="text-xl sm:text-2xl font-bold text-white">{stats.totalProjects}</p>
           <div className="flex items-center gap-1 mt-2 text-xs text-blue-400">
             <span>View all</span>
             <FaArrowRight className="w-3 h-3" />
@@ -235,9 +233,7 @@ const Dashboard = () => {
             </div>
             <h3 className="text-gray-400 text-sm font-medium">Success Rate</h3>
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-white">
-            {stats.successRate}%
-          </p>
+          <p className="text-xl sm:text-2xl font-bold text-white">{stats.successRate}%</p>
           <div className="flex items-center gap-1 mt-2 text-xs text-purple-400">
             <span>View analytics</span>
             <FaArrowRight className="w-3 h-3" />
@@ -252,9 +248,7 @@ const Dashboard = () => {
             </div>
             <h3 className="text-gray-400 text-sm font-medium">Pending Tasks</h3>
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-white">
-            {stats.pendingTasks}
-          </p>
+          <p className="text-xl sm:text-2xl font-bold text-white">{stats.pendingTasks}</p>
           <div className="text-xs text-orange-400 mt-2">In queue</div>
         </div>
       </motion.div>
@@ -293,7 +287,7 @@ const Dashboard = () => {
                   className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors cursor-pointer gap-3 sm:gap-4"
                   onClick={() =>
                     handleProjectClick(
-                      deployment.projectId || deployment.project?._id
+                      deployment.projectId || deployment.project?.id
                     )
                   }
                 >
@@ -409,18 +403,16 @@ const Dashboard = () => {
           </div>
 
           {/* Recent Projects */}
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white">
                 Recent Projects
               </h3>
               <button
                 onClick={handleViewProjects}
-                className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-2 transition-colors"
+                className="text-blue-400 hover:text-blue-300 text-sm"
               >
-                <span className="hidden sm:inline">View All</span>
-                <span className="sm:hidden">All</span>
-                <FaArrowRight className="w-3 h-3" />
+                View All
               </button>
             </div>
 
@@ -433,17 +425,17 @@ const Dashboard = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 + index * 0.1 }}
                     className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors cursor-pointer"
-                    onClick={() => handleProjectClick(project._id)}
+                    onClick={() => handleProjectClick(project.id)}
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-blue-500/20 rounded-lg">
                         <FaGithub className="w-4 h-4 text-blue-400" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-medium text-sm truncate">
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm">
                           {project.name}
                         </h4>
-                        <p className="text-gray-400 text-xs truncate">
+                        <p className="text-gray-400 text-xs">
                           {project.technology?.framework ||
                             project.aiAnalysis?.detectedTechnologies?.[0]
                               ?.name ||

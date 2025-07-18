@@ -40,9 +40,15 @@ const Navbar = memo(() => {
     if (location.pathname.startsWith("/admin") && user?.role === "admin") {
       return dashboardNavigationItems; // Admin sees all dashboard items including admin
     }
+    if (isAuthenticated) {
+      return [
+        ...dashboardNavigationItems.filter((item) => item.id === "dashboard"),
+        ...homeNavigationItems,
+      ];
+    }
     // Otherwise show home navigation
     return homeNavigationItems;
-  }, [location.pathname, user?.role]);
+  }, [location.pathname, user?.role, isAuthenticated]);
 
   // Close dropdowns when location changes
   useEffect(() => {
