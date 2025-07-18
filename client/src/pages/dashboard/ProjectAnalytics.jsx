@@ -81,29 +81,37 @@ const ProjectAnalytics = () => {
   const StatCard = ({ title, value, change, icon: Icon, color = "blue" }) => (
     <motion.div
       whileHover={{ y: -2 }}
-      className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
+      className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-all duration-200"
     >
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-400 text-sm mb-1">{title}</p>
-          <p className="text-2xl font-bold text-white">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-gray-400 text-xs sm:text-sm mb-1 truncate">
+            {title}
+          </p>
+          <p className="text-lg sm:text-2xl font-bold text-white truncate">
+            {value}
+          </p>
           {change && (
             <div
-              className={`flex items-center gap-1 mt-2 text-sm ${
+              className={`flex items-center gap-1 mt-1 sm:mt-2 text-xs sm:text-sm ${
                 change > 0 ? "text-green-400" : "text-red-400"
               }`}
             >
               {change > 0 ? (
-                <FaArrowUp className="w-3 h-3" />
+                <FaArrowUp className="w-2 h-2 sm:w-3 sm:h-3 flex-shrink-0" />
               ) : (
-                <FaArrowDown className="w-3 h-3" />
+                <FaArrowDown className="w-2 h-2 sm:w-3 sm:h-3 flex-shrink-0" />
               )}
-              <span>{Math.abs(change)}% vs last period</span>
+              <span className="truncate">
+                {Math.abs(change)}% vs last period
+              </span>
             </div>
           )}
         </div>
-        <div className={`p-3 bg-${color}-500/20 rounded-lg`}>
-          <Icon className={`w-6 h-6 text-${color}-400`} />
+        <div
+          className={`p-2 sm:p-3 bg-${color}-500/20 rounded-lg flex-shrink-0`}
+        >
+          <Icon className={`w-4 h-4 sm:w-6 sm:h-6 text-${color}-400`} />
         </div>
       </div>
     </motion.div>
@@ -112,41 +120,45 @@ const ProjectAnalytics = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-bold text-white">Analytics</h2>
-          <p className="text-gray-400 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">
+            Analytics
+          </h2>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
             Monitor your project&apos;s performance and user engagement
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
           >
             <option value="24h">Last 24 hours</option>
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
             <option value="90d">Last 90 days</option>
           </select>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRefresh}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors"
-          >
-            <FaSync className="w-4 h-4" />
-            Refresh
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors"
-          >
-            <FaDownload className="w-4 h-4" />
-            Export
-          </motion.button>
+          <div className="flex gap-2 sm:gap-3">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleRefresh}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm sm:text-base flex-1 sm:flex-none"
+            >
+              <FaSync className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Refresh</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm sm:text-base flex-1 sm:flex-none"
+            >
+              <FaDownload className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Export</span>
+            </motion.button>
+          </div>
         </div>
       </div>
 
@@ -156,8 +168,7 @@ const ProjectAnalytics = () => {
         </div>
       ) : (
         <>
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <StatCard
               title="Total Visits"
               value={analytics.totalVisits?.toLocaleString() || "0"}
@@ -188,17 +199,17 @@ const ProjectAnalytics = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Traffic Chart */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6"
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
                 Traffic Overview
               </h3>
-              <div className="h-64 flex items-end justify-between gap-2">
+              <div className="h-48 sm:h-64 flex items-end justify-between gap-1 sm:gap-2">
                 {analytics.weeklyStats?.map((stat) => (
                   <div
                     key={stat.day}
@@ -212,7 +223,7 @@ const ProjectAnalytics = () => {
                             Math.max(
                               ...analytics.weeklyStats.map((s) => s.visits)
                             )) *
-                          200
+                          (window.innerWidth < 640 ? 160 : 200)
                         }px`,
                         minHeight: "20px",
                       }}
@@ -230,59 +241,65 @@ const ProjectAnalytics = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6"
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
                 Device Types
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FaDesktop className="w-5 h-5 text-blue-400" />
-                    <span className="text-white">Desktop</span>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <FaDesktop className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                    <span className="text-white text-sm sm:text-base">
+                      Desktop
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-neutral-800 rounded-full h-2">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-20 sm:w-32 bg-neutral-800 rounded-full h-2">
                       <div
                         className="bg-blue-500 h-2 rounded-full"
                         style={{ width: `${analytics.devices?.desktop || 0}%` }}
                       />
                     </div>
-                    <span className="text-gray-400 text-sm w-10">
+                    <span className="text-gray-400 text-xs sm:text-sm w-8 sm:w-10">
                       {analytics.devices?.desktop || 0}%
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FaMobile className="w-5 h-5 text-green-400" />
-                    <span className="text-white">Mobile</span>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <FaMobile className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                    <span className="text-white text-sm sm:text-base">
+                      Mobile
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-neutral-800 rounded-full h-2">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-20 sm:w-32 bg-neutral-800 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full"
                         style={{ width: `${analytics.devices?.mobile || 0}%` }}
                       />
                     </div>
-                    <span className="text-gray-400 text-sm w-10">
+                    <span className="text-gray-400 text-xs sm:text-sm w-8 sm:w-10">
                       {analytics.devices?.mobile || 0}%
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FaDesktop className="w-5 h-5 text-purple-400" />
-                    <span className="text-white">Tablet</span>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <FaDesktop className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                    <span className="text-white text-sm sm:text-base">
+                      Tablet
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-neutral-800 rounded-full h-2">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-20 sm:w-32 bg-neutral-800 rounded-full h-2">
                       <div
                         className="bg-purple-500 h-2 rounded-full"
                         style={{ width: `${analytics.devices?.tablet || 0}%` }}
                       />
                     </div>
-                    <span className="text-gray-400 text-sm w-10">
+                    <span className="text-gray-400 text-xs sm:text-sm w-8 sm:w-10">
                       {analytics.devices?.tablet || 0}%
                     </span>
                   </div>
@@ -295,28 +312,30 @@ const ProjectAnalytics = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6"
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
                 Top Pages
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {analytics.topPages?.map((page, index) => (
                   <div
                     key={page.path}
-                    className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-neutral-800/50 rounded-lg"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-400 text-sm w-4">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <span className="text-gray-400 text-xs sm:text-sm w-3 sm:w-4 flex-shrink-0">
                         {index + 1}
                       </span>
-                      <span className="text-white font-mono">{page.path}</span>
+                      <span className="text-white font-mono text-xs sm:text-sm truncate">
+                        {page.path}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-400">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                      <span className="text-gray-400 text-xs sm:text-sm">
                         {page.views.toLocaleString()}
                       </span>
-                      <div className="w-20 bg-neutral-700 rounded-full h-2">
+                      <div className="w-12 sm:w-20 bg-neutral-700 rounded-full h-2">
                         <div
                           className="bg-blue-500 h-2 rounded-full"
                           style={{ width: `${page.percentage}%` }}
@@ -333,26 +352,28 @@ const ProjectAnalytics = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6"
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
                 Traffic Sources
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {analytics.trafficSources?.map((source) => (
                   <div
                     key={source.source}
-                    className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-neutral-800/50 rounded-lg"
                   >
-                    <div className="flex items-center gap-3">
-                      <FaGlobe className="w-4 h-4 text-gray-400" />
-                      <span className="text-white">{source.source}</span>
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <FaGlobe className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-white text-sm sm:text-base truncate">
+                        {source.source}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-400">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                      <span className="text-gray-400 text-xs sm:text-sm">
                         {source.visitors.toLocaleString()}
                       </span>
-                      <span className="text-blue-400 text-sm">
+                      <span className="text-blue-400 text-xs sm:text-sm">
                         {source.percentage}%
                       </span>
                     </div>
@@ -367,36 +388,38 @@ const ProjectAnalytics = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
           >
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 text-center">
-              <h4 className="text-lg font-semibold text-white mb-2">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 text-center">
+              <h4 className="text-base sm:text-lg font-semibold text-white mb-2">
                 Bounce Rate
               </h4>
-              <p className="text-3xl font-bold text-orange-400">
+              <p className="text-2xl sm:text-3xl font-bold text-orange-400">
                 {analytics.bounceRate || "0%"}
               </p>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm mt-1">
                 Users who left after one page
               </p>
             </div>
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 text-center">
-              <h4 className="text-lg font-semibold text-white mb-2">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 text-center">
+              <h4 className="text-base sm:text-lg font-semibold text-white mb-2">
                 Conversion Rate
               </h4>
-              <p className="text-3xl font-bold text-green-400">
+              <p className="text-2xl sm:text-3xl font-bold text-green-400">
                 {analytics.conversionRate || "0%"}
               </p>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm mt-1">
                 Visitors who completed goals
               </p>
             </div>
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 text-center">
-              <h4 className="text-lg font-semibold text-white mb-2">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 text-center">
+              <h4 className="text-base sm:text-lg font-semibold text-white mb-2">
                 Return Visitors
               </h4>
-              <p className="text-3xl font-bold text-purple-400">34.2%</p>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-2xl sm:text-3xl font-bold text-purple-400">
+                34.2%
+              </p>
+              <p className="text-gray-400 text-xs sm:text-sm mt-1">
                 Users who visited before
               </p>
             </div>

@@ -111,18 +111,22 @@ const ProjectDeployments = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Deployments</h2>
-          <p className="text-gray-400 mt-1">Manage your project deployments</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">
+            Deployments
+          </h2>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+            Manage your project deployments
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm"
           >
             <option value="all">All Deployments</option>
             <option value="success">Successful</option>
@@ -135,10 +139,11 @@ const ProjectDeployments = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleCreateDeployment}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 text-sm"
           >
             <FaPlus className="w-4 h-4" />
-            New Deployment
+            <span className="hidden sm:inline">New Deployment</span>
+            <span className="sm:hidden">New</span>
           </motion.button>
         </div>
       </div>
@@ -156,16 +161,16 @@ const ProjectDeployments = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-all duration-200"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <FaRocket className="w-5 h-5 text-blue-400" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  <div className="p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
+                    <FaRocket className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-white font-semibold">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                      <h3 className="text-white font-semibold text-sm sm:text-base">
                         {/* {deployment.environment || "production"} */}
                       </h3>
                       <span className={getStatusBadge(deployment.status)}>
@@ -173,25 +178,29 @@ const ProjectDeployments = () => {
                         <span className="ml-1">{deployment.status}</span>
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-400">
                       <div className="flex items-center gap-1">
-                        <FaCode className="w-3 h-3" />
-                        <span>{deployment.branch || "main"}</span>
+                        <FaCode className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">
+                          {deployment.branch || "main"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <FaUser className="w-3 h-3" />
-                        <span>{deployment.deployedBy?.email || "System"}</span>
+                        <FaUser className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">
+                          {deployment.deployedBy?.email || "System"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <FaClock className="w-3 h-3" />
-                        <span>
+                        <FaClock className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">
                           {new Date(deployment.createdAt).toLocaleString()}
                         </span>
                       </div>
                       {deployment.buildDuration && (
                         <div className="flex items-center gap-1">
-                          <FaHistory className="w-3 h-3" />
-                          <span>
+                          <FaHistory className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">
                             {Math.round(deployment.buildDuration / 1000)}s
                           </span>
                         </div>
@@ -200,39 +209,39 @@ const ProjectDeployments = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2">
                   <button
                     onClick={() => handleViewLogs(deployment)}
-                    className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-xs sm:text-sm"
                   >
                     <FaTerminal className="w-3 h-3" />
-                    Logs
+                    <span className="hidden sm:inline">Logs</span>
                   </button>
 
                   {deployment.url && (
-                    <button className="flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm">
+                    <button className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm">
                       <FaExternalLinkAlt className="w-3 h-3" />
-                      Visit
+                      <span className="hidden sm:inline">Visit</span>
                     </button>
                   )}
 
                   {deployment.status === "running" && (
                     <button
                       onClick={() => handleStopDeployment(deployment.id)}
-                      className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
                     >
                       <FaStop className="w-3 h-3" />
-                      Stop
+                      <span className="hidden sm:inline">Stop</span>
                     </button>
                   )}
 
                   {deployment.status === "stopped" && (
                     <button
                       onClick={() => handleRestartDeployment(deployment.id)}
-                      className="flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
                     >
                       <FaPlay className="w-3 h-3" />
-                      Restart
+                      <span className="hidden sm:inline">Restart</span>
                     </button>
                   )}
                 </div>
@@ -240,14 +249,16 @@ const ProjectDeployments = () => {
 
               {/* Deployment Details */}
               {deployment.commit && (
-                <div className="mt-4 p-3 bg-neutral-800/50 rounded-lg">
-                  <div className="flex items-center gap-2 text-sm">
-                    <FaCode className="w-3 h-3 text-gray-400" />
-                    <span className="text-gray-400">Commit:</span>
-                    <span className="text-white font-mono">
-                      {deployment.commit.hash?.slice(0, 8) || "N/A"}
-                    </span>
-                    <span className="text-gray-300">
+                <div className="mt-3 sm:mt-4 p-3 bg-neutral-800/50 rounded-lg">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs sm:text-sm">
+                    <div className="flex items-center gap-2">
+                      <FaCode className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-400">Commit:</span>
+                      <span className="text-white font-mono">
+                        {deployment.commit.hash?.slice(0, 8) || "N/A"}
+                      </span>
+                    </div>
+                    <span className="text-gray-300 truncate sm:ml-2">
                       {deployment.commit.message || "No commit message"}
                     </span>
                   </div>
@@ -256,12 +267,12 @@ const ProjectDeployments = () => {
             </motion.div>
           ))
         ) : (
-          <div className="text-center py-16">
-            <FaRocket className="w-16 h-16 mx-auto mb-4 opacity-50 text-gray-400" />
-            <h3 className="text-xl font-semibold mb-2 text-white">
+          <div className="text-center py-12 sm:py-16">
+            <FaRocket className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 opacity-50 text-gray-400" />
+            <h3 className="text-lg sm:text-xl font-semibold mb-2 text-white">
               No Deployments Yet
             </h3>
-            <p className="text-gray-400 mb-6">
+            <p className="text-gray-400 mb-4 sm:mb-6 text-sm sm:text-base">
               {filter === "all"
                 ? "Deploy your project to get started"
                 : `No deployments with status "${filter}"`}
@@ -269,7 +280,7 @@ const ProjectDeployments = () => {
             {filter === "all" && (
               <button
                 onClick={handleCreateDeployment}
-                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
               >
                 <FaPlus className="w-4 h-4 mr-2 inline" />
                 Create First Deployment
@@ -289,15 +300,15 @@ const ProjectDeployments = () => {
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden"
+            className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-4xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-hidden"
           >
-            <div className="p-6 border-b border-neutral-800">
+            <div className="p-4 sm:p-6 border-b border-neutral-800">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold text-white">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white">
                     Deployment Logs
                   </h3>
-                  <p className="text-gray-400 mt-1">
+                  <p className="text-gray-400 mt-1 text-sm sm:text-base">
                     {/* {selectedDeployment.environment} -{" "} */}
                     {new Date(selectedDeployment.createdAt).toLocaleString()}
                   </p>
@@ -306,12 +317,12 @@ const ProjectDeployments = () => {
                   onClick={() => setShowLogs(false)}
                   className="p-2 text-gray-400 hover:text-white transition-colors"
                 >
-                  <FaTimes className="w-5 h-5" />
+                  <FaTimes className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              <div className="bg-black/50 rounded-lg p-4 font-mono text-sm">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[60vh]">
+              <div className="bg-black/50 rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm">
                 <div className="text-green-400 mb-2">
                   $ Starting deployment...
                 </div>
@@ -342,12 +353,12 @@ const ProjectDeployments = () => {
                 )}
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-800 flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors">
+            <div className="p-4 sm:p-6 border-t border-neutral-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm">
                 <FaDownload className="w-4 h-4" />
                 Download Logs
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors">
+              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm">
                 <FaSync className="w-4 h-4" />
                 Refresh
               </button>

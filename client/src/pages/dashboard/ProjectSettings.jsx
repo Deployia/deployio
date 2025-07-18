@@ -18,6 +18,7 @@ import {
   FaPlus,
   FaTimes,
   FaCheck,
+  FaChevronDown,
 } from "react-icons/fa";
 import {
   updateProject,
@@ -66,6 +67,7 @@ const ProjectSettings = () => {
   });
 
   const [activeSection, setActiveSection] = useState("general");
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   // Initialize form data when project loads
   useEffect(() => {
@@ -255,17 +257,42 @@ const ProjectSettings = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Mobile Responsive */}
       <div>
-        <h2 className="text-2xl font-bold text-white">Project Settings</h2>
-        <p className="text-gray-400 mt-1">
+        <h2 className="text-xl sm:text-2xl font-bold text-white">
+          Project Settings
+        </h2>
+        <p className="text-gray-400 mt-1 text-sm sm:text-base">
           Configure your project settings and preferences
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar */}
-        <div className="lg:col-span-1">
+      <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 sm:gap-6">
+        {/* Mobile Sidebar Toggle */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl text-white"
+          >
+            <span className="flex items-center gap-2">
+              <FaCog className="w-4 h-4" />
+              Project Settings
+            </span>
+            <motion.div
+              animate={{ rotate: showMobileSidebar ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FaChevronDown className="w-4 h-4" />
+            </motion.div>
+          </button>
+        </div>
+
+        {/* Sidebar - Mobile Responsive */}
+        <div
+          className={`lg:col-span-1 ${
+            showMobileSidebar ? "block" : "hidden lg:block"
+          }`}
+        >
           <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
             <nav className="space-y-2">
               {sections.map((section) => {
@@ -273,15 +300,18 @@ const ProjectSettings = () => {
                 return (
                   <button
                     key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                    onClick={() => {
+                      setActiveSection(section.id);
+                      setShowMobileSidebar(false); // Close mobile sidebar on selection
+                    }}
+                    className={`w-full flex items-center gap-2 sm:gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm sm:text-base ${
                       activeSection === section.id
                         ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                         : "text-gray-400 hover:text-white hover:bg-neutral-800/50"
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    {section.label}
+                    <Icon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="truncate">{section.label}</span>
                   </button>
                 );
               })}
@@ -289,9 +319,9 @@ const ProjectSettings = () => {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content - Mobile Responsive */}
         <div className="lg:col-span-3">
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
             {/* General Settings */}
             {activeSection === "general" && (
               <motion.div
@@ -299,7 +329,7 @@ const ProjectSettings = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white">
+                <h3 className="text-lg sm:text-xl font-semibold text-white">
                   General Settings
                 </h3>
 
@@ -317,7 +347,7 @@ const ProjectSettings = () => {
                           name: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
                     />
                   </div>
 
@@ -334,7 +364,7 @@ const ProjectSettings = () => {
                         })
                       }
                       rows={3}
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none resize-none"
+                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none resize-none text-sm sm:text-base"
                     />
                   </div>
 
@@ -350,7 +380,7 @@ const ProjectSettings = () => {
                           visibility: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
                     >
                       <option value="private">Private</option>
                       <option value="public">Public</option>
@@ -370,7 +400,7 @@ const ProjectSettings = () => {
                           deploymentBranch: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
                     />
                   </div>
 
@@ -387,7 +417,10 @@ const ProjectSettings = () => {
                       }
                       className="rounded"
                     />
-                    <label htmlFor="autoDeploy" className="text-white">
+                    <label
+                      htmlFor="autoDeploy"
+                      className="text-white text-sm sm:text-base"
+                    >
                       Enable auto-deployment on push
                     </label>
                   </div>
@@ -395,7 +428,7 @@ const ProjectSettings = () => {
 
                 <button
                   onClick={handleGeneralSettingsUpdate}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
                 >
                   <FaSave className="w-4 h-4" />
                   Save Changes
@@ -510,21 +543,21 @@ const ProjectSettings = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white">
+                <h3 className="text-lg sm:text-xl font-semibold text-white">
                   Collaborators
                 </h3>
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="email"
                     value={newCollaboratorEmail}
                     onChange={(e) => setNewCollaboratorEmail(e.target.value)}
                     placeholder="collaborator@example.com"
-                    className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+                    className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
                   />
                   <button
                     onClick={handleAddCollaborator}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
                   >
                     <FaPlus className="w-4 h-4" />
                     Add
@@ -538,11 +571,13 @@ const ProjectSettings = () => {
                         key={collaborator.email}
                         className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
                       >
-                        <div className="flex items-center gap-3">
-                          <FaUsers className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <p className="text-white">{collaborator.email}</p>
-                            <p className="text-gray-400 text-sm">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <FaUsers className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white text-sm sm:text-base truncate">
+                              {collaborator.email}
+                            </p>
+                            <p className="text-gray-400 text-xs sm:text-sm">
                               Role: {collaborator.role}
                             </p>
                           </div>
@@ -551,14 +586,14 @@ const ProjectSettings = () => {
                           onClick={() =>
                             handleRemoveCollaborator(collaborator.email)
                           }
-                          className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                          className="p-2 text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
                         >
                           <FaTimes className="w-4 h-4" />
                         </button>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 text-center py-8">
+                    <p className="text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">
                       No collaborators added yet
                     </p>
                   )}
@@ -573,11 +608,11 @@ const ProjectSettings = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white">
+                <h3 className="text-lg sm:text-xl font-semibold text-white">
                   Environment Variables
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     value={newEnvVar.key}
@@ -585,7 +620,7 @@ const ProjectSettings = () => {
                       setNewEnvVar({ ...newEnvVar, key: e.target.value })
                     }
                     placeholder="VARIABLE_NAME"
-                    className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+                    className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
                   />
                   <div className="flex gap-2">
                     <input
@@ -595,11 +630,11 @@ const ProjectSettings = () => {
                         setNewEnvVar({ ...newEnvVar, value: e.target.value })
                       }
                       placeholder="variable_value"
-                      className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+                      className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
                     />
                     <button
                       onClick={handleAddEnvironmentVariable}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex-shrink-0"
                     >
                       <FaPlus className="w-4 h-4" />
                     </button>
@@ -613,25 +648,29 @@ const ProjectSettings = () => {
                         key={envVar.id}
                         className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
                       >
-                        <div className="flex items-center gap-3">
-                          <FaKey className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <p className="text-white font-mono">{envVar.key}</p>
-                            <p className="text-gray-400 text-sm">••••••••</p>
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <FaKey className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-mono text-sm sm:text-base truncate">
+                              {envVar.key}
+                            </p>
+                            <p className="text-gray-400 text-xs sm:text-sm">
+                              ••••••••
+                            </p>
                           </div>
                         </div>
                         <button
                           onClick={() =>
                             handleRemoveEnvironmentVariable(envVar.id)
                           }
-                          className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                          className="p-2 text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
                         >
                           <FaTimes className="w-4 h-4" />
                         </button>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 text-center py-8">
+                    <p className="text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">
                       No environment variables configured
                     </p>
                   )}

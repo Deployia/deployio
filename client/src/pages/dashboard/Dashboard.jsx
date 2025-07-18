@@ -45,7 +45,7 @@ const Dashboard = () => {
   const recentActivity = userAnalytics?.data?.recentActivity || [];
   const recentProjects = projects.slice(0, 3);
 
-  // Calculate stats from analytics overview API response
+  // Use backend-calculated stats from analytics overview (no frontend calculations)
   const stats = {
     totalProjects: userAnalytics?.data?.overview?.totalProjects || 0,
     activeDeployments: userAnalytics?.data?.overview?.totalDeployments || 0,
@@ -179,27 +179,29 @@ const Dashboard = () => {
         </p>
       </motion.div>
 
-      {/* Enhanced Stats Grid */}
+      {/* Enhanced Stats Grid - Mobile First Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8"
       >
         {/* Total Projects */}
         <div
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
           onClick={handleViewProjects}
         >
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">
-              <FaProjectDiagram className="w-5 h-5 text-blue-400" />
+              <FaProjectDiagram className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             </div>
             <h3 className="text-gray-400 text-sm font-medium">
               Total Projects
             </h3>
           </div>
-          <p className="text-2xl font-bold text-white">{stats.totalProjects}</p>
+          <p className="text-xl sm:text-2xl font-bold text-white">
+            {stats.totalProjects}
+          </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-blue-400">
             <span>View all</span>
             <FaArrowRight className="w-3 h-3" />
@@ -207,16 +209,16 @@ const Dashboard = () => {
         </div>
 
         {/* Active Deployments */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-green-500/20 rounded-lg">
-              <FaRocket className="w-5 h-5 text-green-400" />
+              <FaRocket className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
             </div>
             <h3 className="text-gray-400 text-sm font-medium">
               Active Deployments
             </h3>
           </div>
-          <p className="text-2xl font-bold text-white">
+          <p className="text-xl sm:text-2xl font-bold text-white">
             {stats.activeDeployments}
           </p>
           <div className="text-xs text-green-400 mt-2">Currently running</div>
@@ -224,16 +226,18 @@ const Dashboard = () => {
 
         {/* Success Rate */}
         <div
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
           onClick={handleViewAnalytics}
         >
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-purple-500/20 rounded-lg group-hover:bg-purple-500/30 transition-colors">
-              <FaChartLine className="w-5 h-5 text-purple-400" />
+              <FaChartLine className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
             </div>
             <h3 className="text-gray-400 text-sm font-medium">Success Rate</h3>
           </div>
-          <p className="text-2xl font-bold text-white">{stats.successRate}%</p>
+          <p className="text-xl sm:text-2xl font-bold text-white">
+            {stats.successRate}%
+          </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-purple-400">
             <span>View analytics</span>
             <FaArrowRight className="w-3 h-3" />
@@ -241,28 +245,30 @@ const Dashboard = () => {
         </div>
 
         {/* Pending Tasks */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-orange-500/20 rounded-lg">
-              <FaClock className="w-5 h-5 text-orange-400" />
+              <FaClock className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
             </div>
             <h3 className="text-gray-400 text-sm font-medium">Pending Tasks</h3>
           </div>
-          <p className="text-2xl font-bold text-white">{stats.pendingTasks}</p>
+          <p className="text-xl sm:text-2xl font-bold text-white">
+            {stats.pendingTasks}
+          </p>
           <div className="text-xs text-orange-400 mt-2">In queue</div>
         </div>
       </motion.div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activity */}
+      {/* Main Content Grid - Responsive Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+        {/* Recent Activity - Mobile Responsive */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
-          className="lg:col-span-2 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+          className="xl:col-span-2 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
             <h3 className="text-lg font-semibold text-white">
               Recent Activity
             </h3>
@@ -270,11 +276,13 @@ const Dashboard = () => {
               onClick={handleViewDeployments}
               className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-2 transition-colors"
             >
-              View All <FaArrowRight className="w-3 h-3" />
+              <span className="hidden sm:inline">View All</span>
+              <span className="sm:hidden">All</span>
+              <FaArrowRight className="w-3 h-3" />
             </button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {recentDeployments.length > 0 ? (
               recentDeployments.map((deployment, index) => (
                 <motion.div
@@ -282,20 +290,20 @@ const Dashboard = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + index * 0.1 }}
-                  className="flex items-center justify-between p-4 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors cursor-pointer"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors cursor-pointer gap-3 sm:gap-4"
                   onClick={() =>
                     handleProjectClick(
                       deployment.projectId || deployment.project?._id
                     )
                   }
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     {getStatusIcon(deployment.status || "pending")}
-                    <div>
-                      <h3 className="text-white font-medium">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-white font-medium truncate">
                         {deployment.projectName || "Unknown Project"}
                       </h3>
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-gray-400 text-sm truncate">
                         {deployment.environment || "Unknown"} •{" "}
                         {new Date(
                           deployment.timestamp || deployment.createdAt
@@ -304,11 +312,9 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-3">
                     <span className="text-gray-400 text-sm">
-                      {deployment.type === "deployment"
-                        ? deployment.action
-                        : deployment.status}
+                      {deployment.action || deployment.status}
                     </span>
                     <span
                       className={getStatusBadge(deployment.status || "pending")}
@@ -321,10 +327,10 @@ const Dashboard = () => {
             ) : (
               <div className="text-center py-8 text-gray-400">
                 <FaRocket className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No recent deployments</p>
+                <p className="mb-3">No recent deployments</p>
                 <button
                   onClick={handleCreateProject}
-                  className="mt-3 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm"
                 >
                   Create your first project
                 </button>
@@ -333,18 +339,18 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        {/* Quick Actions & Recent Projects */}
+        {/* Quick Actions & Recent Projects - Mobile Responsive */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="space-y-6"
+          className="space-y-4 sm:space-y-6"
         >
           {/* Quick Actions */}
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
               Quick Actions
-            </h3>{" "}
+            </h3>
             <div className="space-y-3">
               {/* Admin Panel for Admin Users */}
               {user?.role === "admin" && (
@@ -403,16 +409,18 @@ const Dashboard = () => {
           </div>
 
           {/* Recent Projects */}
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white">
                 Recent Projects
               </h3>
               <button
                 onClick={handleViewProjects}
-                className="text-blue-400 hover:text-blue-300 text-sm"
+                className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-2 transition-colors"
               >
-                View All
+                <span className="hidden sm:inline">View All</span>
+                <span className="sm:hidden">All</span>
+                <FaArrowRight className="w-3 h-3" />
               </button>
             </div>
 
@@ -431,11 +439,11 @@ const Dashboard = () => {
                       <div className="p-2 bg-blue-500/20 rounded-lg">
                         <FaGithub className="w-4 h-4 text-blue-400" />
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-white font-medium text-sm">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-white font-medium text-sm truncate">
                           {project.name}
                         </h4>
-                        <p className="text-gray-400 text-xs">
+                        <p className="text-gray-400 text-xs truncate">
                           {project.technology?.framework ||
                             project.aiAnalysis?.detectedTechnologies?.[0]
                               ?.name ||
@@ -443,7 +451,7 @@ const Dashboard = () => {
                           • {new Date(project.updatedAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <span
                           className={getStatusBadge(project.status || "draft")}
                         >

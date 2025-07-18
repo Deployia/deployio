@@ -109,15 +109,15 @@ const Analytics = () => {
         title="Analytics - DeployIO"
         description="Comprehensive deployment analytics and insights for your projects"
       />
-      {/* Header Section */}
+      {/* Header Section - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 sm:mb-8"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white heading mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white heading mb-2">
               Analytics Dashboard
             </h1>
             <p className="text-gray-400 body">
@@ -126,7 +126,7 @@ const Analytics = () => {
             </p>
           </div>
           <button
-            className={`px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors flex items-center justify-center gap-2 ${
               refreshing ? "opacity-50 cursor-not-allowed" : ""
             }`}
             onClick={handleRefresh}
@@ -137,7 +137,7 @@ const Analytics = () => {
             ) : (
               <FaSyncAlt />
             )}
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </motion.div>
@@ -167,32 +167,32 @@ const Analytics = () => {
       {/* Main Content */}
       {loading ? (
         // Loading State with improved styling
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           <LoadingGrid columns={4} />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             <LoadingChart className="lg:col-span-2" />
             <LoadingChart height="h-80" />
           </div>
         </div>
       ) : (
         <>
-          {/* Key Statistics */}
+          {/* Key Statistics - Mobile Responsive */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8"
           >
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
-                  <FaProjectDiagram className="w-5 h-5 text-blue-400" />
+                  <FaProjectDiagram className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                 </div>
                 <h3 className="text-gray-400 text-sm font-medium">
                   Total Projects
                 </h3>
               </div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold text-white">
                 {analytics.totalProjects}
               </p>
               <div className="flex items-center gap-1 mt-2 text-xs text-blue-400">
@@ -201,16 +201,16 @@ const Analytics = () => {
               </div>
             </div>
 
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-green-500/20 rounded-lg">
-                  <FaRocket className="w-5 h-5 text-green-400" />
+                  <FaRocket className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
                 </div>
                 <h3 className="text-gray-400 text-sm font-medium">
                   Total Deployments
                 </h3>
               </div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold text-white">
                 {analytics.totalDeployments}
               </p>
               <div className="flex items-center gap-1 mt-2 text-xs text-green-400">
@@ -219,16 +219,16 @@ const Analytics = () => {
               </div>
             </div>
 
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-purple-500/20 rounded-lg">
-                  <FaCheckCircle className="w-5 h-5 text-purple-400" />
+                  <FaCheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                 </div>
                 <h3 className="text-gray-400 text-sm font-medium">
                   Success Rate
                 </h3>
               </div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold text-white">
                 {analytics.successRate}%
               </p>
               <div className="flex items-center gap-1 mt-2 text-xs text-purple-400">
@@ -237,16 +237,16 @@ const Analytics = () => {
               </div>
             </div>
 
-            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+            <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-orange-500/20 rounded-lg">
-                  <FaClock className="w-5 h-5 text-orange-400" />
+                  <FaClock className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
                 </div>
                 <h3 className="text-gray-400 text-sm font-medium">
                   Avg Deploy Time
                 </h3>
               </div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold text-white">
                 {analytics.avgDeploymentTime}m
               </p>
               <div className="flex items-center gap-1 mt-2 text-xs text-orange-400">
@@ -256,22 +256,24 @@ const Analytics = () => {
             </div>
           </motion.div>
 
-          {/* Analytics Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Analytics Grid - Mobile Responsive */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             {/* Recent Deployments */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-white">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-semibold text-white">
                   Recent Deployments
                 </h3>
-                <span className="text-sm text-gray-400">Latest activity</span>
+                <span className="text-sm text-gray-400 hidden sm:inline">
+                  Latest activity
+                </span>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {analytics.recentDeployments &&
                 analytics.recentDeployments.length > 0 ? (
                   analytics.recentDeployments
@@ -285,7 +287,7 @@ const Analytics = () => {
                         className="flex items-center gap-3 p-3 bg-neutral-800/50 rounded-lg"
                       >
                         <div
-                          className={`w-2 h-2 rounded-full ${
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
                             deployment.status === "running"
                               ? "bg-green-500"
                               : deployment.status === "failed"
@@ -296,11 +298,11 @@ const Analytics = () => {
                               : "bg-gray-500"
                           }`}
                         ></div>
-                        <div className="flex-1">
-                          <div className="text-white text-sm font-medium">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white text-sm font-medium truncate">
                             {deployment.projectName || "Unknown Project"}
                           </div>
-                          <div className="text-gray-400 text-xs">
+                          <div className="text-gray-400 text-xs truncate">
                             {deployment.environment || "unknown"} •{" "}
                             {deployment.timestamp
                               ? new Date(
@@ -310,7 +312,7 @@ const Analytics = () => {
                           </div>
                         </div>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs ${
+                          className={`px-2 py-1 rounded-full text-xs flex-shrink-0 ${
                             deployment.status === "running"
                               ? "bg-green-500/20 text-green-400"
                               : deployment.status === "failed"
@@ -326,9 +328,11 @@ const Analytics = () => {
                       </motion.div>
                     ))
                 ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <FaRocket className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No recent deployments</p>
+                  <div className="text-center py-6 sm:py-8 text-gray-400">
+                    <FaRocket className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm sm:text-base">
+                      No recent deployments
+                    </p>
                     <p className="text-xs mt-1">
                       Deploy your first project to see activity here
                     </p>
@@ -342,15 +346,17 @@ const Analytics = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-white">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-semibold text-white">
                   Technology Distribution
                 </h3>
-                <span className="text-sm text-gray-400">Frameworks</span>
+                <span className="text-sm text-gray-400 hidden sm:inline">
+                  Frameworks
+                </span>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {analytics.projectTechnologies &&
                 analytics.projectTechnologies.length > 0 ? (
                   analytics.projectTechnologies
@@ -358,10 +364,10 @@ const Analytics = () => {
                     .map((tech, index) => (
                       <div key={tech.name} className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-white text-sm">
+                          <span className="text-white text-sm truncate flex-1 mr-2">
                             {tech.name}
                           </span>
-                          <span className="text-gray-400 text-xs">
+                          <span className="text-gray-400 text-xs flex-shrink-0">
                             {tech.count} project{tech.count !== 1 ? "s" : ""}
                           </span>
                         </div>
@@ -377,9 +383,11 @@ const Analytics = () => {
                       </div>
                     ))
                 ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <FaCode className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No technology data available</p>
+                  <div className="text-center py-6 sm:py-8 text-gray-400">
+                    <FaCode className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm sm:text-base">
+                      No technology data available
+                    </p>
                     <p className="text-xs mt-1">
                       Create projects to see technology analysis
                     </p>

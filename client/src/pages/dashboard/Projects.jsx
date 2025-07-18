@@ -9,7 +9,6 @@ import {
   FaGithub,
   FaRocket,
   FaCog,
-  FaTrash,
   FaEye,
   FaCalendarAlt,
   FaUsers,
@@ -30,7 +29,6 @@ import {
   fetchProjects,
   clearProjectError,
   clearProjectSuccess,
-  deleteProject,
 } from "@redux/index";
 
 const Projects = () => {
@@ -216,39 +214,40 @@ const Projects = () => {
     <>
       <SEO page="projects" />
 
-      {/* Header */}
+      {/* Header - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-8"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8"
       >
         <div>
-          <h1 className="text-3xl font-bold text-white heading mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white heading mb-2">
             Projects
           </h1>
           <p className="text-gray-400 body">
             Manage and deploy your applications with ease.
           </p>
-        </div>{" "}
+        </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => navigate("/dashboard/projects/create")}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg"
+          className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg"
         >
           <FaPlus className="w-4 h-4" />
-          Create Project
-        </motion.button>{" "}
+          <span className="hidden sm:inline">Create Project</span>
+          <span className="sm:hidden">Create</span>
+        </motion.button>
       </motion.div>
 
-      {/* Filter */}
+      {/* Filter - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex items-center gap-4 mb-6"
+        className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6"
       >
-        <span className="text-gray-400 text-sm">Filter:</span>{" "}
+        <span className="text-gray-400 text-sm">Filter:</span>
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -263,14 +262,13 @@ const Projects = () => {
         </select>
       </motion.div>
 
-      {/* Projects Grid */}
+      {/* Projects Grid - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6"
       >
-        {" "}
         {loading.projects ? (
           <div className="col-span-full">
             <LoadingGrid columns={2} rows={2} />
@@ -299,42 +297,44 @@ const Projects = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + index * 0.1 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-all duration-200"
             >
-              {/* Project Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <FaProjectDiagram className="w-5 h-5 text-blue-400" />
+              {/* Project Header - Mobile Responsive */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
+                    <FaProjectDiagram className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                   </div>
-                  <div>
-                    <h3 className="text-white font-semibold text-lg">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-white font-semibold text-base sm:text-lg truncate">
                       {project.name}
-                    </h3>{" "}
+                    </h3>
                     <div className="flex items-center gap-2 mt-1">
                       {getFrameworkIcon(detectTechnology(project))}
-                      <span className="text-gray-400 text-sm">
+                      <span className="text-gray-400 text-sm truncate">
                         {detectTechnology(project)}
                       </span>
                     </div>
                   </div>
-                </div>{" "}
-                <span
-                  className={getStatusBadge(
-                    project.deployment?.status || project.status || "inactive"
-                  )}
-                >
-                  {getStatusDisplayText(
-                    project.deployment?.status || project.status || "inactive"
-                  )}
-                </span>
+                </div>
+                <div className="flex-shrink-0">
+                  <span
+                    className={getStatusBadge(
+                      project.deployment?.status || project.status || "inactive"
+                    )}
+                  >
+                    {getStatusDisplayText(
+                      project.deployment?.status || project.status || "inactive"
+                    )}
+                  </span>
+                </div>
               </div>
               {/* Project Description */}
               <p className="text-gray-300 text-sm mb-4 leading-relaxed">
                 {project.description || "No description available"}
               </p>
-              {/* Project Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              {/* Project Stats - Mobile Responsive */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                 <div className="flex items-center gap-2">
                   <FaRocket className="w-4 h-4 text-green-400" />
                   <span className="text-gray-400 text-sm">
@@ -374,16 +374,17 @@ const Projects = () => {
                   ) || "No repository"}
                 </span>
               </div>
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+              {/* Action Buttons - Mobile Responsive */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
                 <button
                   onClick={() =>
                     navigate(`/dashboard/projects/${project.id || project._id}`)
                   }
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
                 >
                   <FaEye className="w-3 h-3" />
-                  View
+                  <span className="hidden sm:inline">View</span>
+                  <span className="sm:hidden">View Details</span>
                 </button>
                 <button
                   onClick={() =>
@@ -393,10 +394,11 @@ const Projects = () => {
                       }/deployments`
                     )
                   }
-                  className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
                 >
                   <FaRocket className="w-3 h-3" />
-                  Deploy
+                  <span className="hidden sm:inline">Deploy</span>
+                  <span className="sm:hidden">Deploy Project</span>
                 </button>
                 <button
                   onClick={() =>
@@ -406,24 +408,11 @@ const Projects = () => {
                       }/settings`
                     )
                   }
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm"
                 >
                   <FaCog className="w-3 h-3" />
-                  Settings
-                </button>
-                <button
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Are you sure you want to delete this project?"
-                      )
-                    ) {
-                      dispatch(deleteProject(project.id || project._id));
-                    }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm ml-auto"
-                >
-                  <FaTrash className="w-3 h-3" />
+                  <span className="hidden sm:inline">Settings</span>
+                  <span className="sm:hidden">Configure</span>
                 </button>
               </div>
             </motion.div>

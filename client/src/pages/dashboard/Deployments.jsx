@@ -256,25 +256,25 @@ const Deployments = () => {
     <>
       {" "}
       <SEO page="deployments" />
-      {/* Header */}
+      {/* Header - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 sm:mb-8"
       >
-        <h1 className="text-3xl font-bold text-white heading mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white heading mb-2">
           Deployments
         </h1>
         <p className="text-gray-400 body">
           Track and manage all your deployment activities.
         </p>
       </motion.div>
-      {/* Filters and Search */}
+      {/* Filters and Search - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-col sm:flex-row gap-4 mb-6"
+        className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6"
       >
         {/* Search */}
         <div className="relative flex-1">
@@ -294,7 +294,7 @@ const Deployments = () => {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
+            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none min-w-0"
           >
             <option value="all">All Status</option>
             <option value="success">Success</option>
@@ -321,14 +321,15 @@ const Deployments = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 + index * 0.1 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-all duration-200"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
+              {/* Deployment Header - Mobile Responsive */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                   {getStatusIcon(deployment.status || "pending")}
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h3
-                      className="text-white font-semibold text-lg cursor-pointer hover:text-blue-400 transition-colors"
+                      className="text-white font-semibold text-base sm:text-lg cursor-pointer hover:text-blue-400 transition-colors truncate"
                       onClick={() =>
                         navigate(
                           `/dashboard/projects/${
@@ -339,7 +340,7 @@ const Deployments = () => {
                     >
                       {deployment.project?.name || "Unknown Project"}
                     </h3>
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                       <div className="flex items-center gap-1">
                         <FaCodeBranch className="w-3 h-3 text-gray-400" />
                         <span className="text-gray-400 text-sm">
@@ -362,7 +363,7 @@ const Deployments = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <span
                     className={getStatusBadge(deployment.status || "pending")}
                   >
@@ -370,13 +371,14 @@ const Deployments = () => {
                   </span>
                 </div>
               </div>
-              <p className="text-gray-300 mb-4">
+              <p className="text-gray-300 text-sm mb-4 leading-relaxed">
                 {deployment.commit?.message || "No commit message"}
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {/* Deployment Stats - Mobile Responsive */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
                 <div className="flex items-center gap-2">
                   <FaUser className="w-4 h-4 text-blue-400" />
-                  <span className="text-gray-400 text-sm">
+                  <span className="text-gray-400 text-sm truncate">
                     by{" "}
                     {deployment.deployedBy?.name ||
                       deployment.deployedBy?.email ||
@@ -386,7 +388,7 @@ const Deployments = () => {
                 <div className="flex items-center gap-2">
                   <FaCalendarAlt className="w-4 h-4 text-purple-400" />
                   <span className="text-gray-400 text-sm">
-                    {new Date(deployment.createdAt).toLocaleString()}
+                    {new Date(deployment.createdAt).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -400,25 +402,28 @@ const Deployments = () => {
                   </span>
                 </div>
               </div>
+              {/* Deployment URL - Mobile Responsive */}
               {deployment.url && (
                 <div className="mb-4 p-3 bg-neutral-800/50 rounded-lg">
                   <a
                     href={deployment.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 text-sm font-mono"
+                    className="text-blue-400 hover:text-blue-300 text-sm font-mono break-all"
                   >
                     {deployment.url}
                   </a>
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              {/* Action Buttons - Mobile Responsive */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
                   onClick={() => handleViewLogs(deployment)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
                 >
                   <FaEye className="w-3 h-3" />
-                  View Logs
+                  <span className="hidden sm:inline">View Logs</span>
+                  <span className="sm:hidden">View Logs</span>
                 </button>
 
                 {deployment.status === "success" && (
@@ -427,10 +432,15 @@ const Deployments = () => {
                       handleRestart(deployment.id || deployment._id)
                     }
                     disabled={loading.restart}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
                   >
                     <FaRedo className="w-3 h-3" />
-                    {loading.restart ? "Restarting..." : "Redeploy"}
+                    <span className="hidden sm:inline">
+                      {loading.restart ? "Restarting..." : "Redeploy"}
+                    </span>
+                    <span className="sm:hidden">
+                      {loading.restart ? "Restarting..." : "Redeploy"}
+                    </span>
                   </button>
                 )}
 
@@ -438,20 +448,30 @@ const Deployments = () => {
                   <button
                     onClick={() => handleStop(deployment.id || deployment._id)}
                     disabled={loading.stop}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
                   >
                     <FaStop className="w-3 h-3" />
-                    {loading.stop ? "Stopping..." : "Cancel"}
+                    <span className="hidden sm:inline">
+                      {loading.stop ? "Stopping..." : "Cancel"}
+                    </span>
+                    <span className="sm:hidden">
+                      {loading.stop ? "Stopping..." : "Cancel"}
+                    </span>
                   </button>
                 )}
 
                 <button
                   onClick={() => handleDeleteConfirm(deployment)}
                   disabled={loading.delete}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
                 >
                   <FaTrash className="w-3 h-3" />
-                  {loading.delete ? "Deleting..." : "Delete"}
+                  <span className="hidden sm:inline">
+                    {loading.delete ? "Deleting..." : "Delete"}
+                  </span>
+                  <span className="sm:hidden">
+                    {loading.delete ? "Deleting..." : "Delete"}
+                  </span>
                 </button>
               </div>
             </motion.div>

@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  FaArrowLeft,
   FaProjectDiagram,
   FaCode,
   FaGithub,
@@ -288,67 +287,60 @@ const ProjectDetails = () => {
     <>
       <SEO page="project-details" title={currentProject.name} />
 
-      {/* Header */}
+      {/* Header - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 sm:mb-8"
       >
-        {/* Back Button */}
-        <button
-          onClick={() => navigate("/dashboard/projects")}
-          className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition-colors"
-        >
-          <FaArrowLeft className="w-4 h-4" />
-          Back to Projects
-        </button>
-
-        {/* Project Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-500/20 rounded-xl">
-              <FaProjectDiagram className="w-8 h-8 text-blue-400" />
+        {/* Project Header - Mobile Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <div className="p-2 sm:p-3 bg-blue-500/20 rounded-xl flex-shrink-0">
+              <FaProjectDiagram className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               {isEditing ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <input
                     type="text"
                     value={editFormData.name}
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, name: e.target.value })
                     }
-                    className="text-3xl font-bold text-white bg-transparent border-b border-gray-500 focus:border-blue-500 outline-none"
+                    className="text-xl sm:text-3xl font-bold text-white bg-transparent border-b border-gray-500 focus:border-blue-500 outline-none"
                   />
-                  <button
-                    onClick={handleUpdateProject}
-                    className="p-2 text-green-400 hover:text-green-300"
-                  >
-                    <FaCheck className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="p-2 text-red-400 hover:text-red-300"
-                  >
-                    <FaTimes className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleUpdateProject}
+                      className="p-2 text-green-400 hover:text-green-300"
+                    >
+                      <FaCheck className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="p-2 text-red-400 hover:text-red-300"
+                    >
+                      <FaTimes className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <h1 className="text-3xl font-bold text-white heading">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <h1 className="text-xl sm:text-3xl font-bold text-white heading truncate">
                     {currentProject.name}
                   </h1>
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                    className="p-2 text-gray-400 hover:text-white transition-colors self-start"
                   >
                     <FaEdit className="w-4 h-4" />
                   </button>
                 </div>
               )}
-              <div className="flex items-center gap-3 mt-2">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2">
                 {getFrameworkIcon(detectTechnology(currentProject))}
-                <span className="text-gray-400">
+                <span className="text-gray-400 text-sm truncate">
                   {detectTechnology(currentProject)}
                 </span>
                 <span
@@ -364,25 +356,27 @@ const ProjectDetails = () => {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors">
+          {/* Action Buttons - Mobile Responsive */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm">
               <FaRocket className="w-4 h-4" />
-              Deploy
+              <span className="sm:inline">Deploy</span>
             </button>
             <button
               onClick={handleArchiveToggle}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-sm"
             >
               <FaArchive className="w-4 h-4" />
-              {currentProject.isArchived ? "Unarchive" : "Archive"}
+              <span className="sm:inline">
+                {currentProject.isArchived ? "Unarchive" : "Archive"}
+              </span>
             </button>
             <button
               onClick={handleDeleteProject}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm"
             >
               <FaTrash className="w-4 h-4" />
-              Delete
+              <span className="sm:inline">Delete</span>
             </button>
           </div>
         </div>
@@ -403,35 +397,35 @@ const ProjectDetails = () => {
               placeholder="Project description..."
             />
           ) : (
-            <p className="text-gray-300 leading-relaxed max-w-2xl">
+            <p className="text-gray-300 leading-relaxed text-sm sm:text-base">
               {currentProject.description || "No description available"}
             </p>
           )}
         </div>
       </motion.div>
 
-      {/* Tabs */}
+      {/* Tabs - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="border-b border-neutral-800/50 mb-8"
+        className="border-b border-neutral-800/50 mb-6 sm:mb-8"
       >
-        <nav className="flex space-x-8">
+        <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-2 py-4 px-2 border-b-2 transition-colors ${
+                className={`flex items-center gap-2 py-3 sm:py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? "border-blue-500 text-blue-400"
                     : "border-transparent text-gray-400 hover:text-white"
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                {tab.label}
+                <span className="text-sm sm:text-base">{tab.label}</span>
               </button>
             );
           })}
@@ -486,37 +480,43 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
     : [];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
       {/* Project Info */}
-      <div className="lg:col-span-2 space-y-6">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
+      <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+        {/* Quick Stats - Mobile Responsive */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
-              <FaRocket className="w-4 h-4 text-green-400" />
-              <span className="text-gray-400 text-sm">Deployments</span>
+              <FaRocket className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+              <span className="text-gray-400 text-xs sm:text-sm">
+                Deployments
+              </span>
             </div>
-            <span className="text-2xl font-bold text-white">
+            <span className="text-lg sm:text-2xl font-bold text-white">
               {project.statistics?.totalDeployments ||
                 project.deploymentCount ||
                 0}
             </span>
           </div>
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
-              <FaUsers className="w-4 h-4 text-blue-400" />
-              <span className="text-gray-400 text-sm">Collaborators</span>
+              <FaUsers className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" />
+              <span className="text-gray-400 text-xs sm:text-sm">
+                Collaborators
+              </span>
             </div>
-            <span className="text-2xl font-bold text-white">
+            <span className="text-lg sm:text-2xl font-bold text-white">
               {project.collaborators?.length || 0}
             </span>
           </div>
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
-              <FaChartLine className="w-4 h-4 text-purple-400" />
-              <span className="text-gray-400 text-sm">Success Rate</span>
+              <FaChartLine className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" />
+              <span className="text-gray-400 text-xs sm:text-sm">
+                Success Rate
+              </span>
             </div>
-            <span className="text-2xl font-bold text-white">
+            <span className="text-lg sm:text-2xl font-bold text-white">
               {project.statistics?.successfulDeployments &&
               project.statistics?.totalDeployments
                 ? Math.round(
@@ -528,20 +528,20 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
               %
             </span>
           </div>
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
-              <FaCalendarAlt className="w-4 h-4 text-orange-400" />
-              <span className="text-gray-400 text-sm">Uptime</span>
+              <FaCalendarAlt className="w-3 h-3 sm:w-4 sm:h-4 text-orange-400" />
+              <span className="text-gray-400 text-xs sm:text-sm">Uptime</span>
             </div>
-            <span className="text-2xl font-bold text-white">
+            <span className="text-lg sm:text-2xl font-bold text-white">
               {project.statistics?.uptime || 100}%
             </span>
           </div>
         </div>
 
-        {/* Recent Deployments */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">
+        {/* Recent Deployments - Mobile Responsive */}
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
             Recent Deployments
           </h3>
           {recentDeployments.length > 0 ? (
@@ -551,9 +551,9 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
                   key={deployment._id}
                   className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-2 h-2 rounded-full flex-shrink-0 ${
                         deployment.status === "success"
                           ? "bg-green-400"
                           : deployment.status === "failed"
@@ -561,17 +561,17 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
                           : "bg-yellow-400"
                       }`}
                     />
-                    <div>
-                      <p className="text-white font-medium">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white font-medium text-sm sm:text-base">
                         {/* {deployment?.environment || "production"} */}
                       </p>
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-gray-400 text-xs sm:text-sm truncate">
                         {new Date(deployment.createdAt).toLocaleString()}
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`px-2 py-1 rounded text-xs ${
+                    className={`px-2 py-1 rounded text-xs flex-shrink-0 ${
                       deployment.status === "success"
                         ? "bg-green-500/20 text-green-400"
                         : deployment.status === "failed"
@@ -585,23 +585,27 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <FaRocket className="w-12 h-12 mx-auto mb-3 opacity-50 text-gray-400" />
-              <p className="text-gray-400">No deployments yet</p>
+            <div className="text-center py-6 sm:py-8">
+              <FaRocket className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50 text-gray-400" />
+              <p className="text-gray-400 text-sm sm:text-base">
+                No deployments yet
+              </p>
             </div>
           )}
         </div>
 
-        {/* Repository Info */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">Repository</h3>
-          <div className="flex items-center gap-3 p-4 bg-neutral-800/50 rounded-lg">
-            <FaGithub className="w-6 h-6 text-gray-400" />
-            <div className="flex-1">
-              <p className="text-white font-medium">
+        {/* Repository Info - Mobile Responsive */}
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
+            Repository
+          </h3>
+          <div className="flex items-center gap-3 p-3 sm:p-4 bg-neutral-800/50 rounded-lg">
+            <FaGithub className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-medium text-sm sm:text-base truncate">
                 {project.repository?.url || "No repository connected"}
               </p>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs sm:text-sm">
                 Last updated:{" "}
                 {project.repository?.lastSync
                   ? new Date(project.repository.lastSync).toLocaleString()
@@ -609,7 +613,7 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
               </p>
             </div>
             {project.repository?.url && (
-              <button className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors">
+              <button className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors flex-shrink-0">
                 <FaExternalLinkAlt className="w-3 h-3" />
               </button>
             )}
@@ -617,67 +621,71 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
         </div>
       </div>
 
-      {/* Sidebar */}
-      <div className="space-y-6">
-        {/* Quick Actions */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">
+      {/* Sidebar - Mobile Responsive */}
+      <div className="space-y-4 sm:space-y-6">
+        {/* Quick Actions - Mobile Responsive */}
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
             Quick Actions
           </h3>
-          <div className="space-y-3">
-            <button className="w-full flex items-center gap-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors">
+          <div className="space-y-2 sm:space-y-3">
+            <button className="w-full flex items-center gap-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm">
               <FaPlay className="w-4 h-4" />
               Deploy Now
             </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors">
+            <button className="w-full flex items-center gap-3 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm">
               <FaTerminal className="w-4 h-4" />
               Open Terminal
             </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 hover:bg-purple-500/30 transition-colors">
+            <button className="w-full flex items-center gap-3 p-3 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 hover:bg-purple-500/30 transition-colors text-sm">
               <FaHistory className="w-4 h-4" />
               View Logs
             </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 hover:bg-orange-500/30 transition-colors">
+            <button className="w-full flex items-center gap-3 p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 hover:bg-orange-500/30 transition-colors text-sm">
               <FaSync className="w-4 h-4" />
               Sync Repository
             </button>
           </div>
         </div>
 
-        {/* Project Status */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Status</h3>
+        {/* Project Status - Mobile Responsive */}
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
+            Status
+          </h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Environment</span>
-              <span className="text-white">
+              <span className="text-gray-400 text-sm">Environment</span>
+              <span className="text-white text-sm">
                 {/* {project.deployment?.environment || "development"} */}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Health</span>
-              <span className="text-green-400">Healthy</span>
+              <span className="text-gray-400 text-sm">Health</span>
+              <span className="text-green-400 text-sm">Healthy</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Last Deploy</span>
-              <span className="text-white">
+              <span className="text-gray-400 text-sm">Last Deploy</span>
+              <span className="text-white text-sm">
                 {project.deployment?.lastDeploy
                   ? new Date(project.deployment.lastDeploy).toLocaleDateString()
                   : "Never"}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Created</span>
-              <span className="text-white">
+              <span className="text-gray-400 text-sm">Created</span>
+              <span className="text-white text-sm">
                 {new Date(project.createdAt).toLocaleDateString()}
               </span>
             </div>
           </div>
         </div>
 
-        {/* AI Insights */}
-        <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">AI Insights</h3>
+        {/* AI Insights - Mobile Responsive */}
+        <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
+            AI Insights
+          </h3>
           <div className="space-y-3">
             <div className="p-3 bg-purple-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
@@ -686,7 +694,7 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
                   Security Score
                 </span>
               </div>
-              <p className="text-white">
+              <p className="text-white text-sm">
                 8.5/10 - Good security practices detected
               </p>
             </div>
@@ -697,7 +705,9 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
                   Performance
                 </span>
               </div>
-              <p className="text-white">Consider optimizing image sizes</p>
+              <p className="text-white text-sm">
+                Consider optimizing image sizes
+              </p>
             </div>
           </div>
         </div>
