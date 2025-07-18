@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 import {
   FaCheckCircle,
   FaGithub,
@@ -8,7 +9,16 @@ import {
   FaRocket,
 } from "react-icons/fa";
 
-const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) => {
+const WizardNavigation = ({
+  steps,
+  currentStep,
+  completedSteps,
+  onStepClick,
+}) => {
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentStep]);
   // Step icons mapping
   const stepIcons = {
     1: FaGithub,
@@ -29,7 +39,7 @@ const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) =
 
   const getStepStatus = (stepIndex) => {
     const stepNumber = stepIndex + 1;
-    
+
     if (completedSteps.includes(stepNumber)) {
       return "completed";
     }
@@ -46,7 +56,7 @@ const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) =
     const baseClasses = `
       relative flex items-center justify-center w-12 h-12 rounded-full
       border-2 transition-all duration-300 font-medium text-sm
-      ${isClickable ? 'cursor-pointer' : 'cursor-default'}
+      ${isClickable ? "cursor-pointer" : "cursor-default"}
     `;
 
     switch (status) {
@@ -60,21 +70,24 @@ const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) =
   };
 
   const getConnectorClasses = (stepIndex) => {
-    const isCompleted = completedSteps.includes(stepIndex + 1) || currentStep > stepIndex + 1;
+    const isCompleted =
+      completedSteps.includes(stepIndex + 1) || currentStep > stepIndex + 1;
     return `
       h-0.5 flex-1 transition-colors duration-300
-      ${isCompleted ? 'bg-green-500' : 'bg-neutral-700'}
+      ${isCompleted ? "bg-green-500" : "bg-neutral-700"}
     `;
   };
 
   return (
-    <div className="bg-neutral-900/30 backdrop-blur-sm border-b border-neutral-800/50 p-6">
+    <div className="bg-neutral-900/30 backdrop-blur-sm border-b border-neutral-800/50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center justify-between">
           {steps.map((step, index) => {
             const stepNumber = index + 1;
             const status = getStepStatus(index);
-            const isClickable = completedSteps.includes(stepNumber) || stepNumber === currentStep;
+            const isClickable =
+              completedSteps.includes(stepNumber) || stepNumber === currentStep;
             const StepIcon = stepIcons[stepNumber];
 
             return (
@@ -99,7 +112,7 @@ const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) =
                       <div
                         className={`
                           absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-neutral-900
-                          ${getConfidenceColor(0.85)} // This would come from actual AI confidence
+                          ${getConfidenceColor(0.85)}
                         `}
                         title="AI Confidence: High"
                       />
@@ -127,17 +140,18 @@ const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) =
                     <p
                       className={`
                         text-sm font-medium transition-colors
-                        ${status === "current" 
-                          ? "text-blue-400" 
-                          : status === "completed" 
-                          ? "text-green-400" 
-                          : "text-neutral-400"
+                        ${
+                          status === "current"
+                            ? "text-blue-400"
+                            : status === "completed"
+                            ? "text-green-400"
+                            : "text-neutral-400"
                         }
                       `}
                     >
                       {step.title}
                     </p>
-                    <p className="text-xs text-neutral-500 mt-1 hidden sm:block">
+                    <p className="text-xs text-neutral-500 mt-1">
                       {step.description}
                     </p>
                   </div>
@@ -145,7 +159,7 @@ const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) =
 
                 {/* Connector Line */}
                 {index < steps.length - 1 && (
-                  <div className="flex-1 mx-4 hidden md:block">
+                  <div className="flex-1 mx-4">
                     <div className={getConnectorClasses(index)} />
                   </div>
                 )}
@@ -154,34 +168,99 @@ const WizardNavigation = ({ steps, currentStep, completedSteps, onStepClick }) =
           })}
         </div>
 
-        {/* Mobile Step Indicator */}
-        <div className="mt-4 md:hidden">
-          <div className="flex items-center justify-center space-x-2">
-            {steps.map((_, index) => {
+        {/* Mobile Navigation - Horizontal Scroll */}
+        <div className="md:hidden">
+          <div className="flex items-center gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            {steps.map((step, index) => {
               const stepNumber = index + 1;
               const status = getStepStatus(index);
-              
+              const isClickable =
+                completedSteps.includes(stepNumber) ||
+                stepNumber === currentStep;
+              const StepIcon = stepIcons[stepNumber];
+
               return (
                 <div
-                  key={index}
-                  className={`
-                    w-2 h-2 rounded-full transition-colors
-                    ${status === "completed" 
-                      ? "bg-green-500" 
-                      : status === "current" 
-                      ? "bg-blue-500" 
-                      : "bg-neutral-700"
-                    }
-                  `}
-                />
+                  key={step.id}
+                  className="flex items-center gap-3 flex-shrink-0"
+                >
+                  {/* Step Circle */}
+                  <div className="flex flex-col items-center">
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={getStepClasses(status, isClickable)}
+                      onClick={() => isClickable && onStepClick(stepNumber)}
+                    >
+                      {status === "completed" ? (
+                        <FaCheckCircle className="w-4 h-4" />
+                      ) : (
+                        <StepIcon className="w-4 h-4" />
+                      )}
+
+                      {/* AI Confidence Indicator */}
+                      {step.aiEnhanced && status === "completed" && (
+                        <div
+                          className={`
+                            absolute -top-1 -right-1 w-2 h-2 rounded-full border border-neutral-900
+                            ${getConfidenceColor(0.85)}
+                          `}
+                          title="AI Confidence: High"
+                        />
+                      )}
+
+                      {/* Current step pulse effect */}
+                      {status === "current" && (
+                        <motion.div
+                          className="absolute inset-0 rounded-full border-2 border-blue-400"
+                          animate={{
+                            scale: [1, 1.2, 1],
+                            opacity: [0.5, 0, 0.5],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                        />
+                      )}
+                    </motion.div>
+
+                    {/* Step Title */}
+                    <div className="mt-2 text-center min-w-0">
+                      <p
+                        className={`
+                          text-xs font-medium transition-colors whitespace-nowrap
+                          ${
+                            status === "current"
+                              ? "text-blue-400"
+                              : status === "completed"
+                              ? "text-green-400"
+                              : "text-neutral-400"
+                          }
+                        `}
+                      >
+                        {step.title}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Connector Line */}
+                  {index < steps.length - 1 && (
+                    <div className="w-8 h-0.5 bg-neutral-700 flex-shrink-0" />
+                  )}
+                </div>
               );
             })}
           </div>
-          <div className="text-center mt-2">
+
+          {/* Mobile Step Info */}
+          <div className="text-center mt-4 border-t border-neutral-800/50 pt-4">
             <p className="text-sm text-neutral-300">
               {steps[currentStep - 1]?.title}
             </p>
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-neutral-500 mt-1">
               Step {currentStep} of {steps.length}
             </p>
           </div>

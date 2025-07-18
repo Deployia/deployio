@@ -1,4 +1,4 @@
-import {  useEffect } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,10 +43,12 @@ const CreateProject = () => {
 
   // Initialize session on component mount
   useEffect(() => {
-    dispatch(createSession({
-      userAgent: navigator.userAgent,
-      ipAddress: '127.0.0.1', // This would be populated by the backend
-    }));
+    dispatch(
+      createSession({
+        userAgent: navigator.userAgent,
+        ipAddress: "127.0.0.1", // This would be populated by the backend
+      })
+    );
 
     // Cleanup on unmount
     return () => {
@@ -79,12 +81,12 @@ const CreateProject = () => {
   // Handle wizard completion
   const handleComplete = () => {
     dispatch(completeWizard());
-    navigate('/dashboard/projects');
+    navigate("/dashboard/projects");
   };
 
   // Handle back to dashboard
   const handleBack = () => {
-    navigate('/dashboard/projects');
+    navigate("/dashboard/projects");
   };
 
   // Wizard steps configuration
@@ -138,34 +140,35 @@ const CreateProject = () => {
   return (
     <>
       <SEO page="create-project" />
-      
+
       <div className="min-h-screen">
-        {/* Header */}
+        {/* Header - Mobile Responsive */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-neutral-900/50 backdrop-blur-md border-b border-neutral-800/50 p-6"
+          className="bg-neutral-900/50 backdrop-blur-md border-b border-neutral-800/50 p-4 sm:p-6"
         >
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
               <button
                 onClick={handleBack}
-                className="flex items-center space-x-2 text-neutral-400 hover:text-white transition-colors"
+                className="flex items-center space-x-2 text-neutral-400 hover:text-white transition-colors text-sm sm:text-base"
               >
                 <FaArrowLeft className="w-4 h-4" />
-                <span>Back to Projects</span>
+                <span className="hidden sm:inline">Back to Projects</span>
+                <span className="sm:hidden">Back</span>
               </button>
-              <div className="w-px h-6 bg-neutral-700"></div>
+              <div className="w-px h-6 bg-neutral-700 hidden sm:block"></div>
               <div>
-                <h1 className="text-2xl font-bold text-white">
+                <h1 className="text-xl sm:text-2xl font-bold text-white">
                   Create New Project
                 </h1>
-                <p className="text-neutral-400 text-sm">
+                <p className="text-neutral-400 text-xs sm:text-sm">
                   AI-powered project setup with intelligent configuration
                 </p>
               </div>
             </div>
-            
+
             {/* Session Info */}
             {sessionId && (
               <div className="flex items-center space-x-2 text-sm text-neutral-400">
@@ -184,8 +187,8 @@ const CreateProject = () => {
           onStepClick={handleStepClick}
         />
 
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto p-6">
+        {/* Main Content - Mobile Responsive */}
+        <div className="max-w-7xl mx-auto p-4 sm:p-6">
           {/* Error Display */}
           <AnimatePresence>
             {error && (
@@ -193,12 +196,14 @@ const CreateProject = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center space-x-3"
+                className="mb-4 sm:mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center space-x-3"
               >
                 <FaExclamationTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
                 <div>
-                  <p className="text-red-400 font-medium">Error</p>
-                  <p className="text-red-300 text-sm">{error}</p>
+                  <p className="text-red-400 font-medium text-sm sm:text-base">
+                    Error
+                  </p>
+                  <p className="text-red-300 text-xs sm:text-sm">{error}</p>
                 </div>
               </motion.div>
             )}
@@ -214,7 +219,7 @@ const CreateProject = () => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="p-8"
+                  className="p-4 sm:p-6 lg:p-8"
                 >
                   <CurrentStepComponent
                     stepData={stepData}
@@ -229,20 +234,21 @@ const CreateProject = () => {
             </AnimatePresence>
           </div>
 
-          {/* Navigation Controls */}
+          {/* Navigation Controls - Mobile Responsive */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-8 flex items-center justify-between"
+            className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <button
               onClick={handlePrevious}
               disabled={currentStep === 1}
               className={`
-                flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
-                ${currentStep === 1
-                  ? 'bg-neutral-800/50 text-neutral-600 cursor-not-allowed'
-                  : 'bg-neutral-800 hover:bg-neutral-700 text-white'
+                flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-medium transition-all w-full sm:w-auto text-sm sm:text-base
+                ${
+                  currentStep === 1
+                    ? "bg-neutral-800/50 text-neutral-600 cursor-not-allowed"
+                    : "bg-neutral-800 hover:bg-neutral-700 text-white"
                 }
               `}
             >
@@ -250,14 +256,16 @@ const CreateProject = () => {
               <span>Previous</span>
             </button>
 
-            <div className="flex items-center space-x-2 text-sm text-neutral-400">
-              <span>Step {currentStep} of {steps.length}</span>
+            <div className="flex items-center space-x-2 text-sm text-neutral-400 order-first sm:order-none">
+              <span>
+                Step {currentStep} of {steps.length}
+              </span>
             </div>
 
             <button
               onClick={currentStep === 6 ? handleComplete : handleNext}
               disabled={loading}
-              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-medium transition-colors"
+              className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-medium transition-colors w-full sm:w-auto text-sm sm:text-base"
             >
               {loading ? (
                 <>

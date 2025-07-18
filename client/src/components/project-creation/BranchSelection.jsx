@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { motion } from "framer-motion";
 import {
   FaCodeBranch,
@@ -21,8 +21,12 @@ import {
 
 const BranchSelection = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
-  const [selectedBranch, setLocalSelectedBranch] = useState(stepData.selectedBranch);
-  const [analysisSettings, setLocalAnalysisSettings] = useState(stepData.analysisSettings);
+  const [selectedBranch, setLocalSelectedBranch] = useState(
+    stepData.selectedBranch
+  );
+  const [analysisSettings, setLocalAnalysisSettings] = useState(
+    stepData.analysisSettings
+  );
 
   // Fetch branches when component mounts
   useEffect(() => {
@@ -51,64 +55,65 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const analysisTypes = [
     {
-      id: 'stack',
-      name: 'Stack Detection',
-      description: 'Identify frameworks, languages, and tech stack',
+      id: "stack",
+      name: "Stack Detection",
+      description: "Identify frameworks, languages, and tech stack",
       icon: FaCogs,
-      color: 'text-blue-500',
+      color: "text-blue-500",
       recommended: true,
     },
     {
-      id: 'dependencies',
-      name: 'Dependency Analysis',
-      description: 'Analyze package dependencies and versions',
+      id: "dependencies",
+      name: "Dependency Analysis",
+      description: "Analyze package dependencies and versions",
       icon: FaShieldAlt,
-      color: 'text-green-500',
+      color: "text-green-500",
       recommended: true,
     },
     {
-      id: 'quality',
-      name: 'Code Quality',
-      description: 'Code quality metrics and suggestions',
+      id: "quality",
+      name: "Code Quality",
+      description: "Code quality metrics and suggestions",
       icon: FaRocket,
-      color: 'text-purple-500',
+      color: "text-purple-500",
       recommended: false,
     },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6">
       {/* Header */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-6 sm:mb-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FaCodeBranch className="w-8 h-8 text-purple-500" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <FaCodeBranch className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
             Branch & Analysis Settings
           </h2>
-          <p className="text-neutral-400 max-w-2xl mx-auto">
-            Select the branch to analyze and configure AI analysis settings. 
-            Our AI will examine your code to generate optimal deployment configurations.
+          <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto px-2">
+            Select the branch to analyze and configure AI analysis settings. Our
+            AI will examine your code to generate optimal deployment
+            configurations.
           </p>
         </motion.div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-6 sm:gap-8 grid-cols-1 lg:grid-cols-2">
         {/* Branch Selection */}
-        <div>
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
             <FaCodeBranch className="w-5 h-5 text-purple-500" />
             <span>Select Branch</span>
@@ -132,10 +137,11 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                     className={`
-                      p-4 rounded-lg border-2 transition-all duration-300 cursor-pointer
-                      ${isSelected 
-                        ? 'bg-purple-500/10 border-purple-500/50 ring-2 ring-purple-500/20' 
-                        : 'bg-neutral-800/50 border-neutral-700 hover:border-neutral-600'
+                      p-3 sm:p-4 rounded-lg border-2 transition-all duration-300 cursor-pointer
+                      ${
+                        isSelected
+                          ? "bg-purple-500/10 border-purple-500/50 ring-2 ring-purple-500/20"
+                          : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-600"
                       }
                     `}
                     onClick={() => handleBranchSelect(branch)}
@@ -165,7 +171,9 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                               </div>
                               <div className="flex items-center space-x-1">
                                 <FaClock className="w-3 h-3" />
-                                <span>{formatDate(branch.lastCommit.date)}</span>
+                                <span>
+                                  {formatDate(branch.lastCommit.date)}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -190,7 +198,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
         </div>
 
         {/* Analysis Settings */}
-        <div>
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
             <FaBrain className="w-5 h-5 text-blue-500" />
             <span>AI Analysis Settings</span>
@@ -205,32 +213,39 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
               <div className="space-y-3">
                 {analysisTypes.map((type) => {
                   const Icon = type.icon;
-                  const isEnabled = analysisSettings.analysisTypes.includes(type.id);
+                  const isEnabled = analysisSettings.analysisTypes.includes(
+                    type.id
+                  );
 
                   return (
                     <div
                       key={type.id}
                       className={`
-                        p-3 rounded-lg border transition-all duration-300 cursor-pointer
-                        ${isEnabled 
-                          ? 'bg-blue-500/10 border-blue-500/30' 
-                          : 'bg-neutral-800/50 border-neutral-700 hover:border-neutral-600'
+                        p-2 sm:p-3 rounded-lg border transition-all duration-300 cursor-pointer
+                        ${
+                          isEnabled
+                            ? "bg-blue-500/10 border-blue-500/30"
+                            : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-600"
                         }
                       `}
                       onClick={() => {
                         const newTypes = isEnabled
-                          ? analysisSettings.analysisTypes.filter(t => t !== type.id)
+                          ? analysisSettings.analysisTypes.filter(
+                              (t) => t !== type.id
+                            )
                           : [...analysisSettings.analysisTypes, type.id];
-                        handleAnalysisSettingChange('analysisTypes', newTypes);
+                        handleAnalysisSettingChange("analysisTypes", newTypes);
                       }}
                     >
                       <div className="flex items-start space-x-3">
-                        <div className={`p-2 rounded-lg bg-neutral-800 ${type.color}`}>
+                        <div
+                          className={`p-2 rounded-lg bg-neutral-800 ${type.color}`}
+                        >
                           <Icon className="w-4 h-4" />
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <h5 className="font-medium text-white">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 flex-wrap">
+                            <h5 className="font-medium text-white truncate">
                               {type.name}
                             </h5>
                             {type.recommended && (
@@ -243,13 +258,16 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                             {type.description}
                           </p>
                         </div>
-                        <div className={`
-                          w-5 h-5 rounded border-2 flex items-center justify-center
-                          ${isEnabled 
-                            ? 'bg-blue-500 border-blue-500' 
-                            : 'border-neutral-600'
+                        <div
+                          className={`
+                          w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
+                          ${
+                            isEnabled
+                              ? "bg-blue-500 border-blue-500"
+                              : "border-neutral-600"
                           }
-                        `}>
+                        `}
+                        >
                           {isEnabled && (
                             <FaCheckCircle className="w-3 h-3 text-white" />
                           )}
@@ -268,68 +286,119 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
               </h4>
 
               {/* Force LLM Analysis */}
-              <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
-                <div>
-                  <h5 className="font-medium text-white">Enhanced AI Analysis</h5>
-                  <p className="text-sm text-neutral-400">
+              <div className="flex items-center justify-between p-2 sm:p-3 bg-neutral-800/50 rounded-lg">
+                <div className="min-w-0 flex-1 pr-3">
+                  <h5 className="font-medium text-white text-sm sm:text-base truncate">
+                    Enhanced AI Analysis
+                  </h5>
+                  <p className="text-xs sm:text-sm text-neutral-400">
                     Use advanced AI models for deeper code analysis
                   </p>
                 </div>
                 <button
-                  onClick={() => handleAnalysisSettingChange('forceLlm', !analysisSettings.forceLlm)}
+                  onClick={() =>
+                    handleAnalysisSettingChange(
+                      "forceLlm",
+                      !analysisSettings.forceLlm
+                    )
+                  }
                   className={`
-                    relative w-12 h-6 rounded-full transition-colors
-                    ${analysisSettings.forceLlm ? 'bg-blue-500' : 'bg-neutral-600'}
+                    relative w-10 h-5 sm:w-12 sm:h-6 rounded-full transition-colors flex-shrink-0
+                    ${
+                      analysisSettings.forceLlm
+                        ? "bg-blue-500"
+                        : "bg-neutral-600"
+                    }
                   `}
                 >
-                  <div className={`
-                    absolute top-1 w-4 h-4 bg-white rounded-full transition-transform
-                    ${analysisSettings.forceLlm ? 'translate-x-7' : 'translate-x-1'}
-                  `} />
+                  <div
+                    className={`
+                    absolute top-0.5 sm:top-1 w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full transition-transform
+                    ${
+                      analysisSettings.forceLlm
+                        ? "translate-x-5 sm:translate-x-7"
+                        : "translate-x-1"
+                    }
+                  `}
+                  />
                 </button>
               </div>
 
               {/* Include Recommendations */}
-              <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
-                <div>
-                  <h5 className="font-medium text-white">Include Recommendations</h5>
-                  <p className="text-sm text-neutral-400">
+              <div className="flex items-center justify-between p-2 sm:p-3 bg-neutral-800/50 rounded-lg">
+                <div className="min-w-0 flex-1 pr-3">
+                  <h5 className="font-medium text-white text-sm sm:text-base truncate">
+                    Include Recommendations
+                  </h5>
+                  <p className="text-xs sm:text-sm text-neutral-400">
                     Get AI-powered optimization suggestions
                   </p>
                 </div>
                 <button
-                  onClick={() => handleAnalysisSettingChange('includeRecommendations', !analysisSettings.includeRecommendations)}
+                  onClick={() =>
+                    handleAnalysisSettingChange(
+                      "includeRecommendations",
+                      !analysisSettings.includeRecommendations
+                    )
+                  }
                   className={`
-                    relative w-12 h-6 rounded-full transition-colors
-                    ${analysisSettings.includeRecommendations ? 'bg-blue-500' : 'bg-neutral-600'}
+                    relative w-10 h-5 sm:w-12 sm:h-6 rounded-full transition-colors flex-shrink-0
+                    ${
+                      analysisSettings.includeRecommendations
+                        ? "bg-blue-500"
+                        : "bg-neutral-600"
+                    }
                   `}
                 >
-                  <div className={`
-                    absolute top-1 w-4 h-4 bg-white rounded-full transition-transform
-                    ${analysisSettings.includeRecommendations ? 'translate-x-7' : 'translate-x-1'}
-                  `} />
+                  <div
+                    className={`
+                    absolute top-0.5 sm:top-1 w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full transition-transform
+                    ${
+                      analysisSettings.includeRecommendations
+                        ? "translate-x-5 sm:translate-x-7"
+                        : "translate-x-1"
+                    }
+                  `}
+                  />
                 </button>
               </div>
 
               {/* Track Progress */}
-              <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
-                <div>
-                  <h5 className="font-medium text-white">Real-time Progress</h5>
-                  <p className="text-sm text-neutral-400">
+              <div className="flex items-center justify-between p-2 sm:p-3 bg-neutral-800/50 rounded-lg">
+                <div className="min-w-0 flex-1 pr-3">
+                  <h5 className="font-medium text-white text-sm sm:text-base truncate">
+                    Real-time Progress
+                  </h5>
+                  <p className="text-xs sm:text-sm text-neutral-400">
                     Show detailed analysis progress updates
                   </p>
                 </div>
                 <button
-                  onClick={() => handleAnalysisSettingChange('trackProgress', !analysisSettings.trackProgress)}
+                  onClick={() =>
+                    handleAnalysisSettingChange(
+                      "trackProgress",
+                      !analysisSettings.trackProgress
+                    )
+                  }
                   className={`
-                    relative w-12 h-6 rounded-full transition-colors
-                    ${analysisSettings.trackProgress ? 'bg-blue-500' : 'bg-neutral-600'}
+                    relative w-10 h-5 sm:w-12 sm:h-6 rounded-full transition-colors flex-shrink-0
+                    ${
+                      analysisSettings.trackProgress
+                        ? "bg-blue-500"
+                        : "bg-neutral-600"
+                    }
                   `}
                 >
-                  <div className={`
-                    absolute top-1 w-4 h-4 bg-white rounded-full transition-transform
-                    ${analysisSettings.trackProgress ? 'translate-x-7' : 'translate-x-1'}
-                  `} />
+                  <div
+                    className={`
+                    absolute top-0.5 sm:top-1 w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full transition-transform
+                    ${
+                      analysisSettings.trackProgress
+                        ? "translate-x-5 sm:translate-x-7"
+                        : "translate-x-1"
+                    }
+                  `}
+                  />
                 </button>
               </div>
             </div>
@@ -338,15 +407,16 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
       </div>
 
       {/* Action Button */}
-      <div className="mt-8 text-center">
+      <div className="mt-6 sm:mt-8 text-center">
         <button
           onClick={handleContinue}
           disabled={!selectedBranch || loading}
           className={`
-            px-8 py-3 rounded-lg font-medium transition-all
-            ${selectedBranch && !loading
-              ? 'bg-purple-600 hover:bg-purple-700 text-white'
-              : 'bg-neutral-700 text-neutral-400 cursor-not-allowed'
+            px-6 sm:px-8 py-3 rounded-lg font-medium transition-all text-sm sm:text-base
+            ${
+              selectedBranch && !loading
+                ? "bg-purple-600 hover:bg-purple-700 text-white"
+                : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
             }
           `}
         >

@@ -19,21 +19,25 @@ import {
 
 const SmartProjectForm = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
-  
+
   // Form state populated by AI analysis
   const [formData, setFormData] = useState({
-    projectName: stepData.projectName || stepData.selectedRepository?.name || '',
-    projectDescription: stepData.projectDescription || stepData.selectedRepository?.description || '',
+    projectName:
+      stepData.projectName || stepData.selectedRepository?.name || "",
+    projectDescription:
+      stepData.projectDescription ||
+      stepData.selectedRepository?.description ||
+      "",
     buildCommands: stepData.buildCommands || [],
-    startCommand: stepData.startCommand || '',
+    startCommand: stepData.startCommand || "",
     environmentVariables: stepData.environmentVariables || [],
     deploymentSettings: stepData.deploymentSettings || {
       port: 3000,
-      healthcheck: '/health',
+      healthcheck: "/health",
       replicas: 1,
       resources: {
-        cpu: '100m',
-        memory: '128Mi',
+        cpu: "100m",
+        memory: "128Mi",
       },
     },
   });
@@ -42,10 +46,10 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
   useEffect(() => {
     if (stepData.analysisResults) {
       const results = stepData.analysisResults;
-      
+
       // Auto-populate build commands
       if (results.buildCommands && results.buildCommands.length > 0) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           buildCommands: results.buildCommands,
         }));
@@ -53,7 +57,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
 
       // Auto-populate start command
       if (results.startCommand) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           startCommand: results.startCommand,
         }));
@@ -61,7 +65,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
 
       // Auto-populate port
       if (results.detectedPort) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           deploymentSettings: {
             ...prev.deploymentSettings,
@@ -72,11 +76,11 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
 
       // Auto-populate environment variables suggestions
       if (results.suggestedEnvVars) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          environmentVariables: results.suggestedEnvVars.map(env => ({
+          environmentVariables: results.suggestedEnvVars.map((env) => ({
             key: env.key,
-            value: env.defaultValue || '',
+            value: env.defaultValue || "",
             description: env.description,
             required: env.required,
           })),
@@ -86,14 +90,14 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
   }, [stepData.analysisResults]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
   const handleDeploymentSettingChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       deploymentSettings: {
         ...prev.deploymentSettings,
@@ -103,7 +107,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
   };
 
   const handleResourceChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       deploymentSettings: {
         ...prev.deploymentSettings,
@@ -116,49 +120,53 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
   };
 
   const addBuildCommand = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      buildCommands: [...prev.buildCommands, ''],
+      buildCommands: [...prev.buildCommands, ""],
     }));
   };
 
   const updateBuildCommand = (index, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      buildCommands: prev.buildCommands.map((cmd, i) => i === index ? value : cmd),
+      buildCommands: prev.buildCommands.map((cmd, i) =>
+        i === index ? value : cmd
+      ),
     }));
   };
 
   const removeBuildCommand = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       buildCommands: prev.buildCommands.filter((_, i) => i !== index),
     }));
   };
 
   const addEnvironmentVariable = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       environmentVariables: [
         ...prev.environmentVariables,
-        { key: '', value: '', description: '', required: false },
+        { key: "", value: "", description: "", required: false },
       ],
     }));
   };
 
   const updateEnvironmentVariable = (index, field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      environmentVariables: prev.environmentVariables.map((env, i) => 
+      environmentVariables: prev.environmentVariables.map((env, i) =>
         i === index ? { ...env, [field]: value } : env
       ),
     }));
   };
 
   const removeEnvironmentVariable = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      environmentVariables: prev.environmentVariables.filter((_, i) => i !== index),
+      environmentVariables: prev.environmentVariables.filter(
+        (_, i) => i !== index
+      ),
     }));
   };
 
@@ -169,22 +177,23 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6">
       {/* Header */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-6 sm:mb-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FaCogs className="w-8 h-8 text-green-500" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <FaCogs className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
             Project Configuration
           </h2>
-          <p className="text-neutral-400 max-w-2xl mx-auto">
-            Configure your project settings. Many fields have been auto-populated 
-            based on our AI analysis. Review and adjust as needed.
+          <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto px-2">
+            Configure your project settings. Many fields have been
+            auto-populated based on our AI analysis. Review and adjust as
+            needed.
           </p>
         </motion.div>
       </div>
@@ -194,28 +203,31 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg"
+          className="mb-6 sm:mb-8 p-3 sm:p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg"
         >
           <div className="flex items-center space-x-3">
-            <FaBrain className="w-5 h-5 text-blue-400" />
+            <FaBrain className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             <div>
-              <h3 className="text-blue-400 font-medium">AI Suggestions Applied</h3>
-              <p className="text-blue-300 text-sm">
-                Configuration has been pre-filled based on analysis with {Math.round((stepData.aiConfidence || 0) * 100)}% confidence.
+              <h3 className="text-blue-400 font-medium text-sm sm:text-base">
+                AI Suggestions Applied
+              </h3>
+              <p className="text-blue-300 text-xs sm:text-sm">
+                Configuration has been pre-filled based on analysis with{" "}
+                {Math.round((stepData.aiConfidence || 0) * 100)}% confidence.
               </p>
             </div>
           </div>
         </motion.div>
       )}
 
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Basic Information */}
-        <div className="bg-neutral-800/30 rounded-lg p-6">
+        <div className="bg-neutral-800/30 rounded-lg p-3 sm:p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
             <FaProjectDiagram className="w-5 h-5 text-blue-500" />
             <span>Basic Information</span>
           </h3>
-          
+
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
@@ -224,12 +236,14 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               <input
                 type="text"
                 value={formData.projectName}
-                onChange={(e) => handleInputChange('projectName', e.target.value)}
-                className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) =>
+                  handleInputChange("projectName", e.target.value)
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="my-awesome-project"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
                 Port
@@ -237,8 +251,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               <input
                 type="number"
                 value={formData.deploymentSettings.port}
-                onChange={(e) => handleDeploymentSettingChange('port', parseInt(e.target.value))}
-                className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) =>
+                  handleDeploymentSettingChange(
+                    "port",
+                    parseInt(e.target.value)
+                  )
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="3000"
               />
             </div>
@@ -250,16 +269,18 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             </label>
             <textarea
               value={formData.projectDescription}
-              onChange={(e) => handleInputChange('projectDescription', e.target.value)}
+              onChange={(e) =>
+                handleInputChange("projectDescription", e.target.value)
+              }
               rows={3}
-              className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Brief description of your project..."
             />
           </div>
         </div>
 
         {/* Build Configuration */}
-        <div className="bg-neutral-800/30 rounded-lg p-6">
+        <div className="bg-neutral-800/30 rounded-lg p-3 sm:p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
             <FaTerminal className="w-5 h-5 text-purple-500" />
             <span>Build Configuration</span>
@@ -279,7 +300,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
                   <span>Add Command</span>
                 </button>
               </div>
-              
+
               {formData.buildCommands.map((command, index) => (
                 <div key={index} className="flex items-center space-x-2 mb-2">
                   <input
@@ -308,8 +329,10 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
                 <input
                   type="text"
                   value={formData.startCommand}
-                  onChange={(e) => handleInputChange('startCommand', e.target.value)}
-                  className="flex-1 p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) =>
+                    handleInputChange("startCommand", e.target.value)
+                  }
+                  className="flex-1 p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="npm start"
                 />
               </div>
@@ -318,7 +341,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
         </div>
 
         {/* Environment Variables */}
-        <div className="bg-neutral-800/30 rounded-lg p-6">
+        <div className="bg-neutral-800/30 rounded-lg p-3 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
               <FaEnvira className="w-5 h-5 text-green-500" />
@@ -329,7 +352,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               className="flex items-center space-x-1 text-green-400 hover:text-green-300 text-sm"
             >
               <FaPlus className="w-3 h-3" />
-              <span>Add Variable</span>
+              <span className="hidden sm:inline">Add Variable</span>
             </button>
           </div>
 
@@ -340,7 +363,9 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
                   <input
                     type="text"
                     value={env.key}
-                    onChange={(e) => updateEnvironmentVariable(index, 'key', e.target.value)}
+                    onChange={(e) =>
+                      updateEnvironmentVariable(index, "key", e.target.value)
+                    }
                     className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="KEY"
                   />
@@ -349,7 +374,9 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
                   <input
                     type="text"
                     value={env.value}
-                    onChange={(e) => updateEnvironmentVariable(index, 'value', e.target.value)}
+                    onChange={(e) =>
+                      updateEnvironmentVariable(index, "value", e.target.value)
+                    }
                     className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="value"
                   />
@@ -358,7 +385,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
                   <input
                     type="text"
                     value={env.description}
-                    onChange={(e) => updateEnvironmentVariable(index, 'description', e.target.value)}
+                    onChange={(e) =>
+                      updateEnvironmentVariable(
+                        index,
+                        "description",
+                        e.target.value
+                      )
+                    }
                     className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Description (optional)"
                   />
@@ -376,14 +409,15 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
 
             {formData.environmentVariables.length === 0 && (
               <p className="text-neutral-500 text-sm text-center py-4">
-                No environment variables configured. Click "Add Variable" to add one.
+                No environment variables configured. Click &quot;Add Variable&quot; to add
+                one.
               </p>
             )}
           </div>
         </div>
 
         {/* Resource Configuration */}
-        <div className="bg-neutral-800/30 rounded-lg p-6">
+        <div className="bg-neutral-800/30 rounded-lg p-3 sm:p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
             <FaCogs className="w-5 h-5 text-yellow-500" />
             <span>Resource Configuration</span>
@@ -397,12 +431,12 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               <input
                 type="text"
                 value={formData.deploymentSettings.resources?.cpu}
-                onChange={(e) => handleResourceChange('cpu', e.target.value)}
-                className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => handleResourceChange("cpu", e.target.value)}
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="100m"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
                 Memory Limit
@@ -410,12 +444,12 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               <input
                 type="text"
                 value={formData.deploymentSettings.resources?.memory}
-                onChange={(e) => handleResourceChange('memory', e.target.value)}
-                className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => handleResourceChange("memory", e.target.value)}
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="128Mi"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
                 Replicas
@@ -423,8 +457,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
               <input
                 type="number"
                 value={formData.deploymentSettings?.replicas}
-                onChange={(e) => handleDeploymentSettingChange('replicas', parseInt(e.target.value))}
-                className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) =>
+                  handleDeploymentSettingChange(
+                    "replicas",
+                    parseInt(e.target.value)
+                  )
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="1"
                 max="10"
               />
@@ -434,15 +473,16 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
       </div>
 
       {/* Action Button */}
-      <div className="mt-8 text-center">
+      <div className="mt-6 sm:mt-8 text-center">
         <button
           onClick={handleContinue}
           disabled={!formData.projectName || !formData.startCommand || loading}
           className={`
-            px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center space-x-2
-            ${formData.projectName && formData.startCommand && !loading
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-neutral-700 text-neutral-400 cursor-not-allowed'
+            px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center space-x-2 text-sm sm:text-base
+            ${
+              formData.projectName && formData.startCommand && !loading
+                ? "bg-green-600 hover:bg-green-700 text-white"
+                : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
             }
           `}
         >

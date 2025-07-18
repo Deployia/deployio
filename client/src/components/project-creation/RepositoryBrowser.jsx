@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaSearch,
@@ -30,14 +30,21 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
   // Fetch repositories when component mounts or filters change
   useEffect(() => {
     if (stepData.selectedProvider) {
-      dispatch(fetchRepositories({
-        provider: stepData.selectedProvider,
-        ...localFilters,
-        page: stepData.pagination.page,
-        limit: stepData.pagination.limit,
-      }));
+      dispatch(
+        fetchRepositories({
+          provider: stepData.selectedProvider,
+          ...localFilters,
+          page: stepData.pagination.page,
+          limit: stepData.pagination.limit,
+        })
+      );
     }
-  }, [dispatch, stepData.selectedProvider, localFilters, stepData.pagination.page]);
+  }, [
+    dispatch,
+    stepData.selectedProvider,
+    localFilters,
+    stepData.pagination.page,
+  ]);
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...localFilters, [key]: value };
@@ -57,65 +64,66 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const getLanguageColor = (language) => {
     const colors = {
-      JavaScript: 'bg-yellow-500',
-      TypeScript: 'bg-blue-500',
-      Python: 'bg-green-500',
-      Java: 'bg-red-500',
-      'C#': 'bg-purple-500',
-      PHP: 'bg-indigo-500',
-      Ruby: 'bg-red-600',
-      Go: 'bg-cyan-500',
-      Rust: 'bg-orange-600',
-      'C++': 'bg-blue-600',
+      JavaScript: "bg-yellow-500",
+      TypeScript: "bg-blue-500",
+      Python: "bg-green-500",
+      Java: "bg-red-500",
+      "C#": "bg-purple-500",
+      PHP: "bg-indigo-500",
+      Ruby: "bg-red-600",
+      Go: "bg-cyan-500",
+      Rust: "bg-orange-600",
+      "C++": "bg-blue-600",
     };
-    return colors[language] || 'bg-neutral-500';
+    return colors[language] || "bg-neutral-500";
   };
 
   const sortOptions = [
-    { value: 'updated', label: 'Recently Updated' },
-    { value: 'created', label: 'Recently Created' },
-    { value: 'name', label: 'Name' },
-    { value: 'stars', label: 'Stars' },
+    { value: "updated", label: "Recently Updated" },
+    { value: "created", label: "Recently Created" },
+    { value: "name", label: "Name" },
+    { value: "stars", label: "Stars" },
   ];
 
   const typeOptions = [
-    { value: 'all', label: 'All Repositories' },
-    { value: 'public', label: 'Public Only' },
-    { value: 'private', label: 'Private Only' },
+    { value: "all", label: "All Repositories" },
+    { value: "public", label: "Public Only" },
+    { value: "private", label: "Private Only" },
   ];
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6">
       {/* Header */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-6 sm:mb-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FaCodeBranch className="w-8 h-8 text-green-500" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <FaCodeBranch className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
             Select Your Repository
           </h2>
-          <p className="text-neutral-400 max-w-2xl mx-auto">
-            Choose the repository you want to deploy. We'll analyze its structure 
-            and dependencies to create the optimal deployment configuration.
+          <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto px-2">
+            Choose the repository you want to deploy. We&apos;ll analyze its
+            structure and dependencies to create the optimal deployment
+            configuration.
           </p>
         </motion.div>
       </div>
 
       {/* Search and Filters */}
-      <div className="mb-6 space-y-4">
+      <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
         {/* Search Bar */}
         <div className="relative">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -123,19 +131,19 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
             type="text"
             placeholder="Search repositories..."
             value={localFilters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={(e) => handleFilterChange("search", e.target.value)}
+            className="w-full pl-10 pr-4 py-2 sm:py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
           />
         </div>
 
         {/* Filter Toggle */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center space-x-2 text-neutral-400 hover:text-white transition-colors"
+            className="flex items-center justify-center sm:justify-start gap-2 text-neutral-400 hover:text-white transition-colors py-2 sm:py-0"
           >
             <FaFilter className="w-4 h-4" />
-            <span>Filters</span>
+            <span className="text-sm sm:text-base">Filters</span>
             {showFilters ? (
               <FaChevronUp className="w-4 h-4" />
             ) : (
@@ -143,7 +151,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
             )}
           </button>
 
-          <div className="text-sm text-neutral-400">
+          <div className="text-xs sm:text-sm text-neutral-400 text-center sm:text-right">
             {stepData.repositories.length} repositories found
           </div>
         </div>
@@ -155,7 +163,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-neutral-800/50 rounded-lg border border-neutral-700"
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 bg-neutral-800/50 rounded-lg border border-neutral-700"
             >
               {/* Sort Option */}
               <div>
@@ -164,7 +172,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
                 </label>
                 <select
                   value={localFilters.sort}
-                  onChange={(e) => handleFilterChange('sort', e.target.value)}
+                  onChange={(e) => handleFilterChange("sort", e.target.value)}
                   className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {sortOptions.map((option) => (
@@ -182,7 +190,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
                 </label>
                 <select
                   value={localFilters.type}
-                  onChange={(e) => handleFilterChange('type', e.target.value)}
+                  onChange={(e) => handleFilterChange("type", e.target.value)}
                   className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {typeOptions.map((option) => (
@@ -202,7 +210,9 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <FaSpinner className="w-8 h-8 text-blue-500 animate-spin" />
-            <span className="ml-3 text-neutral-400">Loading repositories...</span>
+            <span className="ml-3 text-neutral-400">
+              Loading repositories...
+            </span>
           </div>
         ) : stepData.repositories.length === 0 ? (
           <div className="text-center py-12">
@@ -219,7 +229,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
         ) : (
           stepData.repositories.map((repo, index) => {
             const isSelected = stepData.selectedRepository?.id === repo.id;
-            
+
             return (
               <motion.div
                 key={repo.id}
@@ -227,10 +237,11 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className={`
-                  p-6 rounded-lg border-2 transition-all duration-300 cursor-pointer
-                  ${isSelected 
-                    ? 'bg-blue-500/10 border-blue-500/50 ring-2 ring-blue-500/20' 
-                    : 'bg-neutral-800/50 border-neutral-700 hover:border-neutral-600 hover:bg-neutral-800/70'
+                  p-4 sm:p-6 rounded-lg border-2 transition-all duration-300 cursor-pointer
+                  ${
+                    isSelected
+                      ? "bg-blue-500/10 border-blue-500/50 ring-2 ring-blue-500/20"
+                      : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-600 hover:bg-neutral-800/70"
                   }
                 `}
                 onClick={() => handleRepositorySelect(repo)}
@@ -266,18 +277,22 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
                     <div className="flex items-center space-x-6 text-sm text-neutral-400">
                       {repo.language && (
                         <div className="flex items-center space-x-2">
-                          <div className={`w-3 h-3 rounded-full ${getLanguageColor(repo.language)}`} />
+                          <div
+                            className={`w-3 h-3 rounded-full ${getLanguageColor(
+                              repo.language
+                            )}`}
+                          />
                           <span>{repo.language}</span>
                         </div>
                       )}
-                      
+
                       {repo.stars > 0 && (
                         <div className="flex items-center space-x-1">
                           <FaStar className="w-3 h-3" />
                           <span>{repo.stars}</span>
                         </div>
                       )}
-                      
+
                       <div className="flex items-center space-x-1">
                         <FaClock className="w-3 h-3" />
                         <span>Updated {formatDate(repo.updatedAt)}</span>
@@ -331,7 +346,8 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
             Previous
           </button>
           <span className="text-neutral-400">
-            Page {stepData.pagination.page} of {Math.ceil(stepData.pagination.total / stepData.pagination.limit)}
+            Page {stepData.pagination.page} of{" "}
+            {Math.ceil(stepData.pagination.total / stepData.pagination.limit)}
           </span>
           <button
             disabled={!stepData.pagination.hasNext}
@@ -349,13 +365,15 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
           disabled={!stepData.selectedRepository || loading}
           className={`
             px-8 py-3 rounded-lg font-medium transition-all
-            ${stepData.selectedRepository && !loading
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-neutral-700 text-neutral-400 cursor-not-allowed'
+            ${
+              stepData.selectedRepository && !loading
+                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
             }
           `}
         >
-          Continue with {stepData.selectedRepository?.name || 'Selected Repository'}
+          Continue with{" "}
+          {stepData.selectedRepository?.name || "Selected Repository"}
         </button>
       </div>
     </div>
