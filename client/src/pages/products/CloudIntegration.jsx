@@ -120,13 +120,14 @@ const CloudIntegration = () => {
     secondaryCTA: {
       text: "View Documentation",
       icon: FaPlay,
-      onClick: () => window.open("/resources/docs/products/cloud-integration", "_blank"),
+      onClick: () =>
+        window.open("/resources/docs/products/cloud-integration", "_blank"),
     },
     gradient: "from-cyan-400 via-blue-400 to-purple-400",
     visual: (
-      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-4 sm:p-6 md:p-8">
-        <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-center text-cyan-400 text-xs sm:text-sm font-semibold mb-4 sm:mb-6">
+      <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-3 sm:p-4 md:p-6">
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex items-center text-cyan-400 text-xs font-semibold mb-3 sm:mb-4">
             <div className="w-2 h-2 sm:w-3 sm:h-3 bg-cyan-500 rounded-full mr-2 sm:mr-3 animate-pulse"></div>
             <span className="hidden sm:inline">
               Multi-Cloud Platform Active
@@ -134,7 +135,7 @@ const CloudIntegration = () => {
             <span className="sm:hidden">Multi-Cloud Active</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6">
+          <div className="grid grid-cols-3 gap-2 mb-3 sm:mb-4">
             {[
               {
                 icon: FaAws,
@@ -160,12 +161,12 @@ const CloudIntegration = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.5 + index * 0.1, duration: 0.4 }}
-                className={`p-2 sm:p-3 bg-${provider.color}-500/10 border border-${provider.color}-500/20 rounded-lg text-center`}
+                className={`p-2 bg-${provider.color}-500/10 border border-${provider.color}-500/20 rounded-lg text-center`}
               >
                 <provider.icon
-                  className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-${provider.color}-400 mx-auto mb-1 sm:mb-2`}
+                  className={`w-3 h-3 sm:w-4 sm:h-4 text-${provider.color}-400 mx-auto mb-1`}
                 />
-                <div className="text-white text-xs sm:text-sm font-medium">
+                <div className="text-white text-xs font-medium">
                   {provider.name}
                 </div>
                 <div
@@ -205,29 +206,27 @@ const CloudIntegration = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1 + index * 0.2, duration: 0.5 }}
-              className={`flex items-center justify-between p-3 sm:p-4 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
+              className={`flex items-center justify-between p-2 sm:p-3 bg-${step.color}-500/10 border border-${step.color}-500/20 rounded-lg`}
             >
               <div className="flex items-center min-w-0 flex-1">
                 <step.icon
-                  className={`w-4 h-4 sm:w-5 sm:h-5 text-${step.color}-400 mr-2 sm:mr-3 flex-shrink-0`}
+                  className={`w-3 h-3 sm:w-4 sm:h-4 text-${step.color}-400 mr-2 flex-shrink-0`}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-white font-medium text-sm sm:text-base truncate">
+                  <div className="text-white font-medium text-xs sm:text-sm truncate">
                     {step.title}
                   </div>
-                  <div className="text-gray-400 text-xs sm:text-sm truncate">
+                  <div className="text-gray-400 text-xs truncate">
                     {step.desc}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
-                <div
-                  className={`text-${step.color}-400 font-bold text-xs sm:text-sm`}
-                >
+              <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
+                <div className={`text-${step.color}-400 font-bold text-xs`}>
                   {step.time}
                 </div>
                 <div
-                  className={`text-${step.color}-400 font-bold text-sm sm:text-base`}
+                  className={`text-${step.color}-400 font-bold text-xs sm:text-sm`}
                 >
                   ✓
                 </div>
@@ -235,14 +234,12 @@ const CloudIntegration = () => {
             </motion.div>
           ))}
 
-          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-700/50">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-700/50">
             <div className="text-center">
-              <div className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 truncate">
+              <div className="text-lg sm:text-xl font-bold text-white mb-1 truncate">
                 my-app.deployio.app
               </div>
-              <div className="text-cyan-400 text-xs sm:text-sm">
-                Live on AWS EC2
-              </div>
+              <div className="text-cyan-400 text-xs">Live on AWS EC2</div>
             </div>
           </div>
         </div>

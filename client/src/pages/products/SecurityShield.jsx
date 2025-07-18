@@ -160,8 +160,10 @@ const SecurityShield = () => {
     secondaryCTA: {
       text: "View Documentation",
       icon: FaPlay,
-      onClick: () => window.open("/resources/docs/products/security-shield", "_blank"),
+      onClick: () =>
+        window.open("/resources/docs/products/security-shield", "_blank"),
     },
+    gradient: "from-red-400 via-orange-400 to-red-500",
     visual: (
       <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-4 sm:p-6 md:p-8">
         <div className="flex items-center mb-4 sm:mb-6">

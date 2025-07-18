@@ -15,7 +15,7 @@ const DownloadHero = ({
   downloadStats,
 }) => {
   return (
-    <section className="relative py-12 sm:py-16 lg:py-20 px-4 sm:px-6 overflow-hidden">
+    <section className="relative py-4 sm:py-8 lg:py-12 px-4 sm:px-6 overflow-hidden">
       <div className="absolute inset-0 opacity-10">
         <div
           className="absolute inset-0"
@@ -26,8 +26,8 @@ const DownloadHero = ({
         ></div>
       </div>
 
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 items-center">
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -55,7 +55,7 @@ const DownloadHero = ({
                 {comingSoonBadge.text}
               </div>
             )}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">
               <span className="text-white">{title}</span>
               {subtitle && (
                 <span
@@ -71,14 +71,14 @@ const DownloadHero = ({
                 <span className="text-white font-bold ml-1">{version}</span>
               </div>
             )}
-            <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-6 sm:mb-8">
+            <p className="text-base sm:text-lg text-gray-300 leading-relaxed mb-4 sm:mb-6">
               {description}
             </p>
             {downloadStats && (
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
                 {downloadStats.map((stat, index) => (
                   <div key={index} className="text-center">
-                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-white">
+                    <div className="text-base sm:text-lg md:text-xl font-bold text-white">
                       {stat.value}
                     </div>
                     <div className="text-gray-400 text-xs sm:text-sm">
@@ -88,14 +88,14 @@ const DownloadHero = ({
                 ))}
               </div>
             )}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               {primaryCTA && (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={primaryCTA.onClick}
                   disabled={primaryCTA.loading}
-                  className={`flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r ${gradient} text-black font-bold rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl text-sm sm:text-base`}
+                  className={`flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r ${gradient} text-black font-bold rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl text-xs sm:text-sm`}
                 >
                   {primaryCTA.loading ? (
                     <>

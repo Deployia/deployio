@@ -13,15 +13,15 @@ const ProductHero = ({
   gradient = "from-blue-400 via-purple-400 to-green-400",
 }) => {
   return (
-    <section className="relative min-h-screen py-16 lg:py-24 px-4 sm:px-6 overflow-hidden flex items-center">
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+    <section className="relative py-4 sm:py-8 lg:py-12 px-4 sm:px-6 overflow-hidden">
+      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Content */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 1, ease: "easeOut" }}
-            className="text-center lg:text-left space-y-8"
+            className="text-center lg:text-left space-y-4 sm:space-y-6"
           >
             {badge && !comingSoonBadge && (
               <motion.div
@@ -73,7 +73,7 @@ const ProductHero = ({
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight"
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight"
             >
               {title}
               <motion.span
@@ -90,7 +90,7 @@ const ProductHero = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
-              className="text-xl md:text-2xl text-gray-300 leading-relaxed max-w-2xl mx-auto lg:mx-0"
+              className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl mx-auto lg:mx-0"
             >
               {description}
             </motion.p>
@@ -99,7 +99,7 @@ const ProductHero = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.8 }}
-              className="flex flex-col sm:flex-row gap-4 md:gap-6"
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4"
             >
               {primaryCTA && (
                 <motion.button
@@ -107,11 +107,11 @@ const ProductHero = ({
                   whileTap={{ scale: 0.95 }}
                   onClick={primaryCTA.onClick}
                   disabled={primaryCTA.disabled}
-                  className="group px-8 md:px-10 py-4 md:py-5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 flex items-center justify-center text-base md:text-lg relative overflow-hidden"
+                  className="group px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 flex items-center justify-center text-sm sm:text-base relative overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   {primaryCTA.icon && (
-                    <primaryCTA.icon className="w-5 h-5 md:w-6 md:h-6 mr-3 relative z-10" />
+                    <primaryCTA.icon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 relative z-10" />
                   )}
                   <span className="relative z-10">{primaryCTA.text}</span>
                 </motion.button>
@@ -123,7 +123,7 @@ const ProductHero = ({
                   whileTap={{ scale: 0.95 }}
                   onClick={secondaryCTA.onClick}
                   disabled={secondaryCTA.disabled}
-                  className="group px-8 md:px-10 py-4 md:py-5 border-2 border-gray-600 hover:border-blue-500/50 text-gray-300 hover:text-white font-bold rounded-2xl transition-all duration-300 flex items-center justify-center text-base md:text-lg backdrop-blur-sm bg-black/20 hover:bg-black/30"
+                  className="group px-6 sm:px-8 py-3 sm:py-4 border-2 border-gray-600 hover:border-blue-500/50 text-gray-300 hover:text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center text-sm sm:text-base backdrop-blur-sm bg-black/20 hover:bg-black/30"
                 >
                   {secondaryCTA.loading ? (
                     <>
@@ -133,7 +133,7 @@ const ProductHero = ({
                   ) : (
                     <>
                       {secondaryCTA.icon && (
-                        <secondaryCTA.icon className="w-5 h-5 mr-3" />
+                        <secondaryCTA.icon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
                       )}
                       {secondaryCTA.text}
                     </>

@@ -14,24 +14,24 @@ const DownloadStats = ({
   gradient = "from-emerald-400 to-cyan-400",
 }) => {
   return (
-    <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
-      <div className="max-w-6xl mx-auto">
+    <section className="py-4 sm:py-8 lg:py-12 px-4 sm:px-6">
+      <div className="max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12 sm:mb-16"
+          className="text-center mb-8 sm:mb-12"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-3 sm:mb-4">
             {title}
           </h2>
           {description && (
-            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto">
               {description}
             </p>
           )}
         </motion.div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {stats.map((stat, index) => (
             <motion.div
               key={index}
@@ -40,22 +40,22 @@ const DownloadStats = ({
               transition={{ duration: 0.6, delay: index * 0.1 }}
               className="text-center group"
             >
-              <div className="bg-gray-800/40 backdrop-blur-lg border border-gray-700/50 rounded-2xl p-4 sm:p-6 lg:p-8 hover:border-white/30 transition-all duration-300">
+              <div className="bg-gray-800/40 backdrop-blur-lg border border-gray-700/50 rounded-xl p-3 sm:p-4 lg:p-6 hover:border-white/30 transition-all duration-300">
                 {stat.icon && (
                   <div
-                    className={`p-3 sm:p-4 bg-gradient-to-r ${gradient}/20 rounded-xl inline-block mb-3 sm:mb-4`}
+                    className={`p-2 sm:p-3 bg-gradient-to-r ${gradient}/20 rounded-lg inline-block mb-2 sm:mb-3`}
                   >
                     {React.createElement(stat.icon, {
-                      className: "w-5 h-5 sm:w-6 sm:h-6 text-white",
+                      className: "w-4 h-4 sm:w-5 sm:h-5 text-white",
                     })}
                   </div>
                 )}{" "}
                 <div
-                  className={`text-xl sm:text-2xl md:text-3xl font-bold mb-2 text-transparent bg-gradient-to-r ${gradient} bg-clip-text`}
+                  className={`text-lg sm:text-xl md:text-2xl font-bold mb-1 text-transparent bg-gradient-to-r ${gradient} bg-clip-text`}
                 >
                   {stat.value}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">
+                <div className="text-gray-300 font-medium text-xs sm:text-sm">
                   {stat.label}
                 </div>
               </div>
