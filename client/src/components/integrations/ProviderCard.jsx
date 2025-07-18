@@ -1,10 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  FaGithub,
-  FaGitlab,
-  FaBitbucket,
-  FaMicrosoft,
   FaPlus,
   FaTrash,
   FaClock,
@@ -12,8 +8,12 @@ import {
   FaExclamationTriangle,
   FaStar,
   FaEye,
-  FaLock,
 } from "react-icons/fa";
+import {
+  getProviderIcon,
+  getProviderColor,
+  getProviderBgColor,
+} from "@utils/providerUtils";
 
 const ProviderCard = ({
   provider,
@@ -24,38 +24,10 @@ const ProviderCard = ({
   isRefreshing,
 }) => {
   const navigate = useNavigate();
-  const getProviderIcon = () => {
-    switch (provider.id) {
-      case "github":
-        return FaGithub;
-      case "gitlab":
-        return FaGitlab;
-      case "bitbucket":
-        return FaBitbucket;
-      case "azure":
-        return FaMicrosoft;
-      default:
-        return FaPlus;
-    }
-  };
 
-  const getProviderColor = () => {
-    switch (provider.id) {
-      case "github":
-        return "gray";
-      case "gitlab":
-        return "orange";
-      case "bitbucket":
-        return "blue";
-      case "azure":
-        return "blue";
-      default:
-        return "gray";
-    }
-  };
-
-  const Icon = getProviderIcon();
-  const color = getProviderColor();
+  const Icon = getProviderIcon(provider.id);
+  const color = getProviderColor(provider.id);
+  const bgColor = getProviderBgColor(provider.id);
   const isConnected = connection?.connected;
   const isComingSoon = provider.comingSoon;
   const isEnabled = provider.enabled && !isComingSoon;
@@ -110,17 +82,13 @@ const ProviderCard = ({
           <div
             className={`
             p-2 sm:p-3 rounded-lg transition-colors flex-shrink-0
-            ${
-              isEnabled
-                ? `bg-${color}-500/20 group-hover:bg-${color}-500/30`
-                : "bg-neutral-800/50"
-            }
+            ${`${bgColor} group-hover:bg-opacity-80`}
           `}
           >
             <Icon
               className={`
               w-5 h-5 sm:w-6 sm:h-6 
-              ${isEnabled ? `text-${color}-400` : "text-neutral-500"}
+              ${color}
             `}
             />
           </div>
@@ -190,19 +158,6 @@ const ProviderCard = ({
               {formatLastSync(connection.lastSync)}
             </span>
           </div>
-
-          {connection.repositories && (
-            <div className="flex items-center gap-4 text-xs text-gray-400">
-              <div className="flex items-center gap-1">
-                <FaEye className="w-3 h-3" />
-                <span>{connection.repositories.public} public</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <FaLock className="w-3 h-3" />
-                <span>{connection.repositories.private} private</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

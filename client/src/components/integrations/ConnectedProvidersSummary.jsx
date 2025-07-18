@@ -16,21 +16,21 @@ import {
 const ConnectedProvidersSummary = ({ onManageClick }) => {
   const connectedProviders = useSelector(selectConnectedProviders);
   const { connectionsLoading } = useSelector(selectUI);
+  const repositories = useSelector((state) => state.gitProvider.repositories);
 
   // Calculate summary stats
   const totalConnected = connectedProviders.length;
-  const totalRepositories = connectedProviders.reduce(
-    (sum, provider) => sum + (provider.repositories?.count || 0),
-    0
-  );
+  const totalRepositories = connectedProviders.reduce((sum, provider) => {
+    const repoData = repositories[provider.provider];
+    return sum + (repoData?.pagination?.totalCount || 0);
+  }, 0);
 
   // Get most recent sync
   const lastSync = connectedProviders.reduce((latest, provider) => {
-    if (!provider.lastSync) return latest;
-    const syncDate = new Date(provider.lastSync);
+    if (!provider.lastUsed) return latest;
+    const syncDate = new Date(provider.lastUsed);
     return !latest || syncDate > latest ? syncDate : latest;
   }, null);
-
   const formatLastSync = (date) => {
     if (!date) return "Never";
     const now = new Date();
@@ -59,15 +59,15 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
   if (connectionsLoading) {
     return (
       <div className="mb-6 sm:mb-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 animate-pulse"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4 lg:p-6 animate-pulse"
             >
-              <div className="h-4 bg-neutral-800/50 rounded w-1/2 mb-4"></div>
-              <div className="h-8 bg-neutral-800/50 rounded w-1/3 mb-2"></div>
-              <div className="h-3 bg-neutral-800/50 rounded w-3/4"></div>
+              <div className="h-3 sm:h-4 bg-neutral-800/50 rounded w-1/2 mb-3 sm:mb-4"></div>
+              <div className="h-6 sm:h-8 bg-neutral-800/50 rounded w-1/3 mb-2"></div>
+              <div className="h-2 sm:h-3 bg-neutral-800/50 rounded w-3/4"></div>
             </div>
           ))}
         </div>
@@ -82,10 +82,10 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
       transition={{ delay: 0.1 }}
       className="mb-6 sm:mb-8"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {/* Connected Providers */}
         <div
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4 lg:p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
           onClick={onManageClick}
         >
           <div className="flex items-center gap-3 mb-2">
@@ -137,7 +137,7 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
         </div>
 
         {/* Total Repositories */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4 lg:p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-green-500/20 rounded-lg">
               <FaGithub className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
@@ -155,7 +155,7 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
         </div>
 
         {/* Last Sync */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 sm:col-span-2 lg:col-span-1">
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4 lg:p-6 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-purple-500/20 rounded-lg">
               <FaSyncAlt className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />

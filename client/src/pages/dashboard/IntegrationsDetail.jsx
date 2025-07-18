@@ -2,14 +2,7 @@ import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
-import {
-  FaArrowLeft,
-  FaGithub,
-  FaGitlab,
-  FaBitbucket,
-  FaMicrosoft,
-  FaExternalLinkAlt,
-} from "react-icons/fa";
+import { FaArrowLeft, FaExternalLinkAlt } from "react-icons/fa";
 import SEO from "@components/SEO";
 import LoadingSpinner from "@components/LoadingSpinner";
 import { RepositorySection } from "@components/integrations";
@@ -19,6 +12,12 @@ import {
   selectRepositories,
   selectUI,
 } from "@redux/slices/gitProviderSlice";
+import {
+  getProviderIcon,
+  getProviderDisplayName,
+  getProviderColor,
+  getProviderBgColor,
+} from "@utils/providerUtils";
 
 const IntegrationsDetail = () => {
   const { provider } = useParams();
@@ -40,56 +39,10 @@ const IntegrationsDetail = () => {
     }
   }, [dispatch, connectedProviders.length]);
 
-  const getProviderIcon = (providerName) => {
-    switch (providerName) {
-      case "github":
-        return FaGithub;
-      case "gitlab":
-        return FaGitlab;
-      case "bitbucket":
-        return FaBitbucket;
-      case "azure":
-      case "azuredevops":
-        return FaMicrosoft;
-      default:
-        return FaExternalLinkAlt;
-    }
-  };
-
-  const getProviderDisplayName = (providerName) => {
-    switch (providerName) {
-      case "github":
-        return "GitHub";
-      case "gitlab":
-        return "GitLab";
-      case "bitbucket":
-        return "Bitbucket";
-      case "azure":
-      case "azuredevops":
-        return "Azure DevOps";
-      default:
-        return (
-          providerName?.charAt(0).toUpperCase() + providerName?.slice(1) ||
-          "Unknown"
-        );
-    }
-  };
-
-  const getProviderColor = (providerName) => {
-    switch (providerName) {
-      case "github":
-        return "text-gray-300";
-      case "gitlab":
-        return "text-orange-400";
-      case "bitbucket":
-        return "text-blue-400";
-      case "azure":
-      case "azuredevops":
-        return "text-blue-500";
-      default:
-        return "text-gray-400";
-    }
-  };
+  const ProviderIcon = getProviderIcon(provider);
+  const providerColor = getProviderColor(provider);
+  const providerBgColor = getProviderBgColor(provider);
+  const providerDisplayName = getProviderDisplayName(provider);
 
   // Loading state
   if (ui.connectionsLoading) {
@@ -121,7 +74,7 @@ const IntegrationsDetail = () => {
             <FaArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-2xl sm:text-3xl font-bold text-white heading">
-            {getProviderDisplayName(provider)} Integration
+            {providerDisplayName} Integration
           </h1>
         </div>
 
@@ -130,11 +83,11 @@ const IntegrationsDetail = () => {
             <FaExternalLinkAlt className="w-6 h-6 sm:w-8 sm:h-8 text-red-400" />
           </div>
           <h2 className="text-lg sm:text-xl font-semibold text-white mb-2 heading">
-            {getProviderDisplayName(provider)} Not Connected
+            {providerDisplayName} Not Connected
           </h2>
           <p className="text-gray-400 mb-6 text-sm sm:text-base body">
-            You need to connect your {getProviderDisplayName(provider)} account
-            to view repositories.
+            You need to connect your {providerDisplayName} account to view
+            repositories.
           </p>
           <button
             onClick={() => navigate("/dashboard/integrations")}
@@ -147,16 +100,11 @@ const IntegrationsDetail = () => {
     );
   }
 
-  const ProviderIcon = getProviderIcon(provider);
-  const providerColor = getProviderColor(provider);
-
   return (
     <div className="dashboard-page">
       <SEO
-        title={`${getProviderDisplayName(provider)} Integration - DeployIO`}
-        description={`Manage your ${getProviderDisplayName(
-          provider
-        )} integration and repositories`}
+        title={`${providerDisplayName} Integration - DeployIO`}
+        description={`Manage your ${providerDisplayName} integration and repositories`}
       />
 
       {/* Header */}
@@ -172,14 +120,14 @@ const IntegrationsDetail = () => {
           <FaArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-3">
-          <div className="p-2 sm:p-3 bg-neutral-800/50 rounded-lg">
+          <div className={`p-2 sm:p-3 ${providerBgColor} rounded-lg`}>
             <ProviderIcon
               className={`w-5 h-5 sm:w-6 sm:h-6 ${providerColor}`}
             />
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white heading">
-              {getProviderDisplayName(provider)} Integration
+              {providerDisplayName} Integration
             </h1>
             <p className="text-gray-400 text-sm sm:text-base body">
               Connected as {currentProvider.username || currentProvider.email}
@@ -234,7 +182,6 @@ const IntegrationsDetail = () => {
         <RepositorySection
           connectedProviders={[currentProvider]}
           repositories={repositories}
-          maxHeight="600px"
           showViewAllButton={false}
           className="h-full"
         />
