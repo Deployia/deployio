@@ -139,6 +139,8 @@ const AnalyticsTab = () => {
     };
   }, [activities, selectedTimeRange]);
 
+  console.log("Analytics Data:", analyticsData);
+
   const timeRangeOptions = [
     { value: "24h", label: "Last 24 Hours" },
     { value: "7d", label: "Last 7 Days" },
@@ -242,7 +244,10 @@ const AnalyticsTab = () => {
     <ProfileErrorBoundary fallbackMessage="Failed to load audit analytics">
       <div className="space-y-6">
         {/* Header with time range selector */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div
+          id="analytics-header"
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+        >
           <div>
             <h2 className="text-2xl font-bold text-white mb-1">
               Audit Analytics
@@ -274,7 +279,10 @@ const AnalyticsTab = () => {
         </div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div
+          id="analytics-metrics"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -351,7 +359,10 @@ const AnalyticsTab = () => {
           </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div
+          id="analytics-distributions"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
           {/* Category Distribution */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -458,6 +469,7 @@ const AnalyticsTab = () => {
 
         {/* Hourly Activity Pattern */}
         <motion.div
+          id="analytics-activity-pattern"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
@@ -466,23 +478,40 @@ const AnalyticsTab = () => {
           <h3 className="text-lg font-semibold text-white mb-4">
             Activity Pattern (24h)
           </h3>
-          <div className="flex items-end gap-1 h-32">
+          <div className="flex items-end justify-between gap-1 h-40 bg-neutral-800/30 rounded-lg p-4">
             {analyticsData.hourlyActivity.map((count, hour) => {
               const maxCount = Math.max(...analyticsData.hourlyActivity);
-              const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+              const height =
+                maxCount > 0
+                  ? Math.max((count / maxCount) * 100, count > 0 ? 8 : 0)
+                  : 0;
               return (
-                <div key={hour} className="flex-1 flex flex-col items-center">
+                <div
+                  key={hour}
+                  className="flex flex-col items-center min-w-[12px]"
+                >
                   <div
-                    className="bg-blue-500 w-full transition-all duration-300 hover:bg-blue-400 rounded-t"
-                    style={{ height: `${height}%` }}
+                    className={`w-3 transition-all duration-300 rounded-t ${
+                      count > 0
+                        ? "bg-blue-500 hover:bg-blue-400 cursor-pointer"
+                        : "bg-neutral-700/50"
+                    }`}
+                    style={{
+                      height: `${height}%`,
+                      minHeight: count > 0 ? "8px" : "2px",
+                    }}
                     title={`${hour}:00 - ${count} events`}
                   />
-                  {hour % 4 === 0 && (
-                    <span className="text-xs text-gray-400 mt-1">{hour}h</span>
+                  {hour % 6 === 0 && (
+                    <span className="text-xs text-gray-400 mt-2">{hour}h</span>
                   )}
                 </div>
               );
             })}
+          </div>
+          <div className="mt-4 text-sm text-gray-400">
+            Peak activity: {analyticsData.peakHour.hour}:00 (
+            {analyticsData.peakHour.count} events)
           </div>
         </motion.div>
       </div>

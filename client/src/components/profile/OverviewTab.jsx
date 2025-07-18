@@ -13,6 +13,7 @@ import {
   FaExclamationTriangle,
   FaKey,
   FaBell,
+  FaCog,
 } from "react-icons/fa";
 import {
   fetchDashboardStats,
@@ -146,25 +147,43 @@ const OverviewTab = () => {
   const quickActions = useMemo(() => {
     const baseActions = [
       {
-        label: "Update Profile",
+        label: "Edit Profile Information",
         icon: FaUser,
         color: "bg-blue-500/20 text-blue-400",
-        href: "/dashboard/profile?tab=profile",
+        href: "/dashboard/profile?tab=profile&section=profile-information",
       },
       {
-        label: "Security Settings",
+        label: "Manage Passwords",
+        icon: FaKey,
+        color: "bg-green-500/20 text-green-400",
+        href: "/dashboard/profile?tab=security&section=security-password",
+      },
+      {
+        label: "Two-Factor Authentication",
         icon: FaShieldAlt,
         color: "bg-red-500/20 text-red-400",
-        href: "/dashboard/profile?tab=security",
+        href: "/dashboard/profile?tab=security&section=security-2fa",
       },
       {
-        label: "View Analytics",
-        icon: FaChartLine,
+        label: "API Keys Management",
+        icon: FaKey,
         color: "bg-purple-500/20 text-purple-400",
-        href: "/dashboard/profile?tab=analytics",
+        href: "/dashboard/profile?tab=security&section=security-api-keys",
       },
       {
-        label: "Notifications",
+        label: "Active Sessions",
+        icon: FaCog,
+        color: "bg-indigo-500/20 text-indigo-400",
+        href: "/dashboard/profile?tab=sessions",
+      },
+      {
+        label: "Activity Analytics",
+        icon: FaChartLine,
+        color: "bg-blue-500/20 text-blue-400",
+        href: "/dashboard/profile?tab=analytics&section=analytics-activity-pattern",
+      },
+      {
+        label: "Notification Settings",
         icon: FaBell,
         color: "bg-orange-500/20 text-orange-400",
         href: "/dashboard/profile?tab=notifications",
@@ -187,6 +206,18 @@ const OverviewTab = () => {
     const items = [];
 
     // Dynamic recommendations based on current state
+    // Check if user needs to set a password (OAuth-only users)
+    if (!authUser?.hasPassword) {
+      items.push({
+        title: "Set Account Password",
+        description: "Set a password to enable email/password login option",
+        action: "Set Password",
+        priority: "high",
+        icon: FaKey,
+        href: "/dashboard/profile?tab=security&section=security-password",
+      });
+    }
+
     if (!authUser?.twoFactorEnabled) {
       items.push({
         title: "Enable Two-Factor Authentication",
@@ -194,7 +225,7 @@ const OverviewTab = () => {
         action: "Enable 2FA",
         priority: "high",
         icon: FaShieldAlt,
-        href: "/dashboard/profile?tab=security",
+        href: "/dashboard/profile?tab=security&section=security-2fa",
       });
     }
 
@@ -206,18 +237,19 @@ const OverviewTab = () => {
         action: "Update Profile",
         priority: "medium",
         icon: FaUser,
-        href: "/dashboard/profile?tab=profile",
+        href: "/dashboard/profile?tab=profile&section=profile-information",
       });
     }
 
     if (activityMetrics?.securityEvents > 5) {
       items.push({
         title: "Review Security Events",
-        description: "You have multiple security events this week",
-        action: "View Activity",
+        description:
+          "You have multiple security events this week - check your analytics",
+        action: "View Analytics",
         priority: "high",
         icon: FaExclamationTriangle,
-        href: "/dashboard/profile?tab=activity",
+        href: "/dashboard/profile?tab=analytics&section=analytics-activity-pattern",
       });
     }
 
@@ -229,7 +261,7 @@ const OverviewTab = () => {
         action: "Create API Key",
         priority: "medium",
         icon: FaKey,
-        href: "/dashboard/profile?tab=security",
+        href: "/dashboard/profile?tab=security&section=security-api-keys",
       });
     }
 
@@ -244,7 +276,7 @@ const OverviewTab = () => {
         action: "Connect Accounts",
         priority: "medium",
         icon: FaShieldAlt,
-        href: "/dashboard/profile?tab=security",
+        href: "/dashboard/profile?tab=security&section=security-oauth",
       });
     }
 
@@ -255,11 +287,12 @@ const OverviewTab = () => {
     ) {
       items.push({
         title: "Update Password",
-        description: "Your password is older than 90 days",
+        description:
+          "Your password is older than 90 days - consider updating it",
         action: "Change Password",
         priority: "medium",
-        icon: FaShieldAlt,
-        href: "/dashboard/profile?tab=security",
+        icon: FaKey,
+        href: "/dashboard/profile?tab=security&section=security-password",
       });
     }
     return items;

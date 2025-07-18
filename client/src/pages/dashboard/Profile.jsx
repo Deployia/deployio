@@ -1,5 +1,5 @@
 import { useSelector } from "react-redux";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   FaUser,
@@ -31,8 +31,36 @@ function Profile() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
+  // Create refs for each tab content
+  const tabRefs = useRef({
+    overview: null,
+    profile: null,
+    security: null,
+    sessions: null,
+    notifications: null,
+    activity: null,
+    analytics: null,
+  });
+
   // Get minimal user data from auth state (still needed for loading check)
   const { user: authUser } = useSelector((state) => state.auth);
+
+  // Helper function for smooth scrolling with navbar offset
+  const scrollToSection = useCallback((sectionId, delay = 300) => {
+    setTimeout(() => {
+      const sectionElement = document.getElementById(sectionId);
+      if (sectionElement) {
+        const navbarHeight = window.innerWidth >= 1024 ? 100 : 80; // More space on desktop, less on mobile
+        const elementPosition = sectionElement.offsetTop;
+        const offsetPosition = elementPosition - navbarHeight;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+      }
+    }, delay);
+  }, []);
 
   // Tab configuration
   const tabs = useMemo(
@@ -47,9 +75,9 @@ function Profile() {
     ],
     []
   );
-  // Update URL when tab changes
+  // Update URL when tab changes with optional section
   const handleTabChange = useCallback(
-    (tabId) => {
+    (tabId, section = null) => {
       setActiveTab(tabId);
       setShowMobileSidebar(false); // Close mobile sidebar when tab changes
       const newSearchParams = new URLSearchParams(searchParams);
@@ -58,23 +86,45 @@ function Profile() {
       } else {
         newSearchParams.set("tab", tabId);
       }
+
+      // Add section parameter if provided
+      if (section) {
+        newSearchParams.set("section", section);
+      } else {
+        newSearchParams.delete("section");
+      }
+
       setSearchParams(newSearchParams);
 
-      // Scroll to top of the page for better UX
-      window.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: "smooth",
-      });
+      // Scroll to top of the page for better UX, with delay for tab content to render
+      setTimeout(() => {
+        if (section) {
+          // If section is specified, try to scroll to it
+          scrollToSection(section, 0); // No additional delay since we're already in setTimeout
+        } else {
+          // Otherwise scroll to top
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: "smooth",
+          });
+        }
+      }, 100);
     },
-    [searchParams, setSearchParams]
+    [searchParams, setSearchParams, scrollToSection]
   );
 
-  // Handle URL tab changes
+  // Handle URL tab changes and section navigation
   useEffect(() => {
     const tab = searchParams.get("tab") || "overview";
+    const section = searchParams.get("section");
     setActiveTab(tab);
-  }, [searchParams]);
+
+    // If section is specified, scroll to it after component renders
+    if (section) {
+      scrollToSection(section);
+    }
+  }, [searchParams, scrollToSection]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -101,19 +151,25 @@ function Profile() {
     const content = (() => {
       switch (activeTab) {
         case "overview":
-          return <OverviewTab />;
+          return <OverviewTab ref={(el) => (tabRefs.current.overview = el)} />;
         case "profile":
-          return <ProfileTab />;
+          return <ProfileTab ref={(el) => (tabRefs.current.profile = el)} />;
         case "security":
-          return <SecurityTab />;
+          return <SecurityTab ref={(el) => (tabRefs.current.security = el)} />;
         case "sessions":
-          return <SessionsTab />;
+          return <SessionsTab ref={(el) => (tabRefs.current.sessions = el)} />;
         case "notifications":
-          return <NotificationsTab />;
+          return (
+            <NotificationsTab
+              ref={(el) => (tabRefs.current.notifications = el)}
+            />
+          );
         case "activity":
-          return <ActivityTab />;
+          return <ActivityTab ref={(el) => (tabRefs.current.activity = el)} />;
         case "analytics":
-          return <AnalyticsTab />;
+          return (
+            <AnalyticsTab ref={(el) => (tabRefs.current.analytics = el)} />
+          );
         default:
           return null;
       }
@@ -187,7 +243,7 @@ function Profile() {
               showMobileSidebar ? "block" : "hidden lg:block"
             }`}
           >
-            <div className="lg:sticky lg:top-24 lg:h-fit">
+            <div className="lg:sticky lg:top-20 lg:h-fit">
               <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 lg:p-6">
                 <nav className="space-y-1 lg:space-y-2">
                   {tabs.map((tab) => (

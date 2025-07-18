@@ -170,6 +170,7 @@ const SecurityTab = () => {
       <div className="space-y-6">
         {/* Security Score Card */}
         <motion.div
+          id="security-score"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
@@ -251,7 +252,9 @@ const SecurityTab = () => {
         </motion.div>
 
         {/* Password Management */}
+        {/* Password Section */}
         <motion.div
+          id="security-password"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -260,10 +263,13 @@ const SecurityTab = () => {
         </motion.div>
 
         {/* Two-Factor Authentication */}
-        <TwoFactorSection />
+        <div id="security-2fa">
+          <TwoFactorSection />
+        </div>
 
         {/* OAuth Connected Accounts */}
         <motion.div
+          id="security-oauth"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
@@ -272,6 +278,7 @@ const SecurityTab = () => {
         </motion.div>
         {/* API Keys Management */}
         <motion.div
+          id="security-api-keys"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}

@@ -136,7 +136,7 @@ class AuthNotifications {
           label: "Get Started",
           url: `${
             process.env.FRONTEND_URL || "https://deployio.tech"
-          }/getting-started`,
+          }/dashboard`,
           type: "button",
         },
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -222,7 +222,7 @@ class AuthNotifications {
           label: "Security Settings",
           url: `${
             process.env.FRONTEND_URL || "https://deployio.tech"
-          }/settings/security`,
+          }/dashboard/profile?tab=security&section=security-password`,
           type: "button",
         },
       });
@@ -269,7 +269,7 @@ class AuthNotifications {
           label: "Review Security Settings",
           url: `${
             process.env.FRONTEND_URL || "https://deployio.tech"
-          }/settings/security`,
+          }/dashboard/profile?tab=security`,
           type: "button",
         },
       });
@@ -316,7 +316,7 @@ class AuthNotifications {
           label: "Security Settings",
           url: `${
             process.env.FRONTEND_URL || "https://deployio.tech"
-          }/settings/security`,
+          }/dashboard/profile?tab=security&section=security-2fa`,
           type: "button",
         },
       });
@@ -409,7 +409,7 @@ class AuthNotifications {
           label: "Review Account Security",
           url: `${
             process.env.FRONTEND_URL || "https://deployio.tech"
-          }/account/security`,
+          }/dashboard/profile?tab=security`,
           type: "button",
         },
       });

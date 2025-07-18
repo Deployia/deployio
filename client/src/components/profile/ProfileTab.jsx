@@ -119,14 +119,17 @@ const ProfileTab = () => {
 
   return (
     <ProfileErrorBoundary fallbackMessage="Failed to load profile">
-      <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-8">
+      <div
+        id="profile-information"
+        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-8"
+      >
         <h3 className="text-xl font-semibold text-white mb-6">
           Profile Information
         </h3>
 
         <form onSubmit={handleProfileSubmit} className="space-y-6">
           {/* Profile Image */}
-          <div className="flex items-center gap-6">
+          <div id="profile-image" className="flex items-center gap-6">
             <div className="relative">
               {" "}
               <img
