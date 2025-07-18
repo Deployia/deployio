@@ -18,6 +18,11 @@ import {
   FaUser,
   FaShoppingCart,
   FaRedo,
+  FaReact,
+  FaVuejs,
+  FaNodeJs,
+  FaPython,
+  FaDatabase,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid } from "@components/LoadingSpinner";
@@ -60,13 +65,18 @@ const Projects = () => {
 
   // Helper function to detect technology from project data
   const detectTechnology = (project) => {
-    // First, try to get from stack analysis if available
-    if (project.stackAnalysis?.primary?.name) {
-      return project.stackAnalysis.primary.name;
+    // Use the backend's technology structure first
+    if (project.technology?.primary) {
+      return project.technology.primary;
     }
 
-    // Try to infer from project name
-    const name = project.name.toLowerCase();
+    // Fallback to AI analysis if available
+    if (project.aiAnalysis?.technologyStack?.primary) {
+      return project.aiAnalysis.technologyStack.primary;
+    }
+
+    // Try to infer from project name as last resort
+    const name = project.name?.toLowerCase() || "";
     if (name.includes("vue") || name.includes("nuxt")) return "Vue.js";
     if (name.includes("react") || name.includes("next")) return "React";
     if (
@@ -86,15 +96,7 @@ const Projects = () => {
       return "Management System";
     if (name.includes("portfolio")) return "Portfolio";
 
-    // Check technology field if it's not "None"
-    if (
-      project.technology?.database &&
-      project.technology.database !== "None"
-    ) {
-      return project.technology.database;
-    }
-
-    return "Unknown";
+    return "Other";
   };
 
   // Filter projects based on selected filter
@@ -183,16 +185,20 @@ const Projects = () => {
   };
 
   const getFrameworkIcon = (framework) => {
-    const fw = framework.toLowerCase();
+    const fw = framework?.toLowerCase() || "";
     switch (true) {
       case fw.includes("react"):
-        return <FaCode className="w-4 h-4 text-blue-400" />;
+        return <FaReact className="w-4 h-4 text-blue-400" />;
       case fw.includes("vue"):
-        return <FaCode className="w-4 h-4 text-green-400" />;
+        return <FaVuejs className="w-4 h-4 text-green-400" />;
       case fw.includes("node") || fw.includes("express"):
-        return <FaCode className="w-4 h-4 text-green-500" />;
+        return <FaNodeJs className="w-4 h-4 text-green-500" />;
       case fw.includes("python") || fw.includes("ml"):
-        return <FaCode className="w-4 h-4 text-yellow-400" />;
+        return <FaPython className="w-4 h-4 text-yellow-400" />;
+      case fw.includes("database"):
+      case fw.includes("mysql"):
+      case fw.includes("postgres"):
+        return <FaDatabase className="w-4 h-4 text-blue-500" />;
       case fw.includes("api"):
         return <FaRocket className="w-4 h-4 text-purple-400" />;
       case fw.includes("dashboard"):
@@ -289,7 +295,7 @@ const Projects = () => {
         ) : filteredProjects.length > 0 ? (
           filteredProjects.map((project, index) => (
             <motion.div
-              key={project._id}
+              key={project.id || project._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + index * 0.1 }}
@@ -327,15 +333,12 @@ const Projects = () => {
               <p className="text-gray-300 text-sm mb-4 leading-relaxed">
                 {project.description || "No description available"}
               </p>
-              {/* Project Stats */}{" "}
+              {/* Project Stats */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="flex items-center gap-2">
                   <FaRocket className="w-4 h-4 text-green-400" />
                   <span className="text-gray-400 text-sm">
-                    {project.deploymentCount ||
-                      project.analytics?.totalDeployments ||
-                      0}{" "}
-                    deployments
+                    {project.deploymentCount || 0} deployments
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -347,17 +350,17 @@ const Projects = () => {
                 <div className="flex items-center gap-2">
                   <FaCalendarAlt className="w-4 h-4 text-purple-400" />
                   <span className="text-gray-400 text-sm">
-                    {project.analytics?.lastActivity || project.updatedAt
-                      ? new Date(
-                          project.analytics?.lastActivity || project.updatedAt
-                        ).toLocaleDateString()
+                    {project.updatedAt
+                      ? new Date(project.updatedAt).toLocaleDateString()
                       : "No activity"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <FaCloud className="w-4 h-4 text-orange-400" />
                   <span className="text-gray-400 text-sm">
-                    {project.deployment?.environment || "development"}
+                    {project.deployment?.build?.nodeVersion
+                      ? `Node ${project.deployment.build.nodeVersion}`
+                      : "development"}
                   </span>
                 </div>
               </div>
@@ -370,11 +373,13 @@ const Projects = () => {
                     ""
                   ) || "No repository"}
                 </span>
-              </div>{" "}
+              </div>
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => navigate(`/dashboard/projects/${project._id}`)}
+                  onClick={() =>
+                    navigate(`/dashboard/projects/${project.id || project._id}`)
+                  }
                   className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
                 >
                   <FaEye className="w-3 h-3" />
@@ -382,7 +387,11 @@ const Projects = () => {
                 </button>
                 <button
                   onClick={() =>
-                    navigate(`/dashboard/projects/${project._id}/deployments`)
+                    navigate(
+                      `/dashboard/projects/${
+                        project.id || project._id
+                      }/deployments`
+                    )
                   }
                   className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
                 >
@@ -391,7 +400,11 @@ const Projects = () => {
                 </button>
                 <button
                   onClick={() =>
-                    navigate(`/dashboard/projects/${project._id}/settings`)
+                    navigate(
+                      `/dashboard/projects/${
+                        project.id || project._id
+                      }/settings`
+                    )
                   }
                   className="flex items-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm"
                 >
@@ -405,13 +418,13 @@ const Projects = () => {
                         "Are you sure you want to delete this project?"
                       )
                     ) {
-                      dispatch(deleteProject(project._id));
+                      dispatch(deleteProject(project.id || project._id));
                     }
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm ml-auto"
                 >
                   <FaTrash className="w-3 h-3" />
-                </button>{" "}
+                </button>
               </div>
             </motion.div>
           ))

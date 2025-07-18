@@ -79,7 +79,6 @@ export {
   fetchUserAnalytics,
   fetchProjectAnalytics,
   fetchDeploymentAnalytics,
-  fetchDashboardStats,
   resetAnalyticsState,
   clearError as clearAnalyticsError,
   clearSuccess as clearAnalyticsSuccess,

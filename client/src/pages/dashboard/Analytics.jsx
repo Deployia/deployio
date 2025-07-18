@@ -17,236 +17,88 @@ import {
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
-import { fetchProjects } from "@redux/slices/projectSlice";
-import { fetchDeployments } from "@redux/slices/deploymentSlice";
-import { fetchDashboardStats } from "@redux/slices/analyticsSlice";
+import { fetchUserAnalytics } from "@redux/slices/analyticsSlice";
 
 const Analytics = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  // Redux state
+
+  // Redux state - only analytics
   const {
-    projects,
-    loading: projectsLoading,
-    error: projectsError,
-  } = useSelector((state) => state.projects);
-  const {
-    deployments,
-    loading: deploymentsLoading,
-    error: deploymentsError,
-  } = useSelector((state) => state.deployments);
-  const {
-    dashboardStats,
+    userAnalytics,
     loading: analyticsLoadingState,
     error: analyticsErrorState,
   } = useSelector((state) => state.analytics);
+
   // Local state
   const [refreshing, setRefreshing] = useState(false);
+
   // Fetch data on component mount
   useEffect(() => {
-    // Primary fetch is dashboard stats which includes summary data
-    dispatch(fetchDashboardStats());
-
-    // Only fetch detailed data if we need it for analytics
-    // Check if we have sufficient data from dashboard stats
-    if (!dashboardStats?.recentProjects || !dashboardStats?.recentDeployments) {
-      dispatch(fetchProjects());
-      dispatch(fetchDeployments());
-    }
-  }, [dispatch, dashboardStats]);
+    // Fetch user analytics which includes overview data
+    dispatch(fetchUserAnalytics("30d"));
+    // Also fetch dashboard stats for legacy support
+  }, [dispatch]);
 
   // Refresh data
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        dispatch(fetchDashboardStats()),
-        dispatch(fetchProjects()),
-        dispatch(fetchDeployments()),
-      ]);
+      await Promise.all([dispatch(fetchUserAnalytics("30d"))]);
     } finally {
       setRefreshing(false);
     }
   };
   // Calculate analytics from backend data
   const analytics = useMemo(() => {
-    if (!projects?.length && !deployments?.length && !dashboardStats) {
+    // Use userAnalytics API data
+    if (userAnalytics?.data?.overview) {
+      const overview = userAnalytics.data.overview;
+      const recentActivity = userAnalytics.data.recentActivity || [];
+      const techDistribution = userAnalytics.data.techDistribution || [];
+
       return {
-        totalProjects: 0,
-        totalDeployments: 0,
-        successfulDeployments: 0,
-        failedDeployments: 0,
-        successRate: 0,
-        avgDeploymentTime: 0,
-        topProjects: [],
-        recentDeployments: [],
-        projectTechnologies: [],
-        weeklyTrend: [],
+        totalProjects: overview.totalProjects || 0,
+        totalDeployments: overview.totalDeployments || 0,
+        successfulDeployments:
+          overview.totalDeployments - overview.failedDeployments || 0,
+        failedDeployments: overview.failedDeployments || 0,
+        successRate: overview.successRate || 0,
+        avgDeploymentTime: overview.avgDeploymentTime || 0,
+        topProjects: [], // Will be populated by specific projects analytics
+        recentDeployments: recentActivity.slice(0, 10) || [],
+        projectTechnologies:
+          techDistribution.map((tech) => ({
+            name: tech.technology || tech.name || "Unknown",
+            count: tech.count || 0,
+            percentage: tech.percentage || 0,
+          })) || [],
+        weeklyTrend: [], // Will need to implement in backend if needed
       };
-    } // Use backend stats if available, otherwise calculate from frontend data
-    const totalProjects =
-      dashboardStats?.projects?.total || projects?.length || 0;
-    const totalDeployments =
-      dashboardStats?.deployments?.total || deployments?.length || 0;
-    const successfulDeployments =
-      dashboardStats?.deployments?.successful ||
-      deployments?.filter((d) => d.status === "success")?.length ||
-      0;
-    const failedDeployments =
-      dashboardStats?.deployments?.failed ||
-      deployments?.filter((d) => d.status === "failed")?.length ||
-      0;
-
-    const successRate =
-      totalDeployments > 0
-        ? Math.round((successfulDeployments / totalDeployments) * 100)
-        : 0;
-
-    // Calculate average deployment time from project analytics
-    const avgDeploymentTime =
-      projects?.length > 0
-        ? Math.round(
-            projects.reduce(
-              (acc, project) =>
-                acc + (project.analytics?.averageBuildTime || 0),
-              0
-            ) / projects.length
-          ) / 60
-        : 0; // Convert seconds to minutes
-
-    // Top projects by deployment count
-    const topProjects = Array.isArray(projects)
-      ? [...projects]
-          .filter((project) => project.analytics?.totalDeployments > 0)
-          .sort(
-            (a, b) =>
-              (b.analytics?.totalDeployments || 0) -
-              (a.analytics?.totalDeployments || 0)
-          )
-          .slice(0, 5)
-          .map((project) => ({
-            ...project,
-            deploymentCount: project.analytics?.totalDeployments || 0,
-            successCount: project.analytics?.successfulDeployments || 0,
-            successRate:
-              project.analytics?.totalDeployments > 0
-                ? Math.round(
-                    (project.analytics?.successfulDeployments /
-                      project.analytics?.totalDeployments) *
-                      100
-                  )
-                : 0,
-          }))
-      : []; // Recent deployments with project names - improve data handling
-    const recentDeployments = Array.isArray(deployments)
-      ? [...deployments]
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 10)
-          .map((deployment) => {
-            // Handle different project reference structures
-            let project = null;
-            let projectId = deployment.projectId || deployment.project?._id;
-
-            if (projectId) {
-              project = projects?.find((p) => p._id === projectId);
-            }
-
-            // Use project data from deployment object if available
-            const projectName =
-              project?.name ||
-              deployment.project?.name ||
-              deployment.projectName ||
-              "Unknown Project";
-
-            const projectTechnology =
-              project?.technology?.framework ||
-              project?.framework ||
-              deployment.project?.technology?.framework ||
-              deployment.technology ||
-              "Unknown";
-
-            return {
-              ...deployment,
-              projectName,
-              projectTechnology,
-            };
-          })
-      : [];
-
-    // Technology distribution - improve data handling and exclude "Other"
-    const techCounts =
-      projects?.reduce((acc, project) => {
-        const tech =
-          project.technology?.framework || project.framework || project.tech;
-
-        // Only count if we have a valid technology and it's not "Other"
-        if (tech && tech !== "Other" && tech !== "Unknown") {
-          acc[tech] = (acc[tech] || 0) + 1;
-        }
-        return acc;
-      }, {}) || {};
-    const projectTechnologies = Object.entries(techCounts).map(
-      ([tech, count]) => ({
-        name: tech,
-        count,
-        percentage: Math.round((count / totalProjects) * 100),
-      })
-    );
-
-    // If no technologies found, add a sample entry for better UX
-    if (projectTechnologies.length === 0 && totalProjects > 0) {
-      projectTechnologies.push({
-        name: "Not specified",
-        count: totalProjects,
-        percentage: 100,
-      });
     }
 
-    // Weekly deployment trend (mock data based on recent deployments)
-    const weeklyTrend = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      const dayDeployments =
-        deployments?.filter(
-          (d) =>
-            d.createdAt &&
-            new Date(d.createdAt).toDateString() === date.toDateString()
-        ) || [];
-
-      return {
-        day: date.toLocaleDateString("en-US", { weekday: "short" }),
-        deployments: dayDeployments.length,
-        successful: dayDeployments.filter((d) => d.status === "success").length,
-        failed: dayDeployments.filter((d) => d.status === "failed").length,
-      };
-    });
-
+    // Fallback when no analytics data is available
     return {
-      totalProjects,
-      totalDeployments,
-      successfulDeployments,
-      failedDeployments,
-      successRate,
-      avgDeploymentTime,
-      topProjects,
-      recentDeployments,
-      projectTechnologies,
-      weeklyTrend,
+      totalProjects: 0,
+      totalDeployments: 0,
+      successfulDeployments: 0,
+      failedDeployments: 0,
+      successRate: 0,
+      avgDeploymentTime: 0,
+      topProjects: [],
+      recentDeployments: [],
+      projectTechnologies: [],
+      weeklyTrend: [],
     };
-  }, [projects, deployments, dashboardStats]);
+  }, [userAnalytics]);
 
   // Handle project navigation
   const handleProjectClick = (projectId) => {
     navigate(`/dashboard/projects/${projectId}`);
   };
-  const loading =
-    projectsLoading?.projects ||
-    deploymentsLoading?.fetch ||
-    analyticsLoadingState?.dashboard;
-  const error =
-    projectsError?.projects ||
-    deploymentsError?.fetch ||
-    analyticsErrorState?.dashboard;
+
+  const loading = analyticsLoadingState.user;
+  const error = analyticsErrorState.user;
 
   return (
     <>

@@ -16,45 +16,48 @@ import {
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
-import { fetchDashboardStats } from "@redux/index";
+import { fetchUserAnalytics } from "@redux/slices/analyticsSlice";
+import { fetchProjects } from "@redux/slices/projectSlice";
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // Redux state
-  const { dashboardStats, loading: analyticsLoading } = useSelector(
+  const navigate = useNavigate();
+
+  // Redux state
+  const { userAnalytics, loading: analyticsLoading } = useSelector(
     (state) => state.analytics
   );
+  const { projects, loading: projectsLoading } = useSelector(
+    (state) => state.projects
+  );
   const { user } = useSelector((state) => state.auth);
+
   // Fetch data on component mount
   useEffect(() => {
-    // Only fetch dashboard stats - it now includes projects and deployments
-    dispatch(fetchDashboardStats());
+    dispatch(fetchUserAnalytics("7d"));
+    dispatch(fetchProjects());
   }, [dispatch]);
 
   // Calculate overall loading state
-  const loading = analyticsLoading?.dashboard;
+  const loading = analyticsLoading?.user || projectsLoading?.projects;
 
-  // Extract data from dashboard stats
-  const projects = dashboardStats?.recentProjects || [];
-  const deployments = dashboardStats?.recentDeployments || [];
+  // Extract data from analytics and projects
+  const recentActivity = userAnalytics?.data?.recentActivity || [];
+  const recentProjects = projects.slice(0, 3);
 
-  // Calculate stats from dashboard stats API response
+  // Calculate stats from analytics overview API response
   const stats = {
-    totalProjects: dashboardStats?.projects?.total || 0,
-    activeDeployments: dashboardStats?.deployments?.pending || 0,
-    successRate:
-      dashboardStats?.deployments?.total > 0
-        ? Math.round(
-            (dashboardStats.deployments.successful /
-              dashboardStats.deployments.total) *
-              100
-          )
-        : 0,
-    pendingTasks: dashboardStats?.deployments?.pending || 0,
+    totalProjects: userAnalytics?.data?.overview?.totalProjects || 0,
+    activeDeployments: userAnalytics?.data?.overview?.totalDeployments || 0,
+    successRate: userAnalytics?.data?.overview?.successRate || 0,
+    pendingTasks:
+      recentActivity.filter(
+        (activity) =>
+          activity.status === "building" || activity.status === "pending"
+      ).length || 0,
   };
 
-  const recentDeployments = deployments.slice(0, 5);
-  const recentProjects = projects.slice(0, 3);
+  const recentDeployments = recentActivity.slice(0, 5);
 
   // Get current time-based greeting
   const getGreeting = () => {
@@ -66,13 +69,26 @@ const Dashboard = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "success":
-        return <FaCheckCircle className="w-4 h-4 text-green-500" />;
+      case "active":
       case "running":
+        return <FaCheckCircle className="w-4 h-4 text-green-500" />;
+      case "building":
       case "deploying":
         return <FaClock className="w-4 h-4 text-blue-500 animate-spin" />;
       case "failed":
+      case "error":
         return <FaExclamationTriangle className="w-4 h-4 text-red-500" />;
+      case "pending":
+      case "queued":
+        return <FaClock className="w-4 h-4 text-yellow-500" />;
+      case "draft":
+      case "analyzing":
+        return <FaClock className="w-4 h-4 text-gray-500" />;
+      case "configured":
+        return <FaCheckCircle className="w-4 h-4 text-purple-500" />;
+      case "archived":
+      case "stopped":
+        return <FaExclamationTriangle className="w-4 h-4 text-orange-500" />;
       default:
         return <FaClock className="w-4 h-4 text-gray-500" />;
     }
@@ -81,13 +97,26 @@ const Dashboard = () => {
   const getStatusBadge = (status) => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
     switch (status) {
-      case "success":
-        return `${baseClasses} bg-green-500/20 text-green-400 border border-green-500/30`;
+      case "active":
       case "running":
+        return `${baseClasses} bg-green-500/20 text-green-400 border border-green-500/30`;
+      case "building":
       case "deploying":
         return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30`;
       case "failed":
+      case "error":
         return `${baseClasses} bg-red-500/20 text-red-400 border border-red-500/30`;
+      case "pending":
+      case "queued":
+        return `${baseClasses} bg-yellow-500/20 text-yellow-400 border border-yellow-500/30`;
+      case "draft":
+      case "analyzing":
+        return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
+      case "configured":
+        return `${baseClasses} bg-purple-500/20 text-purple-400 border border-purple-500/30`;
+      case "archived":
+      case "stopped":
+        return `${baseClasses} bg-orange-500/20 text-orange-400 border border-orange-500/30`;
       default:
         return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
     }
@@ -254,26 +283,32 @@ const Dashboard = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + index * 0.1 }}
                   className="flex items-center justify-between p-4 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors cursor-pointer"
-                  onClick={() => handleProjectClick(deployment.project._id)}
+                  onClick={() =>
+                    handleProjectClick(
+                      deployment.projectId || deployment.project?._id
+                    )
+                  }
                 >
                   <div className="flex items-center gap-4">
                     {getStatusIcon(deployment.status || "pending")}
                     <div>
                       <h3 className="text-white font-medium">
-                        {deployment.project?.name ||
-                          deployment.projectName ||
-                          "Unknown Project"}
+                        {deployment.projectName || "Unknown Project"}
                       </h3>
                       <p className="text-gray-400 text-sm">
-                        {deployment.environment} •{" "}
-                        {new Date(deployment.createdAt).toLocaleString()}
+                        {deployment.environment || "Unknown"} •{" "}
+                        {new Date(
+                          deployment.timestamp || deployment.createdAt
+                        ).toLocaleString()}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400 text-sm">
-                      {deployment.duration || "N/A"}
+                      {deployment.type === "deployment"
+                        ? deployment.action
+                        : deployment.status}
                     </span>
                     <span
                       className={getStatusBadge(deployment.status || "pending")}
@@ -401,17 +436,18 @@ const Dashboard = () => {
                           {project.name}
                         </h4>
                         <p className="text-gray-400 text-xs">
-                          {project.technology?.framework || "Unknown"} •
-                          {new Date(project.updatedAt).toLocaleDateString()}
+                          {project.technology?.framework ||
+                            project.aiAnalysis?.detectedTechnologies?.[0]
+                              ?.name ||
+                            "Unknown"}{" "}
+                          • {new Date(project.updatedAt).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="text-right">
                         <span
-                          className={getStatusBadge(
-                            project.deployment?.status || "none"
-                          )}
+                          className={getStatusBadge(project.status || "draft")}
                         >
-                          {project.deployment?.status || "Not deployed"}
+                          {project.status || "Draft"}
                         </span>
                       </div>
                     </div>

@@ -4,61 +4,19 @@ import api from "../../utils/api";
 // Async thunks for deployment operations
 export const fetchDeployments = createAsyncThunk(
   "deployments/fetchDeployments",
-  async (_params = {}, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      // Fetch all projects first to get their deployments
-      const projectsResponse = await api.get("/projects");
-      let allDeployments = [];
+      // Use the global deployments endpoint
+      const response = await api.get("/deployments", { params });
 
-      if (
-        projectsResponse.data.success &&
-        projectsResponse.data.data?.projects
-      ) {
-        const projects = projectsResponse.data.data.projects;
-
-        // For each project, get its deployments
-        for (const project of projects) {
-          try {
-            const deploymentResponse = await api.get(
-              `/projects/${project._id}/deployments`
-            );
-
-            let deployments = [];
-            if (
-              deploymentResponse.data.success &&
-              deploymentResponse.data.data?.deployments
-            ) {
-              deployments = deploymentResponse.data.data.deployments;
-            } else if (deploymentResponse.data.deployments) {
-              deployments = deploymentResponse.data.deployments;
-            }
-
-            // Add project info to each deployment
-            const deploymentsWithProject = deployments.map((deployment) => ({
-              ...deployment,
-              project: {
-                _id: project._id,
-                name: project.name,
-                repository: project.repository,
-              },
-            }));
-            allDeployments = [...allDeployments, ...deploymentsWithProject];
-          } catch (err) {
-            // Skip if project deployments can't be fetched
-            console.warn(
-              `Failed to fetch deployments for project ${project._id}:`,
-              err
-            );
-          }
-        }
+      // Backend returns { success: true, data: { deployments: [...], pagination: {...} } }
+      if (response.data.success && response.data.data) {
+        return {
+          deployments: response.data.data.deployments || [],
+          pagination: response.data.data.pagination || {},
+        };
       }
-
-      // Sort by creation date (newest first)
-      allDeployments.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
-
-      return { deployments: allDeployments };
+      return { deployments: response.data.deployments || [], pagination: {} };
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch deployments"

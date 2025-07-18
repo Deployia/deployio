@@ -4,10 +4,12 @@ import api from "../../utils/api";
 // Async thunks for analytics operations using actual available routes
 export const fetchUserAnalytics = createAsyncThunk(
   "analytics/fetchUserAnalytics",
-  async (_timeRange = "7d", { rejectWithValue }) => {
+  async (timeRange = "7d", { rejectWithValue }) => {
     try {
-      // Use user dashboard stats endpoint instead
-      const response = await api.get("/user/dashboard-stats");
+      // Use our analytics overview endpoint
+      const response = await api.get(
+        `/analytics/overview?timeRange=${timeRange}`
+      );
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -19,9 +21,11 @@ export const fetchUserAnalytics = createAsyncThunk(
 
 export const fetchProjectAnalytics = createAsyncThunk(
   "analytics/fetchProjectAnalytics",
-  async ({ projectId, _timeRange = "7d" }, { rejectWithValue }) => {
+  async ({ projectId, timeRange = "30d" }, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/projects/${projectId}/analytics`);
+      const response = await api.get(
+        `/analytics/projects/${projectId}?timeRange=${timeRange}`
+      );
       // Extract analytics data from the nested response structure
       return response.data.data || response.data;
     } catch (error) {
@@ -34,14 +38,11 @@ export const fetchProjectAnalytics = createAsyncThunk(
 
 export const fetchDeploymentAnalytics = createAsyncThunk(
   "analytics/fetchDeploymentAnalytics",
-  async (
-    { projectId, deploymentId, _timeRange = "7d" },
-    { rejectWithValue }
-  ) => {
+  async ({ projectId, timeRange = "30d" }, { rejectWithValue }) => {
     try {
-      // Use project deployments endpoint to get deployment info
+      // Use our new deployment analytics endpoint
       const response = await api.get(
-        `/projects/${projectId}/deployments/${deploymentId}`
+        `/analytics/deployments?projectId=${projectId}&timeRange=${timeRange}`
       );
       return response.data;
     } catch (error) {
@@ -52,15 +53,53 @@ export const fetchDeploymentAnalytics = createAsyncThunk(
   }
 );
 
-export const fetchDashboardStats = createAsyncThunk(
-  "analytics/fetchDashboardStats",
-  async (_, { rejectWithValue }) => {
+export const fetchResourceAnalytics = createAsyncThunk(
+  "analytics/fetchResourceAnalytics",
+  async ({ projectId, timeRange = "7d" }, { rejectWithValue }) => {
     try {
-      const response = await api.get("/user/dashboard-stats");
-      return response.data.stats || response.data;
+      const response = await api.get(
+        `/analytics/resources?${
+          projectId ? `projectId=${projectId}&` : ""
+        }timeRange=${timeRange}`
+      );
+      return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch dashboard stats"
+        error.response?.data?.message || "Failed to fetch resource analytics"
+      );
+    }
+  }
+);
+
+export const fetchPerformanceMetrics = createAsyncThunk(
+  "analytics/fetchPerformanceMetrics",
+  async ({ projectId, timeRange = "30d" }, { rejectWithValue }) => {
+    try {
+      const response = await api.get(
+        `/analytics/performance?${
+          projectId ? `projectId=${projectId}&` : ""
+        }timeRange=${timeRange}`
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch performance metrics"
+      );
+    }
+  }
+);
+
+export const fetchAllProjectsAnalytics = createAsyncThunk(
+  "analytics/fetchAllProjectsAnalytics",
+  async (timeRange = "30d", { rejectWithValue }) => {
+    try {
+      const response = await api.get(
+        `/analytics/projects?timeRange=${timeRange}`
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch projects analytics"
       );
     }
   }
@@ -72,14 +111,18 @@ const initialState = {
   userAnalytics: null,
   projectAnalytics: null,
   deploymentAnalytics: null,
-  dashboardStats: null,
+  resourceAnalytics: null,
+  performanceMetrics: null,
+  allProjectsAnalytics: null,
 
   // Loading states
   loading: {
     user: false,
     project: false,
     deployment: false,
-    dashboard: false,
+    resource: false,
+    performance: false,
+    allProjects: false,
   },
 
   // Error states
@@ -87,7 +130,9 @@ const initialState = {
     user: null,
     project: null,
     deployment: null,
-    dashboard: null,
+    resource: null,
+    performance: null,
+    allProjects: null,
   },
 
   // Success states
@@ -95,7 +140,6 @@ const initialState = {
     user: false,
     project: false,
     deployment: false,
-    dashboard: false,
   },
 
   // UI state
@@ -109,7 +153,6 @@ const initialState = {
     user: {},
     project: {},
     deployment: {},
-    dashboard: {},
   },
 };
 
@@ -235,21 +278,51 @@ const analyticsSlice = createSlice({
       .addCase(fetchDeploymentAnalytics.rejected, (state, action) => {
         state.loading.deployment = false;
         state.error.deployment = action.payload;
-      }); // Fetch dashboard stats
+      });
+
+    // Fetch resource analytics
     builder
-      .addCase(fetchDashboardStats.pending, (state) => {
-        state.loading.dashboard = true;
-        state.error.dashboard = null;
-        state.success.dashboard = false;
+      .addCase(fetchResourceAnalytics.pending, (state) => {
+        state.loading.resource = true;
+        state.error.resource = null;
       })
-      .addCase(fetchDashboardStats.fulfilled, (state, action) => {
-        state.loading.dashboard = false;
-        state.success.dashboard = true;
-        state.dashboardStats = action.payload.stats || action.payload;
+      .addCase(fetchResourceAnalytics.fulfilled, (state, action) => {
+        state.loading.resource = false;
+        state.resourceAnalytics = action.payload.data || action.payload;
       })
-      .addCase(fetchDashboardStats.rejected, (state, action) => {
-        state.loading.dashboard = false;
-        state.error.dashboard = action.payload;
+      .addCase(fetchResourceAnalytics.rejected, (state, action) => {
+        state.loading.resource = false;
+        state.error.resource = action.payload;
+      });
+
+    // Fetch performance metrics
+    builder
+      .addCase(fetchPerformanceMetrics.pending, (state) => {
+        state.loading.performance = true;
+        state.error.performance = null;
+      })
+      .addCase(fetchPerformanceMetrics.fulfilled, (state, action) => {
+        state.loading.performance = false;
+        state.performanceMetrics = action.payload.data || action.payload;
+      })
+      .addCase(fetchPerformanceMetrics.rejected, (state, action) => {
+        state.loading.performance = false;
+        state.error.performance = action.payload;
+      });
+
+    // Fetch all projects analytics
+    builder
+      .addCase(fetchAllProjectsAnalytics.pending, (state) => {
+        state.loading.allProjects = true;
+        state.error.allProjects = null;
+      })
+      .addCase(fetchAllProjectsAnalytics.fulfilled, (state, action) => {
+        state.loading.allProjects = false;
+        state.allProjectsAnalytics = action.payload.data || action.payload;
+      })
+      .addCase(fetchAllProjectsAnalytics.rejected, (state, action) => {
+        state.loading.allProjects = false;
+        state.error.allProjects = action.payload;
       });
   },
 });

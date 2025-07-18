@@ -46,11 +46,8 @@ const Deployments = () => {
   const [searchTerm, setSearchTerm] = useState("");
   // Fetch deployments on component mount
   useEffect(() => {
-    // Only fetch if we don't have deployments or if the list is empty
-    if (!deployments || deployments.length === 0) {
-      dispatch(fetchDeployments());
-    }
-  }, [dispatch, deployments]);
+    dispatch(fetchDeployments());
+  }, [dispatch]);
 
   // Clear success/error messages after some time
   useEffect(() => {
@@ -82,10 +79,7 @@ const Deployments = () => {
   // Filter and search deployments
   const filteredDeployments = Array.isArray(deployments)
     ? deployments.filter((deployment) => {
-        const matchesFilter =
-          filter === "all" ||
-          deployment.status === filter ||
-          deployment.deployment?.status === filter;
+        const matchesFilter = filter === "all" || deployment.status === filter;
         const matchesSearch =
           searchTerm === "" ||
           deployment.project?.name
@@ -94,7 +88,7 @@ const Deployments = () => {
           deployment.commit?.message
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          deployment.deployment?.commit?.message
+          deployment.subdomain
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase());
         return matchesFilter && matchesSearch;
@@ -109,7 +103,9 @@ const Deployments = () => {
   };
 
   const handleViewLogs = (deployment) => {
-    dispatch(fetchDeploymentLogs({ deploymentId: deployment._id }));
+    dispatch(
+      fetchDeploymentLogs({ deploymentId: deployment.id || deployment._id })
+    );
 
     const logsContent = (
       <div className="w-full max-w-4xl">
@@ -321,27 +317,22 @@ const Deployments = () => {
         ) : filteredDeployments.length > 0 ? (
           filteredDeployments.map((deployment, index) => (
             <motion.div
-              key={deployment._id}
+              key={deployment.id || deployment._id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 + index * 0.1 }}
               className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
             >
               <div className="flex items-center justify-between mb-4">
-                {" "}
                 <div className="flex items-center gap-4">
-                  {getStatusIcon(
-                    deployment.deployment?.status ||
-                      deployment.status ||
-                      "pending"
-                  )}
+                  {getStatusIcon(deployment.status || "pending")}
                   <div>
                     <h3
                       className="text-white font-semibold text-lg cursor-pointer hover:text-blue-400 transition-colors"
                       onClick={() =>
                         navigate(
                           `/dashboard/projects/${
-                            deployment.project?._id || deployment.projectId
+                            deployment.project?.id || deployment.project?._id
                           }`
                         )
                       }
@@ -352,54 +343,35 @@ const Deployments = () => {
                       <div className="flex items-center gap-1">
                         <FaCodeBranch className="w-3 h-3 text-gray-400" />
                         <span className="text-gray-400 text-sm">
-                          {deployment.deployment?.branch ||
-                            deployment.branch ||
-                            "main"}
+                          {deployment.branch || "main"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
                         <FaCode className="w-3 h-3 text-gray-400" />
                         <span className="text-gray-400 text-sm font-mono">
-                          {(
-                            deployment.deployment?.commit?.hash ||
-                            deployment.commit?.hash ||
-                            "N/A"
-                          ).substring(0, 7)}
+                          {(deployment.commit?.hash || "N/A").substring(0, 7)}
                         </span>
                       </div>
                       <span
                         className={getEnvironmentBadge(
-                          deployment.deployment?.environment ||
-                            deployment.environment ||
-                            "development"
+                          deployment.environment || "development"
                         )}
                       >
-                        {deployment.deployment?.environment ||
-                          deployment.environment ||
-                          "development"}
+                        {deployment.environment || "development"}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {" "}
                   <span
-                    className={getStatusBadge(
-                      deployment.deployment?.status ||
-                        deployment.status ||
-                        "pending"
-                    )}
+                    className={getStatusBadge(deployment.status || "pending")}
                   >
-                    {deployment.deployment?.status ||
-                      deployment.status ||
-                      "pending"}
+                    {deployment.status || "pending"}
                   </span>
-                </div>{" "}
-              </div>{" "}
+                </div>
+              </div>
               <p className="text-gray-300 mb-4">
-                {deployment.deployment?.commit?.message ||
-                  deployment.commit?.message ||
-                  "No commit message"}
+                {deployment.commit?.message || "No commit message"}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="flex items-center gap-2">
@@ -420,22 +392,26 @@ const Deployments = () => {
                 <div className="flex items-center gap-2">
                   <FaClock className="w-4 h-4 text-orange-400" />
                   <span className="text-gray-400 text-sm">
-                    {deployment.deployment?.duration || "N/A"}
+                    {deployment.buildDuration
+                      ? `${Math.round(deployment.buildDuration / 60)}m ${
+                          deployment.buildDuration % 60
+                        }s`
+                      : "N/A"}
                   </span>
                 </div>
-              </div>{" "}
-              {deployment.deployment?.url && (
+              </div>
+              {deployment.url && (
                 <div className="mb-4 p-3 bg-neutral-800/50 rounded-lg">
                   <a
-                    href={deployment.deployment.url}
+                    href={deployment.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:text-blue-300 text-sm font-mono"
                   >
-                    {deployment.deployment.url}
+                    {deployment.url}
                   </a>
                 </div>
-              )}{" "}
+              )}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleViewLogs(deployment)}
@@ -445,9 +421,11 @@ const Deployments = () => {
                   View Logs
                 </button>
 
-                {deployment.deployment?.status === "success" && (
+                {deployment.status === "success" && (
                   <button
-                    onClick={() => handleRestart(deployment._id)}
+                    onClick={() =>
+                      handleRestart(deployment.id || deployment._id)
+                    }
                     disabled={loading.restart}
                     className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
                   >
@@ -456,9 +434,9 @@ const Deployments = () => {
                   </button>
                 )}
 
-                {deployment.deployment?.status === "running" && (
+                {deployment.status === "running" && (
                   <button
-                    onClick={() => handleStop(deployment._id)}
+                    onClick={() => handleStop(deployment.id || deployment._id)}
                     disabled={loading.stop}
                     className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
                   >
