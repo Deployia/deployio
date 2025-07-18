@@ -1,17 +1,19 @@
 // Project Routes - /api/v1/projects/*
-// New intelligent project creation endpoints
+// Complete project management endpoints
 
 const express = require("express");
 const router = express.Router();
 const { protect } = require("@middleware/authMiddleware");
 
-// Import creation routes only (new architecture)
+// Import routes
 const creationRoutes = require("./creation");
+const projectRoutes = require("./projects"); // ADD THIS
 
 // All project routes require authentication
 router.use(protect);
 
-// Mount creation routes
+// Mount routes
 router.use("/creation", creationRoutes);
+router.use("/", projectRoutes); // ADD THIS - Main project CRUD operations
 
 module.exports = router;

@@ -868,7 +868,7 @@ class DeploymentService {
 
       // First get user's projects
       const userProjects = await Project.find({ owner: userId }).select("_id");
-      const projectIds = userProjects.map(p => p._id);
+      const projectIds = userProjects.map((p) => p._id);
 
       // Build query
       const query = { project: { $in: projectIds } };
@@ -1051,10 +1051,17 @@ class DeploymentService {
   /**
    * Update deployment status
    */
-  async updateDeploymentStatus(deploymentId, status, userId, additionalData = {}) {
+  async updateDeploymentStatus(
+    deploymentId,
+    status,
+    userId,
+    additionalData = {}
+  ) {
     try {
-      const deployment = await Deployment.findById(deploymentId)
-        .populate("project", "owner");
+      const deployment = await Deployment.findById(deploymentId).populate(
+        "project",
+        "owner"
+      );
 
       if (!deployment) {
         throw new Error("Deployment not found");
@@ -1080,10 +1087,15 @@ class DeploymentService {
    */
   async restartDeployment(deploymentId, userId) {
     try {
-      return await this.updateDeploymentStatus(deploymentId, "pending", userId, {
-        restarted: true,
-        restartedAt: new Date(),
-      });
+      return await this.updateDeploymentStatus(
+        deploymentId,
+        "pending",
+        userId,
+        {
+          restarted: true,
+          restartedAt: new Date(),
+        }
+      );
     } catch (error) {
       logger.error("Error in restartDeployment:", error);
       throw error;
@@ -1095,10 +1107,15 @@ class DeploymentService {
    */
   async cancelDeployment(deploymentId, userId) {
     try {
-      return await this.updateDeploymentStatus(deploymentId, "cancelled", userId, {
-        cancelled: true,
-        cancelledAt: new Date(),
-      });
+      return await this.updateDeploymentStatus(
+        deploymentId,
+        "cancelled",
+        userId,
+        {
+          cancelled: true,
+          cancelledAt: new Date(),
+        }
+      );
     } catch (error) {
       logger.error("Error in cancelDeployment:", error);
       throw error;
@@ -1110,8 +1127,10 @@ class DeploymentService {
    */
   async deleteDeployment(deploymentId, userId) {
     try {
-      const deployment = await Deployment.findById(deploymentId)
-        .populate("project", "owner");
+      const deployment = await Deployment.findById(deploymentId).populate(
+        "project",
+        "owner"
+      );
 
       if (!deployment) {
         throw new Error("Deployment not found");
@@ -1123,7 +1142,9 @@ class DeploymentService {
       }
 
       // Can only delete stopped, failed, or cancelled deployments
-      if (!["stopped", "failed", "cancelled", "error"].includes(deployment.status)) {
+      if (
+        !["stopped", "failed", "cancelled", "error"].includes(deployment.status)
+      ) {
         throw new Error("Cannot delete active deployment. Stop it first.");
       }
 
@@ -1159,10 +1180,10 @@ class DeploymentService {
 
       // Apply filters
       if (level) {
-        logs = logs.filter(log => log.level === level);
+        logs = logs.filter((log) => log.level === level);
       }
       if (source) {
-        logs = logs.filter(log => log.source === source);
+        logs = logs.filter((log) => log.source === source);
       }
 
       // Apply pagination
@@ -1497,7 +1518,11 @@ class DeploymentController {
         offset: req.query.offset,
       };
 
-      const result = await deploymentService.getDeploymentLogs(id, userId, options);
+      const result = await deploymentService.getDeploymentLogs(
+        id,
+        userId,
+        options
+      );
 
       res.status(200).json({
         success: true,
@@ -1555,7 +1580,17 @@ const validateDeploymentCreation = [
 
 const validateStatusUpdate = [
   body("status")
-    .isIn(["pending", "queued", "building", "deploying", "running", "failed", "stopped", "cancelled", "error"])
+    .isIn([
+      "pending",
+      "queued",
+      "building",
+      "deploying",
+      "running",
+      "failed",
+      "stopped",
+      "cancelled",
+      "error",
+    ])
     .withMessage("Invalid status value"),
 ];
 
@@ -1616,11 +1651,7 @@ router.post(
  * @desc Delete deployment
  * @route DELETE /api/v1/deployments/:id
  */
-router.delete(
-  "/:id",
-  validateObjectId,
-  deploymentController.deleteDeployment
-);
+router.delete("/:id", validateObjectId, deploymentController.deleteDeployment);
 
 /**
  * @desc Get deployment logs
@@ -1677,12 +1708,14 @@ router.post(
 After implementation, test these endpoints:
 
 ### **Project Endpoints**
+
 1. **GET /api/v1/projects** - List projects
 2. **GET /api/v1/projects/:id** - Get project details
 3. **PUT /api/v1/projects/:id** - Update project
 4. **DELETE /api/v1/projects/:id** - Delete project
 
 ### **Deployment Endpoints**
+
 5. **GET /api/v1/deployments** - List all user deployments
 6. **GET /api/v1/deployments/:id** - Get deployment details
 7. **GET /api/v1/projects/:id/deployments** - Project deployments
@@ -1717,13 +1750,13 @@ class AnalyticsService {
         deploymentStats,
         recentActivity,
         statusDistribution,
-        technologyBreakdown
+        technologyBreakdown,
       ] = await Promise.all([
         this.getProjectStats(userId),
         this.getDeploymentStats(userId),
         this.getRecentActivity(userId),
         this.getDeploymentStatusDistribution(userId),
-        this.getTechnologyBreakdown(userId)
+        this.getTechnologyBreakdown(userId),
       ]);
 
       return {
@@ -1755,12 +1788,12 @@ class AnalyticsService {
         deploymentHistory,
         performanceMetrics,
         errorAnalysis,
-        resourceUsage
+        resourceUsage,
       ] = await Promise.all([
         this.getProjectDeploymentHistory(projectId),
         this.getProjectPerformanceMetrics(projectId),
         this.getProjectErrorAnalysis(projectId),
-        this.getProjectResourceUsage(projectId)
+        this.getProjectResourceUsage(projectId),
       ]);
 
       return {
@@ -1787,7 +1820,9 @@ class AnalyticsService {
    */
   async getProjectStats(userId) {
     try {
-      const projects = await Project.find({ owner: userId }).select("status statistics stack.detected.primary");
+      const projects = await Project.find({ owner: userId }).select(
+        "status statistics stack.detected.primary"
+      );
 
       const total = projects.length;
       const byStatus = projects.reduce((acc, project) => {
@@ -1795,8 +1830,9 @@ class AnalyticsService {
         return acc;
       }, {});
 
-      const totalDeployments = projects.reduce((sum, project) => 
-        sum + (project.statistics?.totalDeployments || 0), 0
+      const totalDeployments = projects.reduce(
+        (sum, project) => sum + (project.statistics?.totalDeployments || 0),
+        0
       );
 
       return {
@@ -1820,10 +1856,10 @@ class AnalyticsService {
     try {
       // Get user's projects first
       const userProjects = await Project.find({ owner: userId }).select("_id");
-      const projectIds = userProjects.map(p => p._id);
+      const projectIds = userProjects.map((p) => p._id);
 
-      const deployments = await Deployment.find({ 
-        project: { $in: projectIds } 
+      const deployments = await Deployment.find({
+        project: { $in: projectIds },
       }).select("status createdAt metrics");
 
       const total = deployments.length;
@@ -1833,15 +1869,19 @@ class AnalyticsService {
       }, {});
 
       // Calculate averages
-      const totalRequests = deployments.reduce((sum, deployment) => 
-        sum + (deployment.metrics?.requests?.total || 0), 0
+      const totalRequests = deployments.reduce(
+        (sum, deployment) => sum + (deployment.metrics?.requests?.total || 0),
+        0
       );
 
-      const averageUptime = deployments.length > 0 
-        ? deployments.reduce((sum, deployment) => 
-            sum + (deployment.metrics?.uptime?.percentage || 0), 0
-          ) / deployments.length
-        : 0;
+      const averageUptime =
+        deployments.length > 0
+          ? deployments.reduce(
+              (sum, deployment) =>
+                sum + (deployment.metrics?.uptime?.percentage || 0),
+              0
+            ) / deployments.length
+          : 0;
 
       return {
         total,
@@ -1864,17 +1904,17 @@ class AnalyticsService {
   async getRecentActivity(userId, limit = 10) {
     try {
       const userProjects = await Project.find({ owner: userId }).select("_id");
-      const projectIds = userProjects.map(p => p._id);
+      const projectIds = userProjects.map((p) => p._id);
 
-      const recentDeployments = await Deployment.find({ 
-        project: { $in: projectIds } 
+      const recentDeployments = await Deployment.find({
+        project: { $in: projectIds },
       })
         .populate("project", "name")
         .sort({ createdAt: -1 })
         .limit(limit)
         .select("status config.environment createdAt project");
 
-      return recentDeployments.map(deployment => ({
+      return recentDeployments.map((deployment) => ({
         type: "deployment",
         action: `Deployment ${deployment.status}`,
         project: deployment.project.name,
@@ -1894,15 +1934,15 @@ class AnalyticsService {
   async getDeploymentStatusDistribution(userId) {
     try {
       const userProjects = await Project.find({ owner: userId }).select("_id");
-      const projectIds = userProjects.map(p => p._id);
+      const projectIds = userProjects.map((p) => p._id);
 
       const statusCounts = await Deployment.aggregate([
         { $match: { project: { $in: projectIds } } },
         { $group: { _id: "$status", count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
+        { $sort: { count: -1 } },
       ]);
 
-      return statusCounts.map(item => ({
+      return statusCounts.map((item) => ({
         status: item._id,
         count: item.count,
       }));
@@ -1919,15 +1959,17 @@ class AnalyticsService {
     try {
       const techCounts = await Project.aggregate([
         { $match: { owner: userId } },
-        { $group: { 
-          _id: "$stack.detected.primary", 
-          count: { $sum: 1 },
-          projects: { $push: "$name" }
-        }},
-        { $sort: { count: -1 } }
+        {
+          $group: {
+            _id: "$stack.detected.primary",
+            count: { $sum: 1 },
+            projects: { $push: "$name" },
+          },
+        },
+        { $sort: { count: -1 } },
       ]);
 
-      return techCounts.map(item => ({
+      return techCounts.map((item) => ({
         technology: item._id || "Unknown",
         count: item.count,
         projects: item.projects,
@@ -1948,12 +1990,12 @@ class AnalyticsService {
 
       const deployments = await Deployment.find({
         project: projectId,
-        createdAt: { $gte: startDate }
+        createdAt: { $gte: startDate },
       })
         .sort({ createdAt: 1 })
         .select("status config.environment createdAt build.duration");
 
-      return deployments.map(deployment => ({
+      return deployments.map((deployment) => ({
         date: deployment.createdAt,
         status: deployment.status,
         environment: deployment.config.environment,
@@ -1970,8 +2012,9 @@ class AnalyticsService {
    */
   async getProjectPerformanceMetrics(projectId) {
     try {
-      const deployments = await Deployment.find({ project: projectId })
-        .select("metrics build.duration status");
+      const deployments = await Deployment.find({ project: projectId }).select(
+        "metrics build.duration status"
+      );
 
       if (deployments.length === 0) {
         return {
@@ -1983,18 +2026,23 @@ class AnalyticsService {
         };
       }
 
-      const totalBuildTime = deployments.reduce((sum, d) => 
-        sum + (d.build?.duration || 0), 0
+      const totalBuildTime = deployments.reduce(
+        (sum, d) => sum + (d.build?.duration || 0),
+        0
       );
-      const totalRequests = deployments.reduce((sum, d) => 
-        sum + (d.metrics?.requests?.total || 0), 0
+      const totalRequests = deployments.reduce(
+        (sum, d) => sum + (d.metrics?.requests?.total || 0),
+        0
       );
-      const totalErrors = deployments.reduce((sum, d) => 
-        sum + (d.metrics?.errors?.total || 0), 0
+      const totalErrors = deployments.reduce(
+        (sum, d) => sum + (d.metrics?.errors?.total || 0),
+        0
       );
-      const averageUptime = deployments.reduce((sum, d) => 
-        sum + (d.metrics?.uptime?.percentage || 0), 0
-      ) / deployments.length;
+      const averageUptime =
+        deployments.reduce(
+          (sum, d) => sum + (d.metrics?.uptime?.percentage || 0),
+          0
+        ) / deployments.length;
 
       return {
         averageBuildTime: Math.round(totalBuildTime / deployments.length),
@@ -2013,18 +2061,19 @@ class AnalyticsService {
    */
   async getProjectErrorAnalysis(projectId) {
     try {
-      const deployments = await Deployment.find({ 
+      const deployments = await Deployment.find({
         project: projectId,
-        status: { $in: ["failed", "error"] }
+        status: { $in: ["failed", "error"] },
       })
         .sort({ createdAt: -1 })
         .limit(10)
         .select("status build.logs createdAt");
 
-      return deployments.map(deployment => ({
+      return deployments.map((deployment) => ({
         date: deployment.createdAt,
         status: deployment.status,
-        errors: deployment.build?.logs?.filter(log => log.level === "error") || [],
+        errors:
+          deployment.build?.logs?.filter((log) => log.level === "error") || [],
       }));
     } catch (error) {
       logger.error("Error in getProjectErrorAnalysis:", error);
@@ -2039,7 +2088,7 @@ class AnalyticsService {
     try {
       const runningDeployments = await Deployment.find({
         project: projectId,
-        status: "running"
+        status: "running",
       }).select("runtime.resources");
 
       if (runningDeployments.length === 0) {
@@ -2051,9 +2100,11 @@ class AnalyticsService {
         return sum + parseFloat(memUsed.replace(/[^\d.]/g, ""));
       }, 0);
 
-      const averageCpu = runningDeployments.reduce((sum, d) => 
-        sum + (d.runtime?.resources?.cpu?.used || 0), 0
-      ) / runningDeployments.length;
+      const averageCpu =
+        runningDeployments.reduce(
+          (sum, d) => sum + (d.runtime?.resources?.cpu?.used || 0),
+          0
+        ) / runningDeployments.length;
 
       return {
         memory: Math.round(totalMemory),
@@ -2113,7 +2164,10 @@ class AnalyticsController {
       const { projectId } = req.params;
       const userId = req.user._id;
 
-      const analytics = await analyticsService.getProjectAnalytics(projectId, userId);
+      const analytics = await analyticsService.getProjectAnalytics(
+        projectId,
+        userId
+      );
 
       res.status(200).json({
         success: true,
@@ -2224,7 +2278,7 @@ module.exports = {
 
   // Direct service exports for convenience
   ...project,
-  ...deployment, // ADD THIS  
+  ...deployment, // ADD THIS
   ...analytics, // ADD THIS
   ...user,
   ...auth,
@@ -2319,12 +2373,14 @@ module.exports = router;
 ## ✅ **COMPREHENSIVE TESTING CHECKLIST**
 
 ### **Project API Endpoints**
+
 1. ✅ **GET /api/v1/projects** - List projects with pagination
 2. ✅ **GET /api/v1/projects/:id** - Get project details
 3. ✅ **PUT /api/v1/projects/:id** - Update project
 4. ✅ **DELETE /api/v1/projects/:id** - Delete project
 
 ### **Deployment API Endpoints**
+
 5. ✅ **GET /api/v1/deployments** - List all user deployments
 6. ✅ **GET /api/v1/deployments/:id** - Get deployment details
 7. ✅ **GET /api/v1/projects/:id/deployments** - Project deployments
@@ -2334,14 +2390,16 @@ module.exports = router;
 11. ✅ **POST /api/v1/deployments/:id/cancel** - Cancel deployment
 12. ✅ **DELETE /api/v1/deployments/:id** - Delete deployment
 
-12. ✅ **DELETE /api/v1/deployments/:id** - Delete deployment
-13. ✅ **GET /api/v1/deployments/:id/logs** - Get deployment logs
+13. ✅ **DELETE /api/v1/deployments/:id** - Delete deployment
+14. ✅ **GET /api/v1/deployments/:id/logs** - Get deployment logs
 
 ### **Analytics API Endpoints**
+
 14. ✅ **GET /api/v1/analytics/dashboard** - Dashboard analytics
 15. ✅ **GET /api/v1/analytics/projects/:id** - Project analytics
 
 ### **Test Scenarios**
+
 - ✅ Valid authentication for all endpoints
 - ✅ Pagination and filtering parameters
 - ✅ Error handling (404, 403, 500)
@@ -2354,6 +2412,7 @@ module.exports = router;
 ## 🚀 **IMPLEMENTATION ORDER**
 
 ### **Step 1: Create Directory Structure**
+
 ```bash
 mkdir -p server/services/deployment
 mkdir -p server/services/analytics
@@ -2364,25 +2423,30 @@ mkdir -p server/routes/api/v1/analytics
 ```
 
 ### **Step 2: Implement Services (Core Logic)**
+
 1. `server/services/project/projectService.js`
 2. `server/services/deployment/deploymentService.js`
 3. `server/services/analytics/analyticsService.js`
 
 ### **Step 3: Implement Controllers (API Handlers)**
+
 4. `server/controllers/project/projectController.js`
 5. `server/controllers/deployment/deploymentController.js`
 6. `server/controllers/analytics/analyticsController.js`
 
 ### **Step 4: Implement Routes (Endpoints)**
+
 7. `server/routes/api/v1/project/projects.js`
 8. `server/routes/api/v1/deployment/deployments.js`
 9. `server/routes/api/v1/analytics/analytics.js`
 
 ### **Step 5: Update Index Files (Integration)**
+
 10. Update all index.js files to connect services and routes
 11. Test each module as you complete it
 
 ### **Step 6: End-to-End Testing**
+
 12. Test complete user flows
 13. Verify database operations
 14. Check error handling
