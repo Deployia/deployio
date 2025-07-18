@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { reset, resetPassword } from "@redux/slices/authSlice";
-import { FaLock, FaEye, FaEyeSlash, FaCheck, FaKey } from "react-icons/fa";
+import { FaLock, FaEye, FaEyeSlash, FaCheck, FaKey, FaCheckCircle } from "react-icons/fa";
 import AuthCard from "@components/auth/Card";
 import AuthInput from "@components/auth/Input";
 import AuthButton from "@components/auth/Button";
@@ -22,6 +22,7 @@ function ResetPassword() {
   const [passwordScore, setPasswordScore] = useState(0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const { password, confirmPassword } = formData;
   const { token } = useParams();
@@ -69,6 +70,7 @@ function ResetPassword() {
         toast.error(error.resetPassword);
         setIsSubmitting(false);
       } else if (success?.resetPassword) {
+        setShowSuccessMessage(true);
         toast.success("Password has been reset successfully!");
         setIsSubmitting(false);
         // Redirect after a short delay
@@ -205,6 +207,14 @@ function ResetPassword() {
           </div>
         ) : (
           <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
+            {/* Success Message */}
+            {showSuccessMessage && !formError && (
+              <div className="bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg flex items-center gap-2">
+                <FaCheckCircle />
+                <span>Password reset successfully! Redirecting to login...</span>
+              </div>
+            )}
+
             <div className="space-y-1">
               <AuthInput
                 type={showPassword ? "text" : "password"}
@@ -266,16 +276,20 @@ function ResetPassword() {
             <AuthButton
               type="submit"
               loading={loading?.resetPassword || isSubmitting}
-              disabled={loading?.resetPassword || isSubmitting}
+              disabled={loading?.resetPassword || isSubmitting || showSuccessMessage}
               icon={FaKey}
               className={`w-full transition-all duration-200 ${
-                isFormValid() && !loading?.resetPassword && !isSubmitting
+                isFormValid() && !loading?.resetPassword && !isSubmitting && !showSuccessMessage
                   ? "bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
                   : ""
               }`}
             >
-              {loading?.resetPassword || isSubmitting
+              {showSuccessMessage
+                ? "Redirecting..."
+                : loading?.resetPassword || isSubmitting
                 ? "Resetting Password..."
+                : "Reset Password"}
+            </AuthButton>
                 : "Reset Password"}
             </AuthButton>
 

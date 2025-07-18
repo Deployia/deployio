@@ -290,6 +290,35 @@ const userProfileSlice = createSlice({
         state.error.dashboardStats = action.payload;
       })
 
+      // Password management
+      .addCase(updatePassword.pending, (state) => {
+        state.loading.updatePassword = true;
+        state.error.updatePassword = null;
+        state.success.updatePassword = false;
+      })
+      .addCase(updatePassword.fulfilled, (state) => {
+        state.loading.updatePassword = false;
+        state.success.updatePassword = true;
+      })
+      .addCase(updatePassword.rejected, (state, action) => {
+        state.loading.updatePassword = false;
+        state.error.updatePassword = action.payload;
+      })
+
+      .addCase(setInitialPassword.pending, (state) => {
+        state.loading.setInitialPassword = true;
+        state.error.setInitialPassword = null;
+        state.success.setInitialPassword = false;
+      })
+      .addCase(setInitialPassword.fulfilled, (state) => {
+        state.loading.setInitialPassword = false;
+        state.success.setInitialPassword = true;
+      })
+      .addCase(setInitialPassword.rejected, (state, action) => {
+        state.loading.setInitialPassword = false;
+        state.error.setInitialPassword = action.payload;
+      })
+
       // Listen to profile updates from authSlice to keep data in sync
       .addCase(updateProfile.fulfilled, (state) => {
         // When profile is updated (e.g., authUser changes), reset user-specific data,

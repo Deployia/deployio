@@ -10,6 +10,7 @@ import {
   FaArrowLeft,
   FaRedoAlt,
   FaCheck,
+  FaCheckCircle,
 } from "react-icons/fa";
 import AuthCard from "@components/auth/Card";
 import AuthButton from "@components/auth/Button";
@@ -23,6 +24,7 @@ function VerifyOtp() {
   const [formError, setFormError] = useState("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const inputsRef = useRef([]);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -73,18 +75,23 @@ function VerifyOtp() {
           inputsRef.current[0].focus();
         }
       } else if (isAuthenticated) {
+        setShowSuccessMessage(true);
         toast.success(
           isFromRegistration
             ? "Account verified successfully! Welcome to DeployIO!"
             : "Account verified and logged in!"
         );
-        navigate("/dashboard");
-        setIsSubmitting(false);
 
-        // Clear verification state if coming from login flow
-        if (isFromLogin) {
-          dispatch(resetVerification());
-        }
+        // Delay navigation to show success message
+        setTimeout(() => {
+          navigate("/dashboard");
+          // Clear verification state if coming from login flow
+          if (isFromLogin) {
+            dispatch(resetVerification());
+          }
+        }, 1500);
+
+        setIsSubmitting(false);
         return;
       }
     }
@@ -251,6 +258,18 @@ function VerifyOtp() {
         icon={FaEnvelopeOpen}
       >
         <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
+          {/* Success Message */}
+          {showSuccessMessage && !formError && (
+            <div className="bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg flex items-center gap-2">
+              <FaCheckCircle />
+              <span>
+                {isFromRegistration
+                  ? "Account verified successfully! Redirecting to dashboard..."
+                  : "Account verified! Redirecting to dashboard..."}
+              </span>
+            </div>
+          )}
+
           <div className="space-y-3">
             <label
               htmlFor="otp-input-0"
@@ -299,15 +318,25 @@ function VerifyOtp() {
           <AuthButton
             type="submit"
             loading={loading?.verifyOtp || isSubmitting}
-            disabled={!isFormValid() || loading?.verifyOtp || isSubmitting}
+            disabled={
+              !isFormValid() ||
+              loading?.verifyOtp ||
+              isSubmitting ||
+              showSuccessMessage
+            }
             icon={FaCheck}
             className={`w-full transition-all duration-200 ${
-              isFormValid() && !loading?.verifyOtp && !isSubmitting
+              isFormValid() &&
+              !loading?.verifyOtp &&
+              !isSubmitting &&
+              !showSuccessMessage
                 ? "bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
                 : ""
             }`}
           >
-            {loading?.verifyOtp || isSubmitting
+            {showSuccessMessage
+              ? "Redirecting..."
+              : loading?.verifyOtp || isSubmitting
               ? "Verifying..."
               : "Verify & Continue"}
           </AuthButton>

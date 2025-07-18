@@ -10,6 +10,7 @@ import {
   FaUserPlus,
   FaEye,
   FaEyeSlash,
+  FaCheckCircle,
 } from "react-icons/fa";
 import AuthCard from "@components/auth/Card";
 import AuthInput from "@components/auth/Input";
@@ -20,6 +21,7 @@ import OTPInput from "@components/auth/OTPInput";
 import SEO from "@components/SEO.jsx";
 import { getRedirectPath } from "@utils/authUtils";
 import { getAndClearIntendedDestination } from "@utils/authUtils";
+import toast from "react-hot-toast";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -29,6 +31,8 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const oauth2fa = searchParams.get("oauth2fa");
@@ -41,6 +45,7 @@ function Login() {
     isAuthenticated,
     loading,
     error,
+    success,
     requires2FA,
     pending2FAUserId,
     needsVerification,
@@ -80,17 +85,29 @@ function Login() {
     // Handle OAuth success
     const oauthSuccess = searchParams.get("oauth");
     if (oauthSuccess === "success" && isAuthenticated) {
+      toast.success("Successfully logged in!");
+      setShowSuccessMessage(true);
       // Get intended destination or use default
       const intendedDestination = getAndClearIntendedDestination();
       const redirectPath =
         intendedDestination || getRedirectPath(searchParams, "/dashboard");
-      navigate(redirectPath, { replace: true });
+
+      // Delay navigation to show success message
+      setTimeout(() => {
+        navigate(redirectPath, { replace: true });
+      }, 1000);
       return;
     }
 
-    if (isAuthenticated) {
+    if (isAuthenticated && !loading.login) {
+      setShowSuccessMessage(true);
+      toast.success("Login successful!");
       const redirectPath = getRedirectPath(searchParams, "/dashboard");
-      navigate(redirectPath);
+
+      // Delay navigation to show success message
+      setTimeout(() => {
+        navigate(redirectPath);
+      }, 1000);
     }
 
     // Redirect to OTP verification if needed
@@ -109,6 +126,7 @@ function Login() {
     }
   }, [
     isAuthenticated,
+    loading.login,
     needsVerification,
     pendingVerificationEmail,
     error,
@@ -136,6 +154,7 @@ function Login() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setHasSubmitted(true);
+    setShowSuccessMessage(false);
 
     if (!validateForm()) {
       return;
@@ -145,12 +164,18 @@ function Login() {
       return;
     }
 
+    setIsSubmitting(true);
     const userData = { email, password };
+
     try {
       await dispatch(loginUser(userData)).unwrap();
+      // Success is handled in useEffect
     } catch (error) {
       // Error is already handled by the auth slice and will be displayed in the card
       console.error("Login error:", error);
+      toast.error(error || "Login failed");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -197,6 +222,14 @@ function Login() {
         maxWidth="max-w-lg"
       >
         <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4">
+          {/* Success Message */}
+          {showSuccessMessage && !error?.login && (
+            <div className="bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg flex items-center gap-2">
+              <FaCheckCircle />
+              <span>Login successful! Redirecting...</span>
+            </div>
+          )}
+
           <AuthInput
             label="Email Address"
             type="email"
@@ -247,21 +280,25 @@ function Login() {
             type="submit"
             variant="primary"
             size="md"
-            loading={loading.login}
-            disabled={loading.login}
+            loading={loading.login || isSubmitting}
+            disabled={loading.login || isSubmitting || showSuccessMessage}
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
           >
-            Sign In
+            {showSuccessMessage ? "Redirecting..." : "Sign In"}
           </AuthButton>
 
-          {hasSubmitted && !isFormValid && !loading.login && (
-            <div className="flex items-center justify-center p-2 sm:p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <FaExclamationTriangle className="text-red-400 mr-2 text-xs sm:text-sm flex-shrink-0" />
-              <span className="text-red-400 text-xs">
-                Please fix the errors above
-              </span>
-            </div>
-          )}
+          {hasSubmitted &&
+            !isFormValid &&
+            !loading.login &&
+            !isSubmitting &&
+            !showSuccessMessage && (
+              <div className="flex items-center justify-center p-2 sm:p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <FaExclamationTriangle className="text-red-400 mr-2 text-xs sm:text-sm flex-shrink-0" />
+                <span className="text-red-400 text-xs">
+                  Please fix the errors above
+                </span>
+              </div>
+            )}
         </form>
 
         <AuthDivider />

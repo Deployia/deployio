@@ -67,8 +67,11 @@ const SecurityTab = () => {
     }
 
     // Check Google OAuth
-    if (authUser.google?.email) {
+    if (authUser.googleId) {
       providers.google = true;
+    }
+    if (authUser.githubId) {
+      providers.github = true;
     }
 
     return providers;
@@ -397,7 +400,7 @@ const SecurityTab = () => {
                   </div>
                 ))}
               </div>
-            ) : apiKeys && apiKeys.length > 0 ? (
+            ) : apiKeys && Array.isArray(apiKeys) && apiKeys.length > 0 ? (
               apiKeys.map((apiKey) => (
                 <motion.div
                   key={apiKey._id}
@@ -420,12 +423,16 @@ const SecurityTab = () => {
                         <div className="flex items-center gap-2">
                           <span
                             className={`px-2 py-1 text-xs rounded-full border ${
-                              apiKey.status === "active"
+                              apiKey.isActive !== false &&
+                              apiKey.status !== "inactive"
                                 ? "bg-green-500/20 text-green-400 border-green-500/30"
                                 : "bg-gray-500/20 text-gray-400 border-gray-500/30"
                             }`}
                           >
-                            {apiKey.status || "active"}
+                            {apiKey.isActive !== false &&
+                            apiKey.status !== "inactive"
+                              ? "active"
+                              : "inactive"}
                           </span>
 
                           {/* Usage indicator */}
@@ -464,11 +471,13 @@ const SecurityTab = () => {
                           </span>
                         </div>
 
-                        {apiKey.lastUsed && (
+                        {(apiKey.lastUsed || apiKey.usage?.lastUsed) && (
                           <div className="flex items-center gap-2">
                             <span className="text-gray-500">Last used:</span>
                             <span className="text-gray-300">
-                              {new Date(apiKey.lastUsed).toLocaleDateString()}
+                              {new Date(
+                                apiKey.lastUsed || apiKey.usage.lastUsed
+                              ).toLocaleDateString()}
                             </span>
                           </div>
                         )}
@@ -489,13 +498,22 @@ const SecurityTab = () => {
                           <code className="text-xs text-gray-400 font-mono truncate">
                             {apiKey.maskedKey && apiKey.maskedKey.includes("*")
                               ? apiKey.maskedKey
-                              : apiKey.maskedKey?.slice(0, 12) +
-                                  "..." +
-                                  apiKey.maskedKey?.slice(-4) ||
-                                `dk_${"*".repeat(8)}...${apiKey._id.slice(-4)}`}
+                              : apiKey.maskedKey && apiKey.maskedKey.length > 16
+                              ? apiKey.maskedKey.slice(0, 12) +
+                                "..." +
+                                apiKey.maskedKey.slice(-4)
+                              : apiKey.keyPrefix
+                              ? `${apiKey.keyPrefix}${"*".repeat(8)}...${(
+                                  apiKey._id || ""
+                                )
+                                  .toString()
+                                  .slice(-4)}`
+                              : `dp_****...${(apiKey._id || "")
+                                  .toString()
+                                  .slice(-4)}`}
                           </code>
                           <span className="text-xs text-gray-500 ml-2">
-                            ID: {apiKey._id.slice(-8)}
+                            ID: {(apiKey._id || "").toString().slice(-8)}
                           </span>
                         </div>
                       </div>

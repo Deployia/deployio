@@ -53,8 +53,11 @@ const OverviewTab = () => {
     }
 
     // Check Google OAuth
-    if (authUser.google?.email) {
+    if (authUser.googleId) {
       providers.google = true;
+    }
+    if (authUser.githubId) {
+      providers.github = true;
     }
 
     return providers;

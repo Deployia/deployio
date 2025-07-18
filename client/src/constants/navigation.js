@@ -132,13 +132,6 @@ export const dashboardItems = [
     description: "Your deployment overview",
   },
   {
-    label: "Playground",
-    href: "/playground",
-    icon: FaLaptopCode,
-    description: "AI-powered DevOps IDE",
-    highlight: true,
-  },
-  {
     label: "Projects",
     href: "/dashboard/projects",
     icon: FaProjectDiagram,
@@ -242,6 +235,13 @@ export const adminItems = [
 
 // Dashboard resources (slightly different from home resources)
 export const dashboardResourcesItems = [
+  {
+    label: "Playground",
+    href: "/playground",
+    icon: FaLaptopCode,
+    description: "AI-powered DevOps IDE",
+    highlight: true,
+  },
   {
     label: "Documentation",
     href: "/resources/docs",

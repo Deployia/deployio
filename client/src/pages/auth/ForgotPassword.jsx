@@ -3,7 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { forgotPassword, reset } from "@redux/slices/authSlice";
-import { FaEnvelope, FaPaperPlane, FaCheck, FaArrowLeft } from "react-icons/fa";
+import {
+  FaEnvelope,
+  FaPaperPlane,
+  FaCheck,
+  FaArrowLeft,
+  FaCheckCircle,
+} from "react-icons/fa";
 import AuthCard from "@components/auth/Card";
 import AuthInput from "@components/auth/Input";
 import AuthButton from "@components/auth/Button";
@@ -163,6 +169,14 @@ function ForgotPassword() {
           </div>
         ) : (
           <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
+            {/* Success Message - shown temporarily before redirect */}
+            {success?.forgotPassword && (
+              <div className="bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg flex items-center gap-2">
+                <FaCheckCircle />
+                <span>Password reset instructions sent to your email!</span>
+              </div>
+            )}
+
             <AuthInput
               type="email"
               name="email"

@@ -21,7 +21,7 @@ export const calculateSecurityScore = ({
   }
 
   // Email verification (20 points)
-  if (authUser?.email && authUser.emailVerified) {
+  if (authUser?.email && authUser.isVerified) {
     score += 20;
   }
 
@@ -34,9 +34,15 @@ export const calculateSecurityScore = ({
     score += 20;
   }
 
-  // API keys generated (10 points)
-  if (apiKeys && apiKeys.length > 0) {
-    score += 10;
+  // API keys with proper security (10 points)
+  if (apiKeys && Array.isArray(apiKeys) && apiKeys.length > 0) {
+    // Check for active API keys only
+    const activeKeys = apiKeys.filter(
+      (key) => key.isActive !== false && key.status !== "inactive"
+    );
+    if (activeKeys.length > 0) {
+      score += 10;
+    }
   }
 
   // Profile completion (10 points)
@@ -53,12 +59,24 @@ export const calculateSecurityScore = ({
     score += 10;
   }
 
-  // OAuth connections (10 points)
+  // OAuth connections (10 points) - more robust checking
   const oauthConnections = linkedProviders
-    ? Object.values(linkedProviders).filter(Boolean).length
+    ? Object.values(linkedProviders).filter((provider) => Boolean(provider))
+        .length
     : 0;
 
-  if (oauthConnections > 0) {
+  // Also check for OAuth IDs directly on user object as fallback
+  const userOAuthConnections = authUser
+    ? [
+        authUser.githubId,
+        authUser.googleId,
+        authUser.gitlabId,
+        authUser.bitbucketId,
+        authUser.azureDevOpsId,
+      ].filter(Boolean).length
+    : 0;
+
+  if (oauthConnections > 0 || userOAuthConnections > 0) {
     score += 10;
   }
 

@@ -99,31 +99,35 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
   return "Password updated successfully";
 };
 
-// Set initial password for OAuth users
-const setInitialPassword = async (userId, newPassword) => {
+// Set or update user password (handles both initial and update scenarios)
+const setOrUpdatePassword = async (userId, newPassword, isUpdate = false) => {
   const user = await User.findById(userId).select(
     "+password githubId googleId gitlabId bitbucketId azureDevOpsId"
   );
 
   if (!user) throw new Error("User not found");
 
-  // Verify this is an OAuth user
+  // Check password requirements based on scenario
+  const hasPassword = !!user.password;
   const isOAuthUser =
     user.githubId ||
     user.googleId ||
     user.gitlabId ||
     user.bitbucketId ||
     user.azureDevOpsId;
-  if (!isOAuthUser) {
+
+  // Determine if this should be an initial password or update
+  if (!isUpdate && hasPassword) {
+    // User already has password, should use update instead
     throw new Error(
-      "This endpoint is only for OAuth users setting their first password"
+      "User already has a password. Use update password instead."
     );
   }
 
-  // Check if user already has a password
-  if (user.password) {
+  if (isUpdate && !hasPassword && !isOAuthUser) {
+    // Regular user without password trying to update (should set initial instead)
     throw new Error(
-      "User already has a password. Use update password instead."
+      "User doesn't have a password yet. Use set initial password instead."
     );
   }
 
@@ -144,7 +148,19 @@ const setInitialPassword = async (userId, newPassword) => {
   // Invalidate cache comprehensively
   await invalidateUserCache(userId);
 
-  return "Initial password set successfully";
+  return isUpdate
+    ? "Password updated successfully"
+    : "Initial password set successfully";
+};
+
+// Set initial password for OAuth users or users without password
+const setInitialPassword = async (userId, newPassword) => {
+  return setOrUpdatePassword(userId, newPassword, false);
+};
+
+// Update existing password
+const updatePasswordNew = async (userId, newPassword) => {
+  return setOrUpdatePassword(userId, newPassword, true);
 };
 
 // Get user by ID
@@ -485,6 +501,7 @@ module.exports = {
   updateProfile,
   updatePassword,
   setInitialPassword,
+  setOrUpdatePassword,
   getUserById,
   deleteUser,
   getNotificationPreferences,

@@ -44,7 +44,7 @@ const updatePassword = async (req, res) => {
 };
 
 /**
- * Set initial password for OAuth users
+ * Set initial password or update password intelligently
  */
 const setInitialPassword = async (req, res) => {
   try {
@@ -58,12 +58,36 @@ const setInitialPassword = async (req, res) => {
       });
     }
 
-    const result = await user.user.setInitialPassword(req.user.id, newPassword);
-
-    res.status(200).json({
-      success: true,
-      message: result,
-    });
+    // Try initial password first, then fall back to update if needed
+    try {
+      const result = await user.user.setInitialPassword(
+        req.user.id,
+        newPassword
+      );
+      res.status(200).json({
+        success: true,
+        message: result,
+      });
+    } catch (initialError) {
+      // If the error is about user already having a password, try using update logic
+      if (initialError.message.includes("User already has a password")) {
+        try {
+          const result = await user.user.setOrUpdatePassword(
+            req.user.id,
+            newPassword,
+            true
+          );
+          res.status(200).json({
+            success: true,
+            message: result,
+          });
+        } catch (updateError) {
+          throw updateError; // Re-throw the update error
+        }
+      } else {
+        throw initialError; // Re-throw the original error
+      }
+    }
   } catch (error) {
     logger.error("Set initial password error", {
       error: { message: error.message, stack: error.stack, name: error.name },

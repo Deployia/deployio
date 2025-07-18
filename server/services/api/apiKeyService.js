@@ -19,7 +19,7 @@ class ApiKeyService {
       // Check if user already has too many API keys
       const existingKeys = await ApiKey.find({
         user: userId,
-        status: "active",
+        isActive: true,
       });
       if (existingKeys.length >= 10) {
         throw new Error("Maximum number of API keys (10) reached");
@@ -29,13 +29,17 @@ class ApiKeyService {
       const existingKey = await ApiKey.findOne({
         user: userId,
         name: name,
-        status: "active",
+        isActive: true,
       });
       if (existingKey) {
         throw new Error("API key with this name already exists");
-      } // Generate secure API key
+      }
+
+      // Generate secure API key
       const validPermissions = permissions || ["projects:read"];
-      const keyType = validPermissions.includes("write") ? "live" : "test";
+      const keyType = validPermissions.some((p) => p.includes("write"))
+        ? "live"
+        : "test";
       const fullKey = this.generateApiKey(keyType);
       const keyPrefix = fullKey.substring(0, 12); // dp_live_xxxx or dp_test_xxxx
 
@@ -51,8 +55,13 @@ class ApiKeyService {
         user: userId,
         permissions: validPermissions,
         expiresAt,
-        status: "active",
-        lastUsed: null,
+        isActive: true,
+        usage: {
+          totalRequests: 0,
+          lastUsed: null,
+          requestsToday: 0,
+          requestsThisMonth: 0,
+        },
       });
 
       await apiKey.save();
@@ -63,12 +72,13 @@ class ApiKeyService {
         name: apiKey.name,
         description: apiKey.description,
         key: fullKey, // Return full key for user to copy
+        fullKey: fullKey, // Alternative field name for compatibility
         keyPrefix: apiKey.keyPrefix,
         permissions: apiKey.permissions,
-        status: apiKey.status,
+        isActive: apiKey.isActive,
         expiresAt: apiKey.expiresAt,
         created: apiKey.createdAt,
-        lastUsed: apiKey.lastUsed,
+        lastUsed: apiKey.usage.lastUsed,
       };
     } catch (error) {
       console.error("Error creating API key:", error);
@@ -83,7 +93,7 @@ class ApiKeyService {
     try {
       const query = { user: userId };
       if (!includeInactive) {
-        query.status = "active";
+        query.isActive = true;
       }
 
       const apiKeys = await ApiKey.find(query)
@@ -93,16 +103,22 @@ class ApiKeyService {
 
       // Return API keys with masked keys for security
       return apiKeys.map((key) => ({
+        _id: key._id,
         id: key._id,
         name: key.name,
         description: key.description,
-        key: `${key.keyPrefix}${"*".repeat(20)}${key.keyPrefix.slice(-3)}`,
+        maskedKey: `${key.keyPrefix}${"*".repeat(20)}${key._id
+          .toString()
+          .slice(-4)}`,
         keyPrefix: key.keyPrefix,
         permissions: key.permissions,
-        status: key.status,
+        isActive: key.isActive,
+        status: key.isActive ? "active" : "inactive",
         expiresAt: key.expiresAt,
         created: key.createdAt,
-        lastUsed: key.lastUsed,
+        createdAt: key.createdAt,
+        lastUsed: key.usage?.lastUsed || null,
+        usage: key.usage || {},
       }));
     } catch (error) {
       console.error("Error fetching user API keys:", error);
@@ -125,18 +141,22 @@ class ApiKeyService {
       // Find API keys with matching prefix
       const potentialKeys = await ApiKey.find({
         keyPrefix,
-        status: "active",
+        isActive: true,
         $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
-      }).populate("user", "username email status");
+      }).populate("user", "username email isActive");
 
       // Check each potential key
       for (const apiKey of potentialKeys) {
         const isValid = await bcrypt.compare(keyString, apiKey.keyHash);
         if (isValid) {
-          // Update last used timestamp
+          // Update last used timestamp and usage
           await ApiKey.findByIdAndUpdate(apiKey._id, {
-            lastUsed: new Date(),
-            $inc: { usageCount: 1 },
+            "usage.lastUsed": new Date(),
+            $inc: {
+              "usage.totalRequests": 1,
+              "usage.requestsToday": 1,
+              "usage.requestsThisMonth": 1,
+            },
           });
 
           return {
@@ -144,7 +164,7 @@ class ApiKeyService {
             user: apiKey.user,
             permissions: apiKey.permissions,
             name: apiKey.name,
-            status: apiKey.status,
+            isActive: apiKey.isActive,
           };
         }
       }
@@ -165,7 +185,7 @@ class ApiKeyService {
       const apiKey = await ApiKey.findOne({
         _id: keyId,
         user: userId,
-        status: "active",
+        isActive: true,
       });
 
       if (!apiKey) {
@@ -173,8 +193,7 @@ class ApiKeyService {
       }
 
       // Soft delete the API key
-      apiKey.status = "revoked";
-      apiKey.revokedAt = new Date();
+      apiKey.isActive = false;
       await apiKey.save();
 
       return true;

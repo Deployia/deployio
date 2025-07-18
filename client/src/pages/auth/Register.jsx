@@ -10,6 +10,7 @@ import {
   FaEye,
   FaEyeSlash,
   FaUserPlus,
+  FaCheckCircle,
 } from "react-icons/fa";
 import AuthCard from "@components/auth/Card";
 import AuthInput from "@components/auth/Input";
@@ -17,6 +18,7 @@ import AuthButton from "@components/auth/Button";
 import AuthDivider from "@components/auth/Divider";
 import OAuthSection from "@components/auth/OAuthSection";
 import SEO from "@components/SEO.jsx";
+import toast from "react-hot-toast";
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -32,6 +34,7 @@ function Register() {
   const [validationErrors, setValidationErrors] = useState({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const { username, email, password, confirmPassword } = formData;
   const navigate = useNavigate();
@@ -114,16 +117,25 @@ function Register() {
         } else {
           setFormError(error.signup);
         }
+        toast.error(error.signup);
         setIsSubmitting(false);
       } else if (user?.email) {
-        // Registration successful, redirect to OTP verification
-        navigate("/auth/verify-otp", {
-          state: {
-            email: user.email,
-            fromRegistration: true,
-          },
-        });
-        dispatch(reset());
+        // Registration successful
+        setShowSuccessMessage(true);
+        toast.success(
+          "Registration successful! Redirecting to verification..."
+        );
+
+        // Delay navigation to show success message
+        setTimeout(() => {
+          navigate("/auth/verify-otp", {
+            state: {
+              email: user.email,
+              fromRegistration: true,
+            },
+          });
+          dispatch(reset());
+        }, 1500);
         setIsSubmitting(false);
         return;
       }
@@ -224,6 +236,16 @@ function Register() {
         error={formError}
       >
         <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5">
+          {/* Success Message */}
+          {showSuccessMessage && !formError && (
+            <div className="bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg flex items-center gap-2">
+              <FaCheckCircle />
+              <span>
+                Registration successful! Redirecting to verification...
+              </span>
+            </div>
+          )}
+
           <AuthInput
             type="text"
             name="username"
@@ -309,15 +331,20 @@ function Register() {
           <AuthButton
             type="submit"
             loading={loading?.signup || isSubmitting}
-            disabled={loading?.signup || isSubmitting}
+            disabled={loading?.signup || isSubmitting || showSuccessMessage}
             icon={FaUserPlus}
             className={`w-full transition-all duration-200 ${
-              isFormValid() && !loading?.signup && !isSubmitting
+              isFormValid() &&
+              !loading?.signup &&
+              !isSubmitting &&
+              !showSuccessMessage
                 ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 : ""
             }`}
           >
-            {loading?.signup || isSubmitting
+            {showSuccessMessage
+              ? "Redirecting..."
+              : loading?.signup || isSubmitting
               ? "Creating Account..."
               : "Create Account"}
           </AuthButton>
