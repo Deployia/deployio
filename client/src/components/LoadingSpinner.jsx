@@ -78,6 +78,56 @@ const LoadingGrid = ({ columns = 4, rows = 1 }) => (
   </div>
 );
 
+// Repository card loading skeleton
+const RepositoryCardSkeleton = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="bg-neutral-800/50 backdrop-blur-sm border border-neutral-700/50 rounded-lg p-3 sm:p-4"
+  >
+    <div className="animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          {/* Repository name and icon */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 bg-neutral-700/50 rounded flex-shrink-0"></div>
+            <div className="h-4 bg-neutral-700/50 rounded w-32 sm:w-40"></div>
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-neutral-700/50 rounded"></div>
+          </div>
+
+          {/* Description */}
+          <div className="mb-3">
+            <div className="h-3 bg-neutral-700/50 rounded w-full mb-1"></div>
+            <div className="h-3 bg-neutral-700/50 rounded w-3/4"></div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-neutral-700/50 rounded-full"></div>
+              <div className="h-3 bg-neutral-700/50 rounded w-12"></div>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-neutral-700/50 rounded"></div>
+              <div className="h-3 bg-neutral-700/50 rounded w-8"></div>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-neutral-700/50 rounded"></div>
+              <div className="h-3 bg-neutral-700/50 rounded w-8"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 sm:gap-2 ml-3">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-neutral-700/50 rounded"></div>
+          <div className="w-16 sm:w-20 h-6 sm:h-8 bg-neutral-700/50 rounded"></div>
+        </div>
+      </div>
+    </div>
+  </motion.div>
+);
+
 // Chart loading skeleton
 const LoadingChart = ({ height = "h-64", className = "" }) => (
   <motion.div
@@ -93,4 +143,4 @@ const LoadingChart = ({ height = "h-64", className = "" }) => (
 );
 
 export default LoadingSpinner;
-export { LoadingCard, LoadingGrid, LoadingChart };
+export { LoadingCard, LoadingGrid, LoadingChart, RepositoryCardSkeleton };

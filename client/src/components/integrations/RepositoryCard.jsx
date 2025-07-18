@@ -2,8 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  FaGithub,
-  FaGitlab,
   FaStar,
   FaCodeBranch,
   FaEye,
@@ -14,21 +12,11 @@ import {
   FaClock,
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
+import { getProviderIcon } from "@utils/providerUtils";
 
 const RepositoryCard = ({ repository, provider }) => {
   const navigate = useNavigate();
   const [isSelecting, setIsSelecting] = useState(false);
-
-  const getProviderIcon = (provider) => {
-    switch (provider) {
-      case "github":
-        return FaGithub;
-      case "gitlab":
-        return FaGitlab;
-      default:
-        return FaCodeBranch;
-    }
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "Unknown";
@@ -89,7 +77,7 @@ const RepositoryCard = ({ repository, provider }) => {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-neutral-800/30 border border-neutral-700/50 rounded-lg p-3 sm:p-4 hover:border-neutral-600/50 transition-all group"
+      className="bg-neutral-800/50 backdrop-blur-sm border border-neutral-700/50 rounded-lg p-3 sm:p-4 hover:border-neutral-600/50 transition-all group"
     >
       <div className="flex items-start justify-between">
         {/* Repository Info */}
@@ -192,7 +180,7 @@ const RepositoryCard = ({ repository, provider }) => {
 
       {/* Additional Metadata */}
       {(repository.defaultBranch || repository.size !== undefined) && (
-        <div className="mt-3 pt-3 border-t border-neutral-700/50">
+        <div className="mt-3 pt-3 border-t border-neutral-600/50">
           <div className="flex items-center gap-3 sm:gap-4 text-xs text-gray-500">
             {repository.defaultBranch && (
               <div className="flex items-center gap-1">

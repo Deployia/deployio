@@ -6,3 +6,4 @@ export { default as ProviderCard } from "./ProviderCard";
 export { default as ConnectModal } from "./ConnectModal";
 export { default as RepositorySection } from "./RepositorySection";
 export { default as RepositoryCard } from "./RepositoryCard";
+export { default as ProviderContentSection } from "./ProviderContentSection";

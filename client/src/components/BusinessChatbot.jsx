@@ -56,8 +56,8 @@ const BusinessChatbot = () => {
         setIsOpen(false);
       }
     };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
   }, [isOpen]);
 
   const toggleChat = () => {
@@ -151,13 +151,17 @@ const BusinessChatbot = () => {
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Overlay */}
+            {/* Overlay - covers all screens, adds blur and closes on click */}
             <motion.div
               key="overlay"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
+              animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black z-30 md:hidden"
+              className="fixed inset-0 z-30 bg-black/60 backdrop-blur-md"
+              style={{
+                WebkitBackdropFilter: "blur(8px)",
+                backdropFilter: "blur(8px)",
+              }}
               onClick={toggleChat}
             />
 
@@ -167,8 +171,9 @@ const BusinessChatbot = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed bottom-4 left-4 right-4 z-100 h-[85vh] max-h-[600px] bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden flex flex-col
-                         md:bottom-4 md:right-4 md:top-auto md:left-auto md:w-[360px] md:h-[70vh] md:max-h-[600px]
+              className="fixed bottom-2 left-1 right-1 z-40 h-[80vh] max-h-[95vh] bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-xl shadow-xl overflow-hidden flex flex-col
+                         sm:bottom-4 sm:left-4 sm:right-4 sm:h-[85vh] sm:max-h-[600px]
+                         md:bottom-4 md:right-4 md:left-auto md:w-[360px] md:h-[70vh] md:max-h-[600px]
                          lg:w-[400px] lg:h-[600px] lg:bottom-6 lg:right-6"
             >
               {/* Header */}

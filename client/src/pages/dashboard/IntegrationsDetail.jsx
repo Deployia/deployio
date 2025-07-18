@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { FaArrowLeft, FaExternalLinkAlt } from "react-icons/fa";
 import SEO from "@components/SEO";
-import LoadingSpinner from "@components/LoadingSpinner";
 import { RepositorySection } from "@components/integrations";
 import {
   fetchConnectedProviders,
@@ -48,8 +47,78 @@ const IntegrationsDetail = () => {
   if (ui.connectionsLoading) {
     return (
       <div className="dashboard-page">
-        <div className="flex items-center justify-center">
-          <LoadingSpinner size="large" />
+        <SEO
+          title={`${getProviderDisplayName(provider)} Integration - DeployIO`}
+          description={`Manage your ${getProviderDisplayName(
+            provider
+          )} integration and repositories`}
+        />
+
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-4 mb-6 sm:mb-8">
+          <div className="w-6 h-6 bg-neutral-700/50 rounded animate-pulse"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-neutral-700/50 rounded-lg animate-pulse"></div>
+            <div>
+              <div className="h-6 sm:h-8 bg-neutral-700/50 rounded w-48 sm:w-64 mb-1 animate-pulse"></div>
+              <div className="h-4 bg-neutral-700/50 rounded w-32 sm:w-40 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Skeleton */}
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="text-center">
+                <div className="h-6 sm:h-8 bg-neutral-700/50 rounded w-12 mx-auto mb-1 animate-pulse"></div>
+                <div className="h-3 bg-neutral-700/50 rounded w-20 mx-auto animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Repository Section Skeleton */}
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-neutral-700/50 rounded-lg animate-pulse"></div>
+              <div>
+                <div className="h-5 bg-neutral-700/50 rounded w-40 mb-1 animate-pulse"></div>
+                <div className="h-3 bg-neutral-700/50 rounded w-32 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-neutral-800/50 backdrop-blur-sm border border-neutral-700/50 rounded-lg p-3 sm:p-4"
+              >
+                <div className="animate-pulse">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 bg-neutral-700/50 rounded animate-pulse"></div>
+                        <div className="h-4 bg-neutral-700/50 rounded w-32 animate-pulse"></div>
+                      </div>
+                      <div className="h-3 bg-neutral-700/50 rounded w-full mb-1 animate-pulse"></div>
+                      <div className="h-3 bg-neutral-700/50 rounded w-3/4 mb-3 animate-pulse"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-3 bg-neutral-700/50 rounded w-16 animate-pulse"></div>
+                        <div className="h-3 bg-neutral-700/50 rounded w-8 animate-pulse"></div>
+                        <div className="h-3 bg-neutral-700/50 rounded w-8 animate-pulse"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 ml-3">
+                      <div className="w-6 h-6 bg-neutral-700/50 rounded animate-pulse"></div>
+                      <div className="w-16 h-6 bg-neutral-700/50 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
