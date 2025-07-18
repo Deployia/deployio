@@ -45,8 +45,17 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
   };
+
+  // Debug: Log cookie setting
+  logger.debug("Setting auth cookies:", {
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken,
+    accessTokenLength: accessToken ? accessToken.length : 0,
+    refreshTokenLength: refreshToken ? refreshToken.length : 0,
+    cookieOptions,
+  });
 
   // Access token cookie (shorter expiry)
   res.cookie("token", accessToken, {
@@ -405,7 +414,7 @@ const refreshToken = async (req, res) => {
     const result = await authService.refreshAccessToken(clientRefreshToken);
 
     // Use tokens from auth service (don't generate again)
-    setAuthCookies(res, result.accessToken, result.refreshToken);
+    setAuthCookies(res, result.token, result.refreshToken);
 
     res.json({
       success: true,

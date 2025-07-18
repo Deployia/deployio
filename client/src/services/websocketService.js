@@ -64,6 +64,7 @@ class WebSocketService {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.connections.delete(namespace);
+        socket.disconnect();
         reject(new Error(`Connection timeout for namespace ${namespace}`));
       }, 10000);
 
@@ -77,7 +78,16 @@ class WebSocketService {
         clearTimeout(timeout);
         console.error(`WebSocket connection error for ${namespace}:`, error);
         this.connections.delete(namespace);
-        reject(error);
+
+        // Check if it's an authentication error
+        if (error.message && error.message.includes("Authentication")) {
+          console.warn(
+            `Authentication failed for ${namespace}. This is expected if user is not logged in.`
+          );
+          reject(new Error(`Authentication required for ${namespace}`));
+        } else {
+          reject(error);
+        }
       });
 
       socket.on("disconnect", (reason) => {
@@ -193,6 +203,31 @@ class WebSocketService {
     if (socket) {
       socket.off(event, handler);
     }
+  }
+
+  /**
+   * Refresh all WebSocket connections (useful after token refresh)
+   * This disconnects and reconnects all active connections
+   */
+  async refreshConnections() {
+    console.log("Refreshing all WebSocket connections...");
+    const activeNamespaces = Array.from(this.connections.keys());
+
+    // Disconnect all existing connections
+    this.disconnectAll();
+
+    // Reconnect to previously active namespaces
+    const reconnectionPromises = activeNamespaces.map(async (namespace) => {
+      try {
+        await this.connect(namespace);
+        console.log(`Successfully reconnected to ${namespace}`);
+      } catch (error) {
+        console.error(`Failed to reconnect to ${namespace}:`, error);
+      }
+    });
+
+    await Promise.allSettled(reconnectionPromises);
+    console.log("WebSocket connection refresh completed");
   }
 }
 

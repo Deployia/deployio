@@ -13,6 +13,15 @@ const protect = async (req, res, next) => {
   try {
     let token;
 
+    // Debug: Log what cookies we're receiving
+    logger.debug("Auth middleware debug:", {
+      hasCookies: !!req.cookies,
+      cookieKeys: req.cookies ? Object.keys(req.cookies) : [],
+      hasTokenCookie: !!(req.cookies && req.cookies.token),
+      tokenLength:
+        req.cookies && req.cookies.token ? req.cookies.token.length : 0,
+    });
+
     // Check if token is provided in cookies
     if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
@@ -186,30 +195,43 @@ const moderatorOrAdmin = (req, res, next) => {
 async function authenticateUser(token) {
   if (!token) throw new Error("Authentication token required");
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  const { id } = decoded;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = decoded;
 
-  if (!id) throw new Error("Invalid token format");
+    if (!id) throw new Error("Invalid token format");
 
-  const user = await User.findById(id);
-  if (!user) throw new Error("User not found");
+    const user = await User.findById(id);
+    if (!user) throw new Error("User not found");
 
-  if (!user.isVerified) {
-    // Auto-verify OAuth users who might have been created before the fix
-    if (user.googleId || user.githubId || user.gitlabId) {
-      user.isVerified = true;
-      await user.save();
-      logger.info(`Auto-verified OAuth user: ${user.email}`);
+    if (!user.isVerified) {
+      // Auto-verify OAuth users who might have been created before the fix
+      if (user.googleId || user.githubId || user.gitlabId) {
+        user.isVerified = true;
+        await user.save();
+        logger.info(`Auto-verified OAuth user: ${user.email}`);
+      } else {
+        throw new Error("Account not verified");
+      }
+    }
+
+    if (user.isLocked) {
+      throw new Error("Account temporarily locked");
+    }
+
+    return { user };
+  } catch (error) {
+    // Re-throw with more specific error messages for JWT issues
+    if (error.name === "JsonWebTokenError") {
+      throw new Error("Invalid token format");
+    } else if (error.name === "TokenExpiredError") {
+      throw new Error("Token expired");
+    } else if (error.name === "NotBeforeError") {
+      throw new Error("Token not active");
     } else {
-      throw new Error("Account not verified");
+      throw error;
     }
   }
-
-  if (user.isLocked) {
-    throw new Error("Account temporarily locked");
-  }
-
-  return { user };
 }
 
 module.exports = {

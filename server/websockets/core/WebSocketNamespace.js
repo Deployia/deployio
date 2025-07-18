@@ -108,6 +108,13 @@ class WebSocketNamespace {
     if (socket.handshake.headers.cookie) {
       const cookies = this.parseCookies(socket.handshake.headers.cookie);
       token = cookies.token;
+
+      if (token) {
+        logger.debug(`Token found in cookies for ${this.namespacePath}`, {
+          namespace: this.namespacePath,
+          tokenLength: token.length,
+        });
+      }
     }
 
     // Fallback to other methods
@@ -116,9 +123,48 @@ class WebSocketNamespace {
         socket.handshake.auth.token ||
         socket.handshake.query.token ||
         socket.handshake.headers.authorization?.replace("Bearer ", "");
+
+      if (token) {
+        logger.debug(
+          `Token found in fallback methods for ${this.namespacePath}`,
+          {
+            namespace: this.namespacePath,
+            source: socket.handshake.auth.token
+              ? "auth"
+              : socket.handshake.query.token
+              ? "query"
+              : "authorization",
+            tokenLength: token.length,
+          }
+        );
+      }
     }
 
-    return token;
+    // Validate token format (basic JWT structure check)
+    if (token && typeof token === "string") {
+      // JWT should have 3 parts separated by dots
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        return token;
+      } else {
+        logger.warn(`Invalid token format detected for ${this.namespacePath}`, {
+          tokenParts: parts.length,
+          namespace: this.namespacePath,
+          tokenPrefix: token.substring(0, 10) + "...",
+        });
+        return null;
+      }
+    }
+
+    logger.debug(`No token found for ${this.namespacePath}`, {
+      namespace: this.namespacePath,
+      hasCookies: !!socket.handshake.headers.cookie,
+      hasAuth: !!socket.handshake.auth.token,
+      hasQuery: !!socket.handshake.query.token,
+      hasAuthorization: !!socket.handshake.headers.authorization,
+    });
+
+    return null;
   }
 
   /**
@@ -126,10 +172,18 @@ class WebSocketNamespace {
    */
   parseCookies(cookieHeader) {
     const cookies = {};
+    if (!cookieHeader) return cookies;
+
     cookieHeader.split(";").forEach((cookie) => {
-      const [name, value] = cookie.trim().split("=");
-      if (name && value) {
-        cookies[name] = decodeURIComponent(value);
+      const [name, ...valueParts] = cookie.trim().split("=");
+      if (name && valueParts.length > 0) {
+        const value = valueParts.join("="); // Handle values with = in them
+        try {
+          cookies[name] = decodeURIComponent(value);
+        } catch (e) {
+          // If decoding fails, use the raw value
+          cookies[name] = value;
+        }
       }
     });
     return cookies;
