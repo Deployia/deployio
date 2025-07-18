@@ -28,13 +28,13 @@ const ProjectAnalytics = () => {
 
   useEffect(() => {
     if (id) {
-      dispatch(fetchProjectAnalytics({ projectId: id }));
+      dispatch(fetchProjectAnalytics({ projectId: id, timeRange }));
     }
-  }, [id, dispatch]);
+  }, [id, timeRange, dispatch]);
 
   const handleRefresh = () => {
     if (id) {
-      dispatch(fetchProjectAnalytics({ projectId: id }));
+      dispatch(fetchProjectAnalytics({ projectId: id, timeRange }));
     }
   };
 

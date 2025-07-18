@@ -73,7 +73,7 @@ const ProjectDetails = () => {
       const fetchData = async () => {
         try {
           await dispatch(fetchProjectById(id)).unwrap();
-          await dispatch(fetchProjectDeployments({ projectId: id })).unwrap();
+          await dispatch(fetchProjectDeployments(id)).unwrap();
         } catch {
           // Error handling is done by Redux slice
         }
@@ -144,9 +144,25 @@ const ProjectDetails = () => {
 
   // Helper functions
   const detectTechnology = (project) => {
+    // Check technology.primary first
+    if (
+      project?.technology?.primary &&
+      project.technology.primary !== "other"
+    ) {
+      return project.technology.primary;
+    }
+
+    // Check stackAnalysis
     if (project?.stackAnalysis?.primary?.name) {
       return project.stackAnalysis.primary.name;
     }
+
+    // Check aiAnalysis technologyStack
+    if (project?.aiAnalysis?.technologyStack?.dependencies?.length > 0) {
+      return project.aiAnalysis.technologyStack.dependencies[0];
+    }
+
+    // Fallback to name-based detection
     const name = project?.name?.toLowerCase() || "";
     if (name.includes("vue") || name.includes("nuxt")) return "Vue.js";
     if (name.includes("react") || name.includes("next")) return "React";
@@ -157,6 +173,7 @@ const ProjectDetails = () => {
     )
       return "Python";
     if (name.includes("node") || name.includes("express")) return "Node.js";
+    if (name.includes("api")) return "API";
     return "Unknown";
   };
 
@@ -173,8 +190,11 @@ const ProjectDetails = () => {
       case "pending":
       case "building":
         return `${baseClasses} bg-yellow-500/20 text-yellow-400 border border-yellow-500/30`;
-      default:
+      case "inactive":
+      case "stopped":
         return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
+      default:
+        return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30`;
     }
   };
 
@@ -333,10 +353,12 @@ const ProjectDetails = () => {
                 </span>
                 <span
                   className={getStatusBadge(
-                    currentProject.deployment?.status || "inactive"
+                    currentProject.status || "inactive"
                   )}
                 >
-                  {currentProject.deployment?.status || "Not Deployed"}
+                  {currentProject.hasActiveDeployments
+                    ? "Active"
+                    : currentProject.status || "Not Deployed"}
                 </span>
               </div>
             </div>
@@ -458,7 +480,7 @@ const ProjectDetails = () => {
 };
 
 // Project Overview Component
-const ProjectOverview = ({ project, deployments, analytics }) => {
+const ProjectOverview = ({ project, deployments, _analytics }) => {
   const recentDeployments = Array.isArray(deployments)
     ? deployments.slice(0, 3)
     : [];
@@ -475,7 +497,9 @@ const ProjectOverview = ({ project, deployments, analytics }) => {
               <span className="text-gray-400 text-sm">Deployments</span>
             </div>
             <span className="text-2xl font-bold text-white">
-              {project.deploymentCount || 0}
+              {project.statistics?.totalDeployments ||
+                project.deploymentCount ||
+                0}
             </span>
           </div>
           <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
@@ -490,10 +514,18 @@ const ProjectOverview = ({ project, deployments, analytics }) => {
           <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <FaChartLine className="w-4 h-4 text-purple-400" />
-              <span className="text-gray-400 text-sm">Total Visits</span>
+              <span className="text-gray-400 text-sm">Success Rate</span>
             </div>
             <span className="text-2xl font-bold text-white">
-              {analytics?.totalVisits || 0}
+              {project.statistics?.successfulDeployments &&
+              project.statistics?.totalDeployments
+                ? Math.round(
+                    (project.statistics.successfulDeployments /
+                      project.statistics.totalDeployments) *
+                      100
+                  )
+                : 0}
+              %
             </span>
           </div>
           <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
@@ -502,7 +534,7 @@ const ProjectOverview = ({ project, deployments, analytics }) => {
               <span className="text-gray-400 text-sm">Uptime</span>
             </div>
             <span className="text-2xl font-bold text-white">
-              {analytics?.uptime || "99.9%"}
+              {project.statistics?.uptime || 100}%
             </span>
           </div>
         </div>
@@ -531,7 +563,7 @@ const ProjectOverview = ({ project, deployments, analytics }) => {
                     />
                     <div>
                       <p className="text-white font-medium">
-                        {deployment.environment || "production"}
+                        {/* {deployment?.environment || "production"} */}
                       </p>
                       <p className="text-gray-400 text-sm">
                         {new Date(deployment.createdAt).toLocaleString()}
@@ -619,7 +651,7 @@ const ProjectOverview = ({ project, deployments, analytics }) => {
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Environment</span>
               <span className="text-white">
-                {project.deployment?.environment || "development"}
+                {/* {project.deployment?.environment || "development"} */}
               </span>
             </div>
             <div className="flex items-center justify-between">

@@ -74,19 +74,50 @@ const ProjectSettings = () => {
         name: currentProject.name || "",
         description: currentProject.description || "",
         visibility: currentProject.visibility || "private",
-        autoDeployEnabled: currentProject.autoDeployEnabled || false,
-        deploymentBranch: currentProject.deploymentBranch || "main",
+        autoDeployEnabled:
+          currentProject.settings?.autoDeployment?.enabled || false,
+        deploymentBranch:
+          currentProject.settings?.autoDeployment?.branch || "main",
       });
 
       setRepositorySettings({
         url: currentProject.repository?.url || "",
         branch: currentProject.repository?.branch || "main",
-        autoSync: currentProject.repository?.autoSync || false,
-        webhookEnabled: currentProject.repository?.webhookEnabled || false,
+        autoSync: false, // Not in current API
+        webhookEnabled: false, // Not in current API
       });
 
       setCollaborators(currentProject.collaborators || []);
-      setEnvironmentVariables(currentProject.environmentVariables || []);
+
+      // Convert deployment environment variables to the expected format
+      const envVars = [];
+      if (currentProject.deployment?.environment) {
+        Object.entries(currentProject.deployment.environment).forEach(
+          ([env, vars]) => {
+            if (Array.isArray(vars)) {
+              vars.forEach((envVar, index) => {
+                envVars.push({
+                  id: `${env}_${index}`,
+                  key: envVar.key || envVar.name,
+                  value: envVar.value,
+                  environment: env,
+                });
+              });
+            }
+          }
+        );
+      }
+      setEnvironmentVariables(envVars);
+
+      // Set notifications from settings
+      setNotifications({
+        deploymentSuccess:
+          currentProject.settings?.notifications?.email || true,
+        deploymentFailure:
+          currentProject.settings?.notifications?.email || true,
+        securityAlerts: true,
+        weeklyReports: currentProject.settings?.notifications?.slack === "true",
+      });
     }
   }, [currentProject]);
 

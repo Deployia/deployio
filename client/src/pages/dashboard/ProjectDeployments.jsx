@@ -52,11 +52,10 @@ const ProjectDeployments = () => {
   const handleCreateDeployment = () => {
     if (currentProject) {
       const deploymentData = {
-        projectId: id,
         environment: "production",
-        branch: "main",
+        branch: currentProject.repository?.branch || "main",
       };
-      dispatch(createDeployment(deploymentData));
+      dispatch(createDeployment({ projectId: id, deploymentData }));
     }
   };
 
@@ -153,7 +152,7 @@ const ProjectDeployments = () => {
         ) : filteredDeployments.length > 0 ? (
           filteredDeployments.map((deployment, index) => (
             <motion.div
-              key={deployment._id}
+              key={deployment.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -167,7 +166,7 @@ const ProjectDeployments = () => {
                   <div>
                     <div className="flex items-center gap-3">
                       <h3 className="text-white font-semibold">
-                        {deployment.environment || "production"}
+                        {/* {deployment.environment || "production"} */}
                       </h3>
                       <span className={getStatusBadge(deployment.status)}>
                         {getStatusIcon(deployment.status)}
@@ -178,12 +177,10 @@ const ProjectDeployments = () => {
                       <div className="flex items-center gap-1">
                         <FaCode className="w-3 h-3" />
                         <span>{deployment.branch || "main"}</span>
-                      </div>{" "}
+                      </div>
                       <div className="flex items-center gap-1">
                         <FaUser className="w-3 h-3" />
-                        <span>
-                          {deployment.deployedBy?.username || "System"}
-                        </span>
+                        <span>{deployment.deployedBy?.email || "System"}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <FaClock className="w-3 h-3" />
@@ -191,10 +188,12 @@ const ProjectDeployments = () => {
                           {new Date(deployment.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      {deployment.duration && (
+                      {deployment.buildDuration && (
                         <div className="flex items-center gap-1">
                           <FaHistory className="w-3 h-3" />
-                          <span>{deployment.duration}s</span>
+                          <span>
+                            {Math.round(deployment.buildDuration / 1000)}s
+                          </span>
                         </div>
                       )}
                     </div>
@@ -219,7 +218,7 @@ const ProjectDeployments = () => {
 
                   {deployment.status === "running" && (
                     <button
-                      onClick={() => handleStopDeployment(deployment._id)}
+                      onClick={() => handleStopDeployment(deployment.id)}
                       className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm"
                     >
                       <FaStop className="w-3 h-3" />
@@ -229,7 +228,7 @@ const ProjectDeployments = () => {
 
                   {deployment.status === "stopped" && (
                     <button
-                      onClick={() => handleRestartDeployment(deployment._id)}
+                      onClick={() => handleRestartDeployment(deployment.id)}
                       className="flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
                     >
                       <FaPlay className="w-3 h-3" />
@@ -246,10 +245,10 @@ const ProjectDeployments = () => {
                     <FaCode className="w-3 h-3 text-gray-400" />
                     <span className="text-gray-400">Commit:</span>
                     <span className="text-white font-mono">
-                      {deployment.commit.slice(0, 8)}
+                      {deployment.commit.hash?.slice(0, 8) || "N/A"}
                     </span>
                     <span className="text-gray-300">
-                      {deployment.commitMessage}
+                      {deployment.commit.message || "No commit message"}
                     </span>
                   </div>
                 </div>
@@ -299,7 +298,7 @@ const ProjectDeployments = () => {
                     Deployment Logs
                   </h3>
                   <p className="text-gray-400 mt-1">
-                    {selectedDeployment.environment} -{" "}
+                    {/* {selectedDeployment.environment} -{" "} */}
                     {new Date(selectedDeployment.createdAt).toLocaleString()}
                   </p>
                 </div>
@@ -326,7 +325,7 @@ const ProjectDeployments = () => {
                 {selectedDeployment.status === "success" && (
                   <>
                     <div className="text-gray-300 mb-1">
-                      Deploying to {selectedDeployment.environment}...
+                      {/* Deploying to {selectedDeployment.environment}... */}
                     </div>
                     <div className="text-green-400">
                       ✓ Deployment completed successfully!
