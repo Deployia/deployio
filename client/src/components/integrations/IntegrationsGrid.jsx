@@ -63,8 +63,8 @@ const IntegrationsGrid = ({
 
   if (loading) {
     return (
-      <div className="mb-8">
-        <LoadingGrid columns={3} className="gap-6" />
+      <div className="mb-6 sm:mb-8">
+        <LoadingGrid columns={3} className="gap-4 sm:gap-6" />
       </div>
     );
   }
@@ -74,10 +74,10 @@ const IntegrationsGrid = ({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 sm:mb-8"
       >
-        <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-6 text-center">
-          <div className="text-red-400 text-lg font-medium mb-2">
+        <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-6 sm:p-8 text-center">
+          <div className="text-red-400 text-base sm:text-lg font-medium mb-2">
             Failed to Load Integrations
           </div>
           <p className="text-red-300 text-sm mb-4">{error}</p>
@@ -97,10 +97,10 @@ const IntegrationsGrid = ({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 sm:mb-8"
       >
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-12 text-center">
-          <div className="text-gray-400 text-lg font-medium mb-2">
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-8 sm:p-12 text-center">
+          <div className="text-gray-400 text-base sm:text-lg font-medium mb-2">
             No Integrations Found
           </div>
           <p className="text-gray-500 text-sm">
@@ -112,7 +112,7 @@ const IntegrationsGrid = ({
   }
 
   return (
-    <div className="mb-8">
+    <div className="mb-6 sm:mb-8">
       <AnimatePresence mode="wait">
         {Object.keys(groupedProviders).length > 1 ? (
           // Show grouped view when multiple categories are present
@@ -122,15 +122,15 @@ const IntegrationsGrid = ({
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="space-y-8"
+            className="space-y-6 sm:space-y-8"
           >
             {Object.entries(groupedProviders).map(
               ([category, categoryProviders]) => (
                 <motion.div key={category} variants={itemVariants}>
-                  <h3 className="text-xl font-semibold text-white mb-4">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 heading">
                     {getCategoryTitle(category)}
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {categoryProviders.map((provider) => (
                       <ProviderCard
                         key={provider.id}
@@ -155,7 +155,7 @@ const IntegrationsGrid = ({
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
           >
             {filteredProviders.map((provider) => (
               <motion.div key={provider.id} variants={itemVariants}>

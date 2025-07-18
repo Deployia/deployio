@@ -133,8 +133,8 @@ const githubBasicStrategy = new GitHubStrategy(
 // Full Integration Strategy (comprehensive scopes)
 const githubIntegrationStrategy = new GitHubStrategy(
   {
-    clientID: process.env.GITHUB_CLIENT_ID,
-    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    clientID: process.env.GITHUB_CLIENT_ID_INTEGRATION,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET_INTEGRATION,
     callbackURL: `${process.env.BASE_URL}/api/v1/git/connect/github/callback`,
     scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"], // Full scopes
     passReqToCallback: true, // Enable req parameter to access state

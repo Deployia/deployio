@@ -58,12 +58,12 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
 
   if (connectionsLoading) {
     return (
-      <div className="mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 animate-pulse"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 animate-pulse"
             >
               <div className="h-4 bg-neutral-800/50 rounded w-1/2 mb-4"></div>
               <div className="h-8 bg-neutral-800/50 rounded w-1/3 mb-2"></div>
@@ -80,23 +80,25 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="mb-8"
+      className="mb-6 sm:mb-8"
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Connected Providers */}
         <div
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
           onClick={onManageClick}
         >
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">
-              <FaPlug className="w-5 h-5 text-blue-400" />
+              <FaPlug className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             </div>
             <h3 className="text-gray-400 text-sm font-medium">
               Connected Providers
             </h3>
           </div>
-          <p className="text-2xl font-bold text-white mb-1">{totalConnected}</p>
+          <p className="text-xl sm:text-2xl font-bold text-white mb-1">
+            {totalConnected}
+          </p>
 
           {totalConnected > 0 && (
             <div className="flex items-center gap-1">
@@ -106,14 +108,14 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
                   return (
                     <div
                       key={provider.provider}
-                      className="w-6 h-6 bg-neutral-800/80 rounded-full flex items-center justify-center border-2 border-neutral-900"
+                      className="w-5 h-5 sm:w-6 sm:h-6 bg-neutral-800/80 rounded-full flex items-center justify-center border-2 border-neutral-900"
                     >
-                      <Icon className="w-3 h-3 text-gray-300" />
+                      <Icon className="w-2 h-2 sm:w-3 sm:h-3 text-gray-300" />
                     </div>
                   );
                 })}
                 {connectedProviders.length > 3 && (
-                  <div className="w-6 h-6 bg-neutral-800/80 rounded-full flex items-center justify-center border-2 border-neutral-900">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-neutral-800/80 rounded-full flex items-center justify-center border-2 border-neutral-900">
                     <span className="text-xs text-gray-400">
                       +{connectedProviders.length - 3}
                     </span>
@@ -121,8 +123,8 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
                 )}
               </div>
               <div className="flex items-center gap-1 ml-2 text-xs text-blue-400">
-                <span>Manage</span>
-                <FaArrowRight className="w-3 h-3" />
+                <span className="hidden sm:inline">Manage</span>
+                <FaArrowRight className="w-2 h-2 sm:w-3 sm:h-3" />
               </div>
             </div>
           )}
@@ -135,16 +137,16 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
         </div>
 
         {/* Total Repositories */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-green-500/20 rounded-lg">
-              <FaGithub className="w-5 h-5 text-green-400" />
+              <FaGithub className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
             </div>
             <h3 className="text-gray-400 text-sm font-medium">
               Total Repositories
             </h3>
           </div>
-          <p className="text-2xl font-bold text-white mb-1">
+          <p className="text-xl sm:text-2xl font-bold text-white mb-1">
             {totalRepositories}
           </p>
           <div className="text-xs text-green-400 mt-2">
@@ -153,14 +155,14 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
         </div>
 
         {/* Last Sync */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6">
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-purple-500/20 rounded-lg">
-              <FaSyncAlt className="w-5 h-5 text-purple-400" />
+              <FaSyncAlt className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
             </div>
             <h3 className="text-gray-400 text-sm font-medium">Last Sync</h3>
           </div>
-          <p className="text-2xl font-bold text-white mb-1">
+          <p className="text-xl sm:text-2xl font-bold text-white mb-1">
             {formatLastSync(lastSync)}
           </p>
 

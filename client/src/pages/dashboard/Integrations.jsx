@@ -494,30 +494,30 @@ const Integrations = () => {
         {/* Welcome Section for New Users */}
         {connectedProviders.length === 0 && (
           <motion.div variants={itemVariants}>
-            <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-8 text-center">
+            <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-6 sm:p-8 text-center">
               <div className="flex items-center justify-center mb-4">
                 <div className="p-3 bg-blue-500/20 rounded-full">
-                  <FaRocket className="w-8 h-8 text-blue-400" />
+                  <FaRocket className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 heading">
                 Welcome to Integrations
               </h3>
-              <p className="text-gray-400 mb-6 max-w-2xl mx-auto">
+              <p className="text-gray-400 mb-6 max-w-2xl mx-auto text-sm sm:text-base body">
                 Connect your development tools to streamline your deployment
                 workflow. Start with GitHub or GitLab to import your
                 repositories and begin deploying instantly.
               </p>
-              <div className="flex items-center justify-center gap-4">
-                <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 rounded-full">
-                  <FaCheck className="w-4 h-4 text-green-400" />
-                  <span className="text-sm text-green-400">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full">
+                  <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+                  <span className="text-xs sm:text-sm text-green-400 font-medium">
                     GitHub & GitLab Ready
                   </span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 rounded-full">
-                  <FaClock className="w-4 h-4 text-yellow-400" />
-                  <span className="text-sm text-yellow-400">
+                <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-full">
+                  <FaClock className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400" />
+                  <span className="text-xs sm:text-sm text-yellow-400 font-medium">
                     More Coming Q3 2025
                   </span>
                 </div>
