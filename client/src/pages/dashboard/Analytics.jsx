@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaRocket,
@@ -11,7 +10,6 @@ import {
   FaExclamationTriangle,
   FaCode,
   FaSyncAlt,
-  FaEye,
   FaTimes,
   FaSpinner,
 } from "react-icons/fa";
@@ -21,9 +19,8 @@ import { fetchUserAnalytics } from "@redux/slices/analyticsSlice";
 
 const Analytics = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
-  // Redux state - only analytics
+  // Redux state - only analytics (no frontend calculations)
   const {
     userAnalytics,
     loading: analyticsLoadingState,
@@ -35,67 +32,73 @@ const Analytics = () => {
 
   // Fetch data on component mount
   useEffect(() => {
-    // Fetch user analytics which includes overview data
+    // Fetch analytics overview which contains all calculated data
     dispatch(fetchUserAnalytics("30d"));
-    // Also fetch dashboard stats for legacy support
   }, [dispatch]);
 
   // Refresh data
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([dispatch(fetchUserAnalytics("30d"))]);
+      await dispatch(fetchUserAnalytics("30d"));
     } finally {
       setRefreshing(false);
     }
   };
-  // Calculate analytics from backend data
+
+  // Extract analytics data directly from backend (no frontend calculations)
   const analytics = useMemo(() => {
-    // Use userAnalytics API data
-    if (userAnalytics?.data?.overview) {
-      const overview = userAnalytics.data.overview;
-      const recentActivity = userAnalytics.data.recentActivity || [];
-      const techDistribution = userAnalytics.data.techDistribution || [];
+    // Use backend-calculated analytics data directly
+    if (userAnalytics?.data) {
+      const { overview, recentActivity, techDistribution } = userAnalytics.data;
 
       return {
-        totalProjects: overview.totalProjects || 0,
-        totalDeployments: overview.totalDeployments || 0,
+        // Overview stats from backend
+        totalProjects: overview?.totalProjects || 0,
+        totalDeployments: overview?.totalDeployments || 0,
+        activeProjects: overview?.activeProjects || 0,
+        successRate: overview?.successRate || 0,
+        failedDeployments: overview?.failedDeployments || 0,
+
+        // Recent activity from backend (already formatted)
+        recentDeployments: (recentActivity || []).map((activity) => ({
+          projectName: activity.projectName || "Unknown Project",
+          environment: activity.environment || "unknown",
+          status: activity.status || "unknown",
+          timestamp: activity.timestamp || activity.createdAt,
+          action: activity.action || `Deployment ${activity.status}`,
+        })),
+
+        // Technology distribution from backend
+        projectTechnologies: (techDistribution || []).map((tech) => ({
+          name: tech._id || tech.name || "Unknown",
+          count: tech.count || 0,
+          percentage: Math.round(
+            (tech.count / Math.max(overview?.totalProjects || 1, 1)) * 100
+          ),
+        })),
+
+        // Calculate additional metrics from backend data
         successfulDeployments:
-          overview.totalDeployments - overview.failedDeployments || 0,
-        failedDeployments: overview.failedDeployments || 0,
-        successRate: overview.successRate || 0,
-        avgDeploymentTime: overview.avgDeploymentTime || 0,
-        topProjects: [], // Will be populated by specific projects analytics
-        recentDeployments: recentActivity.slice(0, 10) || [],
-        projectTechnologies:
-          techDistribution.map((tech) => ({
-            name: tech.technology || tech.name || "Unknown",
-            count: tech.count || 0,
-            percentage: tech.percentage || 0,
-          })) || [],
-        weeklyTrend: [], // Will need to implement in backend if needed
+          (overview?.totalDeployments || 0) -
+          (overview?.failedDeployments || 0),
+        avgDeploymentTime: 0, // This would come from deployment analytics if needed
       };
     }
 
-    // Fallback when no analytics data is available
+    // Fallback for no data
     return {
       totalProjects: 0,
       totalDeployments: 0,
+      activeProjects: 0,
       successfulDeployments: 0,
       failedDeployments: 0,
       successRate: 0,
       avgDeploymentTime: 0,
-      topProjects: [],
       recentDeployments: [],
       projectTechnologies: [],
-      weeklyTrend: [],
     };
   }, [userAnalytics]);
-
-  // Handle project navigation
-  const handleProjectClick = (projectId) => {
-    navigate(`/dashboard/projects/${projectId}`);
-  };
 
   const loading = analyticsLoadingState.user;
   const error = analyticsErrorState.user;
@@ -254,65 +257,7 @@ const Analytics = () => {
           </motion.div>
 
           {/* Analytics Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Top Projects */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-white">
-                  Top Projects
-                </h3>
-                <span className="text-sm text-gray-400">Most active</span>
-              </div>
-              <div className="space-y-4">
-                {analytics.topProjects.length > 0 ? (
-                  analytics.topProjects.map((project, index) => (
-                    <motion.div
-                      key={project._id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * index }}
-                      className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700/50 hover:border-neutral-600/50 transition-colors cursor-pointer"
-                      onClick={() => handleProjectClick(project._id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-                              #{index + 1}
-                            </span>
-                            <h4 className="text-white font-medium text-sm">
-                              {project.name}
-                            </h4>
-                          </div>
-                          <p className="text-gray-400 text-xs mt-1">
-                            {project.deploymentCount} deployments •{" "}
-                            {project.successRate}% success
-                          </p>
-                          <div className="w-full bg-gray-700 rounded-full h-1 mt-2">
-                            <div
-                              className="bg-green-500 h-1 rounded-full"
-                              style={{ width: `${project.successRate}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        <FaEye className="text-gray-400 w-4 h-4" />
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <FaProjectDiagram className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No deployment data available</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Recent Deployments */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -326,13 +271,14 @@ const Analytics = () => {
                 </h3>
                 <span className="text-sm text-gray-400">Latest activity</span>
               </div>
-              <div className="space-y-3">
-                {analytics.recentDeployments.length > 0 ? (
+              <div className="space-y-4">
+                {analytics.recentDeployments &&
+                analytics.recentDeployments.length > 0 ? (
                   analytics.recentDeployments
                     .slice(0, 5)
                     .map((deployment, index) => (
                       <motion.div
-                        key={deployment._id}
+                        key={`${deployment.projectName}-${deployment.timestamp}-${index}`}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.1 * index }}
@@ -340,31 +286,39 @@ const Analytics = () => {
                       >
                         <div
                           className={`w-2 h-2 rounded-full ${
-                            deployment.status === "success"
+                            deployment.status === "running"
                               ? "bg-green-500"
                               : deployment.status === "failed"
                               ? "bg-red-500"
-                              : "bg-yellow-500"
+                              : deployment.status === "building" ||
+                                deployment.status === "pending"
+                              ? "bg-yellow-500"
+                              : "bg-gray-500"
                           }`}
                         ></div>
                         <div className="flex-1">
                           <div className="text-white text-sm font-medium">
-                            {deployment.projectName}
+                            {deployment.projectName || "Unknown Project"}
                           </div>
                           <div className="text-gray-400 text-xs">
-                            {deployment.projectTechnology} •{" "}
-                            {new Date(
-                              deployment.createdAt
-                            ).toLocaleDateString()}
+                            {deployment.environment || "unknown"} •{" "}
+                            {deployment.timestamp
+                              ? new Date(
+                                  deployment.timestamp
+                                ).toLocaleDateString()
+                              : "Unknown date"}
                           </div>
                         </div>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
-                            deployment.status === "success"
+                            deployment.status === "running"
                               ? "bg-green-500/20 text-green-400"
                               : deployment.status === "failed"
                               ? "bg-red-500/20 text-red-400"
-                              : "bg-yellow-500/20 text-yellow-400"
+                              : deployment.status === "building" ||
+                                deployment.status === "pending"
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : "bg-gray-500/20 text-gray-400"
                           }`}
                         >
                           {deployment.status}
@@ -375,6 +329,9 @@ const Analytics = () => {
                   <div className="text-center py-8 text-gray-400">
                     <FaRocket className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>No recent deployments</p>
+                    <p className="text-xs mt-1">
+                      Deploy your first project to see activity here
+                    </p>
                   </div>
                 )}
               </div>
@@ -394,30 +351,38 @@ const Analytics = () => {
                 <span className="text-sm text-gray-400">Frameworks</span>
               </div>
               <div className="space-y-4">
-                {analytics.projectTechnologies.length > 0 ? (
-                  analytics.projectTechnologies.map((tech, index) => (
-                    <div key={tech.name} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-white text-sm">{tech.name}</span>
-                        <span className="text-gray-400 text-xs">
-                          {tech.count} projects
-                        </span>
+                {analytics.projectTechnologies &&
+                analytics.projectTechnologies.length > 0 ? (
+                  analytics.projectTechnologies
+                    .slice(0, 6)
+                    .map((tech, index) => (
+                      <div key={tech.name} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white text-sm">
+                            {tech.name}
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {tech.count} project{tech.count !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.min(tech.percentage, 100)}%`,
+                              backgroundColor: `hsl(${index * 45}, 70%, 60%)`,
+                            }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full"
-                          style={{
-                            width: `${tech.percentage}%`,
-                            backgroundColor: `hsl(${index * 45}, 70%, 60%)`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))
+                    ))
                 ) : (
                   <div className="text-center py-8 text-gray-400">
                     <FaCode className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>No technology data available</p>
+                    <p className="text-xs mt-1">
+                      Create projects to see technology analysis
+                    </p>
                   </div>
                 )}
               </div>

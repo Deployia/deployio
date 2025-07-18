@@ -14,7 +14,7 @@ class AnalyticsService {
       const { timeRange = "7d" } = options;
       const dateRange = this._getDateRange(timeRange);
 
-      // Get basic counts
+      // Get basic counts using correct field names from models
       const [
         totalProjects,
         totalDeployments,
@@ -22,32 +22,32 @@ class AnalyticsService {
         failedDeployments,
       ] = await Promise.all([
         Project.countDocuments({
-          userId: new mongoose.Types.ObjectId(userId),
+          owner: new mongoose.Types.ObjectId(userId),
           status: { $ne: "deleted" },
         }),
         Deployment.countDocuments({
-          userId: new mongoose.Types.ObjectId(userId),
+          deployedBy: new mongoose.Types.ObjectId(userId),
           createdAt: { $gte: dateRange.start, $lte: dateRange.end },
         }),
         Project.countDocuments({
-          userId: new mongoose.Types.ObjectId(userId),
+          owner: new mongoose.Types.ObjectId(userId),
           status: "active",
         }),
         Deployment.countDocuments({
-          userId: new mongoose.Types.ObjectId(userId),
+          deployedBy: new mongoose.Types.ObjectId(userId),
           status: "failed",
           createdAt: { $gte: dateRange.start, $lte: dateRange.end },
         }),
       ]);
 
-      // Get deployment success rate
+      // Get deployment success rate using correct field names
       const totalDeploymentsInRange = await Deployment.countDocuments({
-        userId: new mongoose.Types.ObjectId(userId),
+        deployedBy: new mongoose.Types.ObjectId(userId),
         createdAt: { $gte: dateRange.start, $lte: dateRange.end },
       });
 
       const successfulDeployments = await Deployment.countDocuments({
-        userId: new mongoose.Types.ObjectId(userId),
+        deployedBy: new mongoose.Types.ObjectId(userId),
         status: "running",
         createdAt: { $gte: dateRange.start, $lte: dateRange.end },
       });
@@ -93,12 +93,12 @@ class AnalyticsService {
       const dateRange = this._getDateRange(timeRange);
 
       const matchConditions = {
-        userId: new mongoose.Types.ObjectId(userId),
+        deployedBy: new mongoose.Types.ObjectId(userId),
         createdAt: { $gte: dateRange.start, $lte: dateRange.end },
       };
 
       if (projectId) {
-        matchConditions.projectId = new mongoose.Types.ObjectId(projectId);
+        matchConditions.project = new mongoose.Types.ObjectId(projectId);
       }
 
       // Get deployment trends over time
@@ -137,17 +137,17 @@ class AnalyticsService {
           $group: {
             _id: "$status",
             count: { $sum: 1 },
-            avgBuildTime: { $avg: "$metrics.buildTime" },
+            avgBuildTime: { $avg: "$build.duration" },
           },
         },
       ]);
 
-      // Get environment distribution
+      // Get environment distribution (using config.environment from model)
       const environmentDistribution = await Deployment.aggregate([
         { $match: matchConditions },
         {
           $group: {
-            _id: "$environment",
+            _id: "$config.environment",
             count: { $sum: 1 },
             successCount: {
               $sum: { $cond: [{ $eq: ["$status", "running"] }, 1, 0] },
@@ -156,20 +156,20 @@ class AnalyticsService {
         },
       ]);
 
-      // Get performance metrics
+      // Get performance metrics (using build.duration from model)
       const performanceMetrics = await Deployment.aggregate([
         {
           $match: {
             ...matchConditions,
-            "metrics.buildTime": { $exists: true, $ne: null },
+            "build.duration": { $exists: true, $ne: null },
           },
         },
         {
           $group: {
             _id: null,
-            avgBuildTime: { $avg: "$metrics.buildTime" },
-            minBuildTime: { $min: "$metrics.buildTime" },
-            maxBuildTime: { $max: "$metrics.buildTime" },
+            avgBuildTime: { $avg: "$build.duration" },
+            minBuildTime: { $min: "$build.duration" },
+            maxBuildTime: { $max: "$build.duration" },
             totalDeployments: { $sum: 1 },
           },
         },
@@ -211,11 +211,11 @@ class AnalyticsService {
       const { timeRange = "30d" } = options;
       const dateRange = this._getDateRange(timeRange);
 
-      // Get project creation trends
+      // Get project creation trends using correct field names
       const projectTrends = await Project.aggregate([
         {
           $match: {
-            userId: new mongoose.Types.ObjectId(userId),
+            owner: new mongoose.Types.ObjectId(userId),
             createdAt: { $gte: dateRange.start, $lte: dateRange.end },
           },
         },
@@ -232,7 +232,7 @@ class AnalyticsService {
       const statusDistribution = await Project.aggregate([
         {
           $match: {
-            userId: new mongoose.Types.ObjectId(userId),
+            owner: new mongoose.Types.ObjectId(userId),
             status: { $ne: "deleted" },
           },
         },
@@ -244,11 +244,11 @@ class AnalyticsService {
         },
       ]);
 
-      // Get most active projects (by deployment count)
+      // Get most active projects (by deployment count) using correct field references
       const mostActiveProjects = await Project.aggregate([
         {
           $match: {
-            userId: new mongoose.Types.ObjectId(userId),
+            owner: new mongoose.Types.ObjectId(userId),
             status: { $ne: "deleted" },
           },
         },
@@ -256,7 +256,7 @@ class AnalyticsService {
           $lookup: {
             from: "deployments",
             localField: "_id",
-            foreignField: "projectId",
+            foreignField: "project",
             pipeline: [
               {
                 $match: {
@@ -271,6 +271,30 @@ class AnalyticsService {
           $addFields: {
             deploymentCount: { $size: "$deployments" },
             lastDeployment: { $max: "$deployments.createdAt" },
+            successfulDeployments: {
+              $size: {
+                $filter: {
+                  input: "$deployments",
+                  cond: { $eq: ["$$this.status", "running"] },
+                },
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
+            successRate: {
+              $cond: [
+                { $gt: ["$deploymentCount", 0] },
+                {
+                  $multiply: [
+                    { $divide: ["$successfulDeployments", "$deploymentCount"] },
+                    100,
+                  ],
+                },
+                0,
+              ],
+            },
           },
         },
         {
@@ -279,7 +303,8 @@ class AnalyticsService {
             status: 1,
             deploymentCount: 1,
             lastDeployment: 1,
-            technology: "$aiAnalysis.detectedTechnologies",
+            successRate: { $round: ["$successRate", 0] },
+            technology: "$technology.primary",
           },
         },
         { $sort: { deploymentCount: -1 } },
@@ -314,13 +339,13 @@ class AnalyticsService {
       const dateRange = this._getDateRange(timeRange);
 
       const matchConditions = {
-        userId: new mongoose.Types.ObjectId(userId),
+        deployedBy: new mongoose.Types.ObjectId(userId),
         createdAt: { $gte: dateRange.start, $lte: dateRange.end },
         status: "running",
       };
 
       if (projectId) {
-        matchConditions.projectId = new mongoose.Types.ObjectId(projectId);
+        matchConditions.project = new mongoose.Types.ObjectId(projectId);
       }
 
       // Get resource usage over time
@@ -338,37 +363,55 @@ class AnalyticsService {
         { $sort: { _id: 1 } },
       ]);
 
-      // Get current active resources
+      // Get current active resources using correct field names
       const activeResources = await Deployment.aggregate([
         {
           $match: {
-            userId: new mongoose.Types.ObjectId(userId),
+            deployedBy: new mongoose.Types.ObjectId(userId),
             status: "running",
           },
         },
         {
           $group: {
             _id: null,
-            totalMemory: { $sum: "$runtime.resources.memory" },
-            totalCpu: { $sum: "$runtime.resources.cpu" },
-            totalStorage: { $sum: "$runtime.resources.storage" },
+            totalMemory: {
+              $sum: {
+                $toDouble: {
+                  $ifNull: ["$runtime.resources.memory.allocated", "0"],
+                },
+              },
+            },
+            totalCpu: {
+              $sum: {
+                $toDouble: {
+                  $ifNull: ["$runtime.resources.cpu.allocated", "0"],
+                },
+              },
+            },
+            totalStorage: {
+              $sum: {
+                $toDouble: {
+                  $ifNull: ["$runtime.resources.storage.allocated", "0"],
+                },
+              },
+            },
             activeDeployments: { $sum: 1 },
           },
         },
       ]);
 
-      // Get resource usage by project
+      // Get resource usage by project using correct field names
       const resourceByProject = await Deployment.aggregate([
         {
           $match: {
-            userId: new mongoose.Types.ObjectId(userId),
+            deployedBy: new mongoose.Types.ObjectId(userId),
             status: "running",
           },
         },
         {
           $lookup: {
             from: "projects",
-            localField: "projectId",
+            localField: "project",
             foreignField: "_id",
             as: "project",
           },
@@ -376,11 +419,29 @@ class AnalyticsService {
         { $unwind: "$project" },
         {
           $group: {
-            _id: "$projectId",
+            _id: "$project._id",
             projectName: { $first: "$project.name" },
-            totalMemory: { $sum: "$runtime.resources.memory" },
-            totalCpu: { $sum: "$runtime.resources.cpu" },
-            totalStorage: { $sum: "$runtime.resources.storage" },
+            totalMemory: {
+              $sum: {
+                $toDouble: {
+                  $ifNull: ["$runtime.resources.memory.allocated", "0"],
+                },
+              },
+            },
+            totalCpu: {
+              $sum: {
+                $toDouble: {
+                  $ifNull: ["$runtime.resources.cpu.allocated", "0"],
+                },
+              },
+            },
+            totalStorage: {
+              $sum: {
+                $toDouble: {
+                  $ifNull: ["$runtime.resources.storage.allocated", "0"],
+                },
+              },
+            },
             deploymentCount: { $sum: 1 },
           },
         },
@@ -413,21 +474,21 @@ class AnalyticsService {
    */
   async _getRecentActivity(userId, limit = 10) {
     try {
-      // Get recent deployments
+      // Get recent deployments using correct field names
       const recentDeployments = await Deployment.find({
-        userId: new mongoose.Types.ObjectId(userId),
+        deployedBy: new mongoose.Types.ObjectId(userId),
       })
-        .populate("projectId", "name")
+        .populate("project", "name")
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select("projectId status environment createdAt updatedAt")
+        .select("project status config.environment createdAt updatedAt")
         .lean();
 
       return recentDeployments.map((deployment) => ({
         type: "deployment",
         action: `Deployment ${deployment.status}`,
-        projectName: deployment.projectId?.name || "Unknown Project",
-        environment: deployment.environment,
+        projectName: deployment.project?.name || "Unknown Project",
+        environment: deployment.config?.environment || "unknown",
         status: deployment.status,
         timestamp: deployment.updatedAt || deployment.createdAt,
       }));
@@ -443,26 +504,74 @@ class AnalyticsService {
    */
   async _getTechnologyDistribution(userId) {
     try {
-      return await Project.aggregate([
-        {
-          $match: {
-            userId: new mongoose.Types.ObjectId(userId),
-            status: { $ne: "deleted" },
-          },
-        },
-        { $unwind: "$aiAnalysis.detectedTechnologies" },
-        {
-          $group: {
-            _id: "$aiAnalysis.detectedTechnologies.name",
-            count: { $sum: 1 },
-            avgConfidence: {
-              $avg: "$aiAnalysis.detectedTechnologies.confidence",
-            },
-          },
-        },
-        { $sort: { count: -1 } },
-        { $limit: 10 },
-      ]);
+      // Get all projects for the user
+      const projects = await Project.find({
+        owner: new mongoose.Types.ObjectId(userId),
+        status: { $ne: "deleted" },
+      })
+        .select(
+          "analysis.technologyStack repository.metadata.language repository.url name"
+        )
+        .lean();
+
+      // Manually aggregate technology distribution
+      const techCounts = {};
+
+      projects.forEach((project) => {
+        const tech = project.analysis?.technologyStack;
+        const repoLang = project.repository?.metadata?.language;
+        const repoUrl = project.repository?.url;
+
+        // Primary source: AI analysis
+        if (tech) {
+          if (tech.primaryLanguage) {
+            techCounts[tech.primaryLanguage] =
+              (techCounts[tech.primaryLanguage] || 0) + 1;
+          }
+          if (tech.framework) {
+            techCounts[tech.framework] = (techCounts[tech.framework] || 0) + 1;
+          }
+        }
+        // Fallback: Repository metadata
+        else if (repoLang) {
+          techCounts[repoLang] = (techCounts[repoLang] || 0) + 1;
+        }
+        // Last resort: detect from repo URL
+        else if (repoUrl) {
+          // Basic detection from common patterns
+          const url = repoUrl.toLowerCase();
+          if (url.includes("react") || url.includes("next")) {
+            techCounts["React"] = (techCounts["React"] || 0) + 1;
+          } else if (url.includes("vue")) {
+            techCounts["Vue"] = (techCounts["Vue"] || 0) + 1;
+          } else if (url.includes("angular")) {
+            techCounts["Angular"] = (techCounts["Angular"] || 0) + 1;
+          } else if (
+            url.includes("python") ||
+            url.includes("django") ||
+            url.includes("flask")
+          ) {
+            techCounts["Python"] = (techCounts["Python"] || 0) + 1;
+          } else if (url.includes("node") || url.includes("express")) {
+            techCounts["Node.js"] = (techCounts["Node.js"] || 0) + 1;
+          } else {
+            // Default to JavaScript for web projects
+            techCounts["JavaScript"] = (techCounts["JavaScript"] || 0) + 1;
+          }
+        }
+      });
+
+      // Convert to array and sort by count
+      const result = Object.entries(techCounts)
+        .map(([name, count]) => ({
+          _id: name,
+          count,
+          avgConfidence: 0.8,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      return result;
     } catch (error) {
       throw new Error(
         `Failed to get technology distribution: ${error.message}`
