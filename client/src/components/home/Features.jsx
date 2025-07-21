@@ -134,31 +134,31 @@ const Features = () => {
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="text-center mb-8 sm:mb-12"
         >
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium mb-4">
-            <FaBolt className="w-4 h-4 mr-2" />
+          <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-xs sm:text-sm font-medium mb-3 sm:mb-4">
+            <FaBolt className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
             Powerful AI-Driven Features
           </div>
 
-          <h2 className="heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 px-4">
+          <h2 className="heading text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-3 sm:mb-4 px-2 sm:px-4 leading-tight">
             Everything You Need for{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400">
               Modern DevOps
             </span>
           </h2>
-          <p className="body text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-4">
+          <p className="body text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-2 sm:px-4">
             From intelligent code analysis to production deployment - our AI
             handles the complexity while you focus on building amazing
             applications.
           </p>
         </motion.div>{" "}
-        {/* Interactive Feature Showcase - Single Grid without duplication */}
+        {/* Mobile Compact Grid (2x4) and Desktop Grid */}
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
+          className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8"
         >
           {features.map((feature, index) => {
             const IconComponent = feature.icon;
@@ -173,50 +173,56 @@ const Features = () => {
                 }
                 transition={{ duration: 0.6, delay: 0.1 * index }}
                 onHoverStart={() => setActiveFeature(index)}
-                className={`group relative bg-neutral-900/60 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border transition-all duration-500 cursor-pointer hover:transform hover:scale-105 hover:shadow-2xl ${
+                className={`group relative bg-neutral-900/60 backdrop-blur-sm p-3 sm:p-4 md:p-6 lg:p-8 rounded-lg sm:rounded-xl md:rounded-2xl border transition-all duration-500 cursor-pointer hover:transform hover:scale-105 hover:shadow-2xl ${
                   activeFeature === index
                     ? "bg-gradient-to-br from-blue-500/20 via-purple-500/15 to-neutral-900/60 border-blue-500/40 shadow-blue-500/20"
                     : "border-neutral-700/50 hover:border-blue-500/30 hover:shadow-blue-500/10"
                 }`}
               >
                 {/* Animated background effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />{" "}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-lg sm:rounded-xl md:rounded-2xl" />{" "}
                 <div className="relative z-10">
                   {/* Icon */}
                   <div
-                    className={`w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-xl bg-gradient-to-r ${feature.color} p-3 sm:p-4 mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-16 lg:h-16 rounded-lg sm:rounded-xl bg-gradient-to-r ${feature.color} p-1.5 sm:p-2 md:p-3 lg:p-4 mb-2 sm:mb-3 md:mb-4 lg:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}
                   >
                     <IconComponent className="w-full h-full text-white" />
                   </div>
 
                   {/* Title */}
-                  <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
-                    <h3 className="text-white font-bold text-base sm:text-lg md:text-xl group-hover:text-blue-400 transition-colors leading-tight flex-1">
+                  <div className="flex items-start justify-between gap-1 sm:gap-2 mb-2 sm:mb-3 md:mb-4">
+                    <h3 className="text-white font-bold text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl group-hover:text-blue-400 transition-colors leading-tight flex-1">
                       {feature.title}
                     </h3>
                     {feature.comingSoon && (
-                      <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0">
-                        {feature.comingSoon}
+                      <span className="px-1 sm:px-1.5 md:px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 rounded-full animate-pulse whitespace-nowrap flex-shrink-0">
+                        <span className="hidden sm:inline">
+                          {feature.comingSoon}
+                        </span>
+                        <span className="sm:hidden">Soon</span>
                       </span>
                     )}
                   </div>
 
-                  {/* Description - Hidden on mobile */}
-                  <p className="hidden sm:block text-gray-400 text-sm md:text-base leading-relaxed mb-4">
+                  {/* Description - Hidden on mobile, shown on larger screens */}
+                  <p className="hidden sm:block text-gray-400 text-xs sm:text-sm md:text-base leading-relaxed mb-2 sm:mb-3 md:mb-4">
                     {feature.description}
                   </p>
 
-                  {/* Demo badge - Hidden on mobile */}
-                  <div className="hidden sm:inline-block text-xs md:text-sm font-mono text-green-400 bg-green-400/10 px-3 py-2 rounded-full border border-green-400/20 group-hover:bg-green-400/20 transition-colors">
-                    {feature.demo}
+                  {/* Demo badge - Compact on mobile */}
+                  <div className="text-xs sm:text-sm md:text-sm font-mono text-green-400 bg-green-400/10 px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 md:py-2 rounded-md sm:rounded-lg md:rounded-full border border-green-400/20 group-hover:bg-green-400/20 transition-colors">
+                    <span className="hidden sm:inline">{feature.demo}</span>
+                    <span className="sm:hidden">
+                      {feature.demo.split(" ")[0]} ✓
+                    </span>
                   </div>
                 </div>
                 {/* Floating particles on hover */}
-                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-30 transition-opacity duration-500">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                <div className="absolute top-2 sm:top-3 md:top-4 right-2 sm:right-3 md:right-4 opacity-0 group-hover:opacity-30 transition-opacity duration-500">
+                  <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 bg-blue-400 rounded-full animate-pulse"></div>
                 </div>
-                <div className="absolute bottom-6 left-6 opacity-0 group-hover:opacity-30 transition-opacity duration-700">
-                  <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse delay-300"></div>
+                <div className="absolute bottom-3 sm:bottom-4 md:bottom-6 left-3 sm:left-4 md:left-6 opacity-0 group-hover:opacity-30 transition-opacity duration-700">
+                  <div className="w-0.5 h-0.5 sm:w-1 sm:h-1 bg-purple-400 rounded-full animate-pulse delay-300"></div>
                 </div>
               </motion.div>
             );
@@ -227,21 +233,21 @@ const Features = () => {
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="mt-12 max-w-4xl mx-auto"
+          className="mt-8 sm:mt-12 max-w-4xl mx-auto"
         >
-          <div className="bg-neutral-900/80 backdrop-blur-lg rounded-xl border border-neutral-700/50 p-4 sm:p-6 shadow-2xl">
-            <div className="flex items-center mb-4">
-              <div className="flex space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          <div className="bg-neutral-900/80 backdrop-blur-lg rounded-lg sm:rounded-xl border border-neutral-700/50 p-3 sm:p-4 md:p-6 shadow-2xl">
+            <div className="flex items-center mb-3 sm:mb-4">
+              <div className="flex space-x-1 sm:space-x-2">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
               </div>
-              <span className="ml-4 text-gray-400 text-sm font-mono">
+              <span className="ml-2 sm:ml-4 text-gray-400 text-xs sm:text-sm font-mono">
                 deployio-ai-terminal
               </span>
             </div>
 
-            <div className="space-y-2 font-mono text-sm">
+            <div className="space-y-1 sm:space-y-2 font-mono text-xs sm:text-sm">
               <div className="text-green-400">
                 $ deployio deploy https://github.com/user/awesome-app
               </div>
@@ -270,14 +276,17 @@ const Features = () => {
             </div>
 
             {/* Progress Animation */}
-            <div className="mt-4">
-              <div className="flex justify-between text-xs text-gray-400 mb-2">
-                <span>AI Analysis & Deployment Progress</span>
+            <div className="mt-3 sm:mt-4">
+              <div className="flex justify-between text-xs text-gray-400 mb-1 sm:mb-2">
+                <span className="hidden sm:inline">
+                  AI Analysis & Deployment Progress
+                </span>
+                <span className="sm:hidden">Progress</span>
                 <span>100%</span>
               </div>
-              <div className="w-full bg-neutral-800 rounded-full h-2">
+              <div className="w-full bg-neutral-800 rounded-full h-1.5 sm:h-2">
                 <motion.div
-                  className="bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 h-2 rounded-full"
+                  className="bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 h-1.5 sm:h-2 rounded-full"
                   initial={{ width: "0%" }}
                   animate={inView ? { width: "100%" } : { width: "0%" }}
                   transition={{ duration: 3, delay: 1 }}

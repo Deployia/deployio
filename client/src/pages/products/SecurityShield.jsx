@@ -15,12 +15,10 @@ import {
   StickyFeaturesSection,
   ProductStats,
   ProductCTA,
-  ProductDemo,
 } from "@components/products";
 
 const SecurityShield = () => {
   const [selectedFeature, setSelectedFeature] = useState(0);
-  const [demoData, setDemoData] = useState(null);
   const { scrollY } = useScroll();
 
   // Scroll-triggered feature progression
@@ -251,20 +249,6 @@ const SecurityShield = () => {
     },
     gradientClasses: "from-red-600 to-orange-600",
   };
-  const resetDemo = () => {
-    setDemoData(null);
-  };
-
-  const demoProps = {
-    isVisible: !!demoData,
-    title: "Security Scan Complete",
-    successMessage: `Security Score: ${demoData?.securityScore}% - All systems secure`,
-    data: demoData || {},
-    columns: 3,
-    onClose: resetDemo,
-    onReset: resetDemo,
-    demoType: "Security Preview",
-  };
 
   return (
     <>
@@ -272,8 +256,6 @@ const SecurityShield = () => {
       <SEO page="securityShield" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
-
-        <ProductDemo {...demoProps} />
 
         {/* Security Features Showcase */}
         <section className="py-20 px-6">

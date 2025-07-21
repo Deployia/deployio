@@ -659,7 +659,7 @@ const DocumentPage = () => {
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <a
-                href={`https://github.com/deployio/docs/edit/main/${document.category}/${document.slug}.md`}
+                href={`https://github.com/deployia/docs/edit/main/${document.category}/${document.slug}.md`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-3 lg:px-4 py-2 bg-neutral-800/50 hover:bg-neutral-700/50 text-gray-300 hover:text-white rounded-lg transition-all text-sm"

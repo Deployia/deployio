@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import {
   FaBrain,
@@ -16,12 +16,9 @@ import {
   StickyFeaturesSection,
   ProductStats,
   ProductCTA,
-  ProductDemo,
 } from "@components/products";
 
 const AIDeployment = () => {
-  const [demoData, setDemoData] = useState(null);
-
   const features = [
     {
       icon: FaBrain,
@@ -218,27 +215,6 @@ const AIDeployment = () => {
     },
     gradientClasses: "from-green-600 to-blue-600",
   };
-  const resetDemo = () => {
-    setDemoData(null);
-  };
-
-  const demoProps = {
-    isVisible: !!demoData,
-    title: "Repository Analysis Complete",
-    successMessage: `✓ ${demoData?.detectedStack} Detected`,
-    data: demoData
-      ? {
-          confidence: `${demoData.confidence}%`,
-          deployTime: demoData.estimatedDeployTime,
-          optimizationScore: `${demoData.optimizationScore}/100`,
-          securityScore: `${demoData.securityScore}/100`,
-        }
-      : {},
-    columns: 4,
-    onClose: resetDemo,
-    onReset: resetDemo,
-    demoType: "AI Analysis Preview",
-  };
 
   return (
     <>
@@ -246,8 +222,6 @@ const AIDeployment = () => {
       <SEO page="aiDeployment" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
-
-        <ProductDemo {...demoProps} />
 
         <StickyFeaturesSection {...featuresProps} />
 

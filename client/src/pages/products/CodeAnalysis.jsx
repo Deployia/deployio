@@ -10,7 +10,7 @@ import {
   FaBrain,
   FaRocket,
   FaGithub,
-  FaEye,
+  FaLaptopCode,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import {
@@ -119,10 +119,10 @@ const CodeAnalysis = () => {
       },
     },
     secondaryCTA: {
-      text: "Try Interactive Demo",
-      icon: FaEye,
+      text: "Try Playground",
+      icon: FaLaptopCode,
       onClick: () => {
-        navigate("/products/code-analysis/live-demo");
+        navigate("/playground");
       },
     },
     gradient: "from-blue-400 via-purple-400 to-indigo-400",
@@ -137,36 +137,34 @@ const CodeAnalysis = () => {
             <span className="sm:hidden">Analysis Active</span>
           </div>
 
-          {[
-            {
-              icon: FaGithub,
-              title: "Repository Scan",
-              desc: "Analyzing project structure...",
-              color: "blue",
-              confidence: "98%",
-            },
-            {
-              icon: FaSearchPlus,
-              title: "Stack Detection",
-              desc: "MERN Stack identified",
-              color: "green",
-              confidence: "96%",
-            },
-            {
-              icon: FaLayerGroup,
-              title: "Dependency Map",
-              desc: "24 dependencies analyzed",
-              color: "purple",
-              confidence: "94%",
-            },
-            {
-              icon: FaDocker,
-              title: "Config Generation",
-              desc: "Dockerfile & CI/CD ready",
-              color: "orange",
-              confidence: "92%",
-            },
-          ].map((step, index) => (
+          {[{
+            icon: FaGithub,
+            title: "Repository Scan",
+            desc: "Analyzing project structure...",
+            color: "blue",
+            confidence: "98%",
+          },
+          {
+            icon: FaSearchPlus,
+            title: "Stack Detection",
+            desc: "MERN Stack identified",
+            color: "green",
+            confidence: "96%",
+          },
+          {
+            icon: FaLayerGroup,
+            title: "Dependency Map",
+            desc: "24 dependencies analyzed",
+            color: "purple",
+            confidence: "94%",
+          },
+          {
+            icon: FaDocker,
+            title: "Config Generation",
+            desc: "Dockerfile & CI/CD ready",
+            color: "orange",
+            confidence: "92%",
+          }].map((step, index) => (
             <motion.div
               key={step.title}
               initial={{ opacity: 0, x: 20 }}
@@ -248,8 +246,8 @@ const CodeAnalysis = () => {
       onClick: () => navigate("/dashboard/projects"),
     },
     secondaryButton: {
-      text: "Try Live Demo",
-      onClick: () => navigate("/products/code-analysis/live-demo"),
+      text: "View documentation",
+      onClick: () => navigate("/resources/docs/products/code-analysis"),
     },
     gradientClasses: "from-blue-600 to-purple-600",
   };

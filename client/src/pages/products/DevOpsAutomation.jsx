@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import {
   FaCogs,
@@ -6,10 +6,10 @@ import {
   FaRocket,
   FaLayerGroup,
   FaCheckCircle,
-  FaPlay,
   FaBolt,
   FaCode,
   FaCloudUploadAlt,
+  FaLaptopCode,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import {
@@ -17,12 +17,11 @@ import {
   StickyFeaturesSection,
   ProductStats,
   ProductCTA,
-  ProductDemo,
 } from "@components/products";
+import { useNavigate } from "react-router-dom";
 
 const DevOpsAutomation = () => {
-  const [demoData, setDemoData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const features = [
     {
@@ -98,27 +97,6 @@ const DevOpsAutomation = () => {
     { label: "Quality Gate Accuracy", value: "98%", icon: FaCheckCircle },
   ];
 
-  const demoPipelineSetup = async () => {
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      setDemoData({
-        pipelineType: "Full Stack CI/CD",
-        stages: 6,
-        estimatedBuildTime: "4m 30s",
-        qualityGates: 8,
-        securityChecks: 12,
-        environments: 3,
-        deploymentStrategy: "Blue-Green",
-        success: true,
-      });
-    } catch (error) {
-      console.error("Demo error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const heroProps = {
     badge: {
       icon: FaCogs,
@@ -131,14 +109,12 @@ const DevOpsAutomation = () => {
     primaryCTA: {
       text: "Build Pipeline",
       icon: FaCogs,
-      onClick: () => console.log("Build pipeline"),
+      onClick: () => navigate("/dashboard/projects"),
     },
     secondaryCTA: {
       text: "Try Demo",
-      icon: FaPlay,
-      onClick: demoPipelineSetup,
-      loading: isLoading,
-      loadingText: "Building Pipeline...",
+      icon: FaLaptopCode,
+      onClick: () => navigate("/playground"),
     },
     gradient: "from-orange-400 via-red-400 to-purple-400",
     visual: (
@@ -283,38 +259,12 @@ const DevOpsAutomation = () => {
     },
     gradientClasses: "from-orange-600 to-red-600",
   };
-  const resetDemo = () => {
-    setDemoData(null);
-  };
-
-  const demoProps = {
-    isVisible: !!demoData,
-    title: "DevOps Pipeline Created",
-    successMessage: `✓ ${demoData?.pipelineType} Pipeline Ready (${demoData?.stages} stages)`,
-    data: demoData
-      ? {
-          stages: `${demoData.stages} stages`,
-          buildTime: demoData.estimatedBuildTime,
-          qualityGates: `${demoData.qualityGates} gates`,
-          securityChecks: `${demoData.securityChecks} checks`,
-          environments: `${demoData.environments} envs`,
-          strategy: demoData.deploymentStrategy,
-        }
-      : {},
-    columns: 3,
-    onClose: resetDemo,
-    onReset: demoPipelineSetup,
-    demoType: "Pipeline Creation",
-  };
-
   return (
     <>
       {" "}
       <SEO page="devopsAutomation" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
-
-        <ProductDemo {...demoProps} />
 
         <StickyFeaturesSection {...featuresProps} />
 

@@ -208,19 +208,19 @@ const Testimonials = () => {
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="text-center mb-8 sm:mb-12"
         >
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium mb-4">
-            <FaUsers className="w-4 h-4 mr-2" />
+          <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-xs sm:text-sm font-medium mb-3 sm:mb-4">
+            <FaUsers className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
             Trusted by developers worldwide
           </div>
-          <h2 className="heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 px-4">
+          <h2 className="heading text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-3 sm:mb-4 px-2 sm:px-4 leading-tight">
             What Developers Are{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400">
               Saying
             </span>
           </h2>{" "}
-          <p className="body text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-4">
+          <p className="body text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-2 sm:px-4">
             Real stories from developers who chose Deployio to supercharge their
             deployment workflow.
           </p>
@@ -234,7 +234,7 @@ const Testimonials = () => {
         >
           {" "}
           {/* Main Testimonial Card */}
-          <div className="relative bg-gradient-to-r from-neutral-900/80 via-neutral-800/80 to-neutral-900/80 backdrop-blur-lg rounded-2xl sm:rounded-3xl border border-neutral-700/50 p-6 sm:p-8 md:p-12 lg:p-16 shadow-2xl min-h-[350px] sm:min-h-[400px] flex items-center mx-2 sm:mx-8 md:mx-16">
+          <div className="relative bg-gradient-to-r from-neutral-900/80 via-neutral-800/80 to-neutral-900/80 backdrop-blur-lg rounded-xl sm:rounded-2xl md:rounded-3xl border border-neutral-700/50 p-4 sm:p-6 md:p-8 lg:p-12 xl:p-16 shadow-2xl min-h-[280px] sm:min-h-[350px] md:min-h-[400px] flex items-center mx-1 sm:mx-2 md:mx-8 lg:mx-16">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentIndex}
@@ -245,16 +245,16 @@ const Testimonials = () => {
                 className="w-full"
               >
                 {" "}
-                <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 items-center justify-center">
+                <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 md:gap-8 items-center justify-center">
                   {/* Testimonial Content */}
-                  <div className="flex-1 max-w-3xl space-y-4 sm:space-y-6 text-center lg:text-left">
-                    <FaQuoteLeft className="text-3xl sm:text-4xl text-blue-400/50 mx-auto lg:mx-0" />
-                    <blockquote className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white leading-relaxed font-light">
+                  <div className="flex-1 max-w-3xl space-y-3 sm:space-y-4 md:space-y-6 text-center lg:text-left">
+                    <FaQuoteLeft className="text-2xl sm:text-3xl md:text-4xl text-blue-400/50 mx-auto lg:mx-0" />
+                    <blockquote className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-white leading-relaxed font-light">
                       &ldquo;{currentTestimonial.content}&rdquo;
                     </blockquote>
 
-                    <div className="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 rounded-full">
-                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2 sm:mr-3 animate-pulse"></div>
+                    <div className="inline-flex items-center px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 rounded-full">
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full mr-1.5 sm:mr-2 md:mr-3 animate-pulse"></div>
                       <span className="text-green-300 text-xs sm:text-sm font-medium">
                         {currentTestimonial.highlight}
                       </span>
@@ -262,26 +262,29 @@ const Testimonials = () => {
                   </div>
 
                   {/* Author Info */}
-                  <div className="flex lg:flex-col items-center lg:items-center space-x-4 lg:space-x-0 lg:space-y-4 flex-shrink-0">
-                    <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                  <div className="flex lg:flex-col items-center lg:items-center space-x-3 sm:space-x-4 lg:space-x-0 lg:space-y-3 md:lg:space-y-4 flex-shrink-0">
+                    <div className="w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-lg sm:text-xl md:text-2xl font-bold">
                       {currentTestimonial.avatar}
                     </div>
 
                     <div className="text-center lg:text-center">
-                      <h4 className="text-white font-bold text-lg">
+                      <h4 className="text-white font-bold text-sm sm:text-base md:text-lg">
                         {currentTestimonial.name}
                       </h4>
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-gray-400 text-xs sm:text-sm">
                         {currentTestimonial.role}
                       </p>
-                      <p className="text-blue-400 text-sm font-medium">
+                      <p className="text-blue-400 text-xs sm:text-sm font-medium">
                         {currentTestimonial.company}
                       </p>
 
                       {/* Star Rating */}
-                      <div className="flex justify-center lg:justify-center mt-2 space-x-1">
+                      <div className="flex justify-center lg:justify-center mt-1 sm:mt-2 space-x-0.5 sm:space-x-1">
                         {[...Array(currentTestimonial.rating)].map((_, i) => (
-                          <FaStar key={i} className="text-yellow-400 w-4 h-4" />
+                          <FaStar
+                            key={i}
+                            className="text-yellow-400 w-3 h-3 sm:w-4 sm:h-4"
+                          />
                         ))}
                       </div>
                     </div>
@@ -292,28 +295,29 @@ const Testimonials = () => {
             {/* Navigation Arrows */}
             <button
               onClick={prevTestimonial}
-              className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-neutral-800/80 backdrop-blur-sm border border-neutral-600 rounded-full flex items-center justify-center text-white hover:bg-neutral-700 transition-all duration-300 group"
+              className="absolute left-1 sm:left-2 md:left-4 top-1/2 transform -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-neutral-800/80 backdrop-blur-sm border border-neutral-600 rounded-full flex items-center justify-center text-white hover:bg-neutral-700 transition-all duration-300 group"
             >
-              <FaChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
+              <FaChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform" />
             </button>
             <button
               onClick={nextTestimonial}
-              className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-neutral-800/80 backdrop-blur-sm border border-neutral-600 rounded-full flex items-center justify-center text-white hover:bg-neutral-700 transition-all duration-300 group"
+              className="absolute right-1 sm:right-2 md:right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-neutral-800/80 backdrop-blur-sm border border-neutral-600 rounded-full flex items-center justify-center text-white hover:bg-neutral-700 transition-all duration-300 group"
             >
-              <FaChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
+              <FaChevronRight className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
-          {/* Dots Navigation */}
-          <div className="flex justify-center mt-8 space-x-3">
+          {/* Compact Dots Navigation */}
+          <div className="flex justify-center mt-4 sm:mt-6 md:mt-8 space-x-1 sm:space-x-2 md:space-x-3 overflow-x-auto scrollbar-hide px-4">
             {testimonials.map((_, index) => (
               <button
                 key={index}
                 onClick={() => goToTestimonial(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                className={`flex-shrink-0 w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
                   index === currentIndex
                     ? "bg-blue-500 scale-125"
                     : "bg-neutral-600 hover:bg-neutral-500"
                 }`}
+                aria-label={`Go to testimonial ${index + 1}`}
               />
             ))}
           </div>
@@ -323,13 +327,13 @@ const Testimonials = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.8, delay: 0.5 }}
-          className="text-center mt-12 mb-8"
+          className="text-center mt-8 sm:mt-12"
         >
-          <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-green-500/10 backdrop-blur-sm p-6 rounded-2xl border border-blue-500/20 max-w-4xl mx-auto">
-            <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
+          <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-green-500/10 backdrop-blur-sm p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-blue-500/20 max-w-4xl mx-auto">
+            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2 sm:mb-3">
               Ready to Join These Happy Developers?
             </h3>
-            <p className="text-gray-300 text-base sm:text-lg">
+            <p className="text-gray-300 text-sm sm:text-base md:text-lg">
               Transform your deployment workflow today and experience the same
               success stories. Start your journey with our free plan - no credit
               card required.

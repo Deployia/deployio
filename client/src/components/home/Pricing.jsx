@@ -138,20 +138,20 @@ const Pricing = () => {
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="text-center mb-8 sm:mb-12"
         >
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium mb-4">
-            <FaStar className="w-4 h-4 mr-2" />
+          <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-300 text-xs sm:text-sm font-medium mb-3 sm:mb-4">
+            <FaStar className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
             Simple, transparent pricing
           </div>
 
-          <h2 className="heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 px-4">
+          <h2 className="heading text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-3 sm:mb-4 px-2 sm:px-4 leading-tight">
             Choose Your{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400">
               Perfect Plan
             </span>
           </h2>
-          <p className="body text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-4">
+          <p className="body text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-2 sm:px-4">
             Start free and scale as you grow. All plans include our AI-powered
             deployment automation and enterprise-grade security.
           </p>
@@ -162,7 +162,7 @@ const Pricing = () => {
           variants={containerVariants}
           initial="hidden"
           animate={inView ? "visible" : "hidden"}
-          className="grid md:grid-cols-3 gap-8 lg:gap-12"
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 xl:gap-12"
         >
           {plans.map((plan, index) => {
             const IconComponent = plan.icon;
@@ -172,9 +172,9 @@ const Pricing = () => {
                 variants={itemVariants}
                 className={`relative bg-gradient-to-r ${
                   plan.bgGradient
-                } backdrop-blur-lg rounded-3xl border ${
+                } backdrop-blur-lg rounded-xl sm:rounded-2xl md:rounded-3xl border ${
                   plan.borderColor
-                } p-8 sm:p-10 shadow-2xl transition-all duration-300 hover:transform hover:scale-105 ${
+                } p-4 sm:p-6 md:p-8 lg:p-10 shadow-2xl transition-all duration-300 hover:transform hover:scale-105 ${
                   plan.popular
                     ? "ring-2 ring-blue-500/50 hover:ring-blue-400/70"
                     : "hover:border-opacity-50"
@@ -182,42 +182,47 @@ const Pricing = () => {
               >
                 {/* Popular Badge */}
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
-                      Most Popular
+                  <div className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 sm:px-4 md:px-6 py-1 sm:py-1.5 md:py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg">
+                      <span className="hidden sm:inline">Most Popular</span>
+                      <span className="sm:hidden">Popular</span>
                     </div>
                   </div>
                 )}
 
                 {/* Plan Header */}
-                <div className="text-center mb-8">
+                <div className="text-center mb-4 sm:mb-6 md:mb-8">
                   <div
-                    className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-r ${plan.gradient} rounded-2xl flex items-center justify-center shadow-lg`}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto mb-3 sm:mb-4 bg-gradient-to-r ${plan.gradient} rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg`}
                   >
-                    <IconComponent className="w-8 h-8 text-white" />
+                    <IconComponent className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
                   </div>
 
-                  <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                  <h3 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">
                     {plan.name}
                   </h3>
-                  <p className="text-gray-400 mb-6">{plan.description}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm md:text-base mb-3 sm:mb-4 md:mb-6">
+                    {plan.description}
+                  </p>
 
-                  <div className="mb-6">
-                    <span className="text-4xl sm:text-5xl font-bold text-white">
+                  <div className="mb-4 sm:mb-6">
+                    <span className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">
                       {plan.price}
                     </span>
                     {plan.period && (
-                      <span className="text-gray-400 ml-2">/{plan.period}</span>
+                      <span className="text-gray-400 ml-1 sm:ml-2 text-xs sm:text-sm md:text-base">
+                        /{plan.period}
+                      </span>
                     )}
                   </div>
                 </div>
 
                 {/* Features List */}
-                <div className="space-y-4 mb-8">
+                <div className="space-y-2 sm:space-y-3 md:space-y-4 mb-6 sm:mb-8">
                   {plan.features.map((feature, featureIndex) => (
                     <div key={featureIndex} className="flex items-start">
-                      <FaCheck className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-300 leading-relaxed">
+                      <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-green-400 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
+                      <span className="text-gray-300 leading-relaxed text-xs sm:text-sm md:text-base">
                         {feature}
                       </span>
                     </div>
@@ -228,7 +233,7 @@ const Pricing = () => {
                 <div className="text-center">
                   {plan.name === "Enterprise" ? (
                     <button
-                      className={`w-full py-4 px-6 bg-gradient-to-r ${plan.gradient} text-white font-bold rounded-2xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300 transform hover:scale-105`}
+                      className={`w-full py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r ${plan.gradient} text-white font-bold rounded-xl sm:rounded-2xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300 transform hover:scale-105 text-sm sm:text-base`}
                     >
                       {plan.cta}
                     </button>
@@ -240,9 +245,9 @@ const Pricing = () => {
                         );
                         navigate(`/auth/register?next=${currentPath}`);
                       }}
-                      className={`w-full py-4 px-6 bg-gradient-to-r ${
+                      className={`w-full py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r ${
                         plan.gradient
-                      } text-white font-bold rounded-2xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 ${
+                      } text-white font-bold rounded-xl sm:rounded-2xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 text-sm sm:text-base ${
                         plan.popular
                           ? "hover:shadow-blue-500/25"
                           : "hover:shadow-gray-500/25"
@@ -262,27 +267,27 @@ const Pricing = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="text-center mt-16"
+          className="text-center mt-12 sm:mt-16"
         >
-          <div className="bg-gradient-to-r from-neutral-900/80 to-neutral-800/80 backdrop-blur-lg rounded-2xl border border-neutral-700/50 p-8 sm:p-12 max-w-4xl mx-auto">
-            <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+          <div className="bg-gradient-to-r from-neutral-900/80 to-neutral-800/80 backdrop-blur-lg rounded-xl sm:rounded-2xl border border-neutral-700/50 p-4 sm:p-6 md:p-8 lg:p-12 max-w-4xl mx-auto">
+            <h3 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-white mb-3 sm:mb-4">
               30-Day Money-Back Guarantee
             </h3>
-            <p className="text-gray-300 mb-6 text-lg">
+            <p className="text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base md:text-lg">
               Try Deployio risk-free. If you&apos;re not completely satisfied
               within 30 days, we&apos;ll refund your money, no questions asked.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <div className="flex items-center text-green-400">
-                <FaCheck className="w-5 h-5 mr-2" />
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
+              <div className="flex items-center text-green-400 text-xs sm:text-sm md:text-base">
+                <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-2" />
                 <span>No setup fees</span>
               </div>
-              <div className="flex items-center text-green-400">
-                <FaCheck className="w-5 h-5 mr-2" />
+              <div className="flex items-center text-green-400 text-xs sm:text-sm md:text-base">
+                <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-2" />
                 <span>Cancel anytime</span>
               </div>
-              <div className="flex items-center text-green-400">
-                <FaCheck className="w-5 h-5 mr-2" />
+              <div className="flex items-center text-green-400 text-xs sm:text-sm md:text-base">
+                <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-2" />
                 <span>24/7 support</span>
               </div>
             </div>

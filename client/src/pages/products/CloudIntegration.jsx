@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import {
   FaCloud,
@@ -18,12 +18,9 @@ import {
   StickyFeaturesSection,
   ProductStats,
   ProductCTA,
-  ProductDemo,
 } from "@components/products";
 
 const CloudIntegration = () => {
-  const [demoData, setDemoData] = useState(null);
-
   const features = [
     {
       icon: FaCloud,
@@ -277,38 +274,12 @@ const CloudIntegration = () => {
     },
     gradientClasses: "from-cyan-600 to-blue-600",
   };
-  const resetDemo = () => {
-    setDemoData(null);
-  };
-
-  const demoProps = {
-    isVisible: !!demoData,
-    title: "Cloud Deployment Complete",
-    successMessage: `✓ Deployed to ${demoData?.provider} in ${demoData?.deployTime}`,
-    data: demoData
-      ? {
-          provider: demoData.provider,
-          region: demoData.region,
-          instances: `${demoData.instances} nodes`,
-          url: demoData.url,
-          costOptimization: `${demoData.costOptimization}% saved`,
-          performanceScore: `${demoData.performanceScore}/100`,
-        }
-      : {},
-    columns: 3,
-    onClose: resetDemo,
-    onReset: resetDemo,
-    demoType: "Cloud Deployment Preview",
-  };
-
   return (
     <>
       {" "}
       <SEO page="cloudIntegration" />
       <div className="min-h-screen">
         <ProductHero {...heroProps} />
-
-        <ProductDemo {...demoProps} />
 
         <StickyFeaturesSection {...featuresProps} />
 
