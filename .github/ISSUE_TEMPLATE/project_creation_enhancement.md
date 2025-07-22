@@ -1,16 +1,20 @@
 ---
 name: ✨ Feature Request
 about: Suggest an idea for Deployio
-title: '[FEATURE] Project Creation Wizard Enhancement - Comprehensive Form & Manual Pipeline'
-labels: ['enhancement', 'project-creation', 'backend', 'frontend', 'high-priority']
-assignees: ''
+title: "[FEATURE] Project Creation Wizard Enhancement - Comprehensive Form & Manual Pipeline"
+labels:
+  ["enhancement", "project-creation", "backend", "frontend", "high-priority"]
+assignees: ""
 ---
 
 ## 🎯 Feature Summary
+
 Enhance the project creation wizard with comprehensive data collection forms and build a complete manual deployment pipeline (no AI dependency) as a robust fallback system before integrating AI analysis capabilities.
 
 ## 💡 Motivation
+
 **Current Problems:**
+
 - Project creation wizard lacks comprehensive data collection
 - Missing critical configuration options in forms
 - No complete manual deployment pipeline
@@ -19,6 +23,7 @@ Enhance the project creation wizard with comprehensive data collection forms and
 - ECR/S3 deployment infrastructure not ready
 
 **Why This Change is Needed:**
+
 - Provide complete manual deployment capability as fallback
 - Collect all necessary data for successful deployments
 - Build reliable foundation before AI integration
@@ -30,6 +35,7 @@ Enhance the project creation wizard with comprehensive data collection forms and
 ### **Phase 1: Enhanced Backend Infrastructure (Priority 1)**
 
 #### **1.1 Project Creation Service Enhancement**
+
 ```javascript
 // server/services/projectCreationService.js
 class ProjectCreationService {
@@ -43,6 +49,7 @@ class ProjectCreationService {
 ```
 
 #### **1.2 Agent Communication Pipeline**
+
 ```javascript
 // server/services/agentCommunicationService.js
 class AgentCommunicationService {
@@ -54,13 +61,14 @@ class AgentCommunicationService {
 ```
 
 #### **1.3 ECR/S3 Integration Services**
+
 ```javascript
 // server/services/awsIntegrationService.js
 class AWSIntegrationService {
   async buildAndPushToECR(project, dockerfile) {
     // ECR image building and pushing
   }
-  
+
   async uploadAssetsToS3(project, staticAssets) {
     // S3 static asset deployment
   }
@@ -70,71 +78,73 @@ class AWSIntegrationService {
 ### **Phase 2: Comprehensive Frontend Forms (Priority 2)**
 
 #### **2.1 Enhanced Step 5: Complete Project Configuration**
+
 ```jsx
 const ProjectConfigurationForm = () => {
   const [config, setConfig] = useState({
     // Basic Information
-    projectName: '',
-    description: '',
-    visibility: 'private',
-    
+    projectName: "",
+    description: "",
+    visibility: "private",
+
     // Technology Stack (Manual Selection)
-    framework: '', // React, Vue, Angular, Next.js, etc.
-    language: '', // JavaScript, TypeScript, Python, etc.
-    database: '', // MongoDB, PostgreSQL, MySQL, Redis, etc.
-    
+    framework: "", // React, Vue, Angular, Next.js, etc.
+    language: "", // JavaScript, TypeScript, Python, etc.
+    database: "", // MongoDB, PostgreSQL, MySQL, Redis, etc.
+
     // Build Configuration
     buildCommands: {
-      install: 'npm install',
-      build: 'npm run build',
-      start: 'npm start',
-      test: 'npm test'
+      install: "npm install",
+      build: "npm run build",
+      start: "npm start",
+      test: "npm test",
     },
-    outputDirectory: 'dist',
-    nodeVersion: '18',
+    outputDirectory: "dist",
+    nodeVersion: "18",
     buildTimeout: 300,
-    
-    // Runtime Configuration  
-    memory: '512MB',
-    cpu: '0.5',
+
+    // Runtime Configuration
+    memory: "512MB",
+    cpu: "0.5",
     instances: 1,
     port: 3000,
-    healthCheck: '/health',
-    
+    healthCheck: "/health",
+
     // Environment Variables
     envVars: {
       development: [],
-      staging: [], 
-      production: []
+      staging: [],
+      production: [],
     },
-    
+
     // Database Configuration
     database: {
-      provider: 'mongodb',
-      host: '',
-      credentials: {}
+      provider: "mongodb",
+      host: "",
+      credentials: {},
     },
-    
+
     // Custom Configuration
-    dockerfile: '', // User provided or generated
-    dockerCompose: '', // Optional for local development
-    githubActions: '', // CI/CD workflow
-    
+    dockerfile: "", // User provided or generated
+    dockerCompose: "", // Optional for local development
+    githubActions: "", // CI/CD workflow
+
     // Deployment Settings
     deployment: {
-      strategy: 'rolling', // rolling, blue-green, canary
-      subdomain: '',
-      customDomain: '',
+      strategy: "rolling", // rolling, blue-green, canary
+      subdomain: "",
+      customDomain: "",
       ssl: true,
-      monitoring: true
-    }
+      monitoring: true,
+    },
   });
 };
 ```
 
 #### **2.2 New Form Sections**
+
 - **Basic Information Panel**
-- **Technology Stack Selection Panel** 
+- **Technology Stack Selection Panel**
 - **Build Configuration Panel**
 - **Runtime Configuration Panel**
 - **Environment Variables Panel**
@@ -145,24 +155,25 @@ const ProjectConfigurationForm = () => {
 ### **Phase 3: Backend-to-Agent Integration (Priority 3)**
 
 #### **3.1 Project Submission Flow**
+
 ```javascript
 // Complete flow from form submission to deployment
 const projectSubmissionFlow = async (projectData) => {
   // 1. Validate and create project
   const project = await projectService.createProject(projectData);
-  
+
   // 2. Generate configurations (manual, no AI)
   const configs = await configService.generateConfigurations(project);
-  
+
   // 3. Build and push to ECR
   const image = await awsService.buildAndPushToECR(project, configs.dockerfile);
-  
+
   // 4. Deploy static assets to S3
   await awsService.uploadAssetsToS3(project, configs.staticAssets);
-  
+
   // 5. Send deployment request to agent
   const deployment = await agentService.deployProject(project, configs, image);
-  
+
   // 6. Monitor deployment status
   return deployment;
 };
@@ -172,8 +183,10 @@ const projectSubmissionFlow = async (projectData) => {
 
 ### **Services**: Backend (Express), Frontend (React), Agent (Python)
 
-### **Components**: 
+### **Components**:
+
 #### **Backend:**
+
 - `controllers/project/projectCreationController.js` - Enhanced form handling
 - `services/projectCreationService.js` - Complete manual pipeline
 - `services/agentCommunicationService.js` - Agent messaging
@@ -182,17 +195,20 @@ const projectSubmissionFlow = async (projectData) => {
 - `routes/api/v1/projects/` - Updated endpoints
 
 #### **Frontend:**
+
 - `pages/dashboard/CreateProject.jsx` - Enhanced wizard
 - `components/project-creation/` - New form components
 - `services/projectCreationService.js` - API integration
 - `redux/slices/projectCreationSlice.js` - Enhanced state management
 
 #### **Agent:**
+
 - `services/deploymentService.py` - Deployment orchestration
 - `services/ecrService.py` - Container deployment
 - `services/traefikService.py` - Routing configuration
 
-### **API Changes**: 
+### **API Changes**:
+
 - Enhanced project creation endpoints with full configuration support
 - New agent communication endpoints
 - Deployment status monitoring endpoints
@@ -201,6 +217,7 @@ const projectSubmissionFlow = async (projectData) => {
 ## 🎨 UI/UX Enhancements
 
 ### **Step 5 Form Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                     Project Configuration               │
@@ -213,6 +230,7 @@ const projectSubmissionFlow = async (projectData) => {
 ```
 
 ### **Smart Form Features:**
+
 - **Progressive Disclosure**: Show/hide sections based on tech stack
 - **Smart Defaults**: Pre-fill common configurations
 - **Validation**: Real-time form validation with helpful error messages
@@ -222,6 +240,7 @@ const projectSubmissionFlow = async (projectData) => {
 ## 📊 Success Criteria
 
 ### **Phase 1 (Backend) Success Criteria:**
+
 - [ ] Complete manual project creation pipeline (no AI dependency)
 - [ ] Agent communication system implemented
 - [ ] ECR integration for container building and deployment
@@ -230,6 +249,7 @@ const projectSubmissionFlow = async (projectData) => {
 - [ ] Comprehensive error handling and rollback
 
 ### **Phase 2 (Frontend) Success Criteria:**
+
 - [ ] Comprehensive project configuration form
 - [ ] All 8 configuration panels implemented
 - [ ] Smart defaults and validation
@@ -238,6 +258,7 @@ const projectSubmissionFlow = async (projectData) => {
 - [ ] Responsive design and accessibility
 
 ### **Phase 3 (Integration) Success Criteria:**
+
 - [ ] End-to-end deployment pipeline working
 - [ ] Real-time deployment status monitoring
 - [ ] Proper error handling and user feedback
@@ -245,6 +266,7 @@ const projectSubmissionFlow = async (projectData) => {
 - [ ] Health monitoring and rollback capability
 
 ## 🔄 Alternatives Considered
+
 1. **AI-First Approach**: Implement AI before manual pipeline (higher risk)
 2. **Minimal Manual Pipeline**: Basic deployment only (insufficient fallback)
 3. **External Integration**: Use third-party deployment services (vendor lock-in)
@@ -252,6 +274,7 @@ const projectSubmissionFlow = async (projectData) => {
 ## 📋 Additional Context
 
 ### **Critical Dependencies:**
+
 - AWS ECR configuration and credentials
 - Agent deployment infrastructure setup
 - Traefik configuration for subdomain routing
@@ -259,24 +282,29 @@ const projectSubmissionFlow = async (projectData) => {
 - Monitoring and logging infrastructure
 
 ### **Data Models Enhancement:**
+
 Based on `PROJECT_CREATION_PIPELINE_DOCUMENTATION.md`, enhance:
+
 - Project model with comprehensive configuration fields
 - Deployment model with detailed runtime settings
 - Session model for wizard state management
 
 ### **Future AI Integration Points:**
+
 - Smart defaults from AI analysis
 - Configuration optimization suggestions
 - Automatic error detection and fixes
 - Performance monitoring and recommendations
 
 ### **Integration with Existing Systems:**
+
 - WebSocket notifications for deployment progress
 - Redis caching for configuration templates
 - MongoDB storage for project and deployment data
 - GitHub integration for workflow creation
 
 ## 🏷️ Component Labels
+
 - [x] Frontend (React/Vite)
 - [x] Backend (Express)
 - [ ] AI Service (FastAPI)
