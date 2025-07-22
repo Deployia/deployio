@@ -1,0 +1,165 @@
+{
+  "name": "deployio-mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for Deployio AI-powered DevOps platform",
+  "main": "mcp-server.js",
+  "scripts": {
+    "start": "node mcp-server.js",
+    "dev": "nodemon mcp-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7"
+  },
+  "mcp": {
+    "tools": [
+      {
+        "name": "analyze_deployio_architecture",
+        "description": "Analyze Deployio's microservices architecture and suggest improvements",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "frontend",
+                "backend",
+                "ai-service",
+                "agent",
+                "websockets",
+                "database"
+              ],
+              "description": "Component to analyze"
+            }
+          }
+        }
+      },
+      {
+        "name": "generate_deployio_component",
+        "description": "Generate new components following Deployio patterns",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "controller",
+                "service",
+                "component",
+                "websocket-namespace",
+                "model"
+              ],
+              "description": "Type of component to generate"
+            },
+            "feature": {
+              "type": "string",
+              "description": "Feature name for the component"
+            }
+          }
+        }
+      },
+      {
+        "name": "review_deployio_patterns",
+        "description": "Review code against Deployio's established patterns",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Path to file to review"
+            },
+            "patterns": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "modular-controllers",
+                  "service-layer",
+                  "websocket-namespaces",
+                  "design-system",
+                  "authentication"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "suggest_deployio_optimization",
+        "description": "Suggest optimizations based on Deployio's current state (85% complete)",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "area": {
+              "type": "string",
+              "enum": [
+                "ecr-integration",
+                "agent-orchestration",
+                "multi-cloud",
+                "ai-enhancement"
+              ],
+              "description": "Area to optimize"
+            }
+          }
+        }
+      }
+    ],
+    "resources": [
+      {
+        "uri": "deployio://architecture/current-state",
+        "name": "Current Architecture State",
+        "description": "85% complete platform with ECR integration priority"
+      },
+      {
+        "uri": "deployio://patterns/backend",
+        "name": "Backend Patterns",
+        "description": "Modular controllers, service layer, module aliases, WebSocket namespaces"
+      },
+      {
+        "uri": "deployio://patterns/frontend",
+        "name": "Frontend Patterns",
+        "description": "Vite, Redux Toolkit, dark neutral palette, glass morphism, Framer Motion"
+      },
+      {
+        "uri": "deployio://patterns/ai-service",
+        "name": "AI Service Patterns",
+        "description": "FastAPI, async processing, ML pipeline, WebSocket progress updates"
+      }
+    ],
+    "prompts": [
+      {
+        "name": "deployio-code-review",
+        "description": "Comprehensive code review for Deployio components",
+        "arguments": [
+          {
+            "name": "component_type",
+            "description": "Type of component being reviewed",
+            "required": true
+          },
+          {
+            "name": "focus_areas",
+            "description": "Specific areas to focus on during review",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "deployio-feature-implementation",
+        "description": "Guide for implementing new features in Deployio",
+        "arguments": [
+          {
+            "name": "feature_name",
+            "description": "Name of the feature to implement",
+            "required": true
+          },
+          {
+            "name": "service_target",
+            "description": "Target service (frontend/backend/ai-service/agent)",
+            "required": true
+          }
+        ]
+      }
+    ]
+  }
+}
