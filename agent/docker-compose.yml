@@ -48,6 +48,7 @@ services:
   # ── Example Apps (always running) ──────────────────────────────
   mern-example:
     image: deployio-mern-example:latest
+    pull_policy: never
     container_name: mern-example
     restart: unless-stopped
     labels:
@@ -67,6 +68,7 @@ services:
 
   next-example:
     image: deployio-next-example:latest
+    pull_policy: never
     container_name: next-example
     restart: unless-stopped
     labels:
@@ -86,6 +88,7 @@ services:
 
   fastapi-example:
     image: deployio-fastapi-example:latest
+    pull_policy: never
     container_name: fastapi-example
     restart: unless-stopped
     labels:
