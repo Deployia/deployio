@@ -35,6 +35,11 @@ class RestartRequest(BaseModel):
     deployment_id: str
 
 
+class StartRequest(BaseModel):
+    """Request to start a stopped container."""
+    deployment_id: str
+
+
 class DeployResponse(BaseModel):
     """Deployment operation response."""
     status: str
@@ -80,7 +85,7 @@ async def trigger_deploy(req: DeployRequest):
 
 @router.post("/stop", response_model=DeployResponse)
 async def stop_deployment(req: StopRequest):
-    """Stop and remove a deployed container."""
+    """Stop a deployed container."""
     logger.info(f"Stop request received: {req.deployment_id}")
 
     result = await deployment_service.stop(req.deployment_id)
@@ -89,6 +94,21 @@ async def stop_deployment(req: StopRequest):
         status=result.get("status", "unknown"),
         deployment_id=req.deployment_id,
         message=result.get("message", "Container stopped"),
+        data=result,
+    )
+
+
+@router.post("/start", response_model=DeployResponse)
+async def start_deployment(req: StartRequest):
+    """Start a stopped container."""
+    logger.info(f"Start request received: {req.deployment_id}")
+
+    result = await deployment_service.start(req.deployment_id)
+
+    return DeployResponse(
+        status=result.get("status", "unknown"),
+        deployment_id=req.deployment_id,
+        message=f"Container {result.get('status', 'unknown')}",
         data=result,
     )
 

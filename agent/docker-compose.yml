@@ -43,7 +43,67 @@ services:
     networks:
       - deployio-network
     depends_on:
-      - traefik # Default Landing Page
+      - traefik
+
+  # ── Example Apps (always running) ──────────────────────────────
+  mern-example:
+    image: deployio-mern-example:latest
+    container_name: mern-example
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mern-example.rule=Host(`mern.deployio.tech`)"
+      - "traefik.http.routers.mern-example.entrypoints=websecure"
+      - "traefik.http.routers.mern-example.tls=true"
+      - "traefik.http.routers.mern-example.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.mern-example.priority=5"
+      - "traefik.http.services.mern-example.loadbalancer.server.port=3000"
+      - "deployio.managed=true"
+      - "deployio.app=mern"
+    networks:
+      - deployio-network
+    depends_on:
+      - traefik
+
+  next-example:
+    image: deployio-next-example:latest
+    container_name: next-example
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.next-example.rule=Host(`next.deployio.tech`)"
+      - "traefik.http.routers.next-example.entrypoints=websecure"
+      - "traefik.http.routers.next-example.tls=true"
+      - "traefik.http.routers.next-example.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.next-example.priority=5"
+      - "traefik.http.services.next-example.loadbalancer.server.port=3000"
+      - "deployio.managed=true"
+      - "deployio.app=next"
+    networks:
+      - deployio-network
+    depends_on:
+      - traefik
+
+  fastapi-example:
+    image: deployio-fastapi-example:latest
+    container_name: fastapi-example
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fastapi-example.rule=Host(`fastapi.deployio.tech`)"
+      - "traefik.http.routers.fastapi-example.entrypoints=websecure"
+      - "traefik.http.routers.fastapi-example.tls=true"
+      - "traefik.http.routers.fastapi-example.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.fastapi-example.priority=5"
+      - "traefik.http.services.fastapi-example.loadbalancer.server.port=8000"
+      - "deployio.managed=true"
+      - "deployio.app=fastapi"
+    networks:
+      - deployio-network
+    depends_on:
+      - traefik
+
+  # Default Landing Page
   landing-page:
     build: ./landing-page
     container_name: landing-page

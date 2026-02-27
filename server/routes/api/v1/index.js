@@ -15,6 +15,7 @@ const externalRoutes = require("./external");
 const logsRoutes = require("./logs");
 const metricsRoutes = require("./metrics");
 const analyticsRoutes = require("./analytics");
+const containerRoutes = require("./containers");
 const debugRoutes = require("../debug/tokens");
 
 // Mount route modules
@@ -28,6 +29,7 @@ router.use("/external", externalRoutes);
 router.use("/logs", logsRoutes);
 router.use("/metrics", metricsRoutes);
 router.use("/analytics", analyticsRoutes);
+router.use("/containers", containerRoutes);
 // Debug routes (only in development)
 if (process.env.NODE_ENV === "development") {
   router.use("/debug", debugRoutes);

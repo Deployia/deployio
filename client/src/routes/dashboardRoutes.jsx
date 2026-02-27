@@ -1,9 +1,9 @@
+import { Fragment, lazy } from "react";
 import { Route } from "react-router-dom";
-import { lazy, Fragment } from "react";
 
 const ProtectedRoute = lazy(() => import("@components/ProtectedRoute"));
-const DashboardLayout = lazy(() =>
-  import("@components/layouts/DashboardLayout")
+const DashboardLayout = lazy(
+  () => import("@components/layouts/DashboardLayout"),
 );
 const Dashboard = lazy(() => import("@dashboard/Dashboard"));
 const Projects = lazy(() => import("@dashboard/Projects"));
@@ -21,6 +21,7 @@ const Monitoring = lazy(() => import("@dashboard/Monitoring"));
 const Integrations = lazy(() => import("@dashboard/Integrations"));
 const IntegrationsDetail = lazy(() => import("@dashboard/IntegrationsDetail"));
 const Profile = lazy(() => import("@dashboard/Profile"));
+const QuickDeploy = lazy(() => import("@dashboard/QuickDeploy"));
 
 export default function DashboardRoutes() {
   return (
@@ -35,6 +36,7 @@ export default function DashboardRoutes() {
             <Route path="analytics" element={<ProjectAnalytics />} />
             <Route path="settings" element={<ProjectSettings />} />
           </Route>
+          <Route path="quick-deploy" element={<QuickDeploy />} />
           <Route path="deployments" element={<Deployments />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="activity" element={<Activity />} />

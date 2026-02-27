@@ -53,6 +53,24 @@ class DeploymentService:
         safe_id = deployment_id.replace("dep_", "").replace("_", "-")[:40]
         return f"{CONTAINER_PREFIX}{safe_id}"
 
+    def _resolve_container(self, deployment_id: str):
+        """
+        Find a Docker container by deployment_id.
+        Tries the literal name first (e.g. 'mern-example'), then the
+        prefixed name ('deploy-mern-example'). Returns (container, name).
+        """
+        client = self._get_client()
+        # 1) Try literal container name
+        try:
+            c = client.containers.get(deployment_id)
+            return c, deployment_id
+        except NotFound:
+            pass
+        # 2) Try the deploy-prefixed name
+        prefixed = self._container_name(deployment_id)
+        c = client.containers.get(prefixed)  # may raise NotFound
+        return c, prefixed
+
     def _build_traefik_labels(
         self, deployment_id: str, subdomain: str, port: int
     ) -> Dict[str, str]:
@@ -278,32 +296,52 @@ class DeploymentService:
             return {"status": "failed", "error": error_msg}
 
     async def stop(self, deployment_id: str) -> Dict[str, Any]:
-        """Stop and remove a deployed container."""
-        container_name = self._container_name(deployment_id)
+        """Stop a deployed container. Does NOT remove compose-managed containers."""
         try:
             client = self._get_client()
-            container = client.containers.get(container_name)
+            container, container_name = self._resolve_container(deployment_id)
             container.stop(timeout=15)
-            container.remove()
+
+            # Only remove non-compose containers (those with the deploy- prefix)
+            if container_name.startswith(CONTAINER_PREFIX):
+                container.remove()
 
             # Remove from active tracking
             self.active_deployments.pop(deployment_id, None)
 
-            logger.info(f"Container stopped and removed: {container_name}")
+            logger.info(f"Container stopped: {container_name}")
             return {"status": "stopped", "container_name": container_name}
         except NotFound:
             self.active_deployments.pop(deployment_id, None)
             return {"status": "stopped", "message": "Container not found (already removed)"}
         except Exception as e:
-            logger.error(f"Error stopping container {container_name}: {e}")
+            logger.error(f"Error stopping container {deployment_id}: {e}")
+            return {"status": "error", "error": str(e)}
+
+    async def start(self, deployment_id: str) -> Dict[str, Any]:
+        """Start a stopped container (compose-managed or previously stopped)."""
+        try:
+            client = self._get_client()
+            container, container_name = self._resolve_container(deployment_id)
+            container.start()
+
+            # Wait briefly and verify
+            await asyncio.sleep(2)
+            container.reload()
+
+            logger.info(f"Container started: {container_name} ({container.status})")
+            return {"status": container.status, "container_name": container_name}
+        except NotFound:
+            return {"status": "not_found", "error": f"Container not found: {deployment_id}"}
+        except Exception as e:
+            logger.error(f"Error starting container {deployment_id}: {e}")
             return {"status": "error", "error": str(e)}
 
     async def restart(self, deployment_id: str) -> Dict[str, Any]:
         """Restart a deployed container."""
-        container_name = self._container_name(deployment_id)
         try:
             client = self._get_client()
-            container = client.containers.get(container_name)
+            container, container_name = self._resolve_container(deployment_id)
             container.restart(timeout=15)
 
             # Update tracking
@@ -313,17 +351,16 @@ class DeploymentService:
             logger.info(f"Container restarted: {container_name}")
             return {"status": "running", "container_name": container_name}
         except NotFound:
-            return {"status": "error", "error": f"Container not found: {container_name}"}
+            return {"status": "error", "error": f"Container not found: {deployment_id}"}
         except Exception as e:
-            logger.error(f"Error restarting container {container_name}: {e}")
+            logger.error(f"Error restarting container {deployment_id}: {e}")
             return {"status": "error", "error": str(e)}
 
     async def get_status(self, deployment_id: str) -> Dict[str, Any]:
         """Get status of a deployed container."""
-        container_name = self._container_name(deployment_id)
         try:
             client = self._get_client()
-            container = client.containers.get(container_name)
+            container, container_name = self._resolve_container(deployment_id)
             container.reload()
 
             info = {
@@ -349,7 +386,7 @@ class DeploymentService:
             return {
                 "deployment_id": deployment_id,
                 "status": "not_found",
-                "container_name": container_name,
+                "container_name": deployment_id,
             }
         except Exception as e:
             return {
@@ -362,10 +399,9 @@ class DeploymentService:
         self, deployment_id: str, tail: int = 200
     ) -> Dict[str, Any]:
         """Get container logs."""
-        container_name = self._container_name(deployment_id)
         try:
             client = self._get_client()
-            container = client.containers.get(container_name)
+            container, container_name = self._resolve_container(deployment_id)
             logs = container.logs(tail=tail, timestamps=True).decode(
                 "utf-8", errors="replace"
             )
