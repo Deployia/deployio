@@ -77,7 +77,7 @@ class AgentBridgeService extends EventEmitter {
       const isValid = await this.connectionManager.validateAgent(
         agentId,
         agentSecret,
-        platformDomain
+        platformDomain,
       );
       if (!isValid) {
         logger.error("🚫 Agent authentication failed", {
@@ -335,7 +335,7 @@ class AgentBridgeService extends EventEmitter {
         "/agent-logs",
         "system_logs",
         data,
-        data.room
+        data.room,
       );
     });
 
@@ -345,7 +345,7 @@ class AgentBridgeService extends EventEmitter {
         "/agent-logs",
         "container_logs",
         data,
-        data.room
+        data.room,
       );
     });
 
@@ -356,7 +356,7 @@ class AgentBridgeService extends EventEmitter {
         "/agent-logs",
         "system_logs_response",
         data,
-        data.room
+        data.room,
       );
 
       // Also emit to log collector for processing
@@ -369,7 +369,7 @@ class AgentBridgeService extends EventEmitter {
         "/agent-logs",
         "container_logs_response",
         data,
-        data.room
+        data.room,
       );
 
       // Also emit to log collector for processing
@@ -383,7 +383,7 @@ class AgentBridgeService extends EventEmitter {
         "/agent-metrics",
         "system_metrics",
         data,
-        data.room
+        data.room,
       );
     });
 
@@ -402,7 +402,7 @@ class AgentBridgeService extends EventEmitter {
         "/agent-logs",
         "live_system_logs",
         data,
-        data.room || "admin-system-logs"
+        data.room || "admin-system-logs",
       );
     });
 
@@ -420,7 +420,7 @@ class AgentBridgeService extends EventEmitter {
         "/agent-logs",
         "live_container_logs",
         data,
-        data.room || `user-${data.user_id}-logs`
+        data.room || `user-${data.user_id}-logs`,
       );
     });
 
@@ -519,6 +519,36 @@ class AgentBridgeService extends EventEmitter {
         error: error.message,
         timestamp: new Date().toISOString(),
       });
+    });
+
+    // ── Deployment events from agent ──────────────────────────────────
+
+    socket.on("deployment:status_update", async (data) => {
+      logger.info("Deployment status update from agent", {
+        agentId,
+        deploymentId: data.deploymentId,
+        status: data.status,
+      });
+      // Forward to orchestrator
+      this.emit("deployment:status_update", data);
+    });
+
+    socket.on("deployment:build_log", async (data) => {
+      logger.debug("Deployment build log from agent", {
+        agentId,
+        deploymentId: data.deploymentId,
+        level: data.level,
+      });
+      // Forward to orchestrator
+      this.emit("deployment:build_log", data);
+    });
+
+    socket.on("deployment:logs_response", async (data) => {
+      logger.debug("Deployment logs response from agent", {
+        agentId,
+        deploymentId: data.deploymentId,
+      });
+      this.emit("deployment:logs_response", data);
     });
 
     logger.debug("Agent event handlers setup completed", { agentId });

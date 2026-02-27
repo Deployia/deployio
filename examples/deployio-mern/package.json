@@ -1,0 +1,14 @@
+{
+  "name": "deployio-mern-example",
+  "version": "1.0.0",
+  "description": "Example MERN stack application for Deployio platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build:client": "cd client && npm install && npm run build"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

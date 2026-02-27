@@ -1,6 +1,7 @@
 const Deployment = require("@models/Deployment");
 const Project = require("@models/Project");
 const logger = require("@config/logger");
+const deploymentOrchestrator = require("./deploymentOrchestrator");
 
 class DeploymentService {
   /**
@@ -164,7 +165,7 @@ class DeploymentService {
       // Generate unique subdomain
       const subdomain = await Deployment.generateSubdomain(
         project.name,
-        deploymentData.environment || "dev"
+        deploymentData.environment || "dev",
       );
 
       // Create deployment
@@ -190,6 +191,13 @@ class DeploymentService {
       // Update project statistics
       await project.incrementDeploymentCount(false); // Will be true when successful
 
+      // Trigger deployment on the agent via orchestrator
+      try {
+        await deploymentOrchestrator.triggerDeploy(deployment, project);
+      } catch (orchErr) {
+        logger.error("Orchestrator trigger failed (non-blocking):", orchErr);
+      }
+
       // Populate for response
       await deployment.populate("project", "name repository.url");
       await deployment.populate("deployedBy", "name email");
@@ -208,12 +216,12 @@ class DeploymentService {
     deploymentId,
     status,
     userId,
-    additionalData = {}
+    additionalData = {},
   ) {
     try {
       const deployment = await Deployment.findById(deploymentId).populate(
         "project",
-        "owner"
+        "owner",
       );
 
       if (!deployment) {
@@ -247,7 +255,7 @@ class DeploymentService {
         {
           restarted: true,
           restartedAt: new Date(),
-        }
+        },
       );
     } catch (error) {
       logger.error("Error in restartDeployment:", error);
@@ -267,7 +275,7 @@ class DeploymentService {
         {
           cancelled: true,
           cancelledAt: new Date(),
-        }
+        },
       );
     } catch (error) {
       logger.error("Error in cancelDeployment:", error);
@@ -282,7 +290,7 @@ class DeploymentService {
     try {
       const deployment = await Deployment.findById(deploymentId).populate(
         "project",
-        "owner"
+        "owner",
       );
 
       if (!deployment) {

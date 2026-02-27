@@ -192,12 +192,34 @@ function setupNamespaces(features) {
             if (logCollectorService.integrateBridgeService) {
               logCollectorService.integrateBridgeService(agentBridgeService);
               logger.info(
-                "✓ Agent bridge integrated with log collector service"
+                "✓ Agent bridge integrated with log collector service",
               );
             }
           } catch (integrationError) {
             logger.error("✗ Failed to integrate bridge with log collector", {
               error: integrationError.message,
+            });
+          }
+
+          // Integrate with deployment orchestrator
+          try {
+            const deploymentOrchestrator = require("../services/deployment/deploymentOrchestrator");
+            deploymentOrchestrator.initialize(agentBridgeService);
+
+            // Listen for deployment events from agent
+            agentBridgeService.on("deployment:status_update", (data) => {
+              deploymentOrchestrator.handleStatusUpdate(data);
+            });
+            agentBridgeService.on("deployment:build_log", (data) => {
+              deploymentOrchestrator.handleBuildLog(data);
+            });
+
+            logger.info(
+              "✓ Deployment orchestrator integrated with agent bridge",
+            );
+          } catch (orchError) {
+            logger.error("✗ Failed to integrate deployment orchestrator", {
+              error: orchError.message,
             });
           }
 

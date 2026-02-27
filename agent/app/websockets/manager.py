@@ -397,6 +397,63 @@ class AgentWebSocketManager:
                             f"Error handling stop_log_stream in {namespace_path}: {e}"
                         )
 
+        # ── Deployment events (server → agent) ──────────────────────────
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def deployment_trigger(data):
+            """Handle deployment:trigger from server — start a deployment."""
+            logger.info(f"Received deployment:trigger: {data.get('deploymentId')}")
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("deployment:trigger", data)
+                    except Exception as e:
+                        logger.error(f"Error handling deployment:trigger in {namespace_path}: {e}")
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def deployment_stop(data):
+            """Handle deployment:stop from server — stop a container."""
+            logger.info(f"Received deployment:stop: {data.get('deploymentId')}")
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("deployment:stop", data)
+                    except Exception as e:
+                        logger.error(f"Error handling deployment:stop in {namespace_path}: {e}")
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def deployment_restart(data):
+            """Handle deployment:restart from server — restart a container."""
+            logger.info(f"Received deployment:restart: {data.get('deploymentId')}")
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("deployment:restart", data)
+                    except Exception as e:
+                        logger.error(f"Error handling deployment:restart in {namespace_path}: {e}")
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def deployment_status_request(data):
+            """Handle deployment:status_request from server."""
+            logger.info(f"Received deployment:status_request: {data.get('deploymentId')}")
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("deployment:status_request", data)
+                    except Exception as e:
+                        logger.error(f"Error handling deployment:status_request in {namespace_path}: {e}")
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def deployment_logs_request(data):
+            """Handle deployment:logs_request from server."""
+            logger.info(f"Received deployment:logs_request: {data.get('deploymentId')}")
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("deployment:logs_request", data)
+                    except Exception as e:
+                        logger.error(f"Error handling deployment:logs_request in {namespace_path}: {e}")
+
     async def _initialize_namespaces(self):
         """Initialize all registered namespaces after connection"""
         for namespace_path, namespace_instance in self.namespaces.items():
@@ -443,7 +500,7 @@ class AgentWebSocketManager:
                     "logs": True,
                     "metrics": False,  # TODO: Enable when implemented
                     "builds": False,  # TODO: Enable when implemented
-                    "deployments": False,  # TODO: Enable when implemented
+                    "deployments": True,
                 },
                 "connection_type": "bridge_establishment",
                 "handshake_id": f"handshake_{int(datetime.now().timestamp())}",

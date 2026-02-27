@@ -13,7 +13,7 @@ const validateProjectUpdate = [
     .withMessage("Project name must be between 1 and 100 characters")
     .matches(/^[a-zA-Z0-9\s\-_]+$/)
     .withMessage(
-      "Project name can only contain letters, numbers, spaces, hyphens, and underscores"
+      "Project name can only contain letters, numbers, spaces, hyphens, and underscores",
     ),
   body("description")
     .optional()
@@ -100,7 +100,7 @@ router.put(
   "/:id",
   validateObjectId,
   validateProjectUpdate,
-  projectController.updateProject
+  projectController.updateProject,
 );
 
 /**
@@ -138,7 +138,7 @@ router.get(
     query("sortBy").optional().isIn(["createdAt", "updatedAt", "status"]),
     query("sortOrder").optional().isIn(["asc", "desc"]),
   ],
-  projectController.getProjectDeployments
+  projectController.getProjectDeployments,
 );
 
 // Validation for deployment creation
@@ -152,8 +152,7 @@ const validateDeploymentCreation = [
     .isLength({ min: 1, max: 100 })
     .withMessage("Branch name must be between 1 and 100 characters"),
   body("commit.hash")
-    .notEmpty()
-    .withMessage("Commit hash is required")
+    .optional()
     .isLength({ min: 7, max: 40 })
     .withMessage("Commit hash must be between 7 and 40 characters"),
   body("commit.message")
@@ -174,7 +173,7 @@ router.post(
   "/:id/deployments",
   validateObjectId,
   validateDeploymentCreation,
-  deploymentController.createDeployment
+  deploymentController.createDeployment,
 );
 
 module.exports = router;

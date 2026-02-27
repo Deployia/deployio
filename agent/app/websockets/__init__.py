@@ -10,6 +10,7 @@ from app.websockets.manager import websocket_manager
 from app.websockets.core.registry import agent_registry
 from app.websockets.core.auth import agent_auth
 from app.websockets.namespaces.logs_namespace import agent_logs_namespace
+from app.websockets.namespaces.deployment_namespace import agent_deployment_namespace
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class AgentWebSocketService:
             "logs": True,
             "metrics": False,  # TODO: Implement in Phase 1
             "builds": False,  # TODO: Implement in Phase 2
-            "deployments": False,  # TODO: Implement in Phase 2
+            "deployments": True,
         }
 
     async def initialize(self) -> bool:
@@ -173,7 +174,19 @@ class AgentWebSocketService:
             except Exception as e:
                 logger.error(f"Failed to setup logs namespace: {e}")
 
-        # TODO: Add other namespaces (metrics, builds, deployments) in future phases
+        # Deployment namespace
+        if self.enabled_features["deployments"]:
+            try:
+                await agent_deployment_namespace.initialize(websocket_manager)
+                websocket_manager.register_namespace(
+                    "/agent-bridge", agent_deployment_namespace
+                )
+                agent_registry.register_namespace("/agent-bridge-deploy", agent_deployment_namespace)
+                logger.info("SUCCESS: Deployment namespace setup completed")
+            except Exception as e:
+                logger.error(f"Failed to setup deployment namespace: {e}")
+
+        # TODO: Add other namespaces (metrics, builds) in future phases
 
         logger.info(
             f"SUCCESS: Namespace setup completed - {len(agent_registry.get_namespace_paths())} namespaces active"

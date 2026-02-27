@@ -15,8 +15,7 @@ const validateDeploymentCreation = [
     .isLength({ min: 1, max: 100 })
     .withMessage("Branch name must be between 1 and 100 characters"),
   body("commit.hash")
-    .notEmpty()
-    .withMessage("Commit hash is required")
+    .optional()
     .isLength({ min: 7, max: 40 })
     .withMessage("Commit hash must be between 7 and 40 characters"),
   body("commit.message")
@@ -71,7 +70,7 @@ router.patch(
   "/:id/status",
   validateObjectId,
   validateStatusUpdate,
-  deploymentController.updateDeploymentStatus
+  deploymentController.updateDeploymentStatus,
 );
 
 /**
@@ -81,7 +80,7 @@ router.patch(
 router.post(
   "/:id/restart",
   validateObjectId,
-  deploymentController.restartDeployment
+  deploymentController.restartDeployment,
 );
 
 /**
@@ -91,7 +90,7 @@ router.post(
 router.post(
   "/:id/cancel",
   validateObjectId,
-  deploymentController.cancelDeployment
+  deploymentController.cancelDeployment,
 );
 
 /**
@@ -113,7 +112,7 @@ router.get(
     query("limit").optional().isInt({ min: 1, max: 1000 }),
     query("offset").optional().isInt({ min: 0 }),
   ],
-  deploymentController.getDeploymentLogs
+  deploymentController.getDeploymentLogs,
 );
 
 module.exports = router;

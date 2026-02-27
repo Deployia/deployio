@@ -1,35 +1,34 @@
-import { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
-  FaRocket,
-  FaPlay,
-  FaStop,
-  FaHistory,
+  createDeployment,
+  fetchProjectDeployments,
+  restartDeployment,
+  stopDeployment,
+} from "@redux/index";
+import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import {
+  FaClock,
+  FaCode,
   FaDownload,
   FaExternalLinkAlt,
-  FaClock,
-  FaUser,
-  FaCode,
+  FaHistory,
+  FaPlay,
   FaPlus,
+  FaRocket,
+  FaStop,
   FaSync,
   FaTerminal,
   FaTimes,
+  FaUser,
 } from "react-icons/fa";
-import {
-  fetchProjectDeployments,
-  createDeployment,
-  stopDeployment,
-  restartDeployment,
-  fetchDeploymentLogs,
-} from "@redux/index";
+import { useDispatch, useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
 
 const ProjectDeployments = () => {
   const dispatch = useDispatch();
   const { id } = useParams();
   const { projectDeployments, loading, error } = useSelector(
-    (state) => state.deployments
+    (state) => state.deployments,
   );
   const { currentProject } = useSelector((state) => state.projects);
 
@@ -42,6 +41,25 @@ const ProjectDeployments = () => {
       dispatch(fetchProjectDeployments(id));
     }
   }, [id, dispatch]);
+
+  // Auto-refresh when deployments are in active states (pending, queued, building, deploying)
+  const pollRef = useRef(null);
+  useEffect(() => {
+    const activeStates = ["pending", "queued", "building", "deploying"];
+    const hasActive =
+      Array.isArray(projectDeployments) &&
+      projectDeployments.some((d) => activeStates.includes(d.status));
+
+    if (hasActive && id) {
+      pollRef.current = setInterval(() => {
+        dispatch(fetchProjectDeployments(id));
+      }, 5000);
+    }
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [projectDeployments, id, dispatch]);
   const filteredDeployments = Array.isArray(projectDeployments)
     ? projectDeployments.filter((deployment) => {
         if (filter === "all") return true;
@@ -54,6 +72,10 @@ const ProjectDeployments = () => {
       const deploymentData = {
         environment: "production",
         branch: currentProject.repository?.branch || "main",
+        commit: {
+          hash: "pipeline",
+          message: "Pipeline deployment",
+        },
       };
       dispatch(createDeployment({ projectId: id, deploymentData }));
     }
@@ -70,8 +92,19 @@ const ProjectDeployments = () => {
   const handleViewLogs = (deployment) => {
     setSelectedDeployment(deployment);
     setShowLogs(true);
-    dispatch(fetchDeploymentLogs(deployment._id));
   };
+
+  // Keep selectedDeployment in sync with polled data
+  useEffect(() => {
+    if (selectedDeployment && Array.isArray(projectDeployments)) {
+      const updated = projectDeployments.find(
+        (d) => d._id === selectedDeployment._id,
+      );
+      if (updated && updated.status !== selectedDeployment.status) {
+        setSelectedDeployment(updated);
+      }
+    }
+  }, [projectDeployments, selectedDeployment]);
 
   const getStatusBadge = (status) => {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
@@ -83,8 +116,11 @@ const ProjectDeployments = () => {
       case "error":
         return `${baseClasses} bg-red-500/20 text-red-400 border border-red-500/30`;
       case "pending":
-      case "building":
+      case "queued":
         return `${baseClasses} bg-yellow-500/20 text-yellow-400 border border-yellow-500/30`;
+      case "building":
+      case "deploying":
+        return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30 animate-pulse`;
       case "stopped":
         return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
       default:
@@ -322,34 +358,51 @@ const ProjectDeployments = () => {
               </div>
             </div>
             <div className="p-4 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[60vh]">
-              <div className="bg-black/50 rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm">
-                <div className="text-green-400 mb-2">
-                  $ Starting deployment...
-                </div>
-                <div className="text-gray-300 mb-1">Fetching repository...</div>
-                <div className="text-gray-300 mb-1">
-                  Installing dependencies...
-                </div>
-                <div className="text-gray-300 mb-1">
-                  Building application...
-                </div>
-                {selectedDeployment.status === "success" && (
+              <div className="bg-black/50 rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm space-y-1">
+                {selectedDeployment.buildLogs &&
+                selectedDeployment.buildLogs.length > 0 ? (
+                  selectedDeployment.buildLogs.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={
+                        log.level === "error"
+                          ? "text-red-400"
+                          : log.level === "warning"
+                            ? "text-yellow-400"
+                            : "text-gray-300"
+                      }
+                    >
+                      <span className="text-gray-600 mr-2 text-xs">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                      {log.message}
+                    </div>
+                  ))
+                ) : (
                   <>
-                    <div className="text-gray-300 mb-1">
-                      {/* Deploying to {selectedDeployment.environment}... */}
+                    <div className="text-gray-500">
+                      No build logs available yet.
                     </div>
-                    <div className="text-green-400">
-                      ✓ Deployment completed successfully!
-                    </div>
+                    {["pending", "queued", "building", "deploying"].includes(
+                      selectedDeployment.status,
+                    ) && (
+                      <div className="text-yellow-400 animate-pulse mt-2">
+                        ⏳ Deployment in progress — logs will appear shortly...
+                      </div>
+                    )}
+                    {selectedDeployment.status === "running" && (
+                      <div className="text-green-400 mt-2">
+                        ✓ Deployment completed successfully!
+                      </div>
+                    )}
+                    {selectedDeployment.status === "failed" && (
+                      <div className="text-red-400 mt-2">
+                        ✗ Deployment failed
+                        {selectedDeployment.error?.message &&
+                          `: ${selectedDeployment.error.message}`}
+                      </div>
+                    )}
                   </>
-                )}
-                {selectedDeployment.status === "failed" && (
-                  <div className="text-red-400">
-                    ✗ Deployment failed with errors
-                  </div>
-                )}
-                {selectedDeployment.status === "building" && (
-                  <div className="text-yellow-400">⚠ Build in progress...</div>
                 )}
               </div>
             </div>

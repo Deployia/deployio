@@ -1,0 +1,378 @@
+module.exports = [
+  {
+    name: "Deployio MERN App",
+    slug: "deployio-mern-app",
+    description:
+      "Full-stack MERN application themed as the Deployio marketing website. React + Express + Tailwind CSS with health check API endpoints.",
+    repository: {
+      url: "https://github.com/Deployia/deployio",
+      provider: "github",
+      owner: "Deployia",
+      name: "deployio",
+      branch: "main",
+      isPrivate: false,
+      metadata: {
+        size: 15000,
+        language: "JavaScript",
+        topics: ["mern", "react", "express", "deployio"],
+        license: "MIT",
+        hasReadme: true,
+        hasDockerfile: true,
+        hasPackageJson: true,
+        hasRequirementsTxt: false,
+        lastCommit: {
+          sha: "abc1234567890abcdef1234",
+          message: "Add MERN example app for deployment pipeline",
+          author: "vasudeepu2815",
+          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        },
+      },
+    },
+    stack: {
+      detected: {
+        primary: "mern",
+        frontend: {
+          framework: "react",
+          version: "18.2.0",
+          buildTool: "vite",
+          packageManager: "npm",
+        },
+        backend: {
+          framework: "express",
+          language: "javascript",
+          version: "4.18.2",
+          runtime: "node",
+        },
+      },
+    },
+    analysis: {
+      analysisId: "analysis_mern_001",
+      approach: "manual",
+      confidence: 1.0,
+      technologyStack: {
+        primaryLanguage: "JavaScript",
+        framework: "MERN Stack",
+        buildTool: "Vite",
+        packageManager: "npm",
+        runtime: "Node.js",
+        version: "20.x",
+        dependencies: ["react", "express", "tailwindcss"],
+      },
+      detectedConfig: {
+        buildCommand: "cd client && npm install && npm run build",
+        startCommand: "node server.js",
+        installCommand: "npm install",
+        port: 3000,
+        environmentVariables: [
+          {
+            key: "NODE_ENV",
+            value: "production",
+            isSecret: false,
+            confidence: 1.0,
+          },
+          { key: "PORT", value: "3000", isSecret: false, confidence: 1.0 },
+        ],
+      },
+      lastAnalyzed: new Date(),
+    },
+    // Docker image reference for the deployment pipeline
+    dockerImage: "deployio-mern-example:latest",
+    examplePath: "examples/deployio-mern",
+    deployment: {
+      environment: {
+        production: [
+          { key: "NODE_ENV", value: "production", isSecret: false },
+          { key: "PORT", value: "3000", isSecret: false },
+        ],
+        development: [
+          { key: "NODE_ENV", value: "development", isSecret: false },
+          { key: "PORT", value: "3000", isSecret: false },
+        ],
+      },
+      build: {
+        commands: {
+          install: "npm install",
+          build: "cd client && npm install && npm run build",
+          start: "node server.js",
+        },
+        outputDir: "client/dist",
+        nodeVersion: "20",
+        buildTimeout: 600,
+      },
+      runtime: {
+        platform: "linux/amd64",
+        memory: "256MB",
+        cpu: "0.25",
+        instances: 1,
+        healthCheck: {
+          enabled: true,
+          path: "/api/health",
+          interval: 30,
+          timeout: 10,
+          retries: 3,
+        },
+      },
+    },
+    status: "active",
+    visibility: "public",
+    statistics: {
+      totalDeployments: 0,
+      successfulDeployments: 0,
+      failedDeployments: 0,
+      averageBuildTime: 0,
+      totalBuilds: 0,
+      uptime: 100,
+    },
+    settings: {
+      autoDeployment: {
+        enabled: false,
+        branch: "main",
+        environments: ["production"],
+      },
+      notifications: { email: true },
+      advanced: { sslEnabled: true },
+    },
+  },
+  {
+    name: "Deployio Next.js Dashboard",
+    slug: "deployio-nextjs-dashboard",
+    description:
+      "Next.js 14 dashboard application showcasing Deployio platform features. Built with App Router, Server Components, and Tailwind CSS.",
+    repository: {
+      url: "https://github.com/Deployia/deployio",
+      provider: "github",
+      owner: "Deployia",
+      name: "deployio",
+      branch: "main",
+      isPrivate: false,
+      metadata: {
+        size: 12000,
+        language: "JavaScript",
+        topics: ["nextjs", "react", "dashboard", "deployio"],
+        license: "MIT",
+        hasReadme: true,
+        hasDockerfile: true,
+        hasPackageJson: true,
+        hasRequirementsTxt: false,
+        lastCommit: {
+          sha: "def4567890abcdef12345678",
+          message: "Add Next.js dashboard example app",
+          author: "vasudeepu2815",
+          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        },
+      },
+    },
+    stack: {
+      detected: {
+        primary: "nextjs",
+        frontend: {
+          framework: "nextjs",
+          version: "14.1.0",
+          buildTool: "next",
+          packageManager: "npm",
+        },
+      },
+    },
+    analysis: {
+      analysisId: "analysis_next_001",
+      approach: "manual",
+      confidence: 1.0,
+      technologyStack: {
+        primaryLanguage: "JavaScript",
+        framework: "Next.js",
+        buildTool: "Next.js",
+        packageManager: "npm",
+        runtime: "Node.js",
+        version: "20.x",
+        dependencies: ["next", "react", "tailwindcss"],
+      },
+      detectedConfig: {
+        buildCommand: "npm run build",
+        startCommand: "npm start",
+        installCommand: "npm install",
+        port: 3000,
+        environmentVariables: [
+          {
+            key: "NODE_ENV",
+            value: "production",
+            isSecret: false,
+            confidence: 1.0,
+          },
+          { key: "PORT", value: "3000", isSecret: false, confidence: 1.0 },
+        ],
+      },
+      lastAnalyzed: new Date(),
+    },
+    dockerImage: "deployio-next-example:latest",
+    examplePath: "examples/deployio-next",
+    deployment: {
+      environment: {
+        production: [
+          { key: "NODE_ENV", value: "production", isSecret: false },
+          { key: "PORT", value: "3000", isSecret: false },
+        ],
+      },
+      build: {
+        commands: {
+          install: "npm install",
+          build: "npm run build",
+          start: "npm start",
+        },
+        nodeVersion: "20",
+        buildTimeout: 600,
+      },
+      runtime: {
+        platform: "linux/amd64",
+        memory: "256MB",
+        cpu: "0.25",
+        instances: 1,
+        healthCheck: {
+          enabled: true,
+          path: "/api/health",
+          interval: 30,
+          timeout: 10,
+          retries: 3,
+        },
+      },
+    },
+    status: "active",
+    visibility: "public",
+    statistics: {
+      totalDeployments: 0,
+      successfulDeployments: 0,
+      failedDeployments: 0,
+      averageBuildTime: 0,
+      totalBuilds: 0,
+      uptime: 100,
+    },
+    settings: {
+      autoDeployment: {
+        enabled: false,
+        branch: "main",
+        environments: ["production"],
+      },
+      notifications: { email: true },
+      advanced: { sslEnabled: true },
+    },
+  },
+  {
+    name: "Deployio FastAPI Service",
+    slug: "deployio-fastapi-service",
+    description:
+      "FastAPI backend service with auto-generated API docs, system stats, and service registry endpoints. Python 3.12 with Uvicorn.",
+    repository: {
+      url: "https://github.com/Deployia/deployio",
+      provider: "github",
+      owner: "Deployia",
+      name: "deployio",
+      branch: "main",
+      isPrivate: false,
+      metadata: {
+        size: 5000,
+        language: "Python",
+        topics: ["fastapi", "python", "api", "deployio"],
+        license: "MIT",
+        hasReadme: true,
+        hasDockerfile: true,
+        hasPackageJson: false,
+        hasRequirementsTxt: true,
+        lastCommit: {
+          sha: "fab7890abcdef123456789ab",
+          message: "Add FastAPI example service",
+          author: "vasudeepu2815",
+          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        },
+      },
+    },
+    stack: {
+      detected: {
+        primary: "fastapi",
+        backend: {
+          framework: "fastapi",
+          language: "python",
+          version: "0.109.0",
+          runtime: "python",
+        },
+      },
+    },
+    analysis: {
+      analysisId: "analysis_fastapi_001",
+      approach: "manual",
+      confidence: 1.0,
+      technologyStack: {
+        primaryLanguage: "Python",
+        framework: "FastAPI",
+        buildTool: "pip",
+        packageManager: "pip",
+        runtime: "Python",
+        version: "3.12",
+        dependencies: ["fastapi", "uvicorn", "psutil", "pydantic"],
+      },
+      detectedConfig: {
+        buildCommand: "pip install -r requirements.txt",
+        startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000",
+        installCommand: "pip install -r requirements.txt",
+        port: 8000,
+        environmentVariables: [
+          {
+            key: "ENVIRONMENT",
+            value: "production",
+            isSecret: false,
+            confidence: 1.0,
+          },
+          { key: "PORT", value: "8000", isSecret: false, confidence: 1.0 },
+        ],
+      },
+      lastAnalyzed: new Date(),
+    },
+    dockerImage: "deployio-fastapi-example:latest",
+    examplePath: "examples/deployio-fastapi",
+    deployment: {
+      environment: {
+        production: [
+          { key: "ENVIRONMENT", value: "production", isSecret: false },
+          { key: "PORT", value: "8000", isSecret: false },
+        ],
+      },
+      build: {
+        commands: {
+          install: "pip install -r requirements.txt",
+          start: "uvicorn main:app --host 0.0.0.0 --port 8000",
+        },
+        buildTimeout: 300,
+      },
+      runtime: {
+        platform: "linux/amd64",
+        memory: "256MB",
+        cpu: "0.25",
+        instances: 1,
+        healthCheck: {
+          enabled: true,
+          path: "/health",
+          interval: 30,
+          timeout: 10,
+          retries: 3,
+        },
+      },
+    },
+    status: "active",
+    visibility: "public",
+    statistics: {
+      totalDeployments: 0,
+      successfulDeployments: 0,
+      failedDeployments: 0,
+      averageBuildTime: 0,
+      totalBuilds: 0,
+      uptime: 100,
+    },
+    settings: {
+      autoDeployment: {
+        enabled: false,
+        branch: "main",
+        environments: ["production"],
+      },
+      notifications: { email: true },
+      advanced: { sslEnabled: true },
+    },
+  },
+];
