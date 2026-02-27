@@ -11,17 +11,18 @@ const router = express.Router();
 
 const AGENT_URL =
   process.env.AGENT_API_URL || "https://agent.deployio.tech/agent/v1";
-const AGENT_SECRET = process.env.AGENT_SECRET || "";
 
-/** Shared axios instance pointing at the agent */
-const agent = axios.create({
-  baseURL: AGENT_URL,
-  timeout: 15000,
-  headers: {
-    "Content-Type": "application/json",
-    ...(AGENT_SECRET ? { "X-Agent-Secret": AGENT_SECRET } : {}),
-  },
-});
+/** Build an axios instance that forwards the user's JWT to the agent */
+const getAgent = (req) =>
+  axios.create({
+    baseURL: AGENT_URL,
+    timeout: 15000,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Internal-Service": "deployio-backend",
+      Authorization: req.headers.authorization || "",
+    },
+  });
 
 // ── Hard-coded example apps ─────────────────────────────────────
 const EXAMPLE_APPS = [
@@ -61,10 +62,10 @@ const EXAMPLE_APPS = [
 ];
 
 // ── GET /api/v1/containers — list the 3 example apps + live status
-router.get("/", protect, async (_req, res) => {
+router.get("/", protect, async (req, res) => {
   try {
     // Ask the agent for all deployio-managed containers
-    const { data } = await agent.get("/deployments");
+    const { data } = await getAgent(req).get("/deployments");
     const liveContainers = data.deployments || [];
 
     // Merge live status into our hard-coded list
@@ -95,7 +96,7 @@ router.get("/", protect, async (_req, res) => {
 router.post("/:containerId/stop", protect, async (req, res) => {
   try {
     const { containerId } = req.params;
-    const { data } = await agent.post("/stop", {
+    const { data } = await getAgent(req).post("/stop", {
       deployment_id: containerId,
     });
     return res.json({ success: true, data });
@@ -111,7 +112,7 @@ router.post("/:containerId/stop", protect, async (req, res) => {
 router.post("/:containerId/restart", protect, async (req, res) => {
   try {
     const { containerId } = req.params;
-    const { data } = await agent.post("/restart", {
+    const { data } = await getAgent(req).post("/restart", {
       deployment_id: containerId,
     });
     return res.json({ success: true, data });
@@ -135,7 +136,7 @@ router.post("/:containerId/deploy", protect, async (req, res) => {
     }
 
     // Try starting the existing (stopped) container first
-    const { data } = await agent.post("/start", {
+    const { data } = await getAgent(req).post("/start", {
       deployment_id: app.id,
     });
     return res.json({ success: true, data });

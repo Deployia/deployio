@@ -31,7 +31,7 @@ JWT_ALGORITHM = "HS256"
 # Enhanced service validation configuration
 SERVICE_CONFIG = {
     "deployio-backend": {
-        "allowed_ips": ["127.0.0.1", "::1"],  # Add production IPs as needed
+        "allowed_ips": [],  # No IP restriction — JWT provides auth
         "rate_limit": 1000,  # requests per minute
         "require_token": True,
         "allowed_endpoints": ["*"],  # All endpoints allowed for backend
