@@ -6,7 +6,7 @@ import {
   stopDeployment,
 } from "@redux/index";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FaClock,
   FaCode,
@@ -28,15 +28,24 @@ import { useParams } from "react-router-dom";
 const ProjectDeployments = () => {
   const dispatch = useDispatch();
   const { id } = useParams();
-  const { projectDeployments, loading, error } = useSelector(
-    (state) => state.deployments,
+
+  // Granular selectors — only re-render when the specific field changes
+  const projectDeployments = useSelector(
+    (state) => state.deployments.projectDeployments,
   );
-  const { currentProject } = useSelector((state) => state.projects);
+  const loadingFetchProject = useSelector(
+    (state) => state.deployments.loading.fetchProject,
+  );
+  const errorDeployments = useSelector(
+    (state) => state.deployments.error.fetchProject,
+  );
+  const currentProject = useSelector((state) => state.projects.currentProject);
 
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
   const [filter, setFilter] = useState("all");
 
+  // Initial data fetch
   useEffect(() => {
     if (id) {
       dispatch(fetchProjectDeployments(id));
@@ -44,34 +53,41 @@ const ProjectDeployments = () => {
         dispatch(fetchProjectById(id));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, dispatch]);
 
-  // Auto-refresh when deployments are in active states (pending, queued, building, deploying)
+  // Stable polling — use refs so the effect doesn't depend on projectDeployments
   const pollRef = useRef(null);
+  const deploymentsRef = useRef(projectDeployments);
+  deploymentsRef.current = projectDeployments;
+
   useEffect(() => {
     const activeStates = ["pending", "queued", "building", "deploying"];
-    const hasActive =
-      Array.isArray(projectDeployments) &&
-      projectDeployments.some((d) => activeStates.includes(d.status));
 
-    if (hasActive && id) {
-      pollRef.current = setInterval(() => {
+    pollRef.current = setInterval(() => {
+      const deps = deploymentsRef.current;
+      const hasActive =
+        Array.isArray(deps) &&
+        deps.some((d) => activeStates.includes(d.status));
+
+      if (hasActive && id) {
         dispatch(fetchProjectDeployments(id));
-      }, 5000);
-    }
+      }
+    }, 5000);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [projectDeployments, id, dispatch]);
-  const filteredDeployments = Array.isArray(projectDeployments)
-    ? projectDeployments.filter((deployment) => {
-        if (filter === "all") return true;
-        return deployment.status === filter;
-      })
-    : [];
+  }, [id, dispatch]);
 
-  const handleCreateDeployment = () => {
+  // Memoize filtered list
+  const filteredDeployments = useMemo(() => {
+    if (!Array.isArray(projectDeployments)) return [];
+    if (filter === "all") return projectDeployments;
+    return projectDeployments.filter((d) => d.status === filter);
+  }, [projectDeployments, filter]);
+
+  const handleCreateDeployment = useCallback(() => {
     if (!currentProject) {
       console.warn("Project not loaded yet, retrying fetch...");
       dispatch(fetchProjectById(id));
@@ -86,32 +102,54 @@ const ProjectDeployments = () => {
       },
     };
     dispatch(createDeployment({ projectId: id, deploymentData }));
-  };
+  }, [currentProject, id, dispatch]);
 
-  const handleStopDeployment = (deploymentId) => {
-    dispatch(stopDeployment(deploymentId));
-  };
+  const handleStopDeployment = useCallback(
+    (deploymentId) => {
+      dispatch(stopDeployment(deploymentId));
+    },
+    [dispatch],
+  );
 
-  const handleRestartDeployment = (deploymentId) => {
-    dispatch(restartDeployment(deploymentId));
-  };
+  const handleRestartDeployment = useCallback(
+    (deploymentId) => {
+      dispatch(restartDeployment(deploymentId));
+    },
+    [dispatch],
+  );
 
-  const handleViewLogs = (deployment) => {
+  const handleViewLogs = useCallback((deployment) => {
     setSelectedDeployment(deployment);
     setShowLogs(true);
-  };
+  }, []);
 
-  // Keep selectedDeployment in sync with polled data
+  // Keep selectedDeployment in sync with polled data (don't include selectedDeployment in deps)
+  const selectedIdRef = useRef(null);
   useEffect(() => {
-    if (selectedDeployment && Array.isArray(projectDeployments)) {
-      const updated = projectDeployments.find(
-        (d) => d._id === selectedDeployment._id,
-      );
-      if (updated && updated.status !== selectedDeployment.status) {
-        setSelectedDeployment(updated);
-      }
+    if (!selectedIdRef.current || !Array.isArray(projectDeployments)) return;
+    const updated = projectDeployments.find(
+      (d) => (d.id || d._id) === selectedIdRef.current,
+    );
+    if (updated) {
+      setSelectedDeployment((prev) => {
+        if (
+          !prev ||
+          prev.status !== updated.status ||
+          prev.buildLogs?.length !== updated.buildLogs?.length
+        ) {
+          return updated;
+        }
+        return prev;
+      });
     }
-  }, [projectDeployments, selectedDeployment]);
+  }, [projectDeployments]);
+
+  // Track the selected deployment's id in a ref
+  useEffect(() => {
+    selectedIdRef.current = selectedDeployment
+      ? selectedDeployment.id || selectedDeployment._id
+      : null;
+  }, [selectedDeployment]);
 
   const getStatusBadge = (status) => {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
@@ -193,7 +231,7 @@ const ProjectDeployments = () => {
 
       {/* Deployments List */}
       <div className="space-y-4">
-        {loading.fetchProject ? (
+        {loadingFetchProject ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
@@ -428,13 +466,13 @@ const ProjectDeployments = () => {
       )}
 
       {/* Error Message */}
-      {error.deployments && (
+      {errorDeployments && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-center"
         >
-          {error.deployments}
+          {errorDeployments}
         </motion.div>
       )}
     </div>
