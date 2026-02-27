@@ -42,21 +42,21 @@ async function seedPipeline() {
     }
     console.log(`✅ Found user: ${user.email}\n`);
 
-    // Check if pipeline projects already exist, and offer to replace
-    const existingSlugs = pipelineProjects.map((p) => p.slug);
-    const existing = await Project.find({
-      slug: { $in: existingSlugs },
-      owner: user._id,
-    });
-
-    if (existing.length > 0) {
+    // Remove ALL existing projects and deployments for this user
+    const existingProjects = await Project.find({ owner: user._id });
+    if (
+      existingProjects.length > 0 ||
+      (await Deployment.countDocuments({ deployedBy: user._id })) > 0
+    ) {
+      const projectIds = existingProjects.map((p) => p._id);
+      const deletedDeployments = await Deployment.deleteMany({
+        $or: [{ project: { $in: projectIds } }, { deployedBy: user._id }],
+      });
+      const deletedProjects = await Project.deleteMany({ owner: user._id });
       console.log(
-        `🧹 Removing ${existing.length} existing pipeline projects...`,
+        `🧹 Removed ${deletedProjects.deletedCount} projects and ${deletedDeployments.deletedCount} deployments`,
       );
-      const existingIds = existing.map((p) => p._id);
-      await Deployment.deleteMany({ project: { $in: existingIds } });
-      await Project.deleteMany({ _id: { $in: existingIds } });
-      console.log("✅ Cleaned up existing pipeline data\n");
+      console.log("✅ Cleaned up all existing project & deployment data\n");
     }
 
     // Create projects

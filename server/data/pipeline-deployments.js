@@ -19,7 +19,7 @@ module.exports = [
         {
           level: "info",
           message: "Deployment created — waiting for agent",
-          source: "system",
+          source: "build",
           timestamp: new Date(),
         },
       ],
@@ -50,7 +50,7 @@ module.exports = [
         {
           level: "info",
           message: "Deployment created — waiting for agent",
-          source: "system",
+          source: "build",
           timestamp: new Date(),
         },
       ],
@@ -81,7 +81,7 @@ module.exports = [
         {
           level: "info",
           message: "Deployment created — waiting for agent",
-          source: "system",
+          source: "build",
           timestamp: new Date(),
         },
       ],
