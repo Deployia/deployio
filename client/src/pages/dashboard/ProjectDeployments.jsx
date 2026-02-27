@@ -1,5 +1,6 @@
 import {
   createDeployment,
+  fetchProjectById,
   fetchProjectDeployments,
   restartDeployment,
   stopDeployment,
@@ -39,6 +40,9 @@ const ProjectDeployments = () => {
   useEffect(() => {
     if (id) {
       dispatch(fetchProjectDeployments(id));
+      if (!currentProject || currentProject._id !== id) {
+        dispatch(fetchProjectById(id));
+      }
     }
   }, [id, dispatch]);
 
@@ -68,17 +72,20 @@ const ProjectDeployments = () => {
     : [];
 
   const handleCreateDeployment = () => {
-    if (currentProject) {
-      const deploymentData = {
-        environment: "production",
-        branch: currentProject.repository?.branch || "main",
-        commit: {
-          hash: "pipeline",
-          message: "Pipeline deployment",
-        },
-      };
-      dispatch(createDeployment({ projectId: id, deploymentData }));
+    if (!currentProject) {
+      console.warn("Project not loaded yet, retrying fetch...");
+      dispatch(fetchProjectById(id));
+      return;
     }
+    const deploymentData = {
+      environment: "production",
+      branch: currentProject.repository?.branch || "main",
+      commit: {
+        hash: "pipeline",
+        message: "Pipeline deployment",
+      },
+    };
+    dispatch(createDeployment({ projectId: id, deploymentData }));
   };
 
   const handleStopDeployment = (deploymentId) => {
@@ -186,7 +193,7 @@ const ProjectDeployments = () => {
 
       {/* Deployments List */}
       <div className="space-y-4">
-        {loading.deployments ? (
+        {loading.fetchProject ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>

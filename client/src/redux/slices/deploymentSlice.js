@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import api from "../../utils/api";
 
 // Async thunks for deployment operations
@@ -19,24 +19,24 @@ export const fetchDeployments = createAsyncThunk(
       return { deployments: response.data.deployments || [], pagination: {} };
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch deployments"
+        error.response?.data?.message || "Failed to fetch deployments",
       );
     }
-  }
+  },
 );
 
 export const fetchDeployment = createAsyncThunk(
   "deployments/fetchDeployment",
   async (deploymentId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/projects/deployments/${deploymentId}`);
+      const response = await api.get(`/deployments/${deploymentId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch deployment"
+        error.response?.data?.message || "Failed to fetch deployment",
       );
     }
-  }
+  },
 );
 
 export const fetchProjectDeployments = createAsyncThunk(
@@ -57,10 +57,10 @@ export const fetchProjectDeployments = createAsyncThunk(
       };
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch project deployments"
+        error.response?.data?.message || "Failed to fetch project deployments",
       );
     }
-  }
+  },
 );
 
 export const createDeployment = createAsyncThunk(
@@ -69,48 +69,45 @@ export const createDeployment = createAsyncThunk(
     try {
       const response = await api.post(
         `/projects/${projectId}/deployments`,
-        deploymentData
+        deploymentData,
       );
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to create deployment"
+        error.response?.data?.message || "Failed to create deployment",
       );
     }
-  }
+  },
 );
 
 export const updateDeploymentStatusAPI = createAsyncThunk(
   "deployments/updateDeploymentStatusAPI",
   async ({ deploymentId, status }, { rejectWithValue }) => {
     try {
-      const response = await api.patch(
-        `/projects/deployments/${deploymentId}/status`,
-        { status }
-      );
+      const response = await api.patch(`/deployments/${deploymentId}/status`, {
+        status,
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to update deployment status"
+        error.response?.data?.message || "Failed to update deployment status",
       );
     }
-  }
+  },
 );
 
 export const cancelDeployment = createAsyncThunk(
   "deployments/cancelDeployment",
   async (deploymentId, { rejectWithValue }) => {
     try {
-      const response = await api.patch(
-        `/projects/deployments/${deploymentId}/cancel`
-      );
+      const response = await api.post(`/deployments/${deploymentId}/cancel`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to cancel deployment"
+        error.response?.data?.message || "Failed to cancel deployment",
       );
     }
-  }
+  },
 );
 
 // These deployment management functions use status updates since
@@ -119,37 +116,28 @@ export const stopDeployment = createAsyncThunk(
   "deployments/stopDeployment",
   async (deploymentId, { rejectWithValue }) => {
     try {
-      // Use cancel deployment endpoint instead of stop
-      const response = await api.patch(
-        `/projects/deployments/${deploymentId}/cancel`
-      );
+      const response = await api.post(`/deployments/${deploymentId}/cancel`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to stop deployment"
+        error.response?.data?.message || "Failed to stop deployment",
       );
     }
-  }
+  },
 );
 
 export const restartDeployment = createAsyncThunk(
   "deployments/restartDeployment",
   async (deploymentId, { rejectWithValue }) => {
     try {
-      // Restart by updating status to 'pending' to trigger redeploy
-      const response = await api.patch(
-        `/projects/deployments/${deploymentId}/status`,
-        {
-          status: "pending",
-        }
-      );
+      const response = await api.post(`/deployments/${deploymentId}/restart`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to restart deployment"
+        error.response?.data?.message || "Failed to restart deployment",
       );
     }
-  }
+  },
 );
 
 export const fetchDeploymentLogs = createAsyncThunk(
@@ -162,15 +150,15 @@ export const fetchDeploymentLogs = createAsyncThunk(
         ...(since && { since }),
       });
       const response = await api.get(
-        `/projects/deployments/${deploymentId}/logs?${queryParams}`
+        `/deployments/${deploymentId}/logs?${queryParams}`,
       );
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch deployment logs"
+        error.response?.data?.message || "Failed to fetch deployment logs",
       );
     }
-  }
+  },
 );
 
 // Note: Deployment metrics endpoint doesn't exist in backend yet
@@ -313,7 +301,7 @@ const deploymentSlice = createSlice({
 
       // Update in deployments list
       const deploymentIndex = state.deployments.findIndex(
-        (d) => d._id === deploymentId
+        (d) => d._id === deploymentId,
       );
       if (deploymentIndex !== -1) {
         state.deployments[deploymentIndex].status = status;
@@ -324,7 +312,7 @@ const deploymentSlice = createSlice({
 
       // Update in project deployments
       const projectDeploymentIndex = state.projectDeployments.findIndex(
-        (d) => d._id === deploymentId
+        (d) => d._id === deploymentId,
       );
       if (projectDeploymentIndex !== -1) {
         state.projectDeployments[projectDeploymentIndex].status = status;
@@ -431,7 +419,7 @@ const deploymentSlice = createSlice({
 
         // Update in deployments list
         const index = state.deployments.findIndex(
-          (d) => d._id === updatedDeployment._id
+          (d) => d._id === updatedDeployment._id,
         );
         if (index !== -1) {
           state.deployments[index] = updatedDeployment;
@@ -439,7 +427,7 @@ const deploymentSlice = createSlice({
 
         // Update in project deployments
         const projectIndex = state.projectDeployments.findIndex(
-          (d) => d._id === updatedDeployment._id
+          (d) => d._id === updatedDeployment._id,
         );
         if (projectIndex !== -1) {
           state.projectDeployments[projectIndex] = updatedDeployment;
@@ -472,14 +460,14 @@ const deploymentSlice = createSlice({
 
         // Update deployment status in all arrays (cancelled deployment)
         const index = state.deployments.findIndex(
-          (d) => d._id === deployment._id
+          (d) => d._id === deployment._id,
         );
         if (index !== -1) {
           state.deployments[index] = deployment;
         }
 
         const projectIndex = state.projectDeployments.findIndex(
-          (d) => d._id === deployment._id
+          (d) => d._id === deployment._id,
         );
         if (projectIndex !== -1) {
           state.projectDeployments[projectIndex] = deployment;
@@ -511,12 +499,12 @@ const deploymentSlice = createSlice({
         [state.deployments, state.projectDeployments].forEach(
           (deploymentArray) => {
             const index = deploymentArray.findIndex(
-              (d) => d._id === updatedDeployment._id
+              (d) => d._id === updatedDeployment._id,
             );
             if (index !== -1) {
               deploymentArray[index] = updatedDeployment;
             }
-          }
+          },
         );
 
         // Update current deployment
@@ -548,12 +536,12 @@ const deploymentSlice = createSlice({
         [state.deployments, state.projectDeployments].forEach(
           (deploymentArray) => {
             const index = deploymentArray.findIndex(
-              (d) => d._id === updatedDeployment._id
+              (d) => d._id === updatedDeployment._id,
             );
             if (index !== -1) {
               deploymentArray[index] = updatedDeployment;
             }
-          }
+          },
         );
 
         // Update current deployment

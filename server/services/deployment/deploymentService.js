@@ -248,7 +248,7 @@ class DeploymentService {
    */
   async restartDeployment(deploymentId, userId) {
     try {
-      return await this.updateDeploymentStatus(
+      const result = await this.updateDeploymentStatus(
         deploymentId,
         "pending",
         userId,
@@ -257,6 +257,26 @@ class DeploymentService {
           restartedAt: new Date(),
         },
       );
+
+      // Trigger re-deployment via orchestrator
+      try {
+        const deploymentOrchestrator = require("./deploymentOrchestrator");
+        const deployment =
+          await Deployment.findById(deploymentId).populate("project");
+        if (deployment && deployment.project) {
+          await deploymentOrchestrator.triggerDeploy(
+            deployment,
+            deployment.project,
+          );
+        }
+      } catch (orchErr) {
+        logger.warn(
+          "Orchestrator restart trigger failed (non-blocking):",
+          orchErr.message,
+        );
+      }
+
+      return result;
     } catch (error) {
       logger.error("Error in restartDeployment:", error);
       throw error;
@@ -268,7 +288,7 @@ class DeploymentService {
    */
   async cancelDeployment(deploymentId, userId) {
     try {
-      return await this.updateDeploymentStatus(
+      const result = await this.updateDeploymentStatus(
         deploymentId,
         "cancelled",
         userId,
@@ -277,6 +297,22 @@ class DeploymentService {
           cancelledAt: new Date(),
         },
       );
+
+      // Stop the container on the agent via orchestrator
+      try {
+        const deploymentOrchestrator = require("./deploymentOrchestrator");
+        const deployment = await Deployment.findById(deploymentId);
+        if (deployment) {
+          await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+        }
+      } catch (orchErr) {
+        logger.warn(
+          "Orchestrator stop trigger failed (non-blocking):",
+          orchErr.message,
+        );
+      }
+
+      return result;
     } catch (error) {
       logger.error("Error in cancelDeployment:", error);
       throw error;
@@ -397,6 +433,7 @@ class DeploymentService {
       buildCompletedAt: deployment.build?.completedAt,
       deployStartedAt: deployment.deployStartedAt,
       deployCompletedAt: deployment.deployCompletedAt,
+      buildLogs: deployment.buildLogs || [],
     };
   }
 }
