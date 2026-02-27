@@ -33,7 +33,7 @@ jobs:
           ECR_REPOSITORY: deployio-agent
           IMAGE_TAG: latest
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./deployio-agent
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./agent
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
@@ -45,7 +45,7 @@ jobs:
           key: ${{ secrets.AGENT_SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd ~/deployio/deployio-agent
+            cd ~/deployio/agent
             echo "🔄 Pulling latest changes from git..."
             git pull origin main
 
