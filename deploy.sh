@@ -95,8 +95,8 @@ ensure_env_file "server/.env.production" "server/.env.example"
 ensure_env_file "ai-service/.env.production" "ai-service/.env.example"
 
 ensure_log_permissions() {
-    local uid="1001"
-    local gid="1001"
+    local uid="${LOG_UID:-1001}"
+    local gid="${LOG_GID:-1001}"
 
     echo "Preparing log directories with uid:gid ${uid}:${gid}..."
 
