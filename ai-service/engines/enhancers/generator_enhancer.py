@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 from engines.llm.client_manager import LLMClientManager
 from engines.llm.models import LLMRequest, LLMProvider
 from engines.prompts.generator_prompts import GeneratorPrompts
-from models.analysis_models import AnalysisResult 
+from models.analysis_models import AnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class GeneratorEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:
@@ -135,7 +135,7 @@ class GeneratorEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:
@@ -193,7 +193,7 @@ class GeneratorEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:
@@ -253,7 +253,7 @@ class GeneratorEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:
@@ -353,13 +353,15 @@ class GeneratorEnhancer:
         try:
             # Extract JSON metadata first
             metadata = self._extract_json_metadata(response_content)
-            
+
             # Extract dockerfile content from JSON if available
             dockerfile_content = ""
             if metadata and "dockerfile_content" in metadata:
                 dockerfile_content = metadata["dockerfile_content"]
                 # Remove dockerfile_content from metadata to avoid duplication
-                metadata = {k: v for k, v in metadata.items() if k != "dockerfile_content"}
+                metadata = {
+                    k: v for k, v in metadata.items() if k != "dockerfile_content"
+                }
             else:
                 # Fallback: try to extract Dockerfile code block
                 dockerfile_content = self._extract_code_block(
@@ -390,13 +392,15 @@ class GeneratorEnhancer:
         try:
             # Extract JSON metadata first
             metadata = self._extract_json_metadata(response_content)
-            
+
             # Extract docker compose content from JSON if available
             compose_content = ""
             if metadata and "docker_compose_content" in metadata:
                 compose_content = metadata["docker_compose_content"]
                 # Remove docker_compose_content from metadata to avoid duplication
-                metadata = {k: v for k, v in metadata.items() if k != "docker_compose_content"}
+                metadata = {
+                    k: v for k, v in metadata.items() if k != "docker_compose_content"
+                }
             else:
                 # Fallback: try to extract YAML code block
                 compose_content = self._extract_code_block(response_content, "yaml")
@@ -425,13 +429,15 @@ class GeneratorEnhancer:
         try:
             # Extract JSON metadata first
             metadata = self._extract_json_metadata(response_content)
-            
+
             # Extract workflow content from JSON if available
             workflow_content = ""
             if metadata and "workflow_content" in metadata:
                 workflow_content = metadata["workflow_content"]
                 # Remove workflow_content from metadata to avoid duplication
-                metadata = {k: v for k, v in metadata.items() if k != "workflow_content"}
+                metadata = {
+                    k: v for k, v in metadata.items() if k != "workflow_content"
+                }
             else:
                 # Fallback: try to extract YAML code block
                 workflow_content = self._extract_code_block(response_content, "yaml")

@@ -13,6 +13,7 @@ from datetime import datetime
 class LLMProvider(str, Enum):
     """Supported LLM providers."""
 
+    GEMINI = "gemini"
     OPENAI = "openai"
     GROQ = "groq"
 
@@ -62,10 +63,12 @@ class LLMClientConfig(BaseModel):
     """Configuration for LLM clients."""
 
     # API Keys
+    gemini_api_key: Optional[str] = Field(default=None)
     openai_api_key: Optional[str] = Field(default=None)
     groq_api_key: Optional[str] = Field(default=None)
 
     # Model configurations
+    gemini_model: str = Field(default="gemini-flash-latest")
     openai_model: str = Field(default="gpt-4o-mini")
     groq_model: str = Field(default="llama-3.3-70b-versatile")
 

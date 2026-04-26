@@ -110,10 +110,9 @@ services:
       context: ./agent
     image: deployio/agent:local
     user: "1001:1001"
+    env_file:
+      - ./agent/.env.production
     environment:
-      - ENVIRONMENT=production
-      - PLATFORM_URL=http://backend:3000
-      - DOCKER_NETWORK=web
       - AGENT_SECRET=${AGENT_SECRET:-development-secret-change-in-production}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

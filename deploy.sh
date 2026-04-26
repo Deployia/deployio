@@ -93,6 +93,7 @@ ensure_env_file() {
 
 ensure_env_file "server/.env.production" "server/.env.example"
 ensure_env_file "ai-service/.env.production" "ai-service/.env.example"
+ensure_env_file "agent/.env.production" "agent/.env.example"
 
 ensure_log_permissions() {
     local uid="${LOG_UID:-1001}"

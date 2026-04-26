@@ -225,13 +225,13 @@ def create_chatbot_routes() -> APIRouter:
             devops_service = get_devops_chatbot_service()
 
             business_available = (
-                business_service.groq_client is not None
-                and business_service.groq_client.is_available
+                business_service.llm_client is not None
+                and business_service.llm_client.is_available
             )
 
             devops_available = (
-                devops_service.groq_client is not None
-                and devops_service.groq_client.is_available
+                devops_service.llm_client is not None
+                and devops_service.llm_client.is_available
             )
 
             return {

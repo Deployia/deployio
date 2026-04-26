@@ -12,5 +12,6 @@ PyJWT>=2.8.0
 # LLM Integration
 groq>=0.4.0
 openai>=1.0.0
+google-generativeai>=0.8.0
 colorlog>=6.7.0
 python-socketio>=5.10.0

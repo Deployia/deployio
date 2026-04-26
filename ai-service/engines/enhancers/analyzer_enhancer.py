@@ -77,7 +77,7 @@ class AnalyzerEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:
@@ -139,7 +139,7 @@ class AnalyzerEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:
@@ -195,7 +195,7 @@ class AnalyzerEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:
@@ -252,7 +252,7 @@ class AnalyzerEnhancer:
 
             # Call LLM with fallback providers
             response = await self.client_manager.generate(
-                request, preferred_provider=LLMProvider.GROQ
+                request, preferred_provider=LLMProvider.GEMINI
             )
 
             if response and response.success:

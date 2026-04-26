@@ -2,7 +2,7 @@
 Chatbot Services for DeployIO AI Service
 
 Provides business and DevOps chatbot functionality with RAG system integration.
-Uses lightweight Groq API for fast responses.
+Uses Gemini API for fast responses.
 """
 
 import logging
@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 import json
 
-from engines.llm.groq_client import GroqClient
+from engines.llm.gemini_client import GeminiClient
 from engines.llm.models import LLMRequest
 from config.settings import settings
 
@@ -192,21 +192,21 @@ class BusinessChatbotService:
     """
 
     def __init__(self):
-        self.groq_client = None
+        self.llm_client = None
         self.rag_system = RAGSystem()
         self.conversation_history: Dict[str, List[Dict]] = {}
 
     async def initialize(self):
-        """Initialize the Groq client."""
-        if settings.groq_api_key:
-            self.groq_client = GroqClient(
-                api_key=settings.groq_api_key,
-                model="llama-3.3-70b-versatile",  # Fast and lightweight
+        """Initialize the Gemini client."""
+        if settings.gemini_api_key:
+            self.llm_client = GeminiClient(
+                api_key=settings.gemini_api_key,
+                model=settings.llm_model_gemini,
             )
-            await self.groq_client.initialize()
-            logger.info("Business chatbot service initialized with Groq")
+            await self.llm_client.initialize()
+            logger.info("Business chatbot service initialized with Gemini")
         else:
-            logger.warning("Groq API key not configured for business chatbot")
+            logger.warning("Gemini API key not configured for business chatbot")
 
     async def get_response(
         self, user_message: str, session_id: str = "default"
@@ -229,7 +229,7 @@ class BusinessChatbotService:
             history = self.conversation_history.get(session_id, [])
 
             # Generate response
-            if self.groq_client and self.groq_client.is_available:
+            if self.llm_client and self.llm_client.is_available:
                 response = await self._generate_ai_response(
                     user_message, context, history
                 )
@@ -265,7 +265,7 @@ class BusinessChatbotService:
     async def _generate_ai_response(
         self, user_message: str, context: Dict, history: List
     ) -> Dict[str, Any]:
-        """Generate AI response using Groq with RAG context."""
+        """Generate AI response using Gemini with RAG context."""
         system_prompt = self._build_system_prompt(context)
 
         # Build conversation context
@@ -285,7 +285,7 @@ class BusinessChatbotService:
 
         request = LLMRequest(messages=messages, temperature=0.7, max_tokens=1024)
 
-        response = await self.groq_client.generate(request)
+        response = await self.llm_client.generate(request)
 
         return {"message": response.content, "isBot": True}
 
@@ -419,19 +419,19 @@ class DevOpsChatbotService:
     """
 
     def __init__(self):
-        self.groq_client = None
+        self.llm_client = None
 
     async def initialize(self):
-        """Initialize the Groq client."""
-        if settings.groq_api_key:
-            self.groq_client = GroqClient(
-                api_key=settings.groq_api_key,
-                model="llama-3.3-70b-versatile",  # Fast and capable model
+        """Initialize the Gemini client."""
+        if settings.gemini_api_key:
+            self.llm_client = GeminiClient(
+                api_key=settings.gemini_api_key,
+                model=settings.llm_model_gemini,
             )
-            await self.groq_client.initialize()
-            logger.info("DevOps chatbot service initialized with Groq")
+            await self.llm_client.initialize()
+            logger.info("DevOps chatbot service initialized with Gemini")
         else:
-            logger.warning("Groq API key not configured for DevOps chatbot")
+            logger.warning("Gemini API key not configured for DevOps chatbot")
 
     async def get_response(
         self, user_message: str, context: Dict[str, Any] = None
@@ -447,7 +447,7 @@ class DevOpsChatbotService:
             Technical response with examples and guidance
         """
         try:
-            if self.groq_client and self.groq_client.is_available:
+            if self.llm_client and self.llm_client.is_available:
                 response = await self._generate_ai_response(user_message, context or {})
             else:
                 response = self._generate_fallback_response(user_message)
@@ -478,7 +478,7 @@ class DevOpsChatbotService:
             max_tokens=1024,
         )
 
-        response = await self.groq_client.generate(request)
+        response = await self.llm_client.generate(request)
 
         return {"message": response.content, "isBot": True}
 
