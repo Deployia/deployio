@@ -2,9 +2,9 @@
 
 > **AI-Powered DevOps Automation Platform** - Production-ready microservices platform that automatically analyzes, containerizes, and deploys applications using advanced AI and modern cloud-native architecture.
 
-## VPS Deployment (Nginx + Local Docker Builds)
+## VPS Deployment (Nginx -> Traefik -> Services)
 
-This repository is now configured for VPS-first deployments where Docker images are built directly on the server and Nginx handles public traffic/TLS.
+This repository is configured for VPS-first deployments where Docker images are built directly on the server, Nginx handles public traffic/TLS, and Nginx forwards to Traefik running locally in Docker.
 
 Expected DNS:
 
@@ -13,11 +13,16 @@ Expected DNS:
 - `api.deployio.tech` -> VPS public IP
 - `ai.deployio.tech` -> VPS public IP
 
-Container ports (bound to localhost only):
+Container ingress (bound to localhost only):
 
-- Frontend: `127.0.0.1:8080`
-- Backend: `127.0.0.1:3000`
-- AI service: `127.0.0.1:8000`
+- Traefik HTTP entrypoint: `127.0.0.1:4567`
+
+Public host routing is done by Traefik using Docker labels:
+
+- `deployio.tech`, `www.deployio.tech` -> frontend
+- `api.deployio.tech` -> backend
+- `ai.deployio.tech`, `service.deployio.tech` -> ai-service
+- `agent.deployio.tech` -> agent
 
 Deploy on VPS:
 
@@ -32,7 +37,7 @@ If missing, `deploy.sh` auto-creates these files from examples:
 - `server/.env.production` from `server/.env.example`
 - `ai-service/.env.production` from `ai-service/.env.example`
 
-Nginx reference config:
+Nginx reference config (single upstream to Traefik):
 
 - `infra/nginx/deployio.conf`
 

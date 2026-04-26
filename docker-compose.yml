@@ -1,4 +1,16 @@
 services:
+  traefik:
+    image: traefik:v3.0
+    container_name: deployio-traefik
+    ports:
+      - "127.0.0.1:4567:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - web
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./client
@@ -7,8 +19,6 @@ services:
         VITE_APP_BACKEND_URL: https://api.deployio.tech
         VITE_APP_FASTAPI_URL: https://ai.deployio.tech/service/v1
     image: deployio/frontend:local
-    ports:
-      - "127.0.0.1:4100:80"
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -16,7 +26,14 @@ services:
       - /tmp:noexec,nosuid,size=50m
     networks:
       - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`deployio.tech`) || Host(`www.deployio.tech`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
+      traefik:
+        condition: service_started
       backend:
         condition: service_started
       ai-service:
@@ -29,8 +46,6 @@ services:
     image: deployio/backend:local
     env_file:
       - ./server/.env.production
-    ports:
-      - "127.0.0.1:4300:3000"
     volumes:
       - ./server/logs:/app/logs
       - ./ai-service/logs:/shared-logs
@@ -43,6 +58,11 @@ services:
         condition: service_healthy
     networks:
       - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.deployio.tech`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=3000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/health"]
@@ -57,8 +77,6 @@ services:
     image: deployio/ai-service:local
     env_file:
       - ./ai-service/.env.production
-    ports:
-      - "127.0.0.1:4800:8000"
     volumes:
       - ./ai-service/logs:/app/logs
     security_opt:
@@ -67,6 +85,11 @@ services:
       - /tmp:noexec,nosuid,size=100m
     networks:
       - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai.rule=Host(`ai.deployio.tech`) || Host(`service.deployio.tech`)"
+      - "traefik.http.routers.ai.entrypoints=web"
+      - "traefik.http.services.ai.loadbalancer.server.port=8000"
     depends_on:
       redis:
         condition: service_healthy
@@ -75,6 +98,38 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/service/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  agent:
+    build:
+      context: ./agent
+    image: deployio/agent:local
+    environment:
+      - ENVIRONMENT=production
+      - PLATFORM_URL=http://backend:3000
+      - DOCKER_NETWORK=web
+      - AGENT_SECRET=${AGENT_SECRET:-development-secret-change-in-production}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./agent/logs:/app/logs
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.agent.rule=Host(`agent.deployio.tech`)"
+      - "traefik.http.routers.agent.entrypoints=web"
+      - "traefik.http.services.agent.loadbalancer.server.port=8000"
+    depends_on:
+      traefik:
+        condition: service_started
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

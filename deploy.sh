@@ -118,8 +118,9 @@ echo "Container status:"
 "${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" ps
 
 echo "Health checks:"
-curl -fsS http://127.0.0.1:4300/health && echo " - backend ok"
-curl -fsS http://127.0.0.1:4800/service/v1/health && echo " - ai-service ok"
-curl -fsS http://127.0.0.1:4100 >/dev/null && echo " - frontend ok"
+curl -fsS -H "Host: api.deployio.tech" http://127.0.0.1:4567/health && echo " - backend ok"
+curl -fsS -H "Host: ai.deployio.tech" http://127.0.0.1:4567/service/v1/health && echo " - ai-service ok"
+curl -fsS -H "Host: deployio.tech" http://127.0.0.1:4567 >/dev/null && echo " - frontend ok"
+curl -fsS -H "Host: agent.deployio.tech" http://127.0.0.1:4567/health && echo " - agent ok"
 
 echo "Deployment completed."
