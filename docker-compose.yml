@@ -44,6 +44,7 @@ services:
     build:
       context: ./server
     image: deployio/backend:local
+    user: "1001:1001"
     env_file:
       - ./server/.env.production
     volumes:
@@ -75,6 +76,7 @@ services:
     build:
       context: ./ai-service
     image: deployio/ai-service:local
+    user: "1001:1001"
     env_file:
       - ./ai-service/.env.production
     volumes:
@@ -107,6 +109,7 @@ services:
     build:
       context: ./agent
     image: deployio/agent:local
+    user: "1001:1001"
     environment:
       - ENVIRONMENT=production
       - PLATFORM_URL=http://backend:3000

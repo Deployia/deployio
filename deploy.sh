@@ -94,6 +94,22 @@ ensure_env_file() {
 ensure_env_file "server/.env.production" "server/.env.example"
 ensure_env_file "ai-service/.env.production" "ai-service/.env.example"
 
+ensure_log_permissions() {
+    local uid="1001"
+    local gid="1001"
+
+    echo "Preparing log directories with uid:gid ${uid}:${gid}..."
+
+    # Use a short-lived container so ownership is fixed even when previous runs created root-owned directories.
+    docker run --rm \
+        -v "$PWD/server/logs:/logs/server" \
+        -v "$PWD/ai-service/logs:/logs/ai-service" \
+        -v "$PWD/agent/logs:/logs/agent" \
+        alpine:3.20 sh -c "mkdir -p /logs/server /logs/ai-service /logs/agent && chown -R ${uid}:${gid} /logs && chmod -R ug+rwX /logs"
+}
+
+ensure_log_permissions
+
 if [[ "$DO_PULL" == "true" ]]; then
     echo "Pulling latest code..."
     git pull origin main

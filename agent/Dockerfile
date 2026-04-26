@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/tmp/*
 
 # Create a non-root user and group for the application
-RUN groupadd -r agent && useradd --no-log-init -r -g agent agent
+RUN groupadd -g 1001 -r agent && useradd --no-log-init -u 1001 -r -g agent agent
 
 # Add a 'docker' group with the host's GID (988) to match the host system
 RUN groupadd -g 988 docker || true

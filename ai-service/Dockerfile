@@ -4,7 +4,7 @@ FROM python:3.12-slim-bookworm AS builder
 WORKDIR /app
 
 # Create non-root user early
-RUN groupadd -r deployio && useradd -r -g deployio deployio
+RUN groupadd -g 1001 -r deployio && useradd -u 1001 -r -g deployio deployio
 
 # Install system dependencies (only what's needed to install deps)
 RUN apt-get update && apt-get install -y --no-install-recommends \
