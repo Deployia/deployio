@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     # Health check settings
     health_check_interval: int = 30
     heartbeat_interval: int = 60
+    health_check_mongodb_enabled: bool = False
+    health_check_docker_required: bool = False
 
     # Database Configuration (MongoDB Atlas)
     mongodb_uri: Optional[str] = None

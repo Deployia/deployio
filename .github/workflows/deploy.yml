@@ -1,0 +1,40 @@
+name: Deploy To VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "${{ secrets.DEPLOY_SSH_PORT || '22' }}" "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy On VPS
+        shell: bash
+        run: |
+          ssh -p "${{ secrets.DEPLOY_SSH_PORT || '22' }}" "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" << 'EOF'
+          set -euo pipefail
+
+          cd "${{ secrets.DEPLOY_PATH }}"
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+
+          export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock || echo 998)"
+
+          docker-compose up -d --build --remove-orphans
+          docker-compose ps
+          docker-compose logs --tail=80 agent ai-service backend
+          EOF

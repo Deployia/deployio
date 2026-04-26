@@ -24,6 +24,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
 
     def __init__(self):
         super().__init__("/agent-bridge")
+        self._streaming = False
 
     async def _register_event_handlers(self):
         """Register deployment event handlers."""
@@ -38,6 +39,16 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
     async def _on_connected(self):
         """Handle connection established."""
         logger.info("Deployment namespace connected — ready for deployment commands")
+
+    async def start_streaming(self):
+        """Deployment namespace is event-driven, but implements streaming lifecycle for base compatibility."""
+        self._streaming = True
+        logger.debug("Deployment namespace streaming enabled")
+
+    async def stop_streaming(self):
+        """Stop deployment namespace streaming lifecycle hook."""
+        self._streaming = False
+        logger.debug("Deployment namespace streaming disabled")
 
     # ── Emit helpers ──────────────────────────────────────────────────
 

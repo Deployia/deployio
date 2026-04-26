@@ -44,6 +44,10 @@ async def root():
 async def check_mongodb_connection():
     """Check MongoDB connection and log status"""
     logger = get_logger("mongodb-health")
+    if not settings.health_check_mongodb_enabled:
+        return "disabled"
+    if not settings.mongodb_uri:
+        return "not_configured"
     try:
         from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -73,7 +77,7 @@ def check_docker_connection():
 
 async def check_traefik_connection():
     try:
-        traefik_url = "http://localhost:8080/api/overview"
+        traefik_url = settings.traefik_api_url or "http://localhost:8080/api/overview"
         async with httpx.AsyncClient() as client:
             response = await client.get(traefik_url, timeout=2.0)
             if response.status_code == 200:
@@ -140,14 +144,20 @@ async def health_check():
         "docker": {"status": docker_status},
         "traefik": {"status": traefik_status},
     }
-    # Determine overall status
-    core_services_healthy = (
-        mongodb_status == "connected" and docker_status == "connected"
+    # Determine overall status with optional dependencies.
+    docker_healthy = docker_status == "connected"
+    mongodb_healthy_or_optional = mongodb_status in (
+        "connected",
+        "disabled",
+        "not_configured",
     )
-    if core_services_healthy:
-        overall_status = "healthy"
+
+    if settings.health_check_docker_required:
+        overall_status = (
+            "healthy" if docker_healthy and mongodb_healthy_or_optional else "degraded"
+        )
     else:
-        overall_status = "degraded"
+        overall_status = "healthy" if mongodb_healthy_or_optional else "degraded"
     return {
         "service": "DeployIO Agent",
         "status": overall_status,

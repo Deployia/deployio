@@ -58,7 +58,13 @@ class GeminiClient(BaseLLMClient):
                 self._client = None
                 return False
 
-            self._client = httpx.AsyncClient(timeout=self.timeout)
+            timeout = httpx.Timeout(
+                timeout=self.timeout,
+                connect=min(10.0, float(self.timeout)),
+                read=float(self.timeout),
+                write=min(10.0, float(self.timeout)),
+            )
+            self._client = httpx.AsyncClient(timeout=timeout)
             self._is_available = True
             logger.info(
                 f"Gemini client initialized with model {self.model} and key {_mask_key(self.api_key)}"
@@ -80,6 +86,40 @@ class GeminiClient(BaseLLMClient):
             content = message.get("content", "")
             lines.append(f"{role.upper()}: {content}")
         return "\n\n".join(lines)
+
+    def _extract_text_content(self, data: Dict[str, Any]) -> str:
+        """Extract text from Gemini response candidates, tolerating non-text parts."""
+        candidates = data.get("candidates", [])
+        if not candidates:
+            raise LLMError(
+                "Gemini response did not include candidates", provider=self.provider
+            )
+
+        all_text_parts = []
+        for candidate in candidates:
+            parts = candidate.get("content", {}).get("parts", [])
+            for part in parts:
+                text = part.get("text")
+                if isinstance(text, str) and text.strip():
+                    all_text_parts.append(text.strip())
+
+        content = "\n".join(all_text_parts).strip()
+        if content:
+            return content
+
+        finish_reason = candidates[0].get("finishReason")
+        if finish_reason:
+            raise LLMError(
+                f"Gemini returned no text content (finishReason={finish_reason})",
+                provider=self.provider,
+                error_code="empty_content",
+            )
+
+        raise LLMError(
+            "Gemini response did not include text content",
+            provider=self.provider,
+            error_code="empty_content",
+        )
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
         if not self.is_available or not self._client:
@@ -125,19 +165,7 @@ class GeminiClient(BaseLLMClient):
 
             response_time = time.time() - start_time
             data = response.json()
-            candidates = data.get("candidates", [])
-            if not candidates:
-                raise LLMError(
-                    "Gemini response did not include candidates", provider=self.provider
-                )
-
-            parts = candidates[0].get("content", {}).get("parts", [])
-            content = "\n".join([part.get("text", "") for part in parts]).strip()
-            if not content:
-                raise LLMError(
-                    "Gemini response did not include text content",
-                    provider=self.provider,
-                )
+            content = self._extract_text_content(data)
 
             usage_data = data.get("usageMetadata", {})
             usage = {
@@ -156,6 +184,27 @@ class GeminiClient(BaseLLMClient):
 
         except LLMError:
             raise
+        except httpx.ReadTimeout as e:
+            logger.error(f"Gemini: Read timeout after {self.timeout}s: {e}")
+            raise LLMConnectionError(
+                f"Gemini read timeout after {self.timeout}s",
+                provider=self.provider,
+                error_code="timeout",
+            )
+        except httpx.ConnectTimeout as e:
+            logger.error(f"Gemini: Connection timeout: {e}")
+            raise LLMConnectionError(
+                "Gemini connection timeout",
+                provider=self.provider,
+                error_code="connect_timeout",
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"Gemini: Timeout exception: {e}")
+            raise LLMConnectionError(
+                "Gemini request timed out",
+                provider=self.provider,
+                error_code="timeout",
+            )
         except Exception as e:
             logger.error(f"Gemini: Generation error: {type(e).__name__}: {e}")
             raise LLMError(
