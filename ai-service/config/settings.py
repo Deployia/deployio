@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     # LLM Settings
     llm_confidence_threshold: float = float(os.getenv("LLM_CONFIDENCE_THRESHOLD", 0.75))
     llm_max_retries: int = int(os.getenv("LLM_MAX_RETRIES", 3))
-    llm_timeout: int = int(os.getenv("LLM_TIMEOUT", 30))
+    llm_timeout: int = int(os.getenv("LLM_TIMEOUT", 60))
     llm_model_gemini: str = os.getenv("LLM_MODEL_GEMINI", "gemini-flash-latest")
     llm_model_groq: str = os.getenv("LLM_MODEL_GROQ", "llama3-70b-8192")
     llm_model_openai: str = os.getenv("LLM_MODEL_OPENAI", "gpt-4-turbo-preview")

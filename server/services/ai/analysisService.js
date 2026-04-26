@@ -1,5 +1,6 @@
 const {
   aiServiceClient,
+  AI_SERVICE_ANALYSIS_TIMEOUT_MS,
   generateAiServiceToken,
   generateDemoToken,
   checkAiServiceHealth,
@@ -11,6 +12,11 @@ const logger = require("@config/logger");
 // Complete repository analysis with new structure
 const analyzeRepository = async (repositoryData, options = {}) => {
   const redisClient = getRedisClient();
+  const requestedTimeoutMs = Number.parseInt(options.requestTimeoutMs, 10);
+  const analysisTimeoutMs =
+    Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0
+      ? requestedTimeoutMs
+      : AI_SERVICE_ANALYSIS_TIMEOUT_MS;
 
   // Create cache key from repository data instead of URL
   const repoIdentifier =
@@ -18,7 +24,7 @@ const analyzeRepository = async (repositoryData, options = {}) => {
     repositoryData.repository?.full_name ||
     "unknown";
   const cacheKey = `ai_analysis:${Buffer.from(repoIdentifier).toString(
-    "base64"
+    "base64",
   )}:${options.branch || "main"}`;
 
   try {
@@ -46,7 +52,7 @@ const analyzeRepository = async (repositoryData, options = {}) => {
       if (emptyFiles.length > 0) {
         logger.warn(
           `AI analysis: ${emptyFiles.length} key files have empty content`,
-          emptyFiles
+          emptyFiles,
         );
       }
     } else {
@@ -82,10 +88,11 @@ const analyzeRepository = async (repositoryData, options = {}) => {
         },
       },
       {
+        timeout: analysisTimeoutMs,
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
     const result = response.data; // Get the full AnalysisResponse
 
@@ -105,14 +112,14 @@ const analyzeRepository = async (repositoryData, options = {}) => {
   } catch (error) {
     logger.error(
       `AI repository analysis failed for ${repoIdentifier}:`,
-      error.response?.data?.detail || error.message
+      error.response?.data?.detail || error.message,
     );
 
     // Create a clean error object to avoid circular structure issues
     const cleanError = new Error(
       error.response?.data?.detail ||
         error.response?.data?.message ||
-        error.message
+        error.message,
     );
     cleanError.status = error.response?.status || 500;
     cleanError.code = error.code;

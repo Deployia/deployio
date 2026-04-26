@@ -73,7 +73,7 @@ const analyzeRepository = async (req, res) => {
         req.user._id,
         provider,
         repoFullName,
-        branch
+        branch,
       );
 
       result = await ai.analyzeRepository(fetchedRepoData, analysisOptions);
@@ -90,7 +90,7 @@ const analyzeRepository = async (req, res) => {
           result.analysis?.confidence_score || result.confidence_score,
         llmUsed: result.analysis?.llm_used || result.llm_used,
         configsGenerated: !!result.configurations,
-      }
+      },
     );
 
     res.status(200).json({
@@ -250,6 +250,7 @@ const demoCompletePipeline = async (req, res) => {
       branch = "main",
       analysisTypes = ["stack", "dependencies", "code"],
       configTypes = ["dockerfile", "github_actions", "docker_compose"],
+      sessionId: requestedSessionId,
       // autoApprove is ignored but accepted for compatibility
     } = req.body;
 
@@ -263,10 +264,13 @@ const demoCompletePipeline = async (req, res) => {
     // Fetch repository data using centralized fetcher
     const repositoryData = await fetchPublicRepositoryData(
       repositoryUrl,
-      branch
+      branch,
     );
 
-    const sessionId = `demo_${Date.now()}_${req.user.id}`;
+    const sessionId =
+      requestedSessionId && typeof requestedSessionId === "string"
+        ? requestedSessionId
+        : `demo_${Date.now()}_${req.user.id}`;
 
     // Unified analysis and configuration generation options
     const analysisOptions = {

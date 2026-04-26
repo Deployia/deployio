@@ -4,12 +4,20 @@ const logger = require("@config/logger");
 
 // AI Service configuration
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
-const AI_SERVICE_TIMEOUT = 30000; // 30 seconds
+const DEFAULT_AI_SERVICE_TIMEOUT_MS = 30000;
+const AI_SERVICE_TIMEOUT_MS = Number.parseInt(
+  process.env.AI_SERVICE_TIMEOUT_MS || `${DEFAULT_AI_SERVICE_TIMEOUT_MS}`,
+  10,
+);
+const AI_SERVICE_ANALYSIS_TIMEOUT_MS = Number.parseInt(
+  process.env.AI_SERVICE_ANALYSIS_TIMEOUT_MS || "180000",
+  10,
+);
 
 // Create axios instance for AI service
 const aiServiceClient = axios.create({
   baseURL: AI_SERVICE_URL + "/service/v1",
-  timeout: AI_SERVICE_TIMEOUT,
+  timeout: AI_SERVICE_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
     "X-Internal-Service": "deployio-backend", // Internal service identification
@@ -34,7 +42,7 @@ aiServiceClient.interceptors.response.use(
       data: error.response?.data,
     });
     throw error;
-  }
+  },
 );
 
 // Generate JWT token for AI service communication
@@ -46,7 +54,7 @@ const generateAiServiceToken = (user) => {
       username: user.username,
     },
     process.env.JWT_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "1h" },
   );
 };
 
@@ -60,7 +68,7 @@ const generateDemoToken = () => {
       type: "demo",
     },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" } // Short expiry for demo tokens
+    { expiresIn: "15m" }, // Short expiry for demo tokens
   );
 };
 
@@ -104,6 +112,7 @@ const getDetailedAiServiceHealth = async () => {
 
 module.exports = {
   aiServiceClient,
+  AI_SERVICE_ANALYSIS_TIMEOUT_MS,
   generateAiServiceToken,
   generateDemoToken,
   checkAiServiceHealth,

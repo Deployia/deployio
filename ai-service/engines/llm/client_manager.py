@@ -54,7 +54,7 @@ class LLMClientManager:
             groq_model=os.getenv("LLM_MODEL_GROQ", "llama-3.3-70b-versatile"),
             max_tokens=int(os.getenv("LLM_MAX_TOKENS", "4000")),
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.1")),
-            timeout=float(os.getenv("LLM_TIMEOUT", "30.0")),
+            timeout=float(os.getenv("LLM_TIMEOUT", "60.0")),
             max_retries=int(os.getenv("LLM_MAX_RETRIES", "3")),
             retry_delay=float(os.getenv("LLM_RETRY_DELAY", "1.0")),
             preferred_provider=LLMProvider(

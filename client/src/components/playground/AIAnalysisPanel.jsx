@@ -186,7 +186,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
           // Update step based on progress
           const stepIndex = Math.min(
             Math.floor((data.progress / 100) * progressSteps.length),
-            progressSteps.length - 1
+            progressSteps.length - 1,
           );
           setCurrentStep(stepIndex);
         }
@@ -331,9 +331,20 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
       if (analysisSettings.generateGithubActions)
         configTypes.push("github_actions");
 
+      const sessionId = `demo_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+      setOperationId(sessionId);
+
+      // Subscribe before starting the request so progress events are not missed.
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("subscribe_analysis", { sessionId });
+      }
+
       const response = await analysisApi.post(
         "/ai/analysis/demo/complete-pipeline",
         {
+          sessionId,
           repositoryUrl: normalizedUrl,
           branch: branch || "main",
           analysisTypes:
@@ -352,20 +363,20 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
         },
         {
           timeout: 120000,
-        }
+        },
       );
 
       let data = response.data;
       if (data && data.data) data = data.data;
 
-      // Set operation ID for WebSocket tracking
-      if (data.sessionId) {
+      // Keep tracking aligned with server-provided session ID if it differs.
+      if (data.sessionId && data.sessionId !== sessionId) {
         setOperationId(data.sessionId);
       }
 
       setAnalysisResults(data.analysis || data.analysisResults || null);
       setGenerationResults(
-        data.configurations || data.generationResults || null
+        data.configurations || data.generationResults || null,
       );
 
       // Optionally update workspace
@@ -390,7 +401,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
           setTimeout(() => {
             // You could add a toast notification here if you have a toast system
             console.log(
-              "✅ Configurations generated! View them in the 'Generate Configs' tab."
+              "✅ Configurations generated! View them in the 'Generate Configs' tab.",
             );
           }, 1000);
         }
@@ -410,7 +421,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
   // No-op: generation is handled in unified analysis now
   const handleGenerateConfigs = () => {
     setError(
-      "Generation is now part of the unified analysis. Please re-run analysis."
+      "Generation is now part of the unified analysis. Please re-run analysis.",
     );
   };
 
@@ -620,7 +631,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                       label: "Code Quality",
                       value: `${Math.round(
                         (analysisResults.code_analysis?.quality_score || 0) *
-                          100
+                          100,
                       )}%`,
                       color: "green",
                     },
@@ -629,7 +640,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                       label: "Security",
                       value: `${Math.round(
                         (analysisResults.dependency_analysis?.health_score ||
-                          0) * 100
+                          0) * 100,
                       )}%`,
                       color: "yellow",
                     },
@@ -637,7 +648,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                       icon: FiTrendingUp,
                       label: "Confidence",
                       value: `${Math.round(
-                        (analysisResults.confidence_score || 0) * 100
+                        (analysisResults.confidence_score || 0) * 100,
                       )}%`,
                       color: "blue",
                     },
@@ -727,7 +738,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                     <div className="bg-neutral-800/50 rounded-lg p-2 md:p-4 text-center">
                       <div className="text-lg md:text-2xl font-bold text-blue-400 heading mb-1">
                         {Math.round(
-                          (analysisResults.confidence_score || 0) * 100
+                          (analysisResults.confidence_score || 0) * 100,
                         )}
                         %
                       </div>
@@ -874,7 +885,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                           value &&
                           value !== "null" &&
                           value !== null &&
-                          !["confidence", "detection_method"].includes(key)
+                          !["confidence", "detection_method"].includes(key),
                       )
                       .map(([key, value]) => {
                         const displayKey = key
@@ -920,7 +931,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                         <div className="text-2xl font-bold text-green-400 heading">
                           {Math.round(
                             (analysisResults.technology_stack.confidence || 0) *
-                              100
+                              100,
                           )}
                           %
                         </div>
@@ -969,7 +980,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                         <div className="text-3xl font-bold text-green-400 heading">
                           {Math.round(
                             (analysisResults.dependency_analysis.health_score ||
-                              0) * 100
+                              0) * 100,
                           )}
                           %
                         </div>
@@ -1075,7 +1086,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                   )}
                                 </div>
                               </motion.div>
-                            )
+                            ),
                           )}
                         </div>
                       </div>
@@ -1147,8 +1158,8 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                     insight.impact === "high"
                                       ? "bg-red-500/20 text-red-400"
                                       : insight.impact === "medium"
-                                      ? "bg-yellow-500/20 text-yellow-400"
-                                      : "bg-green-500/20 text-green-400"
+                                        ? "bg-yellow-500/20 text-yellow-400"
+                                        : "bg-green-500/20 text-green-400"
                                   }`}
                                 >
                                   {insight.impact} impact
@@ -1206,8 +1217,8 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                           rec.priority === "high"
                             ? "border-l-red-500"
                             : rec.priority === "medium"
-                            ? "border-l-yellow-500"
-                            : "border-l-green-500"
+                              ? "border-l-yellow-500"
+                              : "border-l-green-500"
                         }`}
                       >
                         <div className="flex items-start justify-between mb-3">
@@ -1219,8 +1230,8 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                               rec.priority === "high"
                                 ? "bg-red-500/20 text-red-400"
                                 : rec.priority === "medium"
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : "bg-green-500/20 text-green-400"
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-green-500/20 text-green-400"
                             }`}
                           >
                             {rec.priority} priority
@@ -1330,7 +1341,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                           Health Score:{" "}
                           {Math.round(
                             (analysisResults.dependency_analysis.health_score ||
-                              0) * 100
+                              0) * 100,
                           )}
                           %
                         </p>
@@ -1359,7 +1370,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                   {rec}
                                 </span>
                               </div>
-                            )
+                            ),
                           )}
                         </div>
                       </div>
@@ -1390,7 +1401,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                       <div className="text-2xl font-bold text-green-400 heading">
                         {Math.round(
                           (analysisResults.code_analysis.quality_score || 0) *
-                            100
+                            100,
                         )}
                         %
                       </div>
@@ -1402,7 +1413,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                       <div className="text-2xl font-bold text-blue-400 heading">
                         {Math.round(
                           (analysisResults.code_analysis
-                            .maintainability_score || 0) * 100
+                            .maintainability_score || 0) * 100,
                         )}
                         %
                       </div>
@@ -1451,7 +1462,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                               (analysisResults.code_analysis.complexity_score ||
                                 0)) *
                               100,
-                            100
+                            100,
                           )}%`,
                         }}
                       ></div>
@@ -1479,7 +1490,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                               >
                                 {pattern}
                               </span>
-                            )
+                            ),
                           )}
                         </div>
                       </div>
@@ -1502,7 +1513,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                               >
                                 {pattern}
                               </span>
-                            )
+                            ),
                           )}
                         </div>
                       </div>
@@ -1652,7 +1663,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                   onClick={() => {
                                     navigator.clipboard.writeText(
                                       generationResults.dockerfile.dockerfile ||
-                                        generationResults.dockerfile.content
+                                        generationResults.dockerfile.content,
                                     );
                                   }}
                                   className="p-2 hover:bg-neutral-700 rounded-lg text-neutral-400 hover:text-white transition-colors"
@@ -1761,7 +1772,8 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                     navigator.clipboard.writeText(
                                       generationResults.docker_compose
                                         .docker_compose ||
-                                        generationResults.docker_compose.content
+                                        generationResults.docker_compose
+                                          .content,
                                     );
                                   }}
                                   className="p-2 hover:bg-neutral-700 rounded-lg text-neutral-400 hover:text-white transition-colors"
@@ -1810,7 +1822,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                 <div className="flex flex-wrap gap-2">
                                   {Object.keys(
                                     generationResults.docker_compose.metadata
-                                      .services || {}
+                                      .services || {},
                                   ).map((service) => (
                                     <span
                                       key={service}
@@ -1844,7 +1856,8 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                     navigator.clipboard.writeText(
                                       generationResults.github_actions
                                         .github_actions ||
-                                        generationResults.github_actions.content
+                                        generationResults.github_actions
+                                          .content,
                                     );
                                   }}
                                   className="p-2 hover:bg-neutral-700 rounded-lg text-neutral-400 hover:text-white transition-colors"
@@ -1893,7 +1906,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                                 <div className="flex flex-wrap gap-2">
                                   {Object.keys(
                                     generationResults.github_actions.metadata
-                                      .jobs || {}
+                                      .jobs || {},
                                   ).map((job) => (
                                     <span
                                       key={job}
@@ -1922,7 +1935,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                               </span>
                               <span className="text-white ml-1">
                                 {generationResults.metadata.processing_time?.toFixed(
-                                  2
+                                  2,
                                 )}
                                 s
                               </span>
@@ -1943,7 +1956,8 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                               </span>
                               <span className="text-white ml-1">
                                 {new Date(
-                                  generationResults.metadata.generated_at * 1000
+                                  generationResults.metadata.generated_at *
+                                    1000,
                                 ).toLocaleTimeString()}
                               </span>
                             </div>
@@ -1994,7 +2008,7 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
                     [JSON.stringify(analysisResults, null, 2)],
                     {
                       type: "application/json",
-                    }
+                    },
                   );
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
