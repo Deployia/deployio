@@ -14,7 +14,7 @@ RUN apk add --no-cache \
 # Define build arguments (can be overridden in docker-compose)
 ARG VITE_APP_ENV=production
 ARG VITE_APP_BACKEND_URL=https://api.deployio.tech
-ARG VITE_APP_FASTAPI_URL=https://service.deployio.tech/service/v1
+ARG VITE_APP_FASTAPI_URL=https://ai.deployio.tech/service/v1
 
 # Set environment variables for Vite
 ENV VITE_APP_ENV=$VITE_APP_ENV \

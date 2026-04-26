@@ -1,9 +1,40 @@
 # Deployio
 
-[![CI/CD Pipeline](https://github.com/vasudevshetty/deployio/actions/workflows/deploy.yml/badge.svg)](https://github.com/vasudevshetty/deployio/actions/workflows/deploy.yml)
-[![Security Scan](https://github.com/vasudevshetty/deployio/actions/workflows/security.yml/badge.svg)](https://github.com/vasudevshetty/deployio/actions/workflows/security.yml)
-
 > **AI-Powered DevOps Automation Platform** - Production-ready microservices platform that automatically analyzes, containerizes, and deploys applications using advanced AI and modern cloud-native architecture.
+
+## VPS Deployment (Nginx + Local Docker Builds)
+
+This repository is now configured for VPS-first deployments where Docker images are built directly on the server and Nginx handles public traffic/TLS.
+
+Expected DNS:
+
+- `deployio.tech` -> VPS public IP
+- `www.deployio.tech` -> VPS public IP
+- `api.deployio.tech` -> VPS public IP
+- `ai.deployio.tech` -> VPS public IP
+
+Container ports (bound to localhost only):
+
+- Frontend: `127.0.0.1:8080`
+- Backend: `127.0.0.1:3000`
+- AI service: `127.0.0.1:8000`
+
+Deploy on VPS:
+
+```bash
+git pull origin main
+chmod +x deploy.sh
+./deploy.sh --rebuild
+```
+
+If missing, `deploy.sh` auto-creates these files from examples:
+
+- `server/.env.production` from `server/.env.example`
+- `ai-service/.env.production` from `ai-service/.env.example`
+
+Nginx reference config:
+
+- `infra/nginx/deployio.conf`
 
 ## 🚀 What is Deployio?
 
@@ -404,7 +435,6 @@ deployio/
 │   ├── completed/        # Completed feature documentation
 │   └── projects-deployments-api/  # API implementation guides
 ├── 🐳 docker-compose.yml      # Multi-service orchestration
-├── 🔄 .github/workflows/      # CI/CD automation pipelines
 └── 📊 scripts/               # Deployment and maintenance scripts
 ```
 
@@ -690,7 +720,7 @@ python main.py     # Local development server
 # 1. Infrastructure improvements
 # - Docker optimization in service Dockerfiles
 # - Kubernetes manifests in /k8s/
-# - CI/CD pipeline enhancements in /.github/workflows/
+# - VPS deployment hardening and observability improvements
 
 # 2. Security enhancements
 # - Container hardening

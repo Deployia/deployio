@@ -1,143 +1,125 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
+set -euo pipefail
 
-# --- Help Function ---
 show_help() {
-    echo "Usage: ./deploy.sh [options] [service... | all]"
-    echo ""
-    echo "Builds and deploys specified services to AWS ECR and EC2."
-    echo "" echo "Services:"
-    echo "  frontend        Build and push the frontend service."
-    echo "  backend         Build and push the backend service."
-    echo "  ai-service      Build and push the AI service."
-    echo "  agent           Build and push the DeployIO agent."
-    echo "  all             Build and push all services."
-    echo "  If no services are specified, 'all' is assumed."
-    echo ""
-    echo "Options:"
-    echo "  -h, --help    Show this help message and exit."
+    cat <<'EOF'
+Usage: ./deploy.sh [--pull] [--no-build] [--rebuild] [--compose-file FILE]
+
+Deployio VPS deployment script (local Docker builds, no ECR/GitHub Actions).
+
+Options:
+    --pull                 Run git pull origin main before deployment.
+    --no-build             Skip docker compose build.
+    --rebuild              Force build with --no-cache.
+    --compose-file FILE    Use a custom compose file (default: docker-compose.yml).
+    -h, --help             Show this help message.
+
+Example:
+    ./deploy.sh --pull --rebuild
+EOF
 }
 
-# --- Argument Parsing ---
-if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-    show_help
-    exit 0
-fi
+COMPOSE_FILE="docker-compose.yml"
+DO_PULL="false"
+DO_BUILD="true"
+NO_CACHE="false"
 
-services_to_build=()
-# If no args, or if 'all' is an arg, build everything.
-if [ "$#" -eq 0 ] || [[ " $@ " =~ " all " ]]; then
-    echo "▶️ Building all services."
-    services_to_build=("frontend" "backend" "ai-service" "agent")
-else
-    for arg in "$@"; do
-        case $arg in
-        frontend | backend | ai-service | agent)
-            services_to_build+=("$arg")
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --pull)
+            DO_PULL="true"
+            ;;
+        --no-build)
+            DO_BUILD="false"
+            ;;
+        --rebuild)
+            NO_CACHE="true"
+            ;;
+        --compose-file)
+            COMPOSE_FILE="${2:-}"
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
             ;;
         *)
-            echo "⚠️ Warning: Ignoring invalid argument '$arg'. Valid options are 'frontend', 'backend', 'ai-service', 'agent', 'all'"
+            echo "Unknown argument: $1"
+            show_help
+            exit 1
             ;;
-        esac
-    done
-fi
+    esac
+    shift
+done
 
-if [ ${#services_to_build[@]} -eq 0 ]; then
-    echo "❌ Error: No valid services specified to build. Use -h for help."
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: docker is not installed."
     exit 1
 fi
 
-echo "🔨 Services to build: ${services_to_build[*]}"
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD=(docker-compose)
+else
+    echo "Error: docker compose is not available."
+    exit 1
+fi
 
-# --- Configuration ---
-declare -A service_config
-service_config["frontend"]="repo=deployio-frontend context=./client profile=default ssh_host=deployio"
-service_config["backend"]="repo=deployio-backend context=./server profile=default ssh_host=deployio"
-service_config["ai-service"]="repo=deployio-ai-service context=./ai-service profile=default ssh_host=deployio"
-service_config["agent"]="repo=deployio-agent context=./agent profile=deployio-agent ssh_host=deployio-agent"
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+    echo "Error: compose file not found: $COMPOSE_FILE"
+    exit 1
+fi
 
-AWS_REGION="${AWS_REGION:-ap-south-1}"
+ensure_env_file() {
+    local target_file="$1"
+    local example_file="$2"
 
-# --- Build and Push Docker Images ---
-for service in "${services_to_build[@]}"; do
-    echo "--- Building and pushing $service ---"
+    if [[ -f "$target_file" ]]; then
+        return
+    fi
 
-    # Parse config
-    eval $(echo "${service_config[$service]}")
+    if [[ -f "$example_file" ]]; then
+        cp "$example_file" "$target_file"
+        echo "Created $target_file from $example_file"
+        echo "Warning: update placeholders in $target_file before public production traffic."
+        return
+    fi
 
-    # Get AWS Account ID
-    if [ "$profile" == "default" ]; then
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    echo "Error: missing required env file: $target_file"
+    exit 1
+}
+
+ensure_env_file "server/.env.production" "server/.env.example"
+ensure_env_file "ai-service/.env.production" "ai-service/.env.example"
+
+if [[ "$DO_PULL" == "true" ]]; then
+    echo "Pulling latest code..."
+    git pull origin main
+fi
+
+echo "Stopping existing containers..."
+"${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" down --remove-orphans
+
+if [[ "$DO_BUILD" == "true" ]]; then
+    echo "Building images locally..."
+    if [[ "$NO_CACHE" == "true" ]]; then
+        "${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" build --no-cache
     else
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile "$profile" --query Account --output text)
+        "${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" build
     fi
+fi
 
-    if [ -z "$AWS_ACCOUNT_ID" ]; then
-        echo "❌ Error: Could not determine AWS Account ID for profile '$profile'. Please ensure AWS CLI is configured correctly."
-        exit 1
-    fi
+echo "Starting containers..."
+"${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d --remove-orphans
 
-    echo "🔐 Authenticating with Amazon ECR for profile '$profile'..."
-    if [ "$profile" == "default" ]; then
-        aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
-    else
-        aws ecr get-login-password --region "$AWS_REGION" --profile "$profile" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
-    fi
-    echo "✅ ECR authentication successful"
+echo "Container status:"
+"${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" ps
 
-    if [ "$service" == "frontend" ]; then
-        echo "📦 Using client/.env.production for frontend build..."
-        cp ./client/.env.production ./client/.env
-        docker build --compress --no-cache -t "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest" "$context"
-    else
-        docker build --compress -t "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest" "$context"
-    fi
+echo "Health checks:"
+curl -fsS http://127.0.0.1:4300/health && echo " - backend ok"
+curl -fsS http://127.0.0.1:4800/service/v1/health && echo " - ai-service ok"
+curl -fsS http://127.0.0.1:4100 >/dev/null && echo " - frontend ok"
 
-    echo "⬆️ Pushing $service image..."
-    docker push "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo:latest"
-
-    echo "✅ Finished building and pushing $service"
-done
-
-echo "✅ All specified images pushed successfully!"
-
-# --- Deploy on EC2 via SSH ---
-
-# # Deploy platform services
-# if [[ " ${services_to_build[*]} " =~ " frontend " || " ${services_to_build[*]} " =~ " backend " || " ${services_to_build[*]} " =~ " ai-service " ]]; then
-#     echo "🚀 Deploying platform services to EC2..."
-#     ssh deployio "set -e; \
-#       cd ~/deployio; \
-#       echo '🔄 Pulling latest changes from git...'; \
-#       git pull origin main; \
-#       echo '🛑 Stopping current services...'; \
-#       docker-compose down --remove-orphans; \
-#       echo '🔐 Authenticating with ECR on EC2...'; \
-#       aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
-#       echo '📥 Pulling latest Docker images...'; \
-#       docker-compose pull; \
-#       echo '🚀 Restarting application...'; \
-#       docker-compose up -d; \
-#       echo '✅ Platform deployment successful!'"
-# fi
-
-# # Deploy agent service
-# if [[ " ${services_to_build[*]} " =~ " agent " ]]; then
-#     echo "🚀 Deploying agent service to EC2..." ssh deployio-agent "set -e; \
-#         cd ~/deployio/agent; \
-#         echo '🔄 Pulling latest changes from git...'; \
-#         git pull origin main; \
-#         echo '🔐 Authenticating with ECR on EC2...'; \
-#         aws ecr get-login-password --region $AWS_REGION  | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com; \
-#         echo '🛑 Stopping and removing old containers...'; \
-#         docker compose down --remove-orphans; \
-#         echo '📥 Pulling latest Docker image...'; \
-#         docker compose pull; \
-#         echo '🚀 Starting new containers...'; \
-#         docker compose up -d; \
-#         echo '🧹 Cleaning up unused Docker images...'; \
-#         docker image prune -f; \
-#         echo '✅ Agent deployment successful!'"
-# fi
+echo "Deployment completed."
