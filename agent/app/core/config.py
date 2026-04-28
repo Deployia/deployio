@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     # Docker settings
     docker_socket: str = "/var/run/docker.sock"
-    docker_network: str = "deployio-network"
+    docker_network: str = "web"
 
     # Resource limits
     max_memory: str = "256m"

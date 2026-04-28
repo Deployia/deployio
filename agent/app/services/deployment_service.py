@@ -83,11 +83,9 @@ class DeploymentService:
 
         return {
             "traefik.enable": "true",
-            # HTTP router
+            # Root traefik is behind nginx TLS; route on internal web entrypoint.
             f"traefik.http.routers.{router_name}.rule": f"Host(`{domain}`)",
-            f"traefik.http.routers.{router_name}.entrypoints": "websecure",
-            f"traefik.http.routers.{router_name}.tls": "true",
-            f"traefik.http.routers.{router_name}.tls.certresolver": "letsencrypt",
+            f"traefik.http.routers.{router_name}.entrypoints": "web",
             f"traefik.http.routers.{router_name}.priority": "5",
             # Service (load balancer)
             f"traefik.http.services.{router_name}.loadbalancer.server.port": str(
@@ -221,7 +219,15 @@ class DeploymentService:
                 cpu_quota=int(float(settings.max_cpu) * 100000),
                 restart_policy={"Name": "unless-stopped"},
                 healthcheck={
-                    "Test": ["CMD-SHELL", f"wget -qO- http://localhost:{port}/health || wget -qO- http://localhost:{port}/api/health || exit 0"],
+                    "Test": [
+                        "CMD-SHELL",
+                        (
+                            f"wget -qO- http://localhost:{port}/health "
+                            f"|| wget -qO- http://localhost:{port}/api/health "
+                            f"|| wget -qO- http://localhost:{port}/ "
+                            "|| exit 1"
+                        ),
+                    ],
                     "Interval": 30_000_000_000,  # 30s in nanoseconds
                     "Timeout": 5_000_000_000,
                     "Retries": 3,

@@ -31,7 +31,9 @@ class GitService:
     """
 
     def __init__(self):
-        self.clone_base = Path("/tmp/deployio-clones")
+        self.clone_base = Path(
+            os.getenv("DEPLOYIO_CLONE_BASE", "/app/tmp/deployio-clones")
+        )
         self.clone_base.mkdir(exist_ok=True)
         self.max_clone_size = 500 * 1024 * 1024  # 500MB limit
 

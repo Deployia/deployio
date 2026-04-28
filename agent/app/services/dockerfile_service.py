@@ -113,9 +113,12 @@ CMD ["npm", "start"]
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies required for native wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \\
     gcc \\
+    g++ \\
+    libc6-dev \\
+    python3-dev \\
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
@@ -141,9 +144,12 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies required for native wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \\
     gcc \\
+    g++ \\
+    libc6-dev \\
+    python3-dev \\
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements

@@ -116,6 +116,7 @@ services:
       - ./agent/.env.production
     environment:
       - AGENT_SECRET=${AGENT_SECRET:-development-secret-change-in-production}
+      - DOCKER_NETWORK=web
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./agent/logs:/app/logs
@@ -139,6 +140,23 @@ services:
       retries: 3
       start_period: 10s
 
+  landing-page:
+    build:
+      context: ./landing-page
+    image: deployio/landing-page:local
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.landing.rule=HostRegexp(`^.+\\.deployio\\.tech$`)"
+      - "traefik.http.routers.landing.entrypoints=web"
+      - "traefik.http.routers.landing.priority=1"
+      - "traefik.http.services.landing.loadbalancer.server.port=80"
+    depends_on:
+      traefik:
+        condition: service_started
+    restart: unless-stopped
+
   redis:
     image: redis:alpine
     command: redis-server
@@ -160,4 +178,5 @@ volumes:
 
 networks:
   web:
+    name: web
     driver: bridge
