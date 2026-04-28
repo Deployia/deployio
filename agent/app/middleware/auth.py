@@ -62,6 +62,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/agent/v1/docs",
             "/agent/v1/redoc",
             "/agent/v1/openapi.json",
+            # Build pipeline endpoints - allow public access during development
+            "/agent/v1/api/analyze",
+            "/agent/v1/api/generate-dockerfile",
+            "/agent/v1/api/deploy-from-git",
         }
 
     async def dispatch(self, request: Request, call_next):
