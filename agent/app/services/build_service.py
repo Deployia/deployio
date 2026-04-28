@@ -221,8 +221,8 @@ class BuildService:
                     f"[{deployment_id}] Deploying to subdomain: {subdomain}...", "info"
                 )
 
-            deploy_result = await asyncio.to_thread(
-                self.deployment_service.deploy,
+            # Call async deploy method directly (not in thread)
+            deploy_result = await self.deployment_service.deploy(
                 deployment_id,
                 f"deployio/{deployment_id}:latest",
                 subdomain,
