@@ -176,13 +176,19 @@ class BuildService:
                 )
 
             repo_path = Path(repo_path)
+            dockerfile_path = repo_path / "Dockerfile.generated"
+            
+            # Verify Dockerfile exists before building
+            if not dockerfile_path.exists():
+                raise Exception(f"Dockerfile not found at {dockerfile_path}")
+            
             build_command = [
                 "docker",
                 "build",
                 "-t",
                 f"deployio/{deployment_id}:latest",
                 "-f",
-                "Dockerfile.generated",
+                str(dockerfile_path),  # Use absolute path
                 str(repo_path),
             ]
 
