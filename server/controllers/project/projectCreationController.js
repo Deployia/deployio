@@ -1,6 +1,6 @@
-const projectCreationService = require('../../services/project/projectCreationService');
-const { validationResult } = require('express-validator');
-const logger = require('@config/logger');
+const projectCreationService = require("../../services/project/projectCreationService");
+const { validationResult } = require("express-validator");
+const logger = require("@config/logger");
 
 class ProjectCreationController {
   // Create new session
@@ -11,7 +11,7 @@ class ProjectCreationController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
       }
@@ -24,8 +24,12 @@ class ProjectCreationController {
         ipAddress,
       });
 
-      const statusCode = session.createdAt < new Date(Date.now() - 1000) ? 200 : 201;
-      const message = statusCode === 200 ? 'Existing session found' : 'Project creation session created successfully';
+      const statusCode =
+        session.createdAt < new Date(Date.now() - 1000) ? 200 : 201;
+      const message =
+        statusCode === 200
+          ? "Existing session found"
+          : "Project creation session created successfully";
 
       res.status(statusCode).json({
         success: true,
@@ -35,10 +39,10 @@ class ProjectCreationController {
         },
       });
     } catch (error) {
-      logger.error('Error creating session:', error);
+      logger.error("Error creating session:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to create session',
+        message: "Failed to create session",
         error: error.message,
       });
     }
@@ -52,7 +56,7 @@ class ProjectCreationController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
       }
@@ -60,7 +64,10 @@ class ProjectCreationController {
       const { sessionId } = req.params;
       const userId = req.user.id;
 
-      const session = await projectCreationService.getSession(sessionId, userId);
+      const session = await projectCreationService.getSession(
+        sessionId,
+        userId,
+      );
 
       res.status(200).json({
         success: true,
@@ -71,25 +78,25 @@ class ProjectCreationController {
         },
       });
     } catch (error) {
-      logger.error('Error getting session:', error);
-      
-      if (error.message === 'Session not found') {
+      logger.error("Error getting session:", error);
+
+      if (error.message === "Session not found") {
         return res.status(404).json({
           success: false,
-          message: 'Session not found',
+          message: "Session not found",
         });
       }
-      
-      if (error.message === 'Session has expired') {
+
+      if (error.message === "Session has expired") {
         return res.status(410).json({
           success: false,
-          message: 'Session has expired',
+          message: "Session has expired",
         });
       }
 
       res.status(500).json({
         success: false,
-        message: 'Failed to get session',
+        message: "Failed to get session",
         error: error.message,
       });
     }
@@ -102,7 +109,7 @@ class ProjectCreationController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
       }
@@ -111,21 +118,29 @@ class ProjectCreationController {
       const { step, stepData } = req.body;
       const userId = req.user.id;
 
-      const session = await projectCreationService.updateStep(sessionId, userId, step, stepData);
+      const session = await projectCreationService.updateStep(
+        sessionId,
+        userId,
+        step,
+        stepData,
+      );
 
       res.status(200).json({
         success: true,
-        message: 'Session step updated successfully',
+        message: "Session step updated successfully",
         data: {
           session,
           progress: session.getProgress(),
         },
       });
     } catch (error) {
-      logger.error('Error updating session step:', error);
-      
-      if (error.message === 'Session not found' || error.message === 'Session has expired') {
-        const statusCode = error.message === 'Session not found' ? 404 : 410;
+      logger.error("Error updating session step:", error);
+
+      if (
+        error.message === "Session not found" ||
+        error.message === "Session has expired"
+      ) {
+        const statusCode = error.message === "Session not found" ? 404 : 410;
         return res.status(statusCode).json({
           success: false,
           message: error.message,
@@ -134,7 +149,7 @@ class ProjectCreationController {
 
       res.status(500).json({
         success: false,
-        message: 'Failed to update session step',
+        message: "Failed to update session step",
         error: error.message,
       });
     }
@@ -148,7 +163,7 @@ class ProjectCreationController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
       }
@@ -156,25 +171,31 @@ class ProjectCreationController {
       const { sessionId } = req.params;
       const userId = req.user.id;
 
-      const result = await projectCreationService.completeSession(sessionId, userId);
+      const result = await projectCreationService.completeSession(
+        sessionId,
+        userId,
+      );
 
       res.status(201).json({
         success: true,
-        message: 'Project created successfully',
+        message: "Project created successfully",
         data: result,
       });
     } catch (error) {
-      logger.error('Error completing session:', error);
-      
-      if (error.message === 'Session not found' || error.message === 'Session has expired') {
-        const statusCode = error.message === 'Session not found' ? 404 : 410;
+      logger.error("Error completing session:", error);
+
+      if (
+        error.message === "Session not found" ||
+        error.message === "Session has expired"
+      ) {
+        const statusCode = error.message === "Session not found" ? 404 : 410;
         return res.status(statusCode).json({
           success: false,
           message: error.message,
         });
       }
-      
-      if (error.message.includes('not ready for completion')) {
+
+      if (error.message.includes("not ready for completion")) {
         return res.status(400).json({
           success: false,
           message: error.message,
@@ -183,7 +204,47 @@ class ProjectCreationController {
 
       res.status(500).json({
         success: false,
-        message: 'Failed to complete session',
+        message: "Failed to complete session",
+        error: error.message,
+      });
+    }
+  }
+
+  // Complete project creation with full client payload
+  async completeWithPayload(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: errors.array(),
+        });
+      }
+
+      const payload = req.body;
+      const userId = req.user.id;
+
+      const result = await projectCreationService.completeWithPayload(
+        payload,
+        userId,
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Project created successfully",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error completing project with payload:", error);
+
+      if (error.message === "Validation failed") {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to complete project",
         error: error.message,
       });
     }
@@ -197,7 +258,7 @@ class ProjectCreationController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
       }
@@ -209,7 +270,10 @@ class ProjectCreationController {
         page: parseInt(req.query.page) || 1,
       };
 
-      const result = await projectCreationService.getUserSessions(userId, filters);
+      const result = await projectCreationService.getUserSessions(
+        userId,
+        filters,
+      );
 
       res.status(200).json({
         success: true,
@@ -226,10 +290,10 @@ class ProjectCreationController {
         },
       });
     } catch (error) {
-      logger.error('Error getting user sessions:', error);
+      logger.error("Error getting user sessions:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to get user sessions',
+        message: "Failed to get user sessions",
         error: error.message,
       });
     }
@@ -243,7 +307,7 @@ class ProjectCreationController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
       }
@@ -255,21 +319,21 @@ class ProjectCreationController {
 
       res.status(200).json({
         success: true,
-        message: 'Session abandoned successfully',
+        message: "Session abandoned successfully",
       });
     } catch (error) {
-      logger.error('Error deleting session:', error);
-      
-      if (error.message === 'Session not found') {
+      logger.error("Error deleting session:", error);
+
+      if (error.message === "Session not found") {
         return res.status(404).json({
           success: false,
-          message: 'Session not found',
+          message: "Session not found",
         });
       }
 
       res.status(500).json({
         success: false,
-        message: 'Failed to delete session',
+        message: "Failed to delete session",
         error: error.message,
       });
     }
@@ -283,7 +347,7 @@ class ProjectCreationController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
       }
@@ -292,22 +356,29 @@ class ProjectCreationController {
       const { repositoryUrl, branch, provider } = req.body;
       const userId = req.user.id;
 
-      const result = await projectCreationService.analyzeRepository(sessionId, userId, {
-        repositoryUrl,
-        branch,
-        provider,
-      });
+      const result = await projectCreationService.analyzeRepository(
+        sessionId,
+        userId,
+        {
+          repositoryUrl,
+          branch,
+          provider,
+        },
+      );
 
       res.status(200).json({
         success: true,
-        message: 'Repository analysis completed successfully',
+        message: "Repository analysis completed successfully",
         data: result,
       });
     } catch (error) {
-      logger.error('Error analyzing repository:', error);
-      
-      if (error.message === 'Session not found' || error.message === 'Session has expired') {
-        const statusCode = error.message === 'Session not found' ? 404 : 410;
+      logger.error("Error analyzing repository:", error);
+
+      if (
+        error.message === "Session not found" ||
+        error.message === "Session has expired"
+      ) {
+        const statusCode = error.message === "Session not found" ? 404 : 410;
         return res.status(statusCode).json({
           success: false,
           message: error.message,
@@ -316,7 +387,43 @@ class ProjectCreationController {
 
       res.status(500).json({
         success: false,
-        message: 'Failed to analyze repository',
+        message: "Failed to analyze repository",
+        error: error.message,
+      });
+    }
+  }
+
+  // Analyze repository without a session (client-first flow)
+  async analyzeRepositoryStandalone(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: errors.array(),
+        });
+      }
+
+      const { repositoryUrl, branch, provider } = req.body;
+
+      const result = await projectCreationService.analyzeRepositoryStandalone({
+        repositoryUrl,
+        branch,
+        provider,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Repository analysis completed successfully",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error analyzing repository without session:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to analyze repository",
         error: error.message,
       });
     }

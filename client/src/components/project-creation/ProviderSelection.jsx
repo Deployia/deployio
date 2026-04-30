@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -26,21 +26,13 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   const githubConnection = connectedProviders.find(
     (provider) => provider.provider === "github",
   );
-  const [selectedProvider, setLocalSelectedProvider] = useState(
-    stepData.selectedProvider || (githubConnection ? "github" : null),
-  );
+  const selectedProvider =
+    stepData.selectedProvider || (githubConnection ? "github" : null);
 
   // Keep the wizard aligned with the shared Git provider state.
   useEffect(() => {
     fetchConnections();
   }, [fetchConnections]);
-
-  useEffect(() => {
-    if (githubConnection) {
-      setLocalSelectedProvider("github");
-      dispatch(setSelectedProvider("github"));
-    }
-  }, [dispatch, githubConnection]);
 
   // Provider configurations
   const providers = [
@@ -88,12 +80,14 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   ];
 
   const handleProviderSelect = (providerId) => {
-    setLocalSelectedProvider(providerId);
     dispatch(setSelectedProvider(providerId));
   };
 
   const handleContinue = () => {
     if (selectedProvider) {
+      if (stepData.selectedProvider !== selectedProvider) {
+        dispatch(setSelectedProvider(selectedProvider));
+      }
       dispatch(completeStep(1));
       onNext();
     }

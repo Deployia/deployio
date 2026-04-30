@@ -28,10 +28,8 @@ export {
 
 // Project creation slice exports
 export {
-  createSession,
-  updateStepData,
   analyzeRepository as analyzeRepositoryCreation,
-  createProjectFromSession,
+  createProjectFromState,
   fetchGitProviders,
   fetchRepositories,
   fetchBranches,

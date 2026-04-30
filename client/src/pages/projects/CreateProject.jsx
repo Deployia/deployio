@@ -18,12 +18,12 @@ import AnalysisProgress from "@components/project-creation/AnalysisProgress";
 import SmartProjectForm from "@components/project-creation/SmartProjectForm";
 import ProjectReview from "@components/project-creation/ProjectReview";
 import {
-  createSession,
   completeStep,
   updateStep,
   resetWizard,
   completeWizard,
   setSelectedProvider,
+  createProjectFromState,
 } from "@redux/slices/projectCreationSlice";
 import {
   fetchConnectedProviders,
@@ -35,15 +35,8 @@ const CreateProject = () => {
   const navigate = useNavigate();
 
   // Redux state
-  const {
-    sessionId,
-    currentStep,
-    completedSteps,
-    stepData,
-    loading,
-    error,
-    isCompleted,
-  } = useSelector((state) => state.projectCreation);
+  const { currentStep, completedSteps, stepData, loading, error, isCompleted } =
+    useSelector((state) => state.projectCreation);
   const connectedProviders = useSelector(selectConnectedProviders);
   const githubConnection = connectedProviders.find(
     (provider) => provider.provider === "github",
@@ -54,12 +47,6 @@ const CreateProject = () => {
   // Initialize session on component mount
   useEffect(() => {
     dispatch(fetchConnectedProviders());
-    dispatch(
-      createSession({
-        userAgent: navigator.userAgent,
-        ipAddress: "127.0.0.1", // This would be populated by the backend
-      }),
-    );
 
     // Cleanup on unmount
     return () => {
@@ -78,7 +65,33 @@ const CreateProject = () => {
   }, [dispatch, githubConnection, currentStep]);
 
   // Handle step navigation
+  const canProceedToNext = () => {
+    // Step gating logic - validate before allowing next step
+    switch (currentStep) {
+      case 1: // Git Provider
+        return stepData.selectedProvider;
+      case 2: // Repository
+        return stepData.selectedRepository && stepData.selectedRepository.name;
+      case 3: // Branch
+        return stepData.selectedBranch;
+      case 4: // Analysis
+        return stepData.analysisStatus === "completed";
+      case 5: // Configuration
+        return true; // Form is always valid
+      case 6: // Review
+        return false; // Final step
+      default:
+        return false;
+    }
+  };
+
   const handleNext = () => {
+    if (!canProceedToNext()) {
+      console.warn(
+        `Cannot proceed from step ${currentStep}. Validation failed.`,
+      );
+      return;
+    }
     if (currentStep < 6) {
       dispatch(updateStep({ step: currentStep + 1 }));
     }
@@ -97,10 +110,24 @@ const CreateProject = () => {
     }
   };
 
-  // Handle wizard completion
-  const handleComplete = () => {
-    dispatch(completeWizard());
-    navigate("/dashboard/projects");
+  // Handle wizard completion - creates project and navigates
+  const handleComplete = async () => {
+    try {
+      const result = await dispatch(createProjectFromState()).unwrap();
+
+      // Mark wizard as complete
+      dispatch(completeWizard());
+
+      // Navigate to project details or dashboard
+      if (result?.projectId) {
+        navigate(`/dashboard/projects/${result.projectId}`);
+      } else {
+        navigate("/dashboard/projects");
+      }
+    } catch (error) {
+      console.error("Failed to create project:", error);
+      // Error will be displayed by the error display section
+    }
   };
 
   // Handle back to dashboard
@@ -189,12 +216,6 @@ const CreateProject = () => {
             </div>
 
             {/* Session Info */}
-            {sessionId && (
-              <div className="flex items-center space-x-2 text-sm text-neutral-400">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Session Active</span>
-              </div>
-            )}
           </div>
         </motion.div>
 
@@ -241,8 +262,7 @@ const CreateProject = () => {
                   className="p-4 sm:p-6 lg:p-8"
                 >
                   <CurrentStepComponent
-                    sessionId={sessionId}
-                    stepData={{ ...stepData, sessionId }}
+                    stepData={stepData}
                     onNext={handleNext}
                     onPrevious={handlePrevious}
                     onComplete={handleComplete}

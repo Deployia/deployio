@@ -3,7 +3,8 @@
  * Analyzes GitHub repositories to determine deployability and stack type.
  * Replaces AI service for Phase 1 of deployment pipeline.
  *
- * Supported Stacks: Express, MERN, FastAPI
+ * Supported Stacks: Next.js, MERN, Express, FastAPI
+ * Stack Detection Priority: Next.js → MERN → Express → Generic Node
  * Deployment Model: Single container only (rejects docker-compose with multiple services)
  */
 
@@ -88,7 +89,8 @@ class RuleBasedAnalyzer {
         `✅ Stack detected: ${stackDetection.stack}, deployable: true`,
       );
 
-      return {
+      // Build complete AI-like schema for full analysis
+      const analysisResult = {
         deployable: true,
         stack: stackDetection.stack,
         reason: "Repository meets deployment requirements",
@@ -100,7 +102,24 @@ class RuleBasedAnalyzer {
           hasExistingDockerfile: dockerfileCheck.exists,
           environmentVariables: envVars,
         },
+        // Full AI-schema simulation for complete analysis
+        technologyStack: this._buildTechnologyStackFromDetection(
+          stackDetection,
+          fileContents,
+        ),
+        buildConfiguration: this._buildConfigurationFromDetection(
+          stackDetection,
+          commands,
+          fileContents,
+        ),
+        deploymentConfiguration: this._buildDeploymentConfigurationFromStack(
+          stackDetection,
+          envVars,
+        ),
+        insights: this._generateInsights(stackDetection, fileContents),
       };
+
+      return analysisResult;
     } catch (error) {
       logger.error("Rule-based analysis error:", error);
       return {
@@ -115,18 +134,59 @@ class RuleBasedAnalyzer {
 
   /**
    * RULE 1: Detect stack from file contents
+   * Supports: Next.js, MERN, Express, FastAPI
+   * Priority order for Node.js: Next.js → MERN → Express → Generic
    * @private
    */
   async _detectStackFromContent(fileContents) {
-    const { packageJson, requirementsTxt } = fileContents;
+    const { packageJson, requirementsTxt, dockerfileContent } = fileContents;
 
-    // Check for Node/Express/MERN
+    // Check for Node/Next.js/Express/MERN
     if (packageJson) {
       try {
-        const pkgData = JSON.parse(packageJson);
-        const deps = { ...pkgData.dependencies, ...pkgData.devDependencies };
+        let pkgData;
+        try {
+          pkgData = JSON.parse(packageJson);
+        } catch (parseError) {
+          logger.warn(
+            "package.json JSON parsing failed, attempting recovery:",
+            parseError.message,
+          );
+          // Try to detect from Dockerfile or fallback to generic Node
+          if (dockerfileContent) {
+            const dockerDetection =
+              this._detectStackFromDockerfile(dockerfileContent);
+            if (dockerDetection.detected) {
+              return dockerDetection;
+            }
+          }
+          return {
+            detected: false,
+            reason: "Invalid package.json format and no detectable Dockerfile",
+          };
+        }
 
-        // Check for MERN
+        const deps = {
+          ...pkgData.dependencies,
+          ...pkgData.devDependencies,
+        };
+
+        // Priority 1: Check for Next.js (must be first to avoid false positives with MERN)
+        if (deps.next) {
+          logger.info("Stack detected: Next.js");
+          return {
+            detected: true,
+            stack: "nextjs",
+            config: {
+              buildCommand: pkgData.scripts?.build || "npm run build",
+              startCommand: pkgData.scripts?.start || "npm start",
+              installCommand: "npm install",
+              port: 3000,
+            },
+          };
+        }
+
+        // Priority 2: Check for MERN (React + Express/MongoDB)
         if (deps.react && (deps.express || deps.mongoose)) {
           logger.info("Stack detected: MERN");
           return {
@@ -141,7 +201,39 @@ class RuleBasedAnalyzer {
           };
         }
 
-        // Check for Express
+        // Priority 2.5: Check for React (frontend only, could be Next.js without explicit next dep)
+        if (deps.react) {
+          logger.info("Stack detected: React (potentially Next.js or Vite)");
+          // Check Dockerfile for more clues
+          if (
+            dockerfileContent &&
+            dockerfileContent.includes(".next/standalone")
+          ) {
+            logger.info("Dockerfile confirms Next.js");
+            return {
+              detected: true,
+              stack: "nextjs",
+              config: {
+                buildCommand: pkgData.scripts?.build || "npm run build",
+                startCommand: pkgData.scripts?.start || "npm start",
+                installCommand: "npm install",
+                port: 3000,
+              },
+            };
+          }
+          return {
+            detected: true,
+            stack: "mern", // Treat React as MERN if Express not found
+            config: {
+              buildCommand: pkgData.scripts?.build || "npm run build",
+              startCommand: pkgData.scripts?.start || "npm start",
+              installCommand: "npm install",
+              port: 3000,
+            },
+          };
+        }
+
+        // Priority 3: Check for Express
         if (deps.express) {
           logger.info("Stack detected: Express");
           return {
@@ -169,7 +261,15 @@ class RuleBasedAnalyzer {
           },
         };
       } catch (error) {
-        logger.warn("Error parsing package.json:", error.message);
+        logger.warn("Error processing package.json:", error.message);
+        // Try Dockerfile detection as fallback
+        if (dockerfileContent) {
+          const dockerDetection =
+            this._detectStackFromDockerfile(dockerfileContent);
+          if (dockerDetection.detected) {
+            return dockerDetection;
+          }
+        }
         return { detected: false, reason: "Invalid package.json format" };
       }
     }
@@ -199,10 +299,109 @@ class RuleBasedAnalyzer {
       }
     }
 
+    // Fallback: Try to detect from Dockerfile
+    if (dockerfileContent) {
+      const dockerDetection =
+        this._detectStackFromDockerfile(dockerfileContent);
+      if (dockerDetection.detected) {
+        return dockerDetection;
+      }
+    }
+
     return {
       detected: false,
       reason: "No package.json or requirements.txt found",
     };
+  }
+
+  /**
+   * Helper: Detect stack from Dockerfile content when package.json is unavailable
+   * @private
+   */
+  _detectStackFromDockerfile(dockerfileContent) {
+    if (!dockerfileContent) {
+      return { detected: false };
+    }
+
+    const content = dockerfileContent.toLowerCase();
+
+    // Check for Next.js indicators
+    if (
+      content.includes(".next/standalone") ||
+      content.includes("next/standalone") ||
+      (content.includes(".next") && content.includes("npm run build"))
+    ) {
+      logger.info("Stack detected from Dockerfile: Next.js");
+      return {
+        detected: true,
+        stack: "nextjs",
+        config: {
+          buildCommand: "npm run build",
+          startCommand: "npm start",
+          installCommand: "npm install",
+          port: 3000,
+        },
+      };
+    }
+
+    // Check for MERN/React indicators
+    if (
+      content.includes("node_modules") &&
+      (content.includes("react") ||
+        content.includes("npm run build") ||
+        content.includes("npm start"))
+    ) {
+      logger.info("Stack detected from Dockerfile: MERN");
+      return {
+        detected: true,
+        stack: "mern",
+        config: {
+          buildCommand: "npm run build",
+          startCommand: "npm start",
+          installCommand: "npm install",
+          port: 3000,
+        },
+      };
+    }
+
+    // Check for Express/Node indicators
+    if (
+      content.includes("node:") ||
+      content.includes("npm install") ||
+      content.includes("node index")
+    ) {
+      logger.info("Stack detected from Dockerfile: Express");
+      return {
+        detected: true,
+        stack: "express",
+        config: {
+          buildCommand: "npm install",
+          startCommand: "npm start",
+          installCommand: "npm install",
+          port: 3000,
+        },
+      };
+    }
+
+    // Check for FastAPI indicators
+    if (
+      content.includes("python:") &&
+      (content.includes("fastapi") || content.includes("uvicorn"))
+    ) {
+      logger.info("Stack detected from Dockerfile: FastAPI");
+      return {
+        detected: true,
+        stack: "fastapi",
+        config: {
+          buildCommand: "pip install -r requirements.txt",
+          startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000",
+          installCommand: "pip install -r requirements.txt",
+          port: 8000,
+        },
+      };
+    }
+
+    return { detected: false };
   }
 
   /**
@@ -447,7 +646,27 @@ class RuleBasedAnalyzer {
           fs.readFileSync(packageJsonPath, "utf-8"),
         );
 
-        // Check for MERN (React + Express in package.json or separate)
+        const deps = {
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies,
+        };
+
+        // Priority 1: Check for Next.js
+        if (deps.next) {
+          logger.info("Stack detected: Next.js");
+          return {
+            detected: true,
+            stack: "nextjs",
+            config: {
+              buildCommand: packageJson.scripts?.build || "npm run build",
+              startCommand: packageJson.scripts?.start || "npm start",
+              installCommand: "npm install",
+              port: 3000,
+            },
+          };
+        }
+
+        // Priority 2: Check for MERN (React + Express/MongoDB)
         const hasReact =
           packageJson.dependencies?.react || packageJson.devDependencies?.react;
         const hasExpress =
@@ -463,23 +682,59 @@ class RuleBasedAnalyzer {
             detected: true,
             stack: "mern",
             config: {
-              buildCommand: "npm run build",
-              startCommand: "npm start",
+              buildCommand: packageJson.scripts?.build || "npm run build",
+              startCommand: packageJson.scripts?.start || "npm start",
               installCommand: "npm install",
               port: 3000,
             },
           };
         }
 
-        // Check for Express
+        // Priority 2.5: Check for React standalone (might be Next.js)
+        if (hasReact) {
+          logger.info("Stack detected: React (potentially Next.js)");
+          // Check Dockerfile for confirmation
+          const dockerfilePath = path.join(repoPath, "Dockerfile");
+          if (
+            fs.existsSync(dockerfilePath) &&
+            fs
+              .readFileSync(dockerfilePath, "utf-8")
+              .includes(".next/standalone")
+          ) {
+            logger.info("Dockerfile confirms Next.js");
+            return {
+              detected: true,
+              stack: "nextjs",
+              config: {
+                buildCommand: packageJson.scripts?.build || "npm run build",
+                startCommand: packageJson.scripts?.start || "npm start",
+                installCommand: "npm install",
+                port: 3000,
+              },
+            };
+          }
+          // Treat React as MERN if no Express/MongoDB
+          return {
+            detected: true,
+            stack: "mern",
+            config: {
+              buildCommand: packageJson.scripts?.build || "npm run build",
+              startCommand: packageJson.scripts?.start || "npm start",
+              installCommand: "npm install",
+              port: 3000,
+            },
+          };
+        }
+
+        // Priority 3: Check for Express
         if (hasExpress) {
           logger.info("Stack detected: Express");
           return {
             detected: true,
             stack: "express",
             config: {
-              buildCommand: "npm run build",
-              startCommand: "npm start",
+              buildCommand: packageJson.scripts?.build || "npm run build",
+              startCommand: packageJson.scripts?.start || "npm start",
               installCommand: "npm install",
               port: 3000,
             },
@@ -493,13 +748,27 @@ class RuleBasedAnalyzer {
           stack: "express",
           config: {
             buildCommand: "npm install",
-            startCommand: "node index.js",
+            startCommand: packageJson.scripts?.start || "node index.js",
             installCommand: "npm install",
             port: 3000,
           },
         };
       } catch (error) {
         logger.warn("Error reading package.json:", error.message);
+        // Fallback to Dockerfile detection
+        const dockerfilePath = path.join(repoPath, "Dockerfile");
+        if (fs.existsSync(dockerfilePath)) {
+          try {
+            const dockerfileContent = fs.readFileSync(dockerfilePath, "utf-8");
+            const dockerDetection =
+              this._detectStackFromDockerfile(dockerfileContent);
+            if (dockerDetection.detected) {
+              return dockerDetection;
+            }
+          } catch (err) {
+            logger.warn("Error reading Dockerfile:", err.message);
+          }
+        }
         return {
           detected: false,
           reason: "Invalid package.json format",
@@ -549,6 +818,21 @@ class RuleBasedAnalyzer {
           detected: false,
           reason: "Invalid requirements.txt format",
         };
+      }
+    }
+
+    // Fallback: Try to detect from Dockerfile
+    const dockerfilePath = path.join(repoPath, "Dockerfile");
+    if (fs.existsSync(dockerfilePath)) {
+      try {
+        const dockerfileContent = fs.readFileSync(dockerfilePath, "utf-8");
+        const dockerDetection =
+          this._detectStackFromDockerfile(dockerfileContent);
+        if (dockerDetection.detected) {
+          return dockerDetection;
+        }
+      } catch (error) {
+        logger.warn("Error reading Dockerfile:", error.message);
       }
     }
 
@@ -763,6 +1047,182 @@ class RuleBasedAnalyzer {
     }
 
     return envVars;
+  }
+
+  /**
+   * Build TechnologyStack object from detection results
+   * Maps to AI analyzer's technology_stack output
+   * @private
+   */
+  _buildTechnologyStackFromDetection(stackDetection, fileContents) {
+    const languages = {
+      nextjs: { language: "javascript", runtime: "nodejs", version: "18+" },
+      mern: { language: "javascript", runtime: "nodejs", version: "18+" },
+      express: { language: "javascript", runtime: "nodejs", version: "16+" },
+      fastapi: { language: "python", runtime: "python", version: "3.9+" },
+    };
+
+    const frameworks = {
+      nextjs: "next.js",
+      mern: "react",
+      express: "express",
+      fastapi: "fastapi",
+    };
+
+    const stackInfo = languages[stackDetection.stack] || {
+      language: "javascript",
+      runtime: "nodejs",
+      version: "16+",
+    };
+
+    // Extract dependencies from package.json
+    let dependencies = [];
+    if (fileContents.packageJson) {
+      try {
+        const pkg = JSON.parse(fileContents.packageJson);
+        dependencies = Object.keys({
+          ...pkg.dependencies,
+          ...pkg.devDependencies,
+        });
+      } catch (e) {
+        logger.warn("Could not parse dependencies");
+      }
+    }
+
+    return {
+      language: stackInfo.language,
+      framework: frameworks[stackDetection.stack] || "unknown",
+      buildTool: stackDetection.stack === "fastapi" ? "pip" : "npm",
+      packageManager: stackDetection.stack === "fastapi" ? "pip" : "npm",
+      runtime: stackInfo.runtime,
+      version: stackInfo.version,
+      dependencies: dependencies,
+      confidence: 0.95,
+      detection_method: "rule_based",
+    };
+  }
+
+  /**
+   * Build BuildConfiguration object from detection results
+   * Maps to AI analyzer's build_configuration output
+   * @private
+   */
+  _buildConfigurationFromDetection(stackDetection, commands, fileContents) {
+    return {
+      build_commands: {
+        default: commands.buildCommand || "npm run build",
+      },
+      start_commands: {
+        default: commands.startCommand || "npm start",
+      },
+      install_commands: {
+        default: commands.installCommand || "npm install",
+      },
+      test_commands: {
+        default: commands.testCommand || "",
+      },
+      exposed_ports: [stackDetection.config.port || 3000],
+      system_dependencies: [],
+      environment_variables: [],
+      dockerfile_hints: {
+        base_image_suggestion:
+          stackDetection.stack === "fastapi" ? "python:3.11" : "node:18-alpine",
+        working_directory: "/app",
+        entry_point: commands.startCommand || "npm start",
+      },
+      main_entry_points: [],
+    };
+  }
+
+  /**
+   * Build DeploymentConfiguration object from stack detection
+   * Maps to AI analyzer's deployment_configuration output
+   * @private
+   */
+  _buildDeploymentConfigurationFromStack(stackDetection, envVars) {
+    const healthCheckPaths = {
+      nextjs: "/api/health",
+      mern: "/api/health",
+      express: "/health",
+      fastapi: "/health",
+    };
+
+    const resourceRequirements = {
+      nextjs: { cpu: "500m", memory: "512Mi" },
+      mern: { cpu: "500m", memory: "512Mi" },
+      express: { cpu: "250m", memory: "256Mi" },
+      fastapi: { cpu: "250m", memory: "256Mi" },
+    };
+
+    const resources = resourceRequirements[stackDetection.stack] || {
+      cpu: "250m",
+      memory: "256Mi",
+    };
+
+    return {
+      health_check_path: healthCheckPaths[stackDetection.stack] || "/health",
+      readiness_probe_path: healthCheckPaths[stackDetection.stack] || "/health",
+      cpu_requirements: resources.cpu,
+      memory_requirements: resources.memory,
+      internal_ports: [stackDetection.config.port || 3000],
+      external_ports: [stackDetection.config.port || 3000],
+      recommended_min_replicas: 1,
+      recommended_max_replicas: 3,
+      environment_variables: envVars.map((v) => ({
+        key: v.key,
+        value: v.value || "",
+        required: false,
+        is_secret: v.isSecret || false,
+      })),
+    };
+  }
+
+  /**
+   * Generate insights from analysis
+   * Maps to AI analyzer's insights output
+   * @private
+   */
+  _generateInsights(stackDetection, fileContents) {
+    const projectTypes = {
+      nextjs: "Frontend (Next.js)",
+      mern: "Full-Stack (MERN)",
+      express: "Backend (Express.js)",
+      fastapi: "Backend (FastAPI)",
+    };
+
+    const complexityMap = {
+      nextjs: "medium",
+      mern: "high",
+      express: "medium",
+      fastapi: "medium",
+    };
+
+    return [
+      {
+        category: "architecture",
+        title: "Project Type Detected",
+        description: projectTypes[stackDetection.stack],
+        severity: "info",
+        confidence: 0.95,
+      },
+      {
+        category: "deployment",
+        title: "Deployment Profile",
+        description: `This ${projectTypes[stackDetection.stack]} application is suitable for containerized deployment on Kubernetes or Docker Swarm.`,
+        severity: "info",
+        confidence: 0.9,
+      },
+      {
+        category: "scalability",
+        title: "Scalability Assessment",
+        description:
+          complexityMap[stackDetection.stack] === "high"
+            ? "This is a complex application. Consider implementing caching and load balancing."
+            : "Application is straightforward to scale horizontally.",
+        severity: "info",
+        confidence: 0.85,
+      },
+    ];
   }
 }
 

@@ -11,6 +11,7 @@ import {
   FaTrash,
   FaBrain,
   FaCheckCircle,
+  FaHeartbeat,
 } from "react-icons/fa";
 import {
   setProjectConfiguration,
@@ -20,126 +21,187 @@ import {
 const SmartProjectForm = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
 
-  // Form state populated by AI analysis
-  const [formData, setFormData] = useState({
-    projectName:
-      stepData.projectName || stepData.selectedRepository?.name || "",
-    projectDescription:
-      stepData.projectDescription ||
-      stepData.selectedRepository?.description ||
-      "",
-    buildCommands: stepData.buildCommands || [],
-    startCommand: stepData.startCommand || "",
-    environmentVariables: stepData.environmentVariables || [],
-    deploymentSettings: stepData.deploymentSettings || {
-      port: 3000,
-      healthcheck: "/health",
-      replicas: 1,
-      resources: {
-        cpu: "100m",
-        memory: "128Mi",
+  // Form state - comprehensive, mapping to Project model structure
+  // Get defaults from analysis results when available
+  const getInitialFormData = () => {
+    const results =
+      stepData.analysisResults || stepData.analysis?.results || {};
+    const detectedConfig = results.detectedConfig || {};
+    const buildConfig = results.buildConfiguration || {};
+    const deployConfig = results.deploymentConfiguration || {};
+
+    return {
+      // Basic info
+      projectName:
+        stepData.projectName || stepData.selectedRepository?.name || "",
+      projectDescription:
+        stepData.projectDescription ||
+        stepData.selectedRepository?.description ||
+        "",
+
+      // Build Configuration - use analysis results, fallback to empty/smart defaults
+      build: {
+        commands: {
+          install:
+            stepData.buildInstallCommand ||
+            detectedConfig.installCommand ||
+            buildConfig.installCommand ||
+            "",
+          build:
+            stepData.buildCommand ||
+            detectedConfig.buildCommand ||
+            buildConfig.buildCommand ||
+            "",
+          start:
+            stepData.startCommand ||
+            detectedConfig.startCommand ||
+            buildConfig.startCommand ||
+            "",
+          test: stepData.testCommand || buildConfig.testCommand || "",
+        },
+        outputDir: stepData.outputDir || detectedConfig.outputDir || "",
+        nodeVersion: stepData.nodeVersion || "", // No hardcoded default
+        buildTimeout: stepData.buildTimeout || buildConfig.buildTimeout || 600,
       },
-    },
-  });
 
-  // Auto-populate from AI analysis results
-  useEffect(() => {
-    if (stepData.analysisResults) {
-      const results = stepData.analysisResults;
-
-      // Auto-populate build commands
-      if (results.buildCommands && results.buildCommands.length > 0) {
-        setFormData((prev) => ({
-          ...prev,
-          buildCommands: results.buildCommands,
-        }));
-      }
-
-      // Auto-populate start command
-      if (results.startCommand) {
-        setFormData((prev) => ({
-          ...prev,
-          startCommand: results.startCommand,
-        }));
-      }
-
-      // Auto-populate port
-      if (results.detectedPort) {
-        setFormData((prev) => ({
-          ...prev,
-          deploymentSettings: {
-            ...prev.deploymentSettings,
-            port: results.detectedPort,
-          },
-        }));
-      }
-
-      // Auto-populate environment variables suggestions
-      if (results.suggestedEnvVars) {
-        setFormData((prev) => ({
-          ...prev,
-          environmentVariables: results.suggestedEnvVars.map((env) => ({
-            key: env.key,
-            value: env.defaultValue || "",
-            description: env.description,
-            required: env.required,
-          })),
-        }));
-      }
-    }
-  }, [stepData.analysisResults]);
-
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleDeploymentSettingChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      deploymentSettings: {
-        ...prev.deploymentSettings,
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleResourceChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      deploymentSettings: {
-        ...prev.deploymentSettings,
-        resources: {
-          ...prev.deploymentSettings.resources,
-          [field]: value,
+      // Runtime Configuration - use analysis defaults, fallback to reasonable values
+      runtime: {
+        memory: stepData.runtimeMemory || deployConfig.memory || "512MB",
+        cpu: stepData.runtimeCpu || deployConfig.cpu || "0.5",
+        instances: stepData.instances || deployConfig.instances || 1,
+        healthCheck: {
+          path:
+            stepData.healthCheckPath ||
+            deployConfig.healthCheck?.path ||
+            "/health",
+          interval:
+            stepData.healthCheckInterval ||
+            deployConfig.healthCheck?.interval ||
+            30,
+          timeout:
+            stepData.healthCheckTimeout ||
+            deployConfig.healthCheck?.timeout ||
+            10,
+          retries:
+            stepData.healthCheckRetries ||
+            deployConfig.healthCheck?.retries ||
+            3,
         },
       },
-    }));
+
+      // Port (kept at top level for easy access)
+      port: stepData.port || detectedConfig.port || 8000,
+
+      // Environment Variables
+      environmentVariables: stepData.environmentVariables || [],
+    };
   };
 
-  const addBuildCommand = () => {
-    setFormData((prev) => ({
-      ...prev,
-      buildCommands: [...prev.buildCommands, ""],
-    }));
-  };
+  const [formData, setFormData] = useState(getInitialFormData());
 
-  const updateBuildCommand = (index, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      buildCommands: prev.buildCommands.map((cmd, i) =>
-        i === index ? value : cmd
-      ),
-    }));
-  };
+  // Auto-populate from analysis results
+  useEffect(() => {
+    const results =
+      stepData.analysisResults ||
+      stepData.analysis?.results ||
+      stepData.analysis;
 
-  const removeBuildCommand = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      buildCommands: prev.buildCommands.filter((_, i) => i !== index),
-    }));
+    if (results) {
+      const technologyStack = results.technologyStack || {};
+      const buildConfiguration = results.buildConfiguration || {};
+      const detectedConfig = results.detectedConfig || {};
+      const deploymentConfiguration = results.deploymentConfiguration || {};
+
+      setFormData((prev) => {
+        const updated = { ...prev };
+
+        // Auto-populate build commands
+        if (detectedConfig.buildCommand) {
+          updated.build.commands.build = detectedConfig.buildCommand;
+        }
+        if (detectedConfig.installCommand) {
+          updated.build.commands.install = detectedConfig.installCommand;
+        }
+        if (detectedConfig.startCommand) {
+          updated.build.commands.start = detectedConfig.startCommand;
+        }
+
+        if (buildConfiguration?.build_commands?.default) {
+          updated.build.commands.build =
+            buildConfiguration.build_commands.default;
+        }
+        if (buildConfiguration?.start_commands?.default) {
+          updated.build.commands.start =
+            buildConfiguration.start_commands.default;
+        }
+        if (buildConfiguration?.install_commands?.default) {
+          updated.build.commands.install =
+            buildConfiguration.install_commands.default;
+        }
+        if (buildConfiguration?.exposed_ports?.[0]) {
+          updated.port = buildConfiguration.exposed_ports[0];
+        }
+
+        if (technologyStack?.version) {
+          updated.build.nodeVersion =
+            technologyStack.version.replace(">=", "").replace("+", "") ||
+            prev.build.nodeVersion;
+        }
+
+        if (results.stack === "nextjs" && !updated.build.outputDir) {
+          updated.build.outputDir = ".next";
+        }
+
+        if (results.stack === "fastapi" && !updated.build.nodeVersion) {
+          updated.build.nodeVersion = "18";
+        }
+
+        if (deploymentConfiguration?.health_check_path) {
+          updated.runtime.healthCheck.path =
+            deploymentConfiguration.health_check_path;
+        }
+
+        // Auto-populate port
+        if (detectedConfig.port) {
+          updated.port = detectedConfig.port;
+        }
+
+        // Auto-populate environment variables
+        const envVars =
+          detectedConfig.environmentVariables ||
+          buildConfiguration.environment_variables ||
+          deploymentConfiguration.environment_variables ||
+          [];
+
+        if (envVars.length) {
+          updated.environmentVariables = envVars.map((env) => ({
+            key: env.key,
+            value: env.value || "",
+            description: env.description || "",
+            isSecret: env.isSecret || false,
+          }));
+        }
+
+        return updated;
+      });
+    }
+  }, [stepData.analysisResults, stepData.analysis]);
+
+  // Generic input handler for nested objects
+  const handleNestedChange = (path, value) => {
+    setFormData((prev) => {
+      const keys = path.split(".");
+      const updated = { ...prev };
+      let current = updated;
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) current[keys[i]] = {};
+        current = current[keys[i]];
+      }
+
+      current[keys[keys.length - 1]] = value;
+      return updated;
+    });
   };
 
   const addEnvironmentVariable = () => {
@@ -147,7 +209,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
       ...prev,
       environmentVariables: [
         ...prev.environmentVariables,
-        { key: "", value: "", description: "", required: false },
+        { key: "", value: "", description: "", isSecret: false },
       ],
     }));
   };
@@ -156,7 +218,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
     setFormData((prev) => ({
       ...prev,
       environmentVariables: prev.environmentVariables.map((env, i) =>
-        i === index ? { ...env, [field]: value } : env
+        i === index ? { ...env, [field]: value } : env,
       ),
     }));
   };
@@ -165,19 +227,36 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
     setFormData((prev) => ({
       ...prev,
       environmentVariables: prev.environmentVariables.filter(
-        (_, i) => i !== index
+        (_, i) => i !== index,
       ),
     }));
   };
 
+  // Helper to determine if field is relevant for detected stack
+  const getRelevantFieldsForStack = (stack) => {
+    const stackLower = (stack || "").toLowerCase();
+    return {
+      showNodeVersion:
+        !stackLower.includes("fastapi") && !stackLower.includes("python"),
+      showOutputDir: !stackLower.includes("fastapi"),
+      isPythonStack:
+        stackLower.includes("fastapi") || stackLower.includes("python"),
+    };
+  };
+
+  const detectedStack = stepData.analysisResults?.stack || "";
+  const { showNodeVersion, showOutputDir } =
+    getRelevantFieldsForStack(detectedStack);
+
   const handleContinue = () => {
     dispatch(setProjectConfiguration(formData));
+
     dispatch(completeStep(5));
     onNext();
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6">
       {/* Header */}
       <div className="text-center mb-6 sm:mb-8">
         <motion.div
@@ -191,14 +270,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             Project Configuration
           </h2>
           <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto px-2">
-            Configure your project settings. Many fields have been
-            auto-populated based on our AI analysis. Review and adjust as
-            needed.
+            Configure your project settings. Fields have been auto-populated
+            based on repository analysis. Review and adjust as needed.
           </p>
         </motion.div>
       </div>
 
-      {/* AI Suggestions Banner */}
+      {/* Analysis Banner */}
       {stepData.analysisResults && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -209,11 +287,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             <FaBrain className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             <div>
               <h3 className="text-blue-400 font-medium text-sm sm:text-base">
-                AI Suggestions Applied
+                Configuration Auto-Populated
               </h3>
               <p className="text-blue-300 text-xs sm:text-sm">
-                Configuration has been pre-filled based on analysis with{" "}
-                {Math.round((stepData.aiConfidence || 0) * 100)}% confidence.
+                Detected stack:{" "}
+                <span className="font-semibold uppercase">
+                  {stepData.analysisResults?.stack}
+                </span>
               </p>
             </div>
           </div>
@@ -231,13 +311,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Project Name
+                Project Name *
               </label>
               <input
                 type="text"
                 value={formData.projectName}
                 onChange={(e) =>
-                  handleInputChange("projectName", e.target.value)
+                  handleNestedChange("projectName", e.target.value)
                 }
                 className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="my-awesome-project"
@@ -246,16 +326,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
 
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Port
+                Application Port *
               </label>
               <input
                 type="number"
-                value={formData.deploymentSettings.port}
+                value={formData.port}
                 onChange={(e) =>
-                  handleDeploymentSettingChange(
-                    "port",
-                    parseInt(e.target.value)
-                  )
+                  handleNestedChange("port", parseInt(e.target.value))
                 }
                 className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="3000"
@@ -270,7 +347,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             <textarea
               value={formData.projectDescription}
               onChange={(e) =>
-                handleInputChange("projectDescription", e.target.value)
+                handleNestedChange("projectDescription", e.target.value)
               }
               rows={3}
               className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -286,54 +363,274 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             <span>Build Configuration</span>
           </h3>
 
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-neutral-300">
-                  Build Commands
+          <div className="grid gap-4 md:grid-cols-2 mb-4">
+            {showNodeVersion && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Node Version
                 </label>
-                <button
-                  onClick={addBuildCommand}
-                  className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-sm"
+                <select
+                  value={formData.build.nodeVersion}
+                  onChange={(e) =>
+                    handleNestedChange("build.nodeVersion", e.target.value)
+                  }
+                  className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <FaPlus className="w-3 h-3" />
-                  <span>Add Command</span>
-                </button>
+                  <option value="">Select version...</option>
+                  <option value="16">Node 16</option>
+                  <option value="18">Node 18</option>
+                  <option value="20">Node 20</option>
+                </select>
               </div>
+            )}
 
-              {formData.buildCommands.map((command, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-2">
-                  <input
-                    type="text"
-                    value={command}
-                    onChange={(e) => updateBuildCommand(index, e.target.value)}
-                    className="flex-1 p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="npm install"
-                  />
-                  <button
-                    onClick={() => removeBuildCommand(index)}
-                    className="p-2 text-red-400 hover:text-red-300"
-                  >
-                    <FaTrash className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Build Timeout (seconds)
+              </label>
+              <input
+                type="number"
+                value={formData.build.buildTimeout}
+                onChange={(e) =>
+                  handleNestedChange(
+                    "build.buildTimeout",
+                    parseInt(e.target.value),
+                  )
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="60"
+                max="3600"
+              />
+            </div>
+
+            {showOutputDir && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Output Directory
+                </label>
+                <input
+                  type="text"
+                  value={formData.build.outputDir}
+                  onChange={(e) =>
+                    handleNestedChange("build.outputDir", e.target.value)
+                  }
+                  className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="dist"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Install Command *
+              </label>
+              <input
+                type="text"
+                value={formData.build.commands.install}
+                onChange={(e) =>
+                  handleNestedChange("build.commands.install", e.target.value)
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="npm install"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Start Command
+                Build Command *
+              </label>
+              <input
+                type="text"
+                value={formData.build.commands.build}
+                onChange={(e) =>
+                  handleNestedChange("build.commands.build", e.target.value)
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="npm run build"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Start Command *
               </label>
               <div className="flex items-center space-x-2">
                 <FaPlay className="w-4 h-4 text-green-500" />
                 <input
                   type="text"
-                  value={formData.startCommand}
+                  value={formData.build.commands.start}
                   onChange={(e) =>
-                    handleInputChange("startCommand", e.target.value)
+                    handleNestedChange("build.commands.start", e.target.value)
                   }
                   className="flex-1 p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="npm start"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Test Command (Optional)
+              </label>
+              <input
+                type="text"
+                value={formData.build.commands.test}
+                onChange={(e) =>
+                  handleNestedChange("build.commands.test", e.target.value)
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="npm test"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Runtime Configuration */}
+        <div className="bg-neutral-800/30 rounded-lg p-3 sm:p-6">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+            <FaCogs className="w-5 h-5 text-yellow-500" />
+            <span>Runtime Configuration</span>
+          </h3>
+
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                CPU Allocation
+              </label>
+              <select
+                value={formData.runtime.cpu}
+                onChange={(e) =>
+                  handleNestedChange("runtime.cpu", e.target.value)
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="0.25">0.25 vCPU</option>
+                <option value="0.5">0.5 vCPU</option>
+                <option value="1">1 vCPU</option>
+                <option value="2">2 vCPU</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Memory Allocation
+              </label>
+              <select
+                value={formData.runtime.memory}
+                onChange={(e) =>
+                  handleNestedChange("runtime.memory", e.target.value)
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="256MB">256 MB</option>
+                <option value="512MB">512 MB</option>
+                <option value="1GB">1 GB</option>
+                <option value="2GB">2 GB</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Instances
+              </label>
+              <input
+                type="number"
+                value={formData.runtime.instances}
+                onChange={(e) =>
+                  handleNestedChange(
+                    "runtime.instances",
+                    parseInt(e.target.value),
+                  )
+                }
+                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="1"
+                max="5"
+              />
+            </div>
+          </div>
+
+          {/* Health Check Configuration */}
+          <div className="border-t border-neutral-700 pt-4">
+            <h4 className="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+              <FaHeartbeat className="w-4 h-4 text-red-500" />
+              <span>Health Check</span>
+            </h4>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Health Check Path
+                </label>
+                <input
+                  type="text"
+                  value={formData.runtime.healthCheck.path}
+                  onChange={(e) =>
+                    handleNestedChange(
+                      "runtime.healthCheck.path",
+                      e.target.value,
+                    )
+                  }
+                  className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="/health"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Interval (seconds)
+                </label>
+                <input
+                  type="number"
+                  value={formData.runtime.healthCheck.interval}
+                  onChange={(e) =>
+                    handleNestedChange(
+                      "runtime.healthCheck.interval",
+                      parseInt(e.target.value),
+                    )
+                  }
+                  className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min="5"
+                  max="300"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Timeout (seconds)
+                </label>
+                <input
+                  type="number"
+                  value={formData.runtime.healthCheck.timeout}
+                  onChange={(e) =>
+                    handleNestedChange(
+                      "runtime.healthCheck.timeout",
+                      parseInt(e.target.value),
+                    )
+                  }
+                  className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min="1"
+                  max="60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Retries
+                </label>
+                <input
+                  type="number"
+                  value={formData.runtime.healthCheck.retries}
+                  onChange={(e) =>
+                    handleNestedChange(
+                      "runtime.healthCheck.retries",
+                      parseInt(e.target.value),
+                    )
+                  }
+                  className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min="1"
+                  max="10"
                 />
               </div>
             </div>
@@ -366,22 +663,22 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
                     onChange={(e) =>
                       updateEnvironmentVariable(index, "key", e.target.value)
                     }
-                    className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     placeholder="KEY"
                   />
                 </div>
                 <div className="col-span-4">
                   <input
-                    type="text"
+                    type={env.isSecret ? "password" : "text"}
                     value={env.value}
                     onChange={(e) =>
                       updateEnvironmentVariable(index, "value", e.target.value)
                     }
-                    className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     placeholder="value"
                   />
                 </div>
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <input
                     type="text"
                     value={env.description}
@@ -389,12 +686,31 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
                       updateEnvironmentVariable(
                         index,
                         "description",
-                        e.target.value
+                        e.target.value,
                       )
                     }
-                    className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Description (optional)"
+                    className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Description"
                   />
+                </div>
+                <div className="col-span-1 flex items-center justify-center">
+                  <label className="flex items-center space-x-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={env.isSecret || false}
+                      onChange={(e) =>
+                        updateEnvironmentVariable(
+                          index,
+                          "isSecret",
+                          e.target.checked,
+                        )
+                      }
+                      className="rounded"
+                    />
+                    <span className="text-neutral-400 hidden sm:inline">
+                      Secret
+                    </span>
+                  </label>
                 </div>
                 <div className="col-span-1 flex items-center justify-center">
                   <button
@@ -409,78 +725,25 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
 
             {formData.environmentVariables.length === 0 && (
               <p className="text-neutral-500 text-sm text-center py-4">
-                No environment variables configured. Click &quot;Add Variable&quot; to add
-                one.
+                No environment variables configured. Click &quot;Add
+                Variable&quot; to add one.
               </p>
             )}
           </div>
         </div>
-
-        {/* Resource Configuration */}
-        <div className="bg-neutral-800/30 rounded-lg p-3 sm:p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-            <FaCogs className="w-5 h-5 text-yellow-500" />
-            <span>Resource Configuration</span>
-          </h3>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">
-                CPU Limit
-              </label>
-              <input
-                type="text"
-                value={formData.deploymentSettings.resources?.cpu}
-                onChange={(e) => handleResourceChange("cpu", e.target.value)}
-                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="100m"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Memory Limit
-              </label>
-              <input
-                type="text"
-                value={formData.deploymentSettings.resources?.memory}
-                onChange={(e) => handleResourceChange("memory", e.target.value)}
-                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="128Mi"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Replicas
-              </label>
-              <input
-                type="number"
-                value={formData.deploymentSettings?.replicas}
-                onChange={(e) =>
-                  handleDeploymentSettingChange(
-                    "replicas",
-                    parseInt(e.target.value)
-                  )
-                }
-                className="w-full p-2 sm:p-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                min="1"
-                max="10"
-              />
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Action Button */}
-      <div className="mt-6 sm:mt-8 text-center">
+      {/* Action Buttons */}
+      <div className="mt-6 sm:mt-8 flex items-center justify-center gap-4">
         <button
           onClick={handleContinue}
-          disabled={!formData.projectName || !formData.startCommand || loading}
+          disabled={
+            !formData.projectName || !formData.build.commands.start || loading
+          }
           className={`
             px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center space-x-2 text-sm sm:text-base
             ${
-              formData.projectName && formData.startCommand && !loading
+              formData.projectName && formData.build.commands.start && !loading
                 ? "bg-green-600 hover:bg-green-700 text-white"
                 : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
             }

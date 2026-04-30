@@ -57,10 +57,10 @@ export const fetchProjects = createAsyncThunk(
       return { projects: response.data.projects || [], pagination: {} };
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch projects"
+        error.response?.data?.message || "Failed to fetch projects",
       );
     }
-  }
+  },
 );
 
 export const fetchProjectById = createAsyncThunk(
@@ -78,10 +78,10 @@ export const fetchProjectById = createAsyncThunk(
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch project"
+        error.response?.data?.message || "Failed to fetch project",
       );
     }
-  }
+  },
 );
 
 export const createProject = createAsyncThunk(
@@ -92,10 +92,10 @@ export const createProject = createAsyncThunk(
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to create project"
+        error.response?.data?.message || "Failed to create project",
       );
     }
-  }
+  },
 );
 
 export const updateProject = createAsyncThunk(
@@ -106,10 +106,10 @@ export const updateProject = createAsyncThunk(
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to update project"
+        error.response?.data?.message || "Failed to update project",
       );
     }
-  }
+  },
 );
 
 export const deleteProject = createAsyncThunk(
@@ -120,25 +120,31 @@ export const deleteProject = createAsyncThunk(
       return projectId;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to delete project"
+        error.response?.data?.message || "Failed to delete project",
       );
     }
-  }
+  },
 );
 
 export const toggleArchiveProject = createAsyncThunk(
   "projects/toggleArchiveProject",
-  async (projectId, { rejectWithValue }) => {
+  async (projectId, { rejectWithValue, getState }) => {
     try {
-      const response = await api.patch(`/projects/${projectId}/archive`);
+      const currentProject = getState().projects.currentProject;
+      const newStatus =
+        currentProject?.status === "archived" ? "active" : "archived";
+
+      const response = await api.put(`/projects/${projectId}`, {
+        status: newStatus,
+      });
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message ||
-          "Failed to toggle project archive status"
+          "Failed to toggle project archive status",
       );
     }
-  }
+  },
 );
 
 export const analyzeRepository = createAsyncThunk(
@@ -149,17 +155,17 @@ export const analyzeRepository = createAsyncThunk(
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to analyze repository"
+        error.response?.data?.message || "Failed to analyze repository",
       );
     }
-  }
+  },
 );
 
 export const generateDockerfile = createAsyncThunk(
   "projects/generateDockerfile",
   async (
     { projectId, buildCommand, startCommand, port },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       const response = await api.post(`/projects/${projectId}/dockerfile`, {
@@ -170,10 +176,10 @@ export const generateDockerfile = createAsyncThunk(
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to generate Dockerfile"
+        error.response?.data?.message || "Failed to generate Dockerfile",
       );
     }
-  }
+  },
 );
 
 export const fetchProjectDeployments = createAsyncThunk(
@@ -193,10 +199,10 @@ export const fetchProjectDeployments = createAsyncThunk(
       return { deployments: response.data.deployments || [], pagination: {} };
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch project deployments"
+        error.response?.data?.message || "Failed to fetch project deployments",
       );
     }
-  }
+  },
 );
 
 const projectSlice = createSlice({
@@ -309,7 +315,7 @@ const projectSlice = createSlice({
 
         // Update in projects array
         const index = state.projects.findIndex(
-          (p) => p._id === action.payload._id
+          (p) => p._id === action.payload._id,
         );
         if (index !== -1) {
           state.projects[index] = action.payload;
@@ -360,7 +366,7 @@ const projectSlice = createSlice({
 
         // Update the project with archive status
         const index = state.projects.findIndex(
-          (p) => p._id === action.payload._id
+          (p) => p._id === action.payload._id,
         );
         if (index !== -1) {
           state.projects[index] = action.payload;

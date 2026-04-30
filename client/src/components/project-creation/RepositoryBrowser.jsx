@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaSearch,
@@ -295,7 +295,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
 
                       <div className="flex items-center space-x-1">
                         <FaClock className="w-3 h-3" />
-                        <span>Updated {formatDate(repo.updatedAt)}</span>
+                        <span>Updated {formatDate(repo.lastUpdated)}</span>
                       </div>
                     </div>
 

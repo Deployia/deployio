@@ -28,7 +28,6 @@ import SEO from "@components/SEO";
 import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
 import {
   fetchProjectById,
-  fetchProjectDeployments,
   updateProject,
   deleteProject,
   toggleArchiveProject,
@@ -44,7 +43,7 @@ const ProjectDetails = () => {
 
   // Redux state
   const { currentProject, loading, error, success } = useSelector(
-    (state) => state.projects
+    (state) => state.projects,
   );
   const { projectDeployments } = useSelector((state) => state.deployments);
   const { projectAnalytics } = useSelector((state) => state.analytics);
@@ -56,6 +55,8 @@ const ProjectDetails = () => {
     name: "",
     description: "",
   });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
 
   // Get current tab from URL
   useEffect(() => {
@@ -72,7 +73,6 @@ const ProjectDetails = () => {
       const fetchData = async () => {
         try {
           await dispatch(fetchProjectById(id)).unwrap();
-          await dispatch(fetchProjectDeployments(id)).unwrap();
         } catch {
           // Error handling is done by Redux slice
         }
@@ -97,7 +97,7 @@ const ProjectDetails = () => {
     if (success.update) {
       setTimeout(
         () => dispatch(clearProjectSuccess({ field: "update" })),
-        3000
+        3000,
       );
       setIsEditing(false);
     }
@@ -119,26 +119,31 @@ const ProjectDetails = () => {
   // Handle project update
   const handleUpdateProject = () => {
     if (editFormData.name.trim()) {
-      dispatch(updateProject({ id, data: editFormData }));
+      dispatch(updateProject({ projectId: id, updateData: editFormData }));
     }
   };
 
   // Handle project deletion
   const handleDeleteProject = () => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this project? This action cannot be undone."
-      )
-    ) {
-      dispatch(deleteProject(id)).then(() => {
-        navigate("/dashboard/projects");
-      });
-    }
+    setShowDeleteModal(true);
   };
 
   // Handle archive toggle
   const handleArchiveToggle = () => {
+    setShowArchiveModal(true);
+  };
+
+  // Confirm handlers
+  const handleConfirmDelete = () => {
+    dispatch(deleteProject(id)).then(() => {
+      setShowDeleteModal(false);
+      navigate("/dashboard/projects");
+    });
+  };
+
+  const handleConfirmArchive = () => {
     dispatch(toggleArchiveProject(id));
+    setShowArchiveModal(false);
   };
 
   // Helper functions
@@ -198,6 +203,7 @@ const ProjectDetails = () => {
   };
 
   const getFrameworkIcon = (framework) => {
+    if (!framework) return <FaCode className="w-4 h-4 text-gray-400" />;
     const fw = framework.toLowerCase();
     switch (true) {
       case fw.includes("react"):
@@ -332,7 +338,12 @@ const ProjectDetails = () => {
                   </h1>
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="p-2 text-gray-400 hover:text-white transition-colors self-start"
+                    disabled={currentProject.status === "archived"}
+                    className={`p-2 transition-colors self-start ${
+                      currentProject.status === "archived"
+                        ? "text-gray-600 cursor-not-allowed"
+                        : "text-gray-400 hover:text-white"
+                    }`}
                   >
                     <FaEdit className="w-4 h-4" />
                   </button>
@@ -345,7 +356,7 @@ const ProjectDetails = () => {
                 </span>
                 <span
                   className={getStatusBadge(
-                    currentProject.status || "inactive"
+                    currentProject.status || "inactive",
                   )}
                 >
                   {currentProject.hasActiveDeployments
@@ -358,7 +369,14 @@ const ProjectDetails = () => {
 
           {/* Action Buttons - Mobile Responsive */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm">
+            <button
+              disabled={currentProject.status === "archived"}
+              className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm transition-colors ${
+                currentProject.status === "archived"
+                  ? "bg-gray-500/20 border border-gray-500/30 text-gray-500 cursor-not-allowed"
+                  : "bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30"
+              }`}
+            >
               <FaRocket className="w-4 h-4" />
               <span className="sm:inline">Deploy</span>
             </button>
@@ -368,7 +386,7 @@ const ProjectDetails = () => {
             >
               <FaArchive className="w-4 h-4" />
               <span className="sm:inline">
-                {currentProject.isArchived ? "Unarchive" : "Archive"}
+                {currentProject.status === "archived" ? "Unarchive" : "Archive"}
               </span>
             </button>
             <button
@@ -392,7 +410,12 @@ const ProjectDetails = () => {
                   description: e.target.value,
                 })
               }
-              className="w-full p-3 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-gray-300 resize-none focus:border-blue-500/50 focus:outline-none"
+              disabled={currentProject.status === "archived"}
+              className={`w-full p-3 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-gray-300 resize-none focus:border-blue-500/50 focus:outline-none ${
+                currentProject.status === "archived"
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
               rows="3"
               placeholder="Project description..."
             />
@@ -445,7 +468,13 @@ const ProjectDetails = () => {
             analytics={projectAnalytics}
           />
         ) : (
-          <Outlet />
+          <Outlet
+            context={{
+              project: currentProject,
+              deployments: projectDeployments,
+              analytics: projectAnalytics,
+            }}
+          />
         )}
       </motion.div>
 
@@ -468,6 +497,75 @@ const ProjectDetails = () => {
         >
           {error.project}
         </motion.div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="bg-neutral-900/90 border border-neutral-800/50 rounded-lg p-6 z-10 w-[90%] sm:w-96">
+            <h3 className="text-lg font-semibold text-white mb-2">
+              Confirm Delete
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Are you sure you want to delete this project? This action cannot
+              be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 bg-neutral-800 text-gray-300 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-500 text-white rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Confirmation Modal */}
+      {showArchiveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="bg-neutral-900/90 border border-neutral-800/50 rounded-lg p-6 z-10 w-[90%] sm:w-96">
+            <h3 className="text-lg font-semibold text-white mb-2">
+              {currentProject?.status === "archived"
+                ? "Unarchive Project"
+                : "Archive Project"}
+            </h3>
+            <p className="text-gray-400 mb-4">
+              {currentProject?.status === "archived"
+                ? "Unarchive this project and restore editing capabilities?"
+                : "Archive this project? It will be hidden from active projects, all deployments will be stopped, and editing will be disabled."}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowArchiveModal(false)}
+                className="px-4 py-2 bg-neutral-800 text-gray-300 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmArchive}
+                className={`px-4 py-2 text-white rounded ${
+                  currentProject?.status === "archived"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-yellow-600 hover:bg-yellow-700"
+                }`}
+              >
+                {currentProject?.status === "archived"
+                  ? "Unarchive"
+                  : "Archive"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
@@ -522,7 +620,7 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
                 ? Math.round(
                     (project.statistics.successfulDeployments /
                       project.statistics.totalDeployments) *
-                      100
+                      100,
                   )
                 : 0}
               %
@@ -557,8 +655,8 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
                         deployment.status === "success"
                           ? "bg-green-400"
                           : deployment.status === "failed"
-                          ? "bg-red-400"
-                          : "bg-yellow-400"
+                            ? "bg-red-400"
+                            : "bg-yellow-400"
                       }`}
                     />
                     <div className="min-w-0 flex-1">
@@ -575,8 +673,8 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
                       deployment.status === "success"
                         ? "bg-green-500/20 text-green-400"
                         : deployment.status === "failed"
-                        ? "bg-red-500/20 text-red-400"
-                        : "bg-yellow-500/20 text-yellow-400"
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-yellow-500/20 text-yellow-400"
                     }`}
                   >
                     {deployment.status}
@@ -681,34 +779,129 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
           </div>
         </div>
 
-        {/* AI Insights - Mobile Responsive */}
+        {/* AI Analysis - Mobile Responsive */}
         <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-4 sm:p-6">
           <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
-            AI Insights
+            AI Analysis
           </h3>
           <div className="space-y-3">
+            {/* Confidence Score */}
             <div className="p-3 bg-purple-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <FaShieldAlt className="w-4 h-4 text-purple-400" />
                 <span className="text-purple-400 text-sm font-medium">
-                  Security Score
+                  Confidence
                 </span>
               </div>
               <p className="text-white text-sm">
-                8.5/10 - Good security practices detected
+                {Math.round((project.aiAnalysis?.confidence || 0) * 100)}% -{" "}
+                {project.aiAnalysis?.approach || "basic"}
               </p>
             </div>
-            <div className="p-3 bg-blue-500/10 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <FaChartLine className="w-4 h-4 text-blue-400" />
-                <span className="text-blue-400 text-sm font-medium">
-                  Performance
+
+            {/* Technology Stack */}
+            {project.aiAnalysis?.technologyStack && (
+              <div className="p-3 bg-blue-500/10 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <FaCode className="w-4 h-4 text-blue-400" />
+                  <span className="text-blue-400 text-sm font-medium">
+                    Technology Stack
+                  </span>
+                </div>
+                <div className="text-white text-xs space-y-1">
+                  {project.aiAnalysis.technologyStack.framework && (
+                    <p>
+                      Framework:{" "}
+                      <span className="text-gray-300">
+                        {project.aiAnalysis.technologyStack.framework}
+                      </span>
+                    </p>
+                  )}
+                  {project.aiAnalysis.technologyStack.runtime && (
+                    <p>
+                      Runtime:{" "}
+                      <span className="text-gray-300">
+                        {project.aiAnalysis.technologyStack.runtime}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {project.aiAnalysis?.insights?.recommendations?.length > 0 && (
+              <div className="p-3 bg-green-500/10 rounded-lg">
+                <span className="text-green-400 text-sm font-medium">
+                  Recommendations (
+                  {project.aiAnalysis.insights.recommendations.length})
                 </span>
               </div>
-              <p className="text-white text-sm">
-                Consider optimizing image sizes
-              </p>
-            </div>
+            )}
+
+            {/* Warnings */}
+            {project.aiAnalysis?.insights?.warnings?.length > 0 && (
+              <div className="p-3 bg-yellow-500/10 rounded-lg">
+                <span className="text-yellow-400 text-sm font-medium">
+                  Warnings ({project.aiAnalysis.insights.warnings.length})
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Config Files - Mobile Responsive */}
+        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
+            Configuration Files
+          </h3>
+          <div className="space-y-3">
+            {/* Dockerfile */}
+            {project.deployment?.dockerfile && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <FaCode className="w-4 h-4 text-orange-400" />
+                  <span className="text-orange-400 text-sm font-medium">
+                    Dockerfile
+                  </span>
+                </div>
+                <div className="bg-black/40 rounded p-2 max-h-40 overflow-y-auto">
+                  <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-words">
+                    {project.deployment.dockerfile}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Build Config */}
+            {project.deployment?.buildConfig && (
+              <div className="pt-3 border-t border-neutral-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <FaCode className="w-4 h-4 text-blue-400" />
+                  <span className="text-blue-400 text-sm font-medium">
+                    Build Config
+                  </span>
+                </div>
+                <div className="text-white text-xs space-y-1">
+                  {project.deployment.buildConfig.buildCommand && (
+                    <p
+                      className="text-gray-300 truncate"
+                      title={project.deployment.buildConfig.buildCommand}
+                    >
+                      Build: {project.deployment.buildConfig.buildCommand}
+                    </p>
+                  )}
+                  {project.deployment.buildConfig.startCommand && (
+                    <p
+                      className="text-gray-300 truncate"
+                      title={project.deployment.buildConfig.startCommand}
+                    >
+                      Start: {project.deployment.buildConfig.startCommand}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

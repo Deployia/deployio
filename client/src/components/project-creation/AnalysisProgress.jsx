@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,6 +22,7 @@ import {
 const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
   const dispatch = useDispatch();
   const [analysisLogs, setAnalysisLogs] = useState([]);
+  const didAutoAdvanceRef = useRef(false);
 
   // Start analysis when component mounts
   useEffect(() => {
@@ -51,16 +52,10 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
         provider: stepData.selectedProvider || "github",
       };
 
-      dispatch(
-        analyzeRepository({
-          sessionId: stepData.sessionId,
-          repositoryData,
-        }),
-      );
+      dispatch(analyzeRepository(repositoryData));
     }
   }, [
     dispatch,
-    stepData.sessionId,
     stepData.selectedRepository,
     stepData.selectedBranch,
     stepData.selectedProvider,
@@ -156,6 +151,25 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     stepData.analysisId,
     stepData.analysisProgress,
   ]);
+
+  useEffect(() => {
+    if (
+      stepData.analysisStatus === "completed" &&
+      stepData.analysisResults &&
+      !didAutoAdvanceRef.current
+    ) {
+      didAutoAdvanceRef.current = true;
+
+      const timeout = setTimeout(() => {
+        dispatch(completeStep(4));
+        onNext();
+      }, 800);
+
+      return () => clearTimeout(timeout);
+    }
+
+    return undefined;
+  }, [dispatch, onNext, stepData.analysisResults, stepData.analysisStatus]);
 
   const handleContinue = () => {
     if (stepData.analysisStatus === "completed") {

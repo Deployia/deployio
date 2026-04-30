@@ -1,12 +1,5 @@
-import {
-  createDeployment,
-  fetchProjectById,
-  fetchProjectDeployments,
-  restartDeployment,
-  stopDeployment,
-} from "@redux/index";
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   FaClock,
   FaCode,
@@ -22,14 +15,10 @@ import {
   FaTimes,
   FaUser,
 } from "react-icons/fa";
-import { useDispatch, useSelector } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const ProjectDeployments = () => {
-  const dispatch = useDispatch();
-  const { id } = useParams();
-
-  // Granular selectors — only re-render when the specific field changes
+  // Get deployments from Outlet context or Redux
   const projectDeployments = useSelector(
     (state) => state.deployments.projectDeployments,
   );
@@ -39,117 +28,21 @@ const ProjectDeployments = () => {
   const errorDeployments = useSelector(
     (state) => state.deployments.error.fetchProject,
   );
-  const currentProject = useSelector((state) => state.projects.currentProject);
 
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
   const [filter, setFilter] = useState("all");
 
-  // Initial data fetch
-  useEffect(() => {
-    if (id) {
-      dispatch(fetchProjectDeployments(id));
-      if (!currentProject || currentProject._id !== id) {
-        dispatch(fetchProjectById(id));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, dispatch]);
-
-  // Stable polling — use refs so the effect doesn't depend on projectDeployments
-  const pollRef = useRef(null);
-  const deploymentsRef = useRef(projectDeployments);
-  deploymentsRef.current = projectDeployments;
-
-  useEffect(() => {
-    const activeStates = ["pending", "queued", "building", "deploying"];
-
-    pollRef.current = setInterval(() => {
-      const deps = deploymentsRef.current;
-      const hasActive =
-        Array.isArray(deps) &&
-        deps.some((d) => activeStates.includes(d.status));
-
-      if (hasActive && id) {
-        dispatch(fetchProjectDeployments(id));
-      }
-    }, 5000);
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [id, dispatch]);
-
-  // Memoize filtered list
-  const filteredDeployments = useMemo(() => {
-    if (!Array.isArray(projectDeployments)) return [];
-    if (filter === "all") return projectDeployments;
-    return projectDeployments.filter((d) => d.status === filter);
-  }, [projectDeployments, filter]);
-
-  const handleCreateDeployment = useCallback(() => {
-    if (!currentProject) {
-      console.warn("Project not loaded yet, retrying fetch...");
-      dispatch(fetchProjectById(id));
-      return;
-    }
-    const deploymentData = {
-      environment: "production",
-      branch: currentProject.repository?.branch || "main",
-      commit: {
-        hash: "pipeline",
-        message: "Pipeline deployment",
-      },
-    };
-    dispatch(createDeployment({ projectId: id, deploymentData }));
-  }, [currentProject, id, dispatch]);
-
-  const handleStopDeployment = useCallback(
-    (deploymentId) => {
-      dispatch(stopDeployment(deploymentId));
-    },
-    [dispatch],
-  );
-
-  const handleRestartDeployment = useCallback(
-    (deploymentId) => {
-      dispatch(restartDeployment(deploymentId));
-    },
-    [dispatch],
-  );
+  const filteredDeployments = Array.isArray(projectDeployments)
+    ? filter === "all"
+      ? projectDeployments
+      : projectDeployments.filter((d) => d.status === filter)
+    : [];
 
   const handleViewLogs = useCallback((deployment) => {
     setSelectedDeployment(deployment);
     setShowLogs(true);
   }, []);
-
-  // Keep selectedDeployment in sync with polled data (don't include selectedDeployment in deps)
-  const selectedIdRef = useRef(null);
-  useEffect(() => {
-    if (!selectedIdRef.current || !Array.isArray(projectDeployments)) return;
-    const updated = projectDeployments.find(
-      (d) => (d.id || d._id) === selectedIdRef.current,
-    );
-    if (updated) {
-      setSelectedDeployment((prev) => {
-        if (
-          !prev ||
-          prev.status !== updated.status ||
-          prev.buildLogs?.length !== updated.buildLogs?.length
-        ) {
-          return updated;
-        }
-        return prev;
-      });
-    }
-  }, [projectDeployments]);
-
-  // Track the selected deployment's id in a ref
-  useEffect(() => {
-    selectedIdRef.current = selectedDeployment
-      ? selectedDeployment.id || selectedDeployment._id
-      : null;
-  }, [selectedDeployment]);
 
   const getStatusBadge = (status) => {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
@@ -200,33 +93,21 @@ const ProjectDeployments = () => {
             Deployments
           </h2>
           <p className="text-gray-400 mt-1 text-sm sm:text-base">
-            Manage your project deployments
+            View project deployment history
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm"
-          >
-            <option value="all">All Deployments</option>
-            <option value="success">Successful</option>
-            <option value="failed">Failed</option>
-            <option value="pending">Pending</option>
-            <option value="running">Running</option>
-            <option value="stopped">Stopped</option>
-          </select>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleCreateDeployment}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 text-sm"
-          >
-            <FaPlus className="w-4 h-4" />
-            <span className="hidden sm:inline">New Deployment</span>
-            <span className="sm:hidden">New</span>
-          </motion.button>
-        </div>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm w-full sm:w-48"
+        >
+          <option value="all">All Deployments</option>
+          <option value="success">Successful</option>
+          <option value="failed">Failed</option>
+          <option value="pending">Pending</option>
+          <option value="running">Running</option>
+          <option value="stopped">Stopped</option>
+        </select>
       </div>
 
       {/* Deployments List */}
@@ -300,30 +181,15 @@ const ProjectDeployments = () => {
                   </button>
 
                   {deployment.url && (
-                    <button className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm">
-                      <FaExternalLinkAlt className="w-3 h-3" />
-                      <span className="hidden sm:inline">Visit</span>
-                    </button>
-                  )}
-
-                  {deployment.status === "running" && (
-                    <button
-                      onClick={() => handleStopDeployment(deployment.id)}
-                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
-                    >
-                      <FaStop className="w-3 h-3" />
-                      <span className="hidden sm:inline">Stop</span>
-                    </button>
-                  )}
-
-                  {deployment.status === "stopped" && (
-                    <button
-                      onClick={() => handleRestartDeployment(deployment.id)}
+                    <a
+                      href={deployment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
                     >
-                      <FaPlay className="w-3 h-3" />
-                      <span className="hidden sm:inline">Restart</span>
-                    </button>
+                      <FaExternalLinkAlt className="w-3 h-3" />
+                      <span className="hidden sm:inline">Visit</span>
+                    </a>
                   )}
                 </div>
               </div>
@@ -360,7 +226,6 @@ const ProjectDeployments = () => {
             </p>
             {filter === "all" && (
               <button
-                onClick={handleCreateDeployment}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
               >
                 <FaPlus className="w-4 h-4 mr-2 inline" />

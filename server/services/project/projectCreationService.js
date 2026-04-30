@@ -5,8 +5,27 @@ const logger = require("@config/logger");
 const GitProviderFactory = require("../gitProviders/ProviderFactory");
 const axios = require("axios");
 const path = require("path");
+const mongoose = require("mongoose");
 
 class ProjectCreationService {
+  /**
+   * Build a safe session lookup filter for legacy and current session identifiers
+   * @private
+   */
+  _buildSessionLookupFilter(sessionId, userId) {
+    const filter = { user: userId };
+
+    if (sessionId) {
+      filter.$or = [{ sessionId }];
+
+      if (mongoose.Types.ObjectId.isValid(sessionId)) {
+        filter.$or.push({ _id: sessionId });
+      }
+    }
+
+    return filter;
+  }
+
   /**
    * Create a new project creation session
    * @param {string} userId - User ID
@@ -52,10 +71,9 @@ class ProjectCreationService {
    */
   async getSession(sessionId, userId) {
     try {
-      const session = await ProjectCreationSession.findOne({
-        _id: sessionId,
-        user: userId,
-      });
+      const session = await ProjectCreationSession.findOne(
+        this._buildSessionLookupFilter(sessionId, userId),
+      );
 
       if (!session) {
         throw new Error("Session not found");
@@ -85,10 +103,43 @@ class ProjectCreationService {
     try {
       const session = await this.getSession(sessionId, userId);
 
-      // Update step data
-      session.stepData[`step${step}`] = stepData;
-      session.currentStep = Math.max(session.currentStep, step);
-      session.lastActivity = new Date();
+      // Safely merge incoming step data into the top-level stepData object
+      // Avoid overwriting existing nested objects with undefined values
+      session.stepData = session.stepData || {};
+      const isObject = (v) => v && typeof v === "object" && !Array.isArray(v);
+
+      for (const [key, value] of Object.entries(stepData || {})) {
+        if (value === undefined) {
+          continue; // skip undefined fields coming from client
+        }
+
+        if (isObject(value) && isObject(session.stepData[key])) {
+          // shallow merge nested objects
+          session.stepData[key] = { ...session.stepData[key], ...value };
+        } else {
+          // replace primitive or array
+          session.stepData[key] = value;
+        }
+      }
+
+      // Keep progression monotonic
+      session.currentStep = Math.max(session.currentStep || 1, step);
+
+      // Mark step as completed if not already
+      session.completedSteps = session.completedSteps || [];
+      if (!session.completedSteps.includes(step)) {
+        session.completedSteps.push(step);
+      }
+
+      // Update metadata and navigation history
+      session.metadata = session.metadata || {};
+      session.metadata.lastActivityAt = new Date();
+      session.metadata.stepsNavigated = session.metadata.stepsNavigated || [];
+      session.metadata.stepsNavigated.push({
+        step,
+        timestamp: new Date(),
+        action: "completed",
+      });
 
       await session.save();
 
@@ -216,6 +267,11 @@ class ProjectCreationService {
           confidence: analysisResult.confidence,
           reason: analysisResult.reason,
           detectedConfig: analysisResult.detectedConfig,
+          // Complete AI-like analysis schema
+          technologyStack: analysisResult.technologyStack,
+          buildConfiguration: analysisResult.buildConfiguration,
+          deploymentConfiguration: analysisResult.deploymentConfiguration,
+          insights: analysisResult.insights,
         },
       };
 
@@ -242,6 +298,70 @@ class ProjectCreationService {
       logger.error("Error analyzing repository:", error);
       throw error;
     }
+  }
+
+  /**
+   * Analyze repository without mutating or requiring a server session.
+   * This is the client-first path used by the wizard.
+   * @param {object} repositoryData
+   * @returns {Promise<object>}
+   */
+  async analyzeRepositoryStandalone(repositoryData) {
+    const {
+      repositoryUrl,
+      branch = "main",
+      provider = "github",
+    } = repositoryData;
+
+    logger.info(
+      `Starting standalone rule-based analysis for ${repositoryUrl} (branch: ${branch})`,
+    );
+
+    const repoMatch = repositoryUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/i);
+    if (!repoMatch) {
+      throw new Error(
+        "Invalid repository URL. Currently only GitHub URLs are supported.",
+      );
+    }
+
+    const [, owner, repo] = repoMatch;
+    const fileContents = await this._fetchRepositoryFiles(owner, repo, branch);
+
+    const analysisResult = await ruleBasedAnalyzer.analyzeRepositoryContent({
+      packageJson: fileContents.packageJson,
+      requirementsTxt: fileContents.requirementsTxt,
+      dockerfileContent: fileContents.dockerfile,
+      envExample: fileContents.envExample,
+      dockerCompose: fileContents.dockerCompose,
+    });
+
+    const dockerfileResult = await this._getDockerfile(
+      owner,
+      repo,
+      branch,
+      analysisResult.stack,
+      fileContents.dockerfile,
+    );
+
+    return {
+      analysis: {
+        status: "completed",
+        progress: 100,
+        results: {
+          deployable: analysisResult.deployable,
+          stack: analysisResult.stack,
+          confidence: analysisResult.confidence,
+          reason: analysisResult.reason,
+          detectedConfig: analysisResult.detectedConfig,
+          technologyStack: analysisResult.technologyStack,
+          buildConfiguration: analysisResult.buildConfiguration,
+          deploymentConfiguration: analysisResult.deploymentConfiguration,
+          insights: analysisResult.insights,
+        },
+      },
+      dockerfile: dockerfileResult,
+      provider,
+    };
   }
 
   /**
@@ -369,14 +489,58 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`,
       const session = await this.getSession(sessionId, userId);
 
       // Validate session completion requirements
-      if (session.currentStep < 6) {
+      // At minimum, need to reach step 5 (project configuration) with analysis results
+      if (session.currentStep < 5) {
         throw new Error(
-          "Session is not ready for completion. All steps must be completed.",
+          "Session is not ready for completion. Please complete the project configuration.",
+        );
+      }
+
+      // Verify we have the essential data collected
+      // Accept either flattened stepData or nested stepN objects (legacy clients)
+      let mergedStepData = { ...(session.stepData || {}) };
+      for (let i = 1; i <= 6; i++) {
+        const key = `step${i}`;
+        if (session.stepData && session.stepData[key]) {
+          mergedStepData = { ...mergedStepData, ...session.stepData[key] };
+        }
+      }
+
+      // Debug: emit resolved/merged stepData to help trace why validation may fail
+      try {
+        logger.debug("Resolved mergedStepData for session completion:", {
+          sessionId,
+          mergedStepData,
+        });
+      } catch (e) {
+        // ignore logging errors
+      }
+
+      const selectedProvider =
+        mergedStepData.selectedProvider || mergedStepData.provider || null;
+      const repository =
+        mergedStepData.repository ||
+        mergedStepData.repo ||
+        mergedStepData.repositorySelection ||
+        null;
+      const analysisResults =
+        mergedStepData.analysis?.results ||
+        mergedStepData.stepAnalysis?.results ||
+        mergedStepData.analysisResults ||
+        null;
+
+      if (!selectedProvider || !repository || !analysisResults) {
+        throw new Error(
+          "Session is missing required data. Please complete all wizard steps.",
         );
       }
 
       // Extract project data from session
-      const projectData = this.extractProjectDataFromSession(session);
+      // Use mergedStepData for extraction to support both shapes
+      const projectData = this.extractProjectDataFromSession(
+        session,
+        mergedStepData,
+      );
 
       // Create the project
       const project = new Project({
@@ -410,6 +574,57 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`,
   }
 
   /**
+   * Complete project creation using a full client-provided payload
+   * @param {object} payload - Full assembled project payload from client
+   * @param {string} userId - User ID
+   * @returns {Promise<object>} Created project and metadata
+   */
+  async completeWithPayload(payload, userId) {
+    try {
+      // Basic server-side validation
+      if (!payload || typeof payload !== "object") {
+        throw new Error("Validation failed");
+      }
+
+      const repository = payload.repository || payload.repo || null;
+      const analysis =
+        payload.analysis ||
+        payload.analysisResults ||
+        payload.analysisResult ||
+        null;
+      const provider = payload.provider || repository?.provider || "github";
+
+      if (!repository || !repository.url || !analysis || !analysis.results) {
+        throw new Error("Validation failed");
+      }
+
+      // Reuse extractor by passing payload as resolved stepData
+      const projectData = this.extractProjectDataFromSession(null, payload);
+
+      const project = new Project({
+        ...projectData,
+        owner: userId,
+        status: "configured",
+        createdBy: userId,
+      });
+
+      await project.save();
+
+      // Optional: persist a lightweight audit record or map to existing session framework
+
+      logger.info("Project created via client payload", {
+        projectId: project._id,
+        owner: userId,
+      });
+
+      return { project };
+    } catch (error) {
+      logger.error("Error completing with payload:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete/abandon session
    * @param {string} sessionId - Session ID
    * @param {string} userId - User ID
@@ -418,7 +633,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`,
   async deleteSession(sessionId, userId) {
     try {
       const session = await ProjectCreationSession.findOneAndUpdate(
-        { _id: sessionId, user: userId },
+        this._buildSessionLookupFilter(sessionId, userId),
         {
           status: "abandoned",
           abandonedAt: new Date(),
@@ -458,69 +673,192 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`,
 
   /**
    * Extract project data from session steps
+   * Maps all form data from SmartProjectForm into Project model structure
    * @param {ProjectCreationSession} session - Session object
    * @returns {object} Project data
    */
   extractProjectDataFromSession(session) {
-    const { stepData } = session;
+    // Allow passing a resolved stepData as second arg for compatibility
+    const resolved = arguments[1] || session.stepData || {};
+    const stepData = resolved;
 
     // Step 1: Provider selection
-    const provider = stepData.selectedProvider || "github";
+    const provider = stepData.selectedProvider || stepData.provider || "github";
 
     // Step 2: Repository selection
-    const repository = stepData.repository || {};
+    const repository =
+      stepData.repository || stepData.repo || stepData.repository || {};
 
     // Step 3: Branch selection
-    const branch = stepData.branch?.name || "main";
+    const branch =
+      (stepData.branch && (stepData.branch.name || stepData.branch)) ||
+      stepData.selectedBranch ||
+      "main";
 
     // Step 4: Analysis results (rule-based)
-    const analysis = stepData.analysis || {};
+    const analysis = stepData.analysis || stepData.analysisResults || {};
 
-    // Step 5: Project configuration
-    const config = stepData.projectConfig || {};
+    // Step 5: Project configuration (formData from SmartProjectForm)
+    const config =
+      stepData.projectConfig ||
+      stepData.projectConfigData ||
+      stepData.config ||
+      {};
 
     // Step 6: Final review (if any)
     const review = stepData.review || {};
 
-    // Extract environment variables from project config
-    const deploymentEnvVars = {
-      development: config.environmentVariables?.development || [],
-      staging: config.environmentVariables?.staging || [],
-      production: config.environmentVariables?.production || [],
+    // Map build configuration from formData
+    const buildCommands = {
+      install:
+        config.build?.commands?.install ||
+        analysis.results?.detectedConfig?.installCommand ||
+        "npm install",
+      build:
+        config.build?.commands?.build ||
+        analysis.results?.detectedConfig?.buildCommand ||
+        "npm run build",
+      start:
+        config.build?.commands?.start ||
+        analysis.results?.detectedConfig?.startCommand ||
+        "npm start",
+      test: config.build?.commands?.test || "",
     };
 
+    // Map runtime configuration from formData
+    const runtimeConfig = {
+      platform: "linux/amd64",
+      memory:
+        config.runtime?.memory ||
+        (analysis.results?.stack === "fastapi" ? "512MB" : "512MB"),
+      cpu:
+        config.runtime?.cpu ||
+        (analysis.results?.stack === "fastapi" ? "0.5" : "0.25"),
+      instances: config.runtime?.instances || 1,
+      healthCheck: {
+        enabled: true,
+        path: config.runtime?.healthCheck?.path || "/health",
+        interval: config.runtime?.healthCheck?.interval || 30,
+        timeout: config.runtime?.healthCheck?.timeout || 10,
+        retries: config.runtime?.healthCheck?.retries || 3,
+      },
+    };
+
+    // Extract environment variables organized by environment
+    const envVariables = config.environmentVariables || [];
+    const deploymentEnvVars = {
+      development: envVariables.filter(
+        (env) => env.environment === "development",
+      ),
+      staging: envVariables.filter((env) => env.environment === "staging"),
+      production: envVariables.filter(
+        (env) => env.environment === "production",
+      ),
+      // If no environment specified, add to all for backward compatibility
+      ...(!envVariables.some((env) => env.environment)
+        ? {
+            development: envVariables,
+            staging: envVariables,
+            production: envVariables,
+          }
+        : {}),
+    };
+
+    // Ensure all envs exist
+    if (!deploymentEnvVars.development?.length) {
+      deploymentEnvVars.development = [];
+    }
+    if (!deploymentEnvVars.staging?.length) {
+      deploymentEnvVars.staging = [];
+    }
+    if (!deploymentEnvVars.production?.length) {
+      deploymentEnvVars.production = [];
+    }
+
+    // Normalize repository owner to string (owner.login when object)
+    const repoOwnerString =
+      typeof repository.owner === "string"
+        ? repository.owner
+        : repository.owner?.login || repository.owner?.name || null;
+
+    // Normalize analysis confidence to 0-1 if provided as percentage (>1)
+    if (
+      analysis.results &&
+      typeof analysis.results.confidence === "number" &&
+      analysis.results.confidence > 1
+    ) {
+      analysis.results.confidence = Math.min(
+        analysis.results.confidence / 100,
+        1,
+      );
+    }
+
+    // Generate a slug from project name or repository name for schema requirements
+    const rawName = config.projectName || repository.name || "project";
+    const slugify = (s) =>
+      String(s)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    const generatedSlug = slugify(rawName) || `project-${Date.now()}`;
+
     return {
-      name: config.name || repository.name,
-      description: config.description || repository.description || "",
+      // Core info
+      name: config.projectName || repository.name,
+      slug: generatedSlug,
+      description: config.projectDescription || repository.description || "",
+
+      // Repository
       repository: {
         provider,
         url: repository.url,
-        owner: repository.owner,
+        owner: repoOwnerString,
         name: repository.name,
         branch,
         private: repository.isPrivate || false,
       },
-      stack: {
-        detected: {
-          primary: analysis.results?.stack || "unknown",
-        },
+
+      // Complete analysis schema mapping
+      analysis: {
+        technologyStack: analysis.results?.technologyStack || {},
+        detectedConfig: analysis.results?.detectedConfig || {},
+        buildConfiguration: analysis.results?.buildConfiguration || {},
+        deploymentConfiguration:
+          analysis.results?.deploymentConfiguration || {},
+        insights: analysis.results?.insights || [],
+        confidence: analysis.results?.confidence || 0,
       },
+
+      // Build configuration - comprehensive
+      build: {
+        commands: buildCommands,
+        outputDir:
+          config.build?.outputDir ||
+          (analysis.results?.stack === "mern"
+            ? "dist"
+            : analysis.results?.stack === "nextjs"
+              ? ".next"
+              : "dist"),
+        nodeVersion: config.build?.nodeVersion || "18",
+        buildTimeout: config.build?.buildTimeout || 600,
+      },
+
+      // Deployment configuration - comprehensive
       deployment: {
         dockerfile: stepData.dockerfile || "",
+        port: config.port || analysis.results?.detectedConfig?.port || 3000,
         buildConfig: {
-          buildCommand:
-            config.buildCommand ||
-            analysis.results?.detectedConfig?.buildCommand,
-          startCommand:
-            config.startCommand ||
-            analysis.results?.detectedConfig?.startCommand,
-          installCommand:
-            config.installCommand ||
-            analysis.results?.detectedConfig?.installCommand,
+          buildCommand: buildCommands.build,
+          startCommand: buildCommands.start,
+          installCommand: buildCommands.install,
           port: config.port || analysis.results?.detectedConfig?.port || 3000,
         },
         environment: deploymentEnvVars,
+        runtime: runtimeConfig,
       },
+
       status: "configured",
     };
   }

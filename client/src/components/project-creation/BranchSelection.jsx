@@ -24,9 +24,13 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
   const [selectedBranch, setLocalSelectedBranch] = useState(
     stepData.selectedBranch,
   );
-  const [analysisSettings, setLocalAnalysisSettings] = useState(
-    stepData.analysisSettings,
-  );
+  const [analysisSettings, setLocalAnalysisSettings] = useState({
+    analysisTypes: ["stack", "dependencies", "quality"],
+    forceLlm: true,
+    includeRecommendations: true,
+    trackProgress: true,
+    ...stepData.analysisSettings,
+  });
 
   // Fetch branches when component mounts
   useEffect(() => {
@@ -178,7 +182,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                         {branch.lastCommit && (
                           <div className="mt-2 space-y-1">
                             <p className="text-sm text-neutral-300 truncate">
-                              {branch.lastCommit.message}
+                              {branch.lastCommit.sha}
                             </p>
                             <div className="flex items-center space-x-4 text-xs text-neutral-400">
                               <div className="flex items-center space-x-1">
@@ -229,9 +233,8 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
               <div className="space-y-3">
                 {analysisTypes.map((type) => {
                   const Icon = type.icon;
-                  const isEnabled = analysisSettings.analysisTypes.includes(
-                    type.id,
-                  );
+                  const enabledTypes = analysisSettings.analysisTypes || [];
+                  const isEnabled = enabledTypes.includes(type.id);
 
                   return (
                     <div
@@ -246,10 +249,8 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                       `}
                       onClick={() => {
                         const newTypes = isEnabled
-                          ? analysisSettings.analysisTypes.filter(
-                              (t) => t !== type.id,
-                            )
-                          : [...analysisSettings.analysisTypes, type.id];
+                          ? enabledTypes.filter((t) => t !== type.id)
+                          : [...enabledTypes, type.id];
                         handleAnalysisSettingChange("analysisTypes", newTypes);
                       }}
                     >

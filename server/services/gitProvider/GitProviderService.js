@@ -41,14 +41,14 @@ class GitProviderService {
         process.env.GITHUB_TOKEN || process.env.GITHUB_PLAYGROUND_TOKEN;
       if (envToken && envToken !== "your_github_token_here") {
         console.log(
-          `Using environment GitHub token as fallback for user ${user._id}`
+          `Using environment GitHub token as fallback for user ${user._id}`,
         );
         return envToken;
       }
     }
 
     throw new Error(
-      `No ${provider} provider connected and no environment token available`
+      `No ${provider} provider connected and no environment token available`,
     );
   }
 
@@ -58,7 +58,7 @@ class GitProviderService {
   static _hasValidGitProviderTokenOrFallback(
     user,
     provider,
-    isPlaygroundRequest = false
+    isPlaygroundRequest = false,
   ) {
     // Check if user has their own valid token
     if (this._hasValidGitProviderToken(user, provider)) {
@@ -224,7 +224,7 @@ class GitProviderService {
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -237,7 +237,7 @@ class GitProviderService {
       const token = this._getGitProviderToken(user, provider);
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
       // Test connection by fetching user info
@@ -272,7 +272,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -300,22 +300,22 @@ class GitProviderService {
         !this._hasValidGitProviderTokenOrFallback(
           user,
           provider,
-          isPlaygroundRequest
+          isPlaygroundRequest,
         )
       ) {
         throw new Error(
-          "No valid token for provider and no playground fallback available"
+          "No valid token for provider and no playground fallback available",
         );
       }
 
       const token = this._getGitProviderToken(
         user,
         provider,
-        isPlaygroundRequest
+        isPlaygroundRequest,
       );
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
       const repositories = await providerInstance.getRepositories(options);
@@ -339,7 +339,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -349,22 +349,22 @@ class GitProviderService {
         !this._hasValidGitProviderTokenOrFallback(
           user,
           provider,
-          isPlaygroundRequest
+          isPlaygroundRequest,
         )
       ) {
         throw new Error(
-          "No valid token for provider and no playground fallback available"
+          "No valid token for provider and no playground fallback available",
         );
       }
 
       const token = this._getGitProviderToken(
         user,
         provider,
-        isPlaygroundRequest
+        isPlaygroundRequest,
       );
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
       // Split full name into owner and repo
@@ -374,7 +374,7 @@ class GitProviderService {
       }
       const repository = await providerInstance.getRepository(
         ownerName,
-        repoName
+        repoName,
       );
 
       // Only update last used timestamp if user has their own token
@@ -396,7 +396,7 @@ class GitProviderService {
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -409,10 +409,16 @@ class GitProviderService {
       const token = this._getGitProviderToken(user, provider);
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
-      const branches = await providerInstance.getBranches(repoFullName);
+      // Split repoFullName into owner and repo
+      const [owner, repo] = repoFullName.split("/");
+      if (!owner || !repo) {
+        throw new Error("Invalid repository format. Expected 'owner/repo'");
+      }
+
+      const branches = await providerInstance.getBranches(owner, repo);
 
       // Update last used timestamp
       this._updateProviderLastUsed(user, provider);
@@ -431,11 +437,11 @@ class GitProviderService {
     userId,
     provider,
     repoFullName,
-    branch = "main"
+    branch = "main",
   ) {
     const redisClient = getRedisClient();
     const cacheKey = `repo_data:${provider}:${Buffer.from(
-      repoFullName
+      repoFullName,
     ).toString("base64")}:${branch}`;
     // Check Redis cache first
     const cached = await redisClient.get(cacheKey);
@@ -443,7 +449,7 @@ class GitProviderService {
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) throw new Error("User not found");
       if (!this._hasValidGitProviderToken(user, provider))
@@ -451,7 +457,7 @@ class GitProviderService {
       const token = this._getGitProviderToken(user, provider);
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
       const [owner, repo] = repoFullName.split("/");
       const repository = await providerInstance.getRepository(owner, repo);
@@ -459,7 +465,7 @@ class GitProviderService {
         providerInstance,
         owner,
         repo,
-        branch
+        branch,
       );
       const repositoryData = {
         repository: {
@@ -512,7 +518,7 @@ class GitProviderService {
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -525,7 +531,7 @@ class GitProviderService {
 
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        refreshToken
+        refreshToken,
       );
       const newTokens = await providerInstance.refreshToken();
 
@@ -592,7 +598,7 @@ class GitProviderService {
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -605,7 +611,7 @@ class GitProviderService {
       const token = this._getGitProviderToken(user, provider);
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
       const userInfo = await providerInstance.getCurrentUser();
@@ -649,7 +655,7 @@ class GitProviderService {
     userId,
     provider,
     repositoryUrl,
-    branch = "main"
+    branch = "main",
   ) {
     try {
       // Parse repository URL to get owner and repo
@@ -658,7 +664,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -671,7 +677,7 @@ class GitProviderService {
       const token = this._getGitProviderToken(user, provider);
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
       // Get basic repository info
@@ -682,7 +688,7 @@ class GitProviderService {
         providerInstance,
         owner,
         repo,
-        branch
+        branch,
       );
 
       // Update last used timestamp
@@ -779,7 +785,7 @@ class GitProviderService {
     providerInstance,
     owner,
     repo,
-    branch
+    branch,
   ) {
     try {
       const repositoryUrl = `https://github.com/${owner}/${repo}`;
@@ -789,7 +795,7 @@ class GitProviderService {
       const repositoryData = await fetcher.fetchRepositoryData(
         repositoryUrl,
         branch,
-        false // Not a public-only fetch
+        false, // Not a public-only fetch
       );
 
       return {
@@ -804,7 +810,7 @@ class GitProviderService {
         const treeData = await providerInstance.getRepositoryTree(
           owner,
           repo,
-          branch
+          branch,
         );
         const fileTree = treeData.files || [];
 
@@ -819,7 +825,7 @@ class GitProviderService {
       } catch (fallbackError) {
         console.error(
           "Fallback repository data fetch also failed:",
-          fallbackError
+          fallbackError,
         );
         return {
           key_files: {},
@@ -839,14 +845,14 @@ class GitProviderService {
     repo,
     branch = "main",
     recursive = true,
-    options = {}
+    options = {},
   ) {
     try {
       const isPlaygroundRequest = options.isPlayground || false;
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -856,22 +862,22 @@ class GitProviderService {
         !this._hasValidGitProviderTokenOrFallback(
           user,
           provider,
-          isPlaygroundRequest
+          isPlaygroundRequest,
         )
       ) {
         throw new Error(
-          `No valid ${provider} token found and no playground fallback available`
+          `No valid ${provider} token found and no playground fallback available`,
         );
       }
 
       const token = this._getGitProviderToken(
         user,
         provider,
-        isPlaygroundRequest
+        isPlaygroundRequest,
       );
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
       // Only update last used timestamp if user has their own token
@@ -883,7 +889,7 @@ class GitProviderService {
       const tree = await providerInstance.getRepositoryTree(
         owner,
         repo,
-        branch
+        branch,
       );
 
       return {
@@ -906,14 +912,14 @@ class GitProviderService {
     repo,
     filePath,
     branch = "main",
-    options = {}
+    options = {},
   ) {
     try {
       const isPlaygroundRequest = options.isPlayground || false;
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`
+        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
       );
       if (!user) {
         throw new Error("User not found");
@@ -923,22 +929,22 @@ class GitProviderService {
         !this._hasValidGitProviderTokenOrFallback(
           user,
           provider,
-          isPlaygroundRequest
+          isPlaygroundRequest,
         )
       ) {
         throw new Error(
-          `No valid ${provider} token found and no playground fallback available`
+          `No valid ${provider} token found and no playground fallback available`,
         );
       }
 
       const token = this._getGitProviderToken(
         user,
         provider,
-        isPlaygroundRequest
+        isPlaygroundRequest,
       );
       const providerInstance = GitProviderFactory.createProvider(
         provider,
-        token
+        token,
       );
 
       // Only update last used timestamp if user has their own token
@@ -951,7 +957,7 @@ class GitProviderService {
         owner,
         repo,
         filePath,
-        branch
+        branch,
       );
 
       return content;

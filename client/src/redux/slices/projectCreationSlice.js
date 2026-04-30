@@ -1,98 +1,192 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '@utils/api';
-import projectCreationService from '@services/projectCreationService';
-
-// Async thunks for API calls using the proper service
-export const createSession = createAsyncThunk(
-  'projectCreation/createSession',
-  async (sessionData = {}, { rejectWithValue }) => {
-    try {
-      const response = await projectCreationService.createSession(sessionData);
-      return response;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to create session');
-    }
-  }
-);
-
-export const updateStepData = createAsyncThunk(
-  'projectCreation/updateStepData',
-  async ({ sessionId, step, stepData }, { rejectWithValue }) => {
-    try {
-      const response = await projectCreationService.updateStep(sessionId, step, stepData);
-      return response;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to update step data');
-    }
-  }
-);
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "@utils/api";
+import projectCreationService from "@services/projectCreationService";
 
 export const analyzeRepository = createAsyncThunk(
-  'projectCreation/analyzeRepository',
-  async ({ sessionId, repositoryData }, { rejectWithValue }) => {
+  "projectCreation/analyzeRepository",
+  async (payload, { rejectWithValue }) => {
     try {
-      const response = await projectCreationService.analyzeRepository(sessionId, repositoryData);
+      const repositoryData = payload?.repositoryData || payload;
+      const response =
+        await projectCreationService.analyzeRepository(repositoryData);
       return response;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to analyze repository');
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to analyze repository",
+      );
     }
-  }
+  },
 );
 
-export const createProjectFromSession = createAsyncThunk(
-  'projectCreation/createProject',
-  async (sessionId, { rejectWithValue }) => {
+export const createProjectFromState = createAsyncThunk(
+  "projectCreation/createProject",
+  async (_arg, { getState, rejectWithValue }) => {
     try {
-      const response = await projectCreationService.completeSession(sessionId);
-      return response;
+      // Build complete payload from current Redux state
+      const state = getState().projectCreation;
+
+      // Ensure repository object includes a URL the backend expects
+      const rawRepo =
+        state.stepData.selectedRepository || state.stepData.repository || null;
+
+      const deriveRepoUrl = (repo) => {
+        if (!repo) return null;
+
+        // Prefer explicit canonical fields (handle both snake_case and camelCase)
+        const candidates = [
+          repo.htmlUrl,
+          repo.html_url,
+          repo.cloneUrl,
+          repo.clone_url,
+          repo.clone,
+          repo.sshUrl,
+          repo.ssh_url,
+          repo.web_url,
+          repo.url,
+        ];
+
+        for (const c of candidates) {
+          if (c && typeof c === "string" && !c.includes("[object Object]")) {
+            return c;
+          }
+        }
+
+        // Owner can be an object ({ login }) or a string
+        const ownerLogin =
+          typeof repo.owner === "string"
+            ? repo.owner
+            : repo.owner?.login ||
+              repo.owner?.name ||
+              repo.owner?.loginName ||
+              null;
+
+        // Provider-specific fallbacks
+        if (
+          state.stepData.selectedProvider === "github" &&
+          ownerLogin &&
+          repo.name
+        ) {
+          return `https://github.com/${ownerLogin}/${repo.name}`;
+        }
+        if (
+          state.stepData.selectedProvider === "gitlab" &&
+          ownerLogin &&
+          repo.name
+        ) {
+          return `https://gitlab.com/${ownerLogin}/${repo.name}`;
+        }
+        if (
+          state.stepData.selectedProvider === "azure-devops" &&
+          (repo.owner || repo.organization) &&
+          repo.project &&
+          repo.name
+        ) {
+          const org =
+            typeof repo.owner === "string"
+              ? repo.owner
+              : repo.owner?.login || repo.organization;
+          return `https://dev.azure.com/${org}/${repo.project}/_git/${repo.name}`;
+        }
+
+        return null;
+      };
+
+      const repository = rawRepo
+        ? { ...rawRepo, url: deriveRepoUrl(rawRepo) }
+        : null;
+
+      const payload = {
+        provider: state.stepData.selectedProvider || null,
+        repository,
+        branch: state.stepData.selectedBranch || null,
+        analysis: {
+          results:
+            state.stepData.analysisResults || state.stepData.analysis || null,
+          status: state.stepData.analysisStatus || null,
+          progress: state.stepData.analysisProgress || 0,
+        },
+        projectConfig: {
+          projectName: state.stepData.projectName,
+          projectDescription: state.stepData.projectDescription,
+          build: state.stepData.build || {},
+          runtime: state.stepData.runtime || {},
+          environmentVariables: state.stepData.environmentVariables || [],
+        },
+        review: state.stepData.finalConfiguration || {},
+        dockerfile: state.stepData.dockerfile || null,
+      };
+
+      const response =
+        await projectCreationService.completeWithPayload(payload);
+      const project = response?.project || response?.data?.project;
+
+      return {
+        projectId: project?._id || project?.id || response?.projectId,
+        project,
+        session: null,
+      };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to create project');
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to create project",
+      );
     }
-  }
+  },
 );
 
 export const fetchGitProviders = createAsyncThunk(
-  'projectCreation/fetchGitProviders',
+  "projectCreation/fetchGitProviders",
   async (_, { rejectWithValue }) => {
     try {
       const response = await projectCreationService.getGitProviders();
       return response;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch git providers');
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch git providers",
+      );
     }
-  }
+  },
 );
 
 export const fetchRepositories = createAsyncThunk(
-  'projectCreation/fetchRepositories',
+  "projectCreation/fetchRepositories",
   async ({ provider, options = {} }, { rejectWithValue }) => {
     try {
-      const response = await projectCreationService.getRepositories(provider, options);
+      const response = await projectCreationService.getRepositories(
+        provider,
+        options,
+      );
       return response;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch repositories');
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch repositories",
+      );
     }
-  }
+  },
 );
 
 export const fetchBranches = createAsyncThunk(
-  'projectCreation/fetchBranches',
+  "projectCreation/fetchBranches",
   async ({ provider, owner, repo }, { rejectWithValue }) => {
     try {
-      const response = await projectCreationService.getBranches(provider, owner, repo);
+      const response = await projectCreationService.getBranches(
+        provider,
+        owner,
+        repo,
+      );
       return response;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch branches');
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch branches",
+      );
     }
-  }
+  },
 );
 
 const initialState = {
-  // Session state
-  sessionId: null,
   currentStep: 1,
   completedSteps: [],
   isCompleted: false,
+  creationResult: null,
 
   // Step data
   stepData: {
@@ -104,9 +198,9 @@ const initialState = {
     repositories: [],
     selectedRepository: null,
     repositoryFilters: {
-      search: '',
-      sort: 'updated',
-      type: 'all',
+      search: "",
+      sort: "updated",
+      type: "all",
     },
     pagination: {
       page: 1,
@@ -119,7 +213,7 @@ const initialState = {
     branches: [],
     selectedBranch: null,
     analysisSettings: {
-      analysisTypes: ['stack', 'dependencies', 'quality'],
+      analysisTypes: ["stack", "dependencies", "quality"],
       forceLlm: true,
       includeRecommendations: true,
       trackProgress: true,
@@ -127,18 +221,18 @@ const initialState = {
 
     // Step 4: AI Analysis
     analysisId: null,
-    analysisStatus: 'pending', // pending, running, completed, failed
+    analysisStatus: "pending", // pending, running, completed, failed
     analysisProgress: 0,
     analysisResults: null,
     aiConfidence: null,
 
     // Step 5: Project Configuration
-    projectName: '',
-    projectDescription: '',
+    projectName: "",
+    projectDescription: "",
     deploymentSettings: {},
     environmentVariables: [],
     buildCommands: [],
-    startCommand: '',
+    startCommand: "",
 
     // Step 6: Review
     finalConfiguration: null,
@@ -150,7 +244,7 @@ const initialState = {
   success: null,
 
   // Provider data
-  availableProviders: ['github', 'gitlab', 'azure-devops'],
+  availableProviders: ["github", "gitlab", "azure-devops"],
   connectedProviders: {},
 
   // Analysis polling
@@ -158,7 +252,7 @@ const initialState = {
 };
 
 const projectCreationSlice = createSlice({
-  name: 'projectCreation',
+  name: "projectCreation",
   initialState,
   reducers: {
     // Step navigation
@@ -186,24 +280,54 @@ const projectCreationSlice = createSlice({
     // Provider selection
     setSelectedProvider: (state, action) => {
       state.stepData.selectedProvider = action.payload;
+      state.stepData.selectedRepository = null;
+      state.stepData.repositories = [];
+      state.stepData.pagination = initialState.stepData.pagination;
+      state.stepData.branches = [];
+      state.stepData.selectedBranch = null;
+      state.stepData.analysisId = null;
+      state.stepData.analysisStatus = "pending";
+      state.stepData.analysisProgress = 0;
+      state.stepData.analysisResults = null;
+      state.stepData.aiConfidence = null;
+      state.stepData.dockerfile = null;
     },
 
     // Repository selection
     setSelectedRepository: (state, action) => {
       state.stepData.selectedRepository = action.payload;
+      state.stepData.branches = [];
+      state.stepData.selectedBranch = null;
+      state.stepData.analysisId = null;
+      state.stepData.analysisStatus = "pending";
+      state.stepData.analysisProgress = 0;
+      state.stepData.analysisResults = null;
+      state.stepData.aiConfidence = null;
+      state.stepData.dockerfile = null;
     },
 
     setRepositoryFilters: (state, action) => {
-      state.stepData.repositoryFilters = { ...state.stepData.repositoryFilters, ...action.payload };
+      state.stepData.repositoryFilters = {
+        ...state.stepData.repositoryFilters,
+        ...action.payload,
+      };
     },
 
     // Branch selection
     setSelectedBranch: (state, action) => {
       state.stepData.selectedBranch = action.payload;
+      state.stepData.analysisId = null;
+      state.stepData.analysisStatus = "pending";
+      state.stepData.analysisProgress = 0;
+      state.stepData.analysisResults = null;
+      state.stepData.aiConfidence = null;
     },
 
     setAnalysisSettings: (state, action) => {
-      state.stepData.analysisSettings = { ...state.stepData.analysisSettings, ...action.payload };
+      state.stepData.analysisSettings = {
+        ...state.stepData.analysisSettings,
+        ...action.payload,
+      };
     },
 
     // Analysis progress
@@ -252,77 +376,70 @@ const projectCreationSlice = createSlice({
 
   extraReducers: (builder) => {
     builder
-      // Create session
-      .addCase(createSession.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(createSession.fulfilled, (state, action) => {
-        state.loading = false;
-        state.sessionId = action.payload.sessionId;
-        state.currentStep = action.payload.currentStep || 1;
-        state.completedSteps = action.payload.completedSteps || [];
-        
-        // Restore step data if session exists
-        if (action.payload.stepData) {
-          state.stepData = { ...state.stepData, ...action.payload.stepData };
-        }
-      })
-      .addCase(createSession.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
-      // Update step data
-      .addCase(updateStepData.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updateStepData.fulfilled, (state, action) => {
-        state.loading = false;
-        state.stepData = { ...state.stepData, ...action.payload.stepData };
-        
-        // Update completed steps
-        if (action.payload.completedSteps) {
-          state.completedSteps = action.payload.completedSteps;
-        }
-      })
-      .addCase(updateStepData.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
       // Analyze repository
       .addCase(analyzeRepository.pending, (state) => {
         state.loading = true;
         state.error = null;
-        state.stepData.analysisStatus = 'running';
+        state.stepData.analysisStatus = "running";
         state.stepData.analysisProgress = 0;
       })
       .addCase(analyzeRepository.fulfilled, (state, action) => {
         state.loading = false;
-        state.stepData.analysisId = action.payload.analysisId;
-        state.stepData.analysisStatus = action.payload.status;
-        state.stepData.analysisResults = action.payload.results;
-        state.stepData.aiConfidence = action.payload.confidence;
+        const analysisData =
+          action.payload?.analysis ||
+          action.payload?.results ||
+          action.payload ||
+          {};
+        const sessionData = action.payload?.session?.stepData || {};
+
+        state.stepData.analysisId =
+          analysisData.analysisId ||
+          action.payload?.analysisId ||
+          sessionData.analysis?.analysisId ||
+          null;
+        state.stepData.analysisStatus =
+          analysisData.status || action.payload?.status || "completed";
+        state.stepData.analysisProgress =
+          analysisData.progress ??
+          action.payload?.progress ??
+          (state.stepData.analysisStatus === "completed"
+            ? 100
+            : state.stepData.analysisProgress);
+        state.stepData.analysisResults =
+          analysisData.results ||
+          analysisData ||
+          sessionData.analysis?.results ||
+          null;
+        state.stepData.aiConfidence =
+          analysisData.confidence ??
+          analysisData.results?.confidence ??
+          action.payload?.confidence ??
+          null;
+
+        if (action.payload?.dockerfile?.content) {
+          state.stepData.dockerfile = action.payload.dockerfile.content;
+        } else if (sessionData.dockerfile) {
+          state.stepData.dockerfile = sessionData.dockerfile;
+        }
       })
       .addCase(analyzeRepository.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        state.stepData.analysisStatus = 'failed';
+        state.stepData.analysisStatus = "failed";
       })
 
       // Create project
-      .addCase(createProjectFromSession.pending, (state) => {
+      .addCase(createProjectFromState.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(createProjectFromSession.fulfilled, (state, action) => {
+      .addCase(createProjectFromState.fulfilled, (state, action) => {
         state.loading = false;
-        state.success = 'Project created successfully!';
+        state.success = "Project created successfully!";
         state.isCompleted = true;
+        state.creationResult = action.payload;
       })
-      .addCase(createProjectFromSession.rejected, (state, action) => {
+      .addCase(createProjectFromState.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
