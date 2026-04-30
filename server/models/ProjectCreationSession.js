@@ -97,7 +97,13 @@ const projectCreationSessionSchema = new mongoose.Schema(
         },
       },
 
-      // Step 4: AI Analysis Results
+      // Generated Dockerfile during wizard
+      dockerfile: {
+        type: String,
+        description: "Generated Dockerfile content (or fetched from repo)",
+      },
+
+      // Step 4: Analysis Results (Rule-based or AI)
       analysis: {
         analysisId: String,
         status: {
@@ -289,7 +295,7 @@ const projectCreationSessionSchema = new mongoose.Schema(
         return ret;
       },
     },
-  }
+  },
 );
 
 // Indexes for performance
@@ -307,7 +313,7 @@ projectCreationSessionSchema.statics.generateSessionId = function () {
 // Create new session
 projectCreationSessionSchema.statics.createSession = async function (
   userId,
-  metadata = {}
+  metadata = {},
 ) {
   const sessionId = this.generateSessionId();
 
@@ -325,7 +331,7 @@ projectCreationSessionSchema.statics.createSession = async function (
 // Update session step
 projectCreationSessionSchema.methods.updateStep = function (
   stepNumber,
-  stepData = {}
+  stepData = {},
 ) {
   this.currentStep = stepNumber;
 
@@ -356,7 +362,7 @@ projectCreationSessionSchema.methods.updateStep = function (
 // Update analysis progress
 projectCreationSessionSchema.methods.updateAnalysisProgress = function (
   progress,
-  status = "in-progress"
+  status = "in-progress",
 ) {
   this.stepData.analysis = {
     ...this.stepData.analysis,
@@ -446,5 +452,5 @@ projectCreationSessionSchema.pre("save", function (next) {
 
 module.exports = mongoose.model(
   "ProjectCreationSession",
-  projectCreationSessionSchema
+  projectCreationSessionSchema,
 );

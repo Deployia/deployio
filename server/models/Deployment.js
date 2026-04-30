@@ -248,6 +248,33 @@ const deploymentSchema = new mongoose.Schema(
       },
     },
 
+    // Environment Variables (per-deployment override of project defaults)
+    environmentVariables: [
+      {
+        key: {
+          type: String,
+          required: true,
+        },
+        value: String,
+        isSecret: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
+
+    // Log and Metrics Storage Paths (for Phase 1: file system, later MongoDB)
+    logsPath: {
+      type: String,
+      description:
+        "File system path to deployment logs (/app/logs/deployments/{deploymentId}/)",
+    },
+    metricsPath: {
+      type: String,
+      description:
+        "File system path to metrics JSON (/app/logs/metrics/{deploymentId}/metrics.json)",
+    },
+
     // Lifecycle Timestamps
     queuedAt: Date,
     buildStartedAt: Date,
@@ -266,7 +293,7 @@ const deploymentSchema = new mongoose.Schema(
         return ret;
       },
     },
-  }
+  },
 );
 
 // Indexes for performance
@@ -285,7 +312,7 @@ deploymentSchema.statics.generateDeploymentId = function () {
 // Generate unique subdomain
 deploymentSchema.statics.generateSubdomain = async function (
   projectName,
-  environment = "dev"
+  environment = "dev",
 ) {
   const baseSubdomain = `${projectName}-${environment}`
     .toLowerCase()
@@ -306,7 +333,7 @@ deploymentSchema.statics.generateSubdomain = async function (
 // Update deployment status
 deploymentSchema.methods.updateStatus = function (
   newStatus,
-  additionalData = {}
+  additionalData = {},
 ) {
   const previousStatus = this.status;
   this.status = newStatus;
@@ -355,7 +382,7 @@ deploymentSchema.methods.updateStatus = function (
 deploymentSchema.methods.addBuildLog = function (
   level,
   message,
-  source = "build"
+  source = "build",
 ) {
   this.build.logs.push({
     timestamp: new Date(),
@@ -381,7 +408,7 @@ deploymentSchema.methods.calculateUptime = function () {
 
   const uptimePercentage = Math.max(
     0,
-    Math.min(100, ((totalTime - downtimeMs) / totalTime) * 100)
+    Math.min(100, ((totalTime - downtimeMs) / totalTime) * 100),
   );
 
   this.metrics.uptime.percentage = Math.round(uptimePercentage * 100) / 100;
@@ -426,7 +453,7 @@ deploymentSchema.methods.isHealthy = function () {
 deploymentSchema.methods.updateHealthStatus = function (
   status,
   responseTime = 0,
-  message = ""
+  message = "",
 ) {
   this.runtime.health.status = status;
   this.runtime.health.lastCheck = new Date();

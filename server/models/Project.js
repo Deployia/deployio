@@ -212,7 +212,7 @@ const projectSchema = new mongoose.Schema(
         max: 1,
         default: 0,
       },
-      
+
       // AI-detected technology stack
       technologyStack: {
         primaryLanguage: String,
@@ -223,7 +223,7 @@ const projectSchema = new mongoose.Schema(
         version: String,
         dependencies: [String],
       },
-      
+
       // AI-detected configuration
       detectedConfig: {
         buildCommand: String,
@@ -315,7 +315,7 @@ const projectSchema = new mongoose.Schema(
         optimization: [String],
         updates: [String],
       },
-      
+
       // Raw analysis data for debugging and future use
       rawAnalysis: mongoose.Schema.Types.Mixed,
       lastAnalyzed: Date,
@@ -468,10 +468,47 @@ const projectSchema = new mongoose.Schema(
           },
         ],
       },
-    },    // Project Status & Analytics
+
+      // Generated/User-provided Dockerfile for deployment
+      dockerfile: {
+        type: String,
+        description: "Full Dockerfile content (generated or from repo)",
+      },
+
+      // Build configuration from analysis
+      buildConfig: {
+        buildCommand: String,
+        startCommand: String,
+        installCommand: String,
+        port: {
+          type: Number,
+          default: 3000,
+        },
+      },
+    },
+
+    // Track active deployment count (max 2 per project)
+    activeDeploymentCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 2,
+    },
+
+    // Project Status & Analytics
     status: {
       type: String,
-      enum: ["draft", "analyzing", "configured", "building", "deploying", "active", "archived", "deleted", "failed"],
+      enum: [
+        "draft",
+        "analyzing",
+        "configured",
+        "building",
+        "deploying",
+        "active",
+        "archived",
+        "deleted",
+        "failed",
+      ],
       default: "draft",
     },
     visibility: {
@@ -560,7 +597,7 @@ const projectSchema = new mongoose.Schema(
         return ret;
       },
     },
-  }
+  },
 );
 
 // Indexes for performance
@@ -611,12 +648,12 @@ projectSchema.methods.isMERNStack = function () {
 // Check if user can access project
 projectSchema.methods.canUserAccess = function (
   userId,
-  requiredRole = "viewer"
+  requiredRole = "viewer",
 ) {
   if (this.owner.toString() === userId.toString()) return true;
 
   const collaborator = this.collaborators.find(
-    (c) => c.user.toString() === userId.toString()
+    (c) => c.user.toString() === userId.toString(),
   );
 
   if (!collaborator) return false;
@@ -658,13 +695,13 @@ projectSchema.methods.updateAIAnalysis = function (aiAnalysisResults) {
     technologyStack,
     detectedConfig,
     insights,
-    rawAnalysis
+    rawAnalysis,
   } = aiAnalysisResults;
 
   this.analysis = {
     ...this.analysis,
     analysisId,
-    approach: 'ai-enhanced',
+    approach: "ai-enhanced",
     confidence,
     technologyStack: technologyStack || {},
     detectedConfig: detectedConfig || {},
@@ -674,8 +711,8 @@ projectSchema.methods.updateAIAnalysis = function (aiAnalysisResults) {
   };
 
   // Update status based on analysis results
-  if (insights?.deploymentReadiness === 'ready') {
-    this.status = 'configured';
+  if (insights?.deploymentReadiness === "ready") {
+    this.status = "configured";
   }
 
   return this.save();
@@ -683,16 +720,16 @@ projectSchema.methods.updateAIAnalysis = function (aiAnalysisResults) {
 
 // Check if project has AI analysis
 projectSchema.methods.hasAIAnalysis = function () {
-  return this.analysis?.approach === 'ai-enhanced' && this.analysis?.analysisId;
+  return this.analysis?.approach === "ai-enhanced" && this.analysis?.analysisId;
 };
 
 // Get AI analysis confidence level
 projectSchema.methods.getConfidenceLevel = function () {
   const confidence = this.analysis?.confidence || 0;
-  if (confidence >= 0.8) return 'high';
-  if (confidence >= 0.6) return 'medium';
-  if (confidence >= 0.3) return 'low';
-  return 'none';
+  if (confidence >= 0.8) return "high";
+  if (confidence >= 0.6) return "medium";
+  if (confidence >= 0.3) return "low";
+  return "none";
 };
 
 // Increment deployment count

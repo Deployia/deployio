@@ -40,7 +40,7 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
         analyzeRepository({
           sessionId: stepData.sessionId,
           repositoryData,
-        })
+        }),
       );
     }
   }, [dispatch, stepData]);
@@ -59,13 +59,13 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
         if (currentProgress < 100) {
           const newProgress = Math.min(
             currentProgress + Math.random() * 15,
-            100
+            100,
           );
           dispatch(
             updateAnalysisProgress({
               progress: newProgress,
               status: newProgress >= 100 ? "completed" : "running",
-            })
+            }),
           );
 
           // Add log entries
@@ -224,14 +224,14 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
           </h2>
           <p
             className={`max-w-2xl mx-auto px-2 text-sm sm:text-base ${getStatusColor(
-              stepData.analysisStatus
+              stepData.analysisStatus,
             )}`}
           >
             {stepData.analysisStatus === "completed"
               ? "Analysis completed! Your project configuration is ready."
               : stepData.analysisStatus === "failed"
-              ? "Analysis failed. Please try again or configure manually."
-              : "Our AI is analyzing your repository to generate the optimal deployment configuration."}
+                ? "Analysis failed. Please try again or configure manually."
+                : "Our AI is analyzing your repository to generate the optimal deployment configuration."}
           </p>
         </motion.div>
       </div>
@@ -274,8 +274,8 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
                   status === "completed"
                     ? "bg-green-500/10 border-green-500/30"
                     : status === "running"
-                    ? "bg-blue-500/10 border-blue-500/30"
-                    : "bg-neutral-800/50 border-neutral-700"
+                      ? "bg-blue-500/10 border-blue-500/30"
+                      : "bg-neutral-800/50 border-neutral-700"
                 }
               `}
             >
@@ -287,8 +287,8 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
                     status === "completed"
                       ? "bg-green-500/20"
                       : status === "running"
-                      ? "bg-blue-500/20"
-                      : "bg-neutral-700"
+                        ? "bg-blue-500/20"
+                        : "bg-neutral-700"
                   }
                 `}
                 >
@@ -309,8 +309,8 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
                       status === "completed"
                         ? "text-green-400"
                         : status === "running"
-                        ? "text-blue-400"
-                        : "text-neutral-300"
+                          ? "text-blue-400"
+                          : "text-neutral-300"
                     }
                   `}
                   >
@@ -383,26 +383,51 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {stepData.analysisResults.detectedFrameworks?.length || 0}
+              <div className="text-2xl font-bold text-white capitalize">
+                {stepData.analysisResults.stack || "Unknown"}
               </div>
-              <div className="text-sm text-green-300">Frameworks Detected</div>
+              <div className="text-sm text-green-300">Stack Detected</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-white">
-                {stepData.analysisResults.dependencies?.length || 0}
+                {Math.round(stepData.analysisResults.confidence || 0)}%
               </div>
-              <div className="text-sm text-green-300">
-                Dependencies Analyzed
-              </div>
+              <div className="text-sm text-green-300">Confidence Score</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-white">
-                {Math.round((stepData.aiConfidence || 0) * 100)}%
+                {stepData.analysisResults.port || 3000}
               </div>
-              <div className="text-sm text-green-300">AI Confidence</div>
+              <div className="text-sm text-green-300">Default Port</div>
             </div>
           </div>
+
+          {/* Build Config Display */}
+          {stepData.analysisResults.detectedConfig && (
+            <div className="mt-4 pt-4 border-t border-green-500/20 space-y-2">
+              <h4 className="text-sm font-medium text-green-300 mb-3">
+                Build Configuration
+              </h4>
+              <div className="text-xs space-y-2">
+                {stepData.analysisResults.detectedConfig.buildCommand && (
+                  <div className="flex items-start space-x-2">
+                    <span className="text-green-400 font-mono">Build:</span>
+                    <span className="text-neutral-300 font-mono break-all">
+                      {stepData.analysisResults.detectedConfig.buildCommand}
+                    </span>
+                  </div>
+                )}
+                {stepData.analysisResults.detectedConfig.startCommand && (
+                  <div className="flex items-start space-x-2">
+                    <span className="text-green-400 font-mono">Start:</span>
+                    <span className="text-neutral-300 font-mono break-all">
+                      {stepData.analysisResults.detectedConfig.startCommand}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
 

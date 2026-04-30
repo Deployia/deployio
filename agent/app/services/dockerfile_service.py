@@ -265,22 +265,93 @@ CMD ["nginx", "-g", "daemon off;"]
     }
 
     @staticmethod
+    async def check_existing_dockerfile(repo_path: str) -> Dict:
+        """
+        Check if a valid Dockerfile exists in the repository.
+
+        Returns: {
+            "exists": true/false,
+            "valid": true/false,
+            "content": "dockerfile content or None",
+            "path": "/path/to/Dockerfile or None"
+        }
+        """
+        repo_path = Path(repo_path)
+        dockerfile_path = repo_path / "Dockerfile"
+
+        if not dockerfile_path.exists():
+            return {"exists": False, "valid": False, "content": None, "path": None}
+
+        try:
+            with open(dockerfile_path, "r") as f:
+                content = f.read()
+
+            # Basic validation: must have FROM and CMD/ENTRYPOINT
+            has_from = "FROM" in content
+            has_cmd = "CMD" in content or "ENTRYPOINT" in content
+
+            if has_from and has_cmd:
+                logger.info(f"Valid existing Dockerfile found at {dockerfile_path}")
+                return {
+                    "exists": True,
+                    "valid": True,
+                    "content": content,
+                    "path": str(dockerfile_path),
+                }
+            else:
+                logger.warning(
+                    f"Dockerfile found but invalid (missing FROM or CMD) at {dockerfile_path}"
+                )
+                return {
+                    "exists": True,
+                    "valid": False,
+                    "content": None,
+                    "path": str(dockerfile_path),
+                }
+        except Exception as e:
+            logger.error(f"Error reading Dockerfile: {e}")
+            return {
+                "exists": True,
+                "valid": False,
+                "content": None,
+                "path": str(dockerfile_path),
+            }
+
+    @staticmethod
     async def generate_dockerfile(
         stack_type: str,
         repo_path: Optional[str] = None,
         port: Optional[int] = None,
     ) -> Dict[str, str]:
         """
-        Generate a Dockerfile for the given stack type.
+        Generate Dockerfile for the given stack type, or use existing if valid.
+
+        Strategy:
+        1. If Dockerfile exists in repo and is valid, use it
+        2. Otherwise, generate from template
 
         Returns: {
-            "dockerfile": "<content>",
-            "dockerfile_path": "/path/to/Dockerfile.generated",
+            "dockerfile": "<full content>",
+            "dockerfile_path": "/path/to/Dockerfile or None",
+            "isGenerated": true/false,
             "port": 3000,
             "stack": "MERN"
         }
         """
-        # Get template
+        # First, check for existing Dockerfile if repo_path provided
+        if repo_path:
+            existing = await DockerfileService.check_existing_dockerfile(repo_path)
+            if existing["valid"]:
+                logger.info(f"Using existing Dockerfile from {existing['path']}")
+                return {
+                    "dockerfile": existing["content"],
+                    "dockerfile_path": existing["path"],
+                    "isGenerated": False,
+                    "port": port or 3000,
+                    "stack": stack_type.upper(),
+                }
+
+        # Generate from template
         stack_upper = stack_type.upper()
         template = DockerfileService.TEMPLATES.get(
             stack_upper,
@@ -297,7 +368,7 @@ CMD ["nginx", "-g", "daemon off;"]
             try:
                 with open(dockerfile_path, "w") as f:
                     f.write(template)
-                logger.info(f"Dockerfile written to {dockerfile_path}")
+                logger.info(f"Generated Dockerfile written to {dockerfile_path}")
             except Exception as e:
                 logger.warning(f"Failed to write Dockerfile to {dockerfile_path}: {e}")
                 dockerfile_path = None
@@ -305,6 +376,7 @@ CMD ["nginx", "-g", "daemon off;"]
         return {
             "dockerfile": template,
             "dockerfile_path": str(dockerfile_path) if dockerfile_path else None,
+            "isGenerated": True,
             "port": port or 3000,
             "stack": stack_upper,
         }

@@ -109,14 +109,14 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
             <div className="text-right">
               <div
                 className={`text-2xl font-bold ${getConfidenceColor(
-                  stepData.aiConfidence
+                  stepData.aiConfidence,
                 )}`}
               >
                 {Math.round(stepData.aiConfidence * 100)}%
               </div>
               <div
                 className={`text-sm ${getConfidenceColor(
-                  stepData.aiConfidence
+                  stepData.aiConfidence,
                 )}`}
               >
                 {getConfidenceLabel(stepData.aiConfidence)} Confidence
@@ -258,6 +258,37 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
             </div>
           </div>
         </motion.div>
+
+        {/* Dockerfile Preview */}
+        {stepData.dockerfile && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-neutral-800/30 rounded-lg p-3 sm:p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+                <FaTerminal className="w-5 h-5 text-purple-500" />
+                <span>Dockerfile</span>
+              </h3>
+            </div>
+
+            <details className="group">
+              <summary className="cursor-pointer p-3 bg-neutral-900/30 rounded text-sm text-neutral-300 hover:text-white hover:bg-neutral-900/50 transition-colors">
+                <span className="group-open:hidden">▶ View Dockerfile</span>
+                <span className="hidden group-open:inline">
+                  ▼ Hide Dockerfile
+                </span>
+              </summary>
+              <div className="mt-2 p-3 bg-neutral-950 rounded border border-neutral-700 overflow-x-auto">
+                <pre className="text-xs sm:text-sm text-neutral-300 whitespace-pre-wrap break-words font-mono">
+                  {stepData.dockerfile}
+                </pre>
+              </div>
+            </details>
+          </motion.div>
+        )}
 
         {/* Environment Variables */}
         {stepData.environmentVariables &&

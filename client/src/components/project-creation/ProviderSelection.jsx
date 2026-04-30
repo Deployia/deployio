@@ -20,7 +20,7 @@ import {
 const ProviderSelection = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
   const [selectedProvider, setLocalSelectedProvider] = useState(
-    stepData.selectedProvider
+    stepData.selectedProvider,
   );
 
   // Fetch connected providers on component mount
@@ -43,6 +43,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
         "Organizations",
         "Advanced permissions",
       ],
+      available: true,
     },
     {
       id: "gitlab",
@@ -53,6 +54,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
       borderColor: "border-orange-500/30 hover:border-orange-500/50",
       description: "Connect to GitLab repositories",
       features: ["Self-hosted support", "CI/CD integration", "Advanced DevOps"],
+      available: false,
     },
     {
       id: "azure-devops",
@@ -67,6 +69,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
         "Work item tracking",
         "Azure services",
       ],
+      available: false,
     },
   ];
 
@@ -120,7 +123,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   const handleConnect = (providerId) => {
     // This would trigger OAuth flow
     const authUrl = `/api/v1/auth/oauth/${providerId}?redirect=${encodeURIComponent(
-      window.location.href
+      window.location.href,
     )}`;
     window.location.href = authUrl;
   };
@@ -154,6 +157,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
           const status = getProviderStatus(provider.id);
           const isSelected = selectedProvider === provider.id;
           const Icon = provider.icon;
+          const isAvailable = provider.available !== false;
 
           return (
             <motion.div
@@ -162,17 +166,31 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className={`
-                relative p-4 sm:p-6 rounded-lg border-2 transition-all duration-300 cursor-pointer
+                relative p-4 sm:p-6 rounded-lg border-2 transition-all duration-300
                 ${
-                  isSelected
+                  !isAvailable
+                    ? "cursor-not-allowed opacity-60"
+                    : "cursor-pointer"
+                }
+                ${
+                  isSelected && isAvailable
                     ? `${provider.bgColor} ${provider.borderColor} ring-2 ring-blue-500/20`
-                    : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-600"
+                    : isAvailable
+                      ? "bg-neutral-800/50 border-neutral-700 hover:border-neutral-600"
+                      : "bg-neutral-800/30 border-neutral-700"
                 }
               `}
-              onClick={() => handleProviderSelect(provider.id)}
+              onClick={() => isAvailable && handleProviderSelect(provider.id)}
             >
+              {/* Coming Soon Badge */}
+              {!isAvailable && (
+                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 px-2 sm:px-3 py-1 bg-amber-500/80 text-white text-xs sm:text-sm font-medium rounded">
+                  Coming Soon
+                </div>
+              )}
+
               {/* Selection Indicator */}
-              {isSelected && (
+              {isSelected && isAvailable && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -201,9 +219,11 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
                 </p>
 
                 {/* Connection Status */}
-                <div className="mb-3 sm:mb-4">
-                  {renderProviderStatus(status)}
-                </div>
+                {isAvailable && (
+                  <div className="mb-3 sm:mb-4">
+                    {renderProviderStatus(status)}
+                  </div>
+                )}
 
                 {/* Features */}
                 <div className="space-y-1 sm:space-y-2">
@@ -220,7 +240,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
               </div>
 
               {/* Connect Button */}
-              {status === "disconnected" && (
+              {isAvailable && status === "disconnected" && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -232,7 +252,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
                 </button>
               )}
 
-              {status === "limited" && (
+              {isAvailable && status === "limited" && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
