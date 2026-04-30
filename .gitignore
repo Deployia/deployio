@@ -56,6 +56,7 @@ Thumbs.db
 # Platform specific
 temp/
 *.tmp
+*tmp
 
 # Build artifacts
 dist/
