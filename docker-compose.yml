@@ -125,6 +125,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./agent/logs:/app/logs
+      - ./tmp:/app/tmp
     networks:
       - deployio_network
     labels:
@@ -167,4 +168,5 @@ volumes:
 
 networks:
   deployio_network:
+    name: deployio_network
     driver: bridge
