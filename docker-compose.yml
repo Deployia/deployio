@@ -7,6 +7,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/routes.yml:/etc/traefik/routes.yml:ro
+      - ./landing-page:/var/www/landing-page:ro
     networks:
       - web
     restart: unless-stopped
@@ -30,6 +32,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`deployio.tech`) || Host(`www.deployio.tech`)"
       - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=100"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
       traefik:
@@ -63,6 +66,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`api.deployio.tech`)"
       - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.routers.backend.priority=50"
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
     restart: unless-stopped
     healthcheck:
@@ -91,6 +95,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.ai.rule=Host(`ai.deployio.tech`) || Host(`service.deployio.tech`)"
       - "traefik.http.routers.ai.entrypoints=web"
+      - "traefik.http.routers.ai.priority=50"
       - "traefik.http.services.ai.loadbalancer.server.port=8000"
     depends_on:
       redis:
@@ -126,6 +131,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.agent.rule=Host(`agent.deployio.tech`)"
       - "traefik.http.routers.agent.entrypoints=web"
+      - "traefik.http.routers.agent.priority=10"
       - "traefik.http.services.agent.loadbalancer.server.port=8000"
     depends_on:
       traefik:
@@ -139,23 +145,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  landing-page:
-    build:
-      context: ./landing-page
-    image: deployio/landing-page:local
-    networks:
-      - web
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.landing.rule=HostRegexp(`^.+\\.deployio\\.tech$`)"
-      - "traefik.http.routers.landing.entrypoints=web"
-      - "traefik.http.routers.landing.priority=1"
-      - "traefik.http.services.landing.loadbalancer.server.port=80"
-    depends_on:
-      traefik:
-        condition: service_started
-    restart: unless-stopped
 
   redis:
     image: redis:alpine

@@ -1,0 +1,15 @@
+http:
+  routers:
+    # Landing page fallback for undefined subdomains
+    landing:
+      rule: "HostRegexp(`^(?!deployio\\.tech|www\\.deployio\\.tech|api\\.deployio\\.tech|ai\\.deployio\\.tech|service\\.deployio\\.tech|agent\\.deployio\\.tech).+\\.deployio\\.tech$`)"
+      entrypoints:
+        - web
+      service: landing
+      priority: 1
+
+  services:
+    # Static file server for landing page
+    landing:
+      staticFiles:
+        directory: /var/www/landing-page
