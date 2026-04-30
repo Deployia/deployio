@@ -10,7 +10,7 @@ services:
       - ./traefik/routes.yml:/etc/traefik/routes.yml:ro
       - ./landing-page:/var/www/landing-page:ro
     networks:
-      - web
+      - deployio_network
     restart: unless-stopped
 
   frontend:
@@ -27,7 +27,7 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=50m
     networks:
-      - web
+      - deployio_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`deployio.tech`) || Host(`www.deployio.tech`)"
@@ -61,7 +61,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - web
+      - deployio_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`api.deployio.tech`)"
@@ -90,7 +90,7 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
     networks:
-      - web
+      - deployio_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ai.rule=Host(`ai.deployio.tech`) || Host(`service.deployio.tech`)"
@@ -121,12 +121,12 @@ services:
       - ./agent/.env.production
     environment:
       - AGENT_SECRET=${AGENT_SECRET:-development-secret-change-in-production}
-      - DOCKER_NETWORK=web
+      - DOCKER_NETWORK=deployio_network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./agent/logs:/app/logs
     networks:
-      - web
+      - deployio_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.agent.rule=Host(`agent.deployio.tech`)"
@@ -152,7 +152,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - web
+      - deployio_network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -166,6 +166,6 @@ volumes:
     driver: local
 
 networks:
-  web:
-    name: web
-    driver: bridge
+  deployio_network:
+    external:
+      name: deployio_network
