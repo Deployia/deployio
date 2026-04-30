@@ -167,5 +167,4 @@ volumes:
 
 networks:
   deployio_network:
-    external:
-      name: deployio_network
+    driver: bridge
