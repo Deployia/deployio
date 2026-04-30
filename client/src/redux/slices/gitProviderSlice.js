@@ -10,10 +10,10 @@ export const fetchAvailableProviders = createAsyncThunk(
       return response;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch available providers"
+        error.response?.data?.message || "Failed to fetch available providers",
       );
     }
-  }
+  },
 );
 
 export const fetchConnectedProviders = createAsyncThunk(
@@ -24,10 +24,10 @@ export const fetchConnectedProviders = createAsyncThunk(
       return response;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch connected providers"
+        error.response?.data?.message || "Failed to fetch connected providers",
       );
     }
-  }
+  },
 );
 
 export const fetchDetailedConnectionStatus = createAsyncThunk(
@@ -38,10 +38,10 @@ export const fetchDetailedConnectionStatus = createAsyncThunk(
       return response;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch connection status"
+        error.response?.data?.message || "Failed to fetch connection status",
       );
     }
-  }
+  },
 );
 
 export const fetchRepositories = createAsyncThunk(
@@ -61,7 +61,7 @@ export const fetchRepositories = createAsyncThunk(
           `Failed to fetch ${provider} repositories`,
       });
     }
-  }
+  },
 );
 
 export const searchRepositories = createAsyncThunk(
@@ -71,7 +71,7 @@ export const searchRepositories = createAsyncThunk(
       const response = await gitProviderService.searchRepositories(
         provider,
         query,
-        { page, limit }
+        { page, limit },
       );
       return { query, ...response.data }; // Extract data and add query
     } catch (error) {
@@ -82,7 +82,7 @@ export const searchRepositories = createAsyncThunk(
           `Failed to search ${provider} repositories`,
       });
     }
-  }
+  },
 );
 
 export const disconnectProvider = createAsyncThunk(
@@ -93,19 +93,18 @@ export const disconnectProvider = createAsyncThunk(
       return provider;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || `Failed to disconnect ${provider}`
+        error.response?.data?.message || `Failed to disconnect ${provider}`,
       );
     }
-  }
+  },
 );
 
 export const refreshProviderConnection = createAsyncThunk(
   "gitProvider/refreshProviderConnection",
   async (provider, { rejectWithValue }) => {
     try {
-      const response = await gitProviderService.getProviderConfiguration(
-        provider
-      );
+      const response =
+        await gitProviderService.getProviderConfiguration(provider);
       return { provider, ...response };
     } catch (error) {
       return rejectWithValue({
@@ -115,7 +114,7 @@ export const refreshProviderConnection = createAsyncThunk(
           `Failed to refresh ${provider} connection`,
       });
     }
-  }
+  },
 );
 
 // Initial state
@@ -191,7 +190,7 @@ const initialState = {
   // Available providers configuration
   availableProviders: [
     { id: "github", name: "GitHub", enabled: true, comingSoon: false },
-    { id: "gitlab", name: "GitLab", enabled: true, comingSoon: false },
+    { id: "gitlab", name: "GitLab", enabled: false, comingSoon: true },
     { id: "bitbucket", name: "Bitbucket", enabled: false, comingSoon: true },
     { id: "azure", name: "Azure DevOps", enabled: false, comingSoon: true },
   ],
@@ -571,13 +570,13 @@ export const selectProviderConnection = (provider) => (state) => {
 
 export const selectEnabledProviders = (state) => {
   return state.gitProvider.availableProviders.filter(
-    (provider) => provider.enabled
+    (provider) => provider.enabled,
   );
 };
 
 export const selectComingSoonProviders = (state) => {
   return state.gitProvider.availableProviders.filter(
-    (provider) => provider.comingSoon
+    (provider) => provider.comingSoon,
   );
 };
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaSearch,
@@ -16,35 +16,35 @@ import {
   FaEye,
 } from "react-icons/fa";
 import {
-  fetchRepositories,
   setSelectedRepository,
   setRepositoryFilters,
   completeStep,
 } from "@redux/slices/projectCreationSlice";
+import { useGitProviders } from "@hooks/useGitProviders";
 
 const RepositoryBrowser = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
+  const { fetchProviderRepositories, repositories } = useGitProviders();
   const [localFilters, setLocalFilters] = useState(stepData.repositoryFilters);
   const [showFilters, setShowFilters] = useState(false);
+  const provider = stepData.selectedProvider || "github";
+  const repoState = repositories[provider] || {
+    loading: false,
+    data: [],
+    pagination: { page: 1, totalPages: 1, totalCount: 0, hasMore: false },
+    error: null,
+    searchQuery: "",
+    lastFetch: null,
+  };
+  const repositoryList = repoState.data || stepData.repositories || [];
 
-  // Fetch repositories when component mounts or filters change
+  // Fetch repositories from connected git provider
   useEffect(() => {
-    if (stepData.selectedProvider) {
-      dispatch(
-        fetchRepositories({
-          provider: stepData.selectedProvider,
-          ...localFilters,
-          page: stepData.pagination.page,
-          limit: stepData.pagination.limit,
-        })
-      );
+    if (provider) {
+      // Fetch repositories from the connected provider
+      fetchProviderRepositories(provider, localFilters.page || 1);
     }
-  }, [
-    dispatch,
-    stepData.selectedProvider,
-    localFilters,
-    stepData.pagination.page,
-  ]);
+  }, [provider, localFilters.page, fetchProviderRepositories]);
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...localFilters, [key]: value };
@@ -152,7 +152,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
           </button>
 
           <div className="text-xs sm:text-sm text-neutral-400 text-center sm:text-right">
-            {stepData.repositories.length} repositories found
+            {repositoryList.length} repositories found
           </div>
         </div>
 
@@ -207,14 +207,14 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
 
       {/* Repository List */}
       <div className="space-y-4">
-        {loading ? (
+        {loading || repoState.loading ? (
           <div className="flex items-center justify-center py-12">
             <FaSpinner className="w-8 h-8 text-blue-500 animate-spin" />
             <span className="ml-3 text-neutral-400">
               Loading repositories...
             </span>
           </div>
-        ) : stepData.repositories.length === 0 ? (
+        ) : !repositoryList || repositoryList.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
               <FaCode className="w-8 h-8 text-neutral-500" />
@@ -227,7 +227,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
             </p>
           </div>
         ) : (
-          stepData.repositories.map((repo, index) => {
+          repositoryList.map((repo, index) => {
             const isSelected = stepData.selectedRepository?.id === repo.id;
 
             return (
@@ -279,7 +279,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
                         <div className="flex items-center space-x-2">
                           <div
                             className={`w-3 h-3 rounded-full ${getLanguageColor(
-                              repo.language
+                              repo.language,
                             )}`}
                           />
                           <span>{repo.language}</span>

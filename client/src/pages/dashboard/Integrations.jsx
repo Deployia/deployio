@@ -87,8 +87,8 @@ const Integrations = () => {
           error && errorMessages[error]
             ? errorMessages[error]
             : error
-            ? decodeURIComponent(error)
-            : "Connection failed due to an unknown error";
+              ? decodeURIComponent(error)
+              : "Connection failed due to an unknown error";
 
         console.error(`Failed to connect to ${displayName}: ${errorMessage}`);
 
@@ -114,7 +114,7 @@ const Integrations = () => {
       { id: "communication", name: "Communication", icon: FaBell },
       { id: "project", name: "Project Management", icon: FaRocket },
     ],
-    []
+    [],
   );
 
   // Git provider configurations
@@ -144,9 +144,9 @@ const Integrations = () => {
         description: "Integrate with GitLab for CI/CD pipelines",
         icon: getProviderIcon("gitlab"),
         category: "scm",
-        enabled: true,
+        enabled: false,
         popular: false,
-        comingSoon: false,
+        comingSoon: true,
         features: [
           "CI/CD integration",
           "Merge request builds",
@@ -182,7 +182,7 @@ const Integrations = () => {
         timeline: "Q3 2025",
       },
     ],
-    []
+    [],
   );
 
   // Cloud provider configurations (coming soon)
@@ -279,7 +279,7 @@ const Integrations = () => {
         timeline: "Q4 2025",
       },
     ],
-    []
+    [],
   );
 
   // Communication providers (future)
@@ -322,7 +322,7 @@ const Integrations = () => {
         timeline: "Q4 2025",
       },
     ],
-    []
+    [],
   );
 
   // Project management providers (future)
@@ -365,7 +365,7 @@ const Integrations = () => {
         timeline: "Q4 2025",
       },
     ],
-    []
+    [],
   );
 
   // Combine all providers
@@ -376,7 +376,7 @@ const Integrations = () => {
       ...communicationProviders,
       ...projectProviders,
     ],
-    [gitProviders, cloudProviders, communicationProviders, projectProviders]
+    [gitProviders, cloudProviders, communicationProviders, projectProviders],
   );
 
   // Filter providers based on active category
@@ -385,7 +385,7 @@ const Integrations = () => {
       return allProviders;
     }
     return allProviders.filter(
-      (provider) => provider.category === ui.activeCategory
+      (provider) => provider.category === ui.activeCategory,
     );
   }, [allProviders, ui.activeCategory]);
 

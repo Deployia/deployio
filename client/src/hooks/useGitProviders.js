@@ -50,6 +50,13 @@ export const useGitProviders = () => {
   }, [dispatch]);
 
   const connectProvider = useCallback((provider) => {
+    if (provider.id !== "github") {
+      console.log(
+        `${provider.name} is coming soon and cannot be connected yet`,
+      );
+      return;
+    }
+
     if (provider.comingSoon) {
       console.log(`${provider.name} integration is coming in Q3 2025`);
       return;
@@ -81,7 +88,7 @@ export const useGitProviders = () => {
         }
       }
     },
-    [dispatch, fetchConnections]
+    [dispatch, fetchConnections],
   );
 
   const refreshProvider = useCallback(
@@ -93,7 +100,7 @@ export const useGitProviders = () => {
         console.error("Refresh failed:", error);
       }
     },
-    [dispatch]
+    [dispatch],
   );
 
   // Repository Operations
@@ -101,26 +108,26 @@ export const useGitProviders = () => {
     async (providerId, page = 1) => {
       try {
         await dispatch(
-          fetchRepositories({ provider: providerId, page })
+          fetchRepositories({ provider: providerId, page }),
         ).unwrap();
       } catch (error) {
         console.error("Failed to fetch repositories:", error);
       }
     },
-    [dispatch]
+    [dispatch],
   );
 
   const searchProviderRepositories = useCallback(
     async (providerId, query, page = 1) => {
       try {
         await dispatch(
-          searchRepositories({ provider: providerId, query, page })
+          searchRepositories({ provider: providerId, query, page }),
         ).unwrap();
       } catch (error) {
         console.error("Failed to search repositories:", error);
       }
     },
-    [dispatch]
+    [dispatch],
   );
 
   // UI Operations
@@ -128,7 +135,7 @@ export const useGitProviders = () => {
     (category) => {
       dispatch(setActiveCategory(category));
     },
-    [dispatch]
+    [dispatch],
   );
 
   // Utility functions
@@ -144,7 +151,7 @@ export const useGitProviders = () => {
         }
       );
     },
-    [connections]
+    [connections],
   );
 
   const getProviderRepositories = useCallback(
@@ -160,21 +167,21 @@ export const useGitProviders = () => {
         }
       );
     },
-    [repositories]
+    [repositories],
   );
 
   const isProviderConnected = useCallback(
     (providerId) => {
       return connections[providerId]?.connected || false;
     },
-    [connections]
+    [connections],
   );
 
   const isProviderLoading = useCallback(
     (providerId) => {
       return repositories[providerId]?.loading || false;
     },
-    [repositories]
+    [repositories],
   );
 
   // Stats calculations
@@ -182,7 +189,7 @@ export const useGitProviders = () => {
     totalConnected: connectedProviders.length,
     totalRepositories: connectedProviders.reduce(
       (sum, provider) => sum + (provider.repositories?.count || 0),
-      0
+      0,
     ),
     lastSync: connectedProviders.reduce((latest, provider) => {
       if (!provider.lastSync) return latest;

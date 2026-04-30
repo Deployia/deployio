@@ -17,7 +17,8 @@
       "@constants/*": ["constants/*"],
       "@context/*": ["context/*"],
       "@assets/*": ["assets/*"],
-      "@services/*": ["services/*"]
+      "@services/*": ["services/*"],
+      "@hooks/*": ["hooks/*"]
     }
   },
   "include": ["src/**/*"],

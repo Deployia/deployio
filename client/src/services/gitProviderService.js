@@ -24,6 +24,11 @@ class GitProviderService {
 
   // Initiate OAuth connection (redirects to provider)
   initiateConnection(provider) {
+    if (provider !== "github") {
+      window.location.href = "/dashboard/integrations";
+      return;
+    }
+
     const connectUrl = `${api.defaults.baseURL}/git/connect/${provider}`;
     window.location.href = connectUrl;
   }
@@ -67,7 +72,7 @@ class GitProviderService {
   async updateProviderInfo(provider, info) {
     const response = await api.patch(
       `/users/git-providers/${provider}/info`,
-      info
+      info,
     );
     return response.data;
   }
@@ -90,7 +95,7 @@ class GitProviderService {
 
     const response = await api.get(
       `/users/git-providers/${provider}/repositories`,
-      { params }
+      { params },
     );
     return response.data;
   }
@@ -98,7 +103,7 @@ class GitProviderService {
   // Get repository details
   async getRepositoryDetails(provider, owner, repo) {
     const response = await api.get(
-      `/users/git-providers/${provider}/repositories/${owner}/${repo}`
+      `/users/git-providers/${provider}/repositories/${owner}/${repo}`,
     );
     return response.data;
   }
@@ -106,7 +111,7 @@ class GitProviderService {
   // Get repository branches
   async getRepositoryBranches(provider, owner, repo) {
     const response = await api.get(
-      `/users/git-providers/${provider}/repositories/${owner}/${repo}/branches`
+      `/users/git-providers/${provider}/repositories/${owner}/${repo}/branches`,
     );
     return response.data;
   }
@@ -114,7 +119,7 @@ class GitProviderService {
   // AI analyze repository (uses longer timeout)
   async analyzeRepository(provider, owner, repo) {
     const response = await analysisApi.post(
-      `/users/git-providers/${provider}/repositories/${owner}/${repo}/analyze`
+      `/users/git-providers/${provider}/repositories/${owner}/${repo}/analyze`,
     );
     return response.data;
   }

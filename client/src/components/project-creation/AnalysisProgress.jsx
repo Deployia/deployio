@@ -30,10 +30,25 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
       stepData.selectedRepository &&
       stepData.selectedBranch
     ) {
+      // Extract repository URL from selectedRepository
+      let repositoryUrl;
+      if (stepData.selectedRepository.htmlUrl) {
+        repositoryUrl = stepData.selectedRepository.htmlUrl;
+      } else if (stepData.selectedRepository.cloneUrl) {
+        repositoryUrl = stepData.selectedRepository.cloneUrl;
+      } else {
+        // Construct URL from owner and name
+        const owner =
+          typeof stepData.selectedRepository.owner === "object"
+            ? stepData.selectedRepository.owner.login
+            : stepData.selectedRepository.owner;
+        repositoryUrl = `https://github.com/${owner}/${stepData.selectedRepository.name}`;
+      }
+
       const repositoryData = {
-        repository: stepData.selectedRepository,
-        branch: stepData.selectedBranch,
-        settings: stepData.analysisSettings,
+        repositoryUrl,
+        branch: stepData.selectedBranch?.name || stepData.selectedBranch,
+        provider: stepData.selectedProvider || "github",
       };
 
       dispatch(
@@ -43,7 +58,13 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
         }),
       );
     }
-  }, [dispatch, stepData]);
+  }, [
+    dispatch,
+    stepData.sessionId,
+    stepData.selectedRepository,
+    stepData.selectedBranch,
+    stepData.selectedProvider,
+  ]);
 
   // Polling for analysis progress
   useEffect(() => {

@@ -19,10 +19,16 @@ import SmartProjectForm from "@components/project-creation/SmartProjectForm";
 import ProjectReview from "@components/project-creation/ProjectReview";
 import {
   createSession,
+  completeStep,
   updateStep,
   resetWizard,
   completeWizard,
+  setSelectedProvider,
 } from "@redux/slices/projectCreationSlice";
+import {
+  fetchConnectedProviders,
+  selectConnectedProviders,
+} from "@redux/slices/gitProviderSlice";
 
 const CreateProject = () => {
   const dispatch = useDispatch();
@@ -38,16 +44,21 @@ const CreateProject = () => {
     error,
     isCompleted,
   } = useSelector((state) => state.projectCreation);
+  const connectedProviders = useSelector(selectConnectedProviders);
+  const githubConnection = connectedProviders.find(
+    (provider) => provider.provider === "github",
+  );
 
   // const { } = useSelector((state) => state.auth);
 
   // Initialize session on component mount
   useEffect(() => {
+    dispatch(fetchConnectedProviders());
     dispatch(
       createSession({
         userAgent: navigator.userAgent,
         ipAddress: "127.0.0.1", // This would be populated by the backend
-      })
+      }),
     );
 
     // Cleanup on unmount
@@ -57,6 +68,14 @@ const CreateProject = () => {
       }
     };
   }, [dispatch, isCompleted]);
+
+  useEffect(() => {
+    if (githubConnection && currentStep === 1) {
+      dispatch(setSelectedProvider("github"));
+      dispatch(completeStep(1));
+      dispatch(updateStep({ step: 2 }));
+    }
+  }, [dispatch, githubConnection, currentStep]);
 
   // Handle step navigation
   const handleNext = () => {
@@ -114,10 +133,10 @@ const CreateProject = () => {
     },
     {
       id: 4,
-      title: "AI Analysis",
+      title: "Analysis",
       description: "Analyzing your codebase",
       component: AnalysisProgress,
-      aiEnhanced: true,
+      aiEnhanced: false,
     },
     {
       id: 5,
@@ -222,7 +241,8 @@ const CreateProject = () => {
                   className="p-4 sm:p-6 lg:p-8"
                 >
                   <CurrentStepComponent
-                    stepData={stepData}
+                    sessionId={sessionId}
+                    stepData={{ ...stepData, sessionId }}
                     onNext={handleNext}
                     onPrevious={handlePrevious}
                     onComplete={handleComplete}

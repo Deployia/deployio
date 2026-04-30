@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaGithub,
@@ -10,23 +11,36 @@ import {
   FaSpinner,
   FaPlug,
   FaShieldAlt,
+  FaExternalLinkAlt,
 } from "react-icons/fa";
 import {
-  fetchGitProviders,
   setSelectedProvider,
   completeStep,
 } from "@redux/slices/projectCreationSlice";
+import { useGitProviders } from "@hooks/useGitProviders";
 
 const ProviderSelection = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { connectedProviders, fetchConnections } = useGitProviders();
+  const githubConnection = connectedProviders.find(
+    (provider) => provider.provider === "github",
+  );
   const [selectedProvider, setLocalSelectedProvider] = useState(
-    stepData.selectedProvider,
+    stepData.selectedProvider || (githubConnection ? "github" : null),
   );
 
-  // Fetch connected providers on component mount
+  // Keep the wizard aligned with the shared Git provider state.
   useEffect(() => {
-    dispatch(fetchGitProviders());
-  }, [dispatch]);
+    fetchConnections();
+  }, [fetchConnections]);
+
+  useEffect(() => {
+    if (githubConnection) {
+      setLocalSelectedProvider("github");
+      dispatch(setSelectedProvider("github"));
+    }
+  }, [dispatch, githubConnection]);
 
   // Provider configurations
   const providers = [
@@ -85,6 +99,10 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
     }
   };
 
+  const handleGoToIntegrations = () => {
+    navigate("/dashboard/integrations");
+  };
+
   const getProviderStatus = (providerId) => {
     const providerData = stepData.connectedProviders?.[providerId];
     if (!providerData) return "disconnected";
@@ -121,11 +139,9 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   };
 
   const handleConnect = (providerId) => {
-    // This would trigger OAuth flow
-    const authUrl = `/api/v1/auth/oauth/${providerId}?redirect=${encodeURIComponent(
-      window.location.href,
-    )}`;
-    window.location.href = authUrl;
+    if (providerId === "github") {
+      handleGoToIntegrations();
+    }
   };
 
   return (
@@ -248,7 +264,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
                   }}
                   className="w-full py-2 px-3 sm:px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm sm:text-base font-medium transition-colors"
                 >
-                  Connect {provider.name}
+                  Connect in Integrations
                 </button>
               )}
 
@@ -260,7 +276,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
                   }}
                   className="w-full py-2 px-3 sm:px-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm sm:text-base font-medium transition-colors"
                 >
-                  Grant Full Access
+                  Manage in Integrations
                 </button>
               )}
             </motion.div>
@@ -292,31 +308,37 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
 
       {/* Action Buttons */}
       <div className="mt-6 sm:mt-8 text-center">
-        <button
-          onClick={handleContinue}
-          disabled={!selectedProvider || loading}
-          className={`
-            w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base
-            ${
-              selectedProvider && !loading
-                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
-            }
-          `}
-        >
-          {loading ? (
-            <>
-              <FaSpinner className="w-4 h-4 animate-spin" />
-              <span>Connecting...</span>
-            </>
-          ) : (
-            <span>
-              Continue with{" "}
-              {providers.find((p) => p.id === selectedProvider)?.name ||
-                "Selected Provider"}
-            </span>
-          )}
-        </button>
+        {githubConnection ? (
+          <button
+            onClick={handleContinue}
+            disabled={loading}
+            className={`
+              w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base
+              ${
+                loading
+                  ? "bg-blue-600/50 text-white cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }
+            `}
+          >
+            {loading ? (
+              <>
+                <FaSpinner className="w-4 h-4 animate-spin" />
+                <span>Syncing GitHub connection...</span>
+              </>
+            ) : (
+              <span>Continue with GitHub</span>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={handleGoToIntegrations}
+            className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <FaExternalLinkAlt className="w-4 h-4" />
+            <span>Connect GitHub in Integrations</span>
+          </button>
+        )}
       </div>
     </div>
   );

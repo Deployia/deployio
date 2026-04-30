@@ -22,19 +22,35 @@ import {
 const BranchSelection = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
   const [selectedBranch, setLocalSelectedBranch] = useState(
-    stepData.selectedBranch
+    stepData.selectedBranch,
   );
   const [analysisSettings, setLocalAnalysisSettings] = useState(
-    stepData.analysisSettings
+    stepData.analysisSettings,
   );
 
   // Fetch branches when component mounts
   useEffect(() => {
     if (stepData.selectedRepository) {
-      const { provider, owner, name } = stepData.selectedRepository;
-      dispatch(fetchBranches({ provider, owner, repo: name }));
+      // Extract owner and repo name from different possible formats
+      let owner, repo;
+
+      if (
+        stepData.selectedRepository.owner &&
+        typeof stepData.selectedRepository.owner === "object"
+      ) {
+        owner = stepData.selectedRepository.owner.login;
+      } else if (stepData.selectedRepository.owner) {
+        owner = stepData.selectedRepository.owner;
+      }
+
+      repo = stepData.selectedRepository.name;
+
+      if (owner && repo) {
+        const provider = stepData.selectedProvider || "github";
+        dispatch(fetchBranches({ provider, owner, repo }));
+      }
     }
-  }, [dispatch, stepData.selectedRepository]);
+  }, [dispatch, stepData.selectedRepository, stepData.selectedProvider]);
 
   const handleBranchSelect = (branch) => {
     setLocalSelectedBranch(branch);
@@ -214,7 +230,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                 {analysisTypes.map((type) => {
                   const Icon = type.icon;
                   const isEnabled = analysisSettings.analysisTypes.includes(
-                    type.id
+                    type.id,
                   );
 
                   return (
@@ -231,7 +247,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                       onClick={() => {
                         const newTypes = isEnabled
                           ? analysisSettings.analysisTypes.filter(
-                              (t) => t !== type.id
+                              (t) => t !== type.id,
                             )
                           : [...analysisSettings.analysisTypes, type.id];
                         handleAnalysisSettingChange("analysisTypes", newTypes);
@@ -299,7 +315,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                   onClick={() =>
                     handleAnalysisSettingChange(
                       "forceLlm",
-                      !analysisSettings.forceLlm
+                      !analysisSettings.forceLlm,
                     )
                   }
                   className={`
@@ -338,7 +354,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                   onClick={() =>
                     handleAnalysisSettingChange(
                       "includeRecommendations",
-                      !analysisSettings.includeRecommendations
+                      !analysisSettings.includeRecommendations,
                     )
                   }
                   className={`
@@ -377,7 +393,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                   onClick={() =>
                     handleAnalysisSettingChange(
                       "trackProgress",
-                      !analysisSettings.trackProgress
+                      !analysisSettings.trackProgress,
                     )
                   }
                   className={`
