@@ -26,7 +26,9 @@ USER deployio
 
 # Temporarily switch to root to create and set permissions for /app/logs
 USER root
-RUN mkdir -p /app/logs && chown -R deployio:nodejs /app/logs
+RUN mkdir -p /app/logs /app/logs/metrics && \
+    chown -R deployio:nodejs /app/logs && \
+    chmod -R u+rwX /app/logs
 
 # Switch back to non-root user
 USER deployio

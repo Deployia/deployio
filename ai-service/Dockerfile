@@ -40,9 +40,11 @@ COPY --from=builder /venv /venv
 # Copy app source code
 COPY . .
 
-# Set permissions for non-root user
-RUN mkdir -p /app/logs && chown deployio:deployio /app/logs
-RUN chown -R deployio:deployio /app
+# Create necessary directories and set permissions for non-root user
+RUN mkdir -p /app/logs && \
+    chown -R deployio:deployio /app/logs && \
+    chmod -R u+rwX /app/logs && \
+    chown -R deployio:deployio /app
 
 # Switch to non-root user
 USER deployio

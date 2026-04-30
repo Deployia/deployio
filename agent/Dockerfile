@@ -60,8 +60,10 @@ COPY . .
 # Set ownership of the application directory
 RUN chown -R agent:agent /app
 
-# Create logs directory
-RUN mkdir -p /app/logs && chown agent:agent /app/logs
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs /app/tmp/deployio-clones && \
+    chown -R agent:agent /app/logs /app/tmp && \
+    chmod -R u+rwX /app/logs /app/tmp
 
 # Switch to the non-root user
 USER agent
