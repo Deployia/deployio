@@ -6,7 +6,6 @@ import {
   FaCode,
   FaCog,
   FaCogs,
-  FaDocker,
   FaDownload,
   FaGithub,
   FaLaptopCode,
@@ -138,12 +137,6 @@ export const dashboardItems = [
     href: "/dashboard/projects",
     icon: FaProjectDiagram,
     description: "Manage your projects",
-  },
-  {
-    label: "Quick Deploy",
-    href: "/dashboard/quick-deploy",
-    icon: FaDocker,
-    description: "Deploy example apps instantly",
   },
   {
     label: "Deployments",

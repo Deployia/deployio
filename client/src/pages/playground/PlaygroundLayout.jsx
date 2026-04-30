@@ -42,18 +42,24 @@ const ALLOWED_REPOS = [
   {
     id: "mern-stack",
     name: "MERN Stack Template",
-    url: "https://github.com/vasudevshetty/mern",
+    url: "https://github.com/deployia/deployio-mern",
     description: "Full-stack MERN application template",
     icon: FaCode,
   },
   {
     id: "fastapi-template",
     name: "FastAPI Template",
-    url: "https://github.com/deployio/fastapi-template",
-    description: "FastAPI backend template (Coming Soon)",
+    url: "https://github.com/deployia/deployio-fastapi",
+    description: "FastAPI backend template ",
     icon: FaCode,
-    comingSoon: true,
   },
+  {
+    id: "nextjs-demo",
+    name: "Next.js Demo",
+    url: "https://github.com/deployia/deployio-next",
+    description: "Next.js demo with Docker",
+    icon: FaCode,
+  }
 ];
 
 const PlaygroundLayout = () => {

@@ -123,8 +123,8 @@ const AIAnalysisPanel = ({ _workspace, setWorkspace }) => {
   // Sample repositories for quick testing
   const sampleRepos = [
     {
-      name: "vasudevshetty/mern",
-      description: "MERN Stack Application",
+      name: "deployia/deployio-next",
+      description: "Next.js demo with Docker",
       branch: "main",
     },
     {
