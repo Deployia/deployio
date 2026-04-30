@@ -1,15 +1,17 @@
 http:
   routers:
     # Landing page fallback for undefined subdomains
+    # Matches any subdomain like *.deployio.tech with lowest priority
     landing:
-      rule: "HostRegexp(`^(?!deployio\\.tech|www\\.deployio\\.tech|api\\.deployio\\.tech|ai\\.deployio\\.tech|service\\.deployio\\.tech|agent\\.deployio\\.tech).+\\.deployio\\.tech$`)"
+      rule: "HostRegexp(`[a-z0-9-]+.deployio.tech`)"
       entrypoints:
         - web
       service: landing
       priority: 1
 
   services:
-    # Static file server for landing page
+    # Route to dedicated landing page server
     landing:
-      staticFiles:
-        directory: /var/www/landing-page
+      loadBalancer:
+        servers:
+          - url: "http://landing-page-server:80"

@@ -8,7 +8,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/routes.yml:/etc/traefik/routes.yml:ro
-      - ./landing-page:/var/www/landing-page:ro
     networks:
       - deployio_network
     restart: unless-stopped
@@ -146,6 +145,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  landing-page-server:
+    image: nginx:alpine
+    volumes:
+      - ./landing-page:/usr/share/nginx/html:ro
+    networks:
+      - deployio_network
+    labels:
+      - "traefik.enable=false"
+    restart: unless-stopped
 
   redis:
     image: redis:alpine
