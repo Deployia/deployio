@@ -55,6 +55,7 @@ const ProjectDeployments = () => {
   const [filter, setFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
   const [iframeFailed, setIframeFailed] = useState(false);
+  const [autoManagedPanel, setAutoManagedPanel] = useState(false);
   const autoOpenHandledRef = useRef(false);
   const dispatch = useDispatch();
   const logEndRef = useRef(null);
@@ -71,6 +72,7 @@ const ProjectDeployments = () => {
     setActiveDetailTab("pipeline");
     setShowPanel(true);
     setIframeFailed(false);
+    setAutoManagedPanel(false);
   }, []);
 
   const selectedDeploymentId = useMemo(
@@ -85,7 +87,11 @@ const ProjectDeployments = () => {
     [selectedDeployment?.deploymentId, selectedDeploymentId],
   );
   const { connected, liveLogs, liveStatus } = useDeploymentStream(selectedDeploymentRuntimeId);
-  const selectedProbe = deploymentProbe?.deploymentId === selectedDeploymentId ? deploymentProbe : null;
+  const selectedProbe =
+    deploymentProbe?.deploymentId === selectedDeploymentRuntimeId ||
+    deploymentProbe?.deploymentId === selectedDeploymentId
+      ? deploymentProbe
+      : null;
 
   const formatLogs = useCallback((logsPayload) => {
     if (!logsPayload) return [];
@@ -296,9 +302,28 @@ const ProjectDeployments = () => {
     return null;
   }, [deploymentLogs, formatLogs, liveLogs]);
 
-  const effectivePipelineStage =
-    deriveStageFromLogs ||
-    String(liveStatus?.status || selectedDeployment?.status || "").toLowerCase();
+  const normalizedStatus = String(
+    liveStatus?.status || selectedDeployment?.status || "",
+  ).toLowerCase();
+  const inProgressStatuses = new Set([
+    "pending",
+    "queued",
+    "cloning",
+    "detecting",
+    "building",
+    "deploying",
+  ]);
+  const terminalOrStableStatus = new Set([
+    "running",
+    "stopped",
+    "failed",
+    "error",
+    "cancelled",
+    "deleted",
+  ]);
+  const effectivePipelineStage = terminalOrStableStatus.has(normalizedStatus)
+    ? normalizedStatus
+    : deriveStageFromLogs || normalizedStatus || "queued";
 
   useEffect(() => {
     if (!location.state?.openLatestDeploymentPanel || showPanel || autoOpenHandledRef.current) return;
@@ -315,11 +340,22 @@ const ProjectDeployments = () => {
     setSelectedDeployment(latest);
     setActiveDetailTab("pipeline");
     setShowPanel(true);
+    setAutoManagedPanel(true);
     autoOpenHandledRef.current = true;
     if (location.state?.openLatestDeploymentPanel) {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.pathname, location.state, navigate, projectDeployments, showPanel]);
+
+  useEffect(() => {
+    if (!autoManagedPanel || !showPanel) return;
+    if (effectivePipelineStage !== "running") return;
+    const timer = setTimeout(() => {
+      setShowPanel(false);
+      setAutoManagedPanel(false);
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [autoManagedPanel, effectivePipelineStage, showPanel]);
 
   return (
     <div className="space-y-4 sm:space-y-6">

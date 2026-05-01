@@ -10,6 +10,7 @@ const {
 } = require("@services/logging/LogCollectorService");
 const Deployment = require("@models/Deployment");
 const agentBridgeService = require("@services/bridge/AgentBridgeService");
+const mongoose = require("mongoose");
 
 class LogStreamingNamespace {
   constructor() {
@@ -854,9 +855,11 @@ class LogStreamingNamespace {
    * Get deployment logs
    */
   async getDeploymentLogs(deploymentId) {
-    const deployment = await Deployment.findOne({
-      $or: [{ deploymentId }, { _id: deploymentId }],
-    })
+    const normalized = String(deploymentId || "").trim();
+    const query = mongoose.Types.ObjectId.isValid(normalized)
+      ? { $or: [{ deploymentId: normalized }, { _id: normalized }] }
+      : { deploymentId: normalized };
+    const deployment = await Deployment.findOne(query)
       .select("build.logs deploymentId")
       .lean();
     const logs = Array.isArray(deployment?.build?.logs) ? deployment.build.logs : [];
