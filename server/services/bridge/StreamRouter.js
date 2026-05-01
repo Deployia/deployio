@@ -55,7 +55,7 @@ class StreamRouter {
       // Get routing rule for this stream
       const routingRule = this.routingRules.get(sourceNamespace);
       if (!routingRule) {
-        logger.warning("No routing rule found", { sourceNamespace });
+        logger.warn("No routing rule found", { sourceNamespace });
         return false;
       }
 
@@ -66,7 +66,7 @@ class StreamRouter {
       // Validate target room access
       const hasAccess = await this._validateRoomAccess(targetRoom, data);
       if (!hasAccess) {
-        logger.warning("Access denied for room", { targetRoom, agentId });
+        logger.warn("Access denied for room", { targetRoom, agentId });
         this.routingStats.routingErrors++;
         return false;
       }
@@ -87,7 +87,7 @@ class StreamRouter {
             targetNamespace,
             event,
             logEntry,
-            targetRoom
+            targetRoom,
           );
           if (!success) routeSuccess = false;
         }
@@ -97,7 +97,7 @@ class StreamRouter {
             targetNamespace,
             agentId,
             sourceNamespace,
-            transformedData.length
+            transformedData.length,
           );
         }
         return routeSuccess;
@@ -108,7 +108,7 @@ class StreamRouter {
         targetNamespace,
         event,
         transformedData,
-        targetRoom
+        targetRoom,
       );
 
       if (success) {
@@ -135,7 +135,7 @@ class StreamRouter {
     targetNamespace,
     agentId,
     sourceNamespace,
-    dataCount = 1
+    dataCount = 1,
   ) {
     // Update routing statistics
     this.routingStats.totalRouted += dataCount;
@@ -143,7 +143,7 @@ class StreamRouter {
       this.routingStats.routesByNamespace.get(targetNamespace) || 0;
     this.routingStats.routesByNamespace.set(
       targetNamespace,
-      namespaceCount + dataCount
+      namespaceCount + dataCount,
     );
 
     // Track active route
@@ -261,7 +261,7 @@ class StreamRouter {
 
       // Fallback to admin room if no specific mapping
       const adminFallback = Object.values(roomMapping).find((room) =>
-        room.includes("admin")
+        room.includes("admin"),
       );
       return adminFallback || sourceRoom;
     } catch (error) {
@@ -378,7 +378,7 @@ class StreamRouter {
 
       // Map event name if needed
       const routingRule = Array.from(this.routingRules.values()).find(
-        (rule) => rule.targetNamespace === namespace
+        (rule) => rule.targetNamespace === namespace,
       );
 
       let targetEvent = event;

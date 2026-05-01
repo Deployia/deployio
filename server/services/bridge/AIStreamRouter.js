@@ -103,7 +103,7 @@ class AIStreamRouter {
       const sessionId = data.session_id || data.sessionId;
 
       if (!sessionId) {
-        logger.warning("No session ID in stream data", { event, serviceId });
+        logger.warn("No session ID in stream data", { event, serviceId });
         this.routingStats.routingErrors++;
         return false;
       }
@@ -111,7 +111,7 @@ class AIStreamRouter {
       // Get routing rule for this event
       const routingRule = this.routingRules.get(event);
       if (!routingRule) {
-        logger.warning("No routing rule found for AI event", { event });
+        logger.warn("No routing rule found for AI event", { event });
         this.routingStats.routingErrors++;
         return false;
       }
@@ -119,7 +119,7 @@ class AIStreamRouter {
       // Determine target room
       const targetRoom = routingRule.roomPattern.replace(
         "{sessionId}",
-        sessionId
+        sessionId,
       );
 
       // Transform data for client consumption
@@ -134,7 +134,7 @@ class AIStreamRouter {
       const success = await this._emitToAINamespace(
         routingRule.targetEvent,
         transformedData,
-        targetRoom
+        targetRoom,
       );
 
       if (success) {

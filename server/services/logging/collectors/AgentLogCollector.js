@@ -58,15 +58,15 @@ class AgentLogCollector extends BaseLogCollector {
       // Keep stream control event handlers
       this.bridgeService.on(
         "log_stream_started",
-        this.handleStreamStarted.bind(this)
+        this.handleStreamStarted.bind(this),
       );
       this.bridgeService.on(
         "log_stream_stopped",
-        this.handleStreamStopped.bind(this)
+        this.handleStreamStopped.bind(this),
       );
 
       logger.info(
-        "Stream control event handlers registered with bridge service"
+        "Stream control event handlers registered with bridge service",
       );
     }
   }
@@ -87,7 +87,7 @@ class AgentLogCollector extends BaseLogCollector {
         "Agent collector is active - starting realtime streaming for new agent",
         {
           agentId,
-        }
+        },
       );
 
       // Request initial logs and start realtime streaming
@@ -132,13 +132,13 @@ class AgentLogCollector extends BaseLogCollector {
       // AgentLogCollector focuses on HTTP fallback and historical requests
       if (realtime) {
         logger.info(
-          "Requesting realtime log streaming from agents (via StreamRouter)"
+          "Requesting realtime log streaming from agents (via StreamRouter)",
         );
         await this.requestRealtimeFromAllAgents(options);
       }
     } else {
       logger.info(
-        "WebSocket bridge not available, using HTTP polling fallback"
+        "WebSocket bridge not available, using HTTP polling fallback",
       );
       this.startHttpPolling();
     }
@@ -173,7 +173,7 @@ class AgentLogCollector extends BaseLogCollector {
       await this.bridgeService.sendToAgent(
         agentId,
         "start_log_stream",
-        streamRequest
+        streamRequest,
       );
 
       return {
@@ -196,7 +196,7 @@ class AgentLogCollector extends BaseLogCollector {
    */
   async requestRealtimeFromAllAgents(options = {}) {
     if (!this.bridgeService) {
-      logger.warning("Bridge service not available for realtime streaming");
+      logger.warn("Bridge service not available for realtime streaming");
       return;
     }
 
@@ -207,7 +207,7 @@ class AgentLogCollector extends BaseLogCollector {
 
       if (!connectedAgentIds || connectedAgentIds.length === 0) {
         logger.info(
-          "No agents currently connected - will start streaming when agents connect"
+          "No agents currently connected - will start streaming when agents connect",
         );
         return;
       }
@@ -216,7 +216,7 @@ class AgentLogCollector extends BaseLogCollector {
         `Requesting realtime streaming from ${connectedAgentIds.length} connected agents`,
         {
           connectedAgents: connectedAgentIds,
-        }
+        },
       );
 
       // Send stream requests to all connected agents
@@ -224,7 +224,7 @@ class AgentLogCollector extends BaseLogCollector {
         try {
           await this.requestRealtimeStreaming(agentId, options);
           logger.info(
-            `Successfully requested streaming from agent: ${agentId}`
+            `Successfully requested streaming from agent: ${agentId}`,
           );
         } catch (error) {
           logger.error(`Failed to request streaming from agent: ${agentId}`, {
@@ -235,7 +235,7 @@ class AgentLogCollector extends BaseLogCollector {
 
       await Promise.allSettled(streamPromises);
       logger.info(
-        "Completed realtime streaming requests to all connected agents"
+        "Completed realtime streaming requests to all connected agents",
       );
     } catch (error) {
       logger.error("Error requesting realtime streaming from all agents", {
@@ -257,7 +257,7 @@ class AgentLogCollector extends BaseLogCollector {
     }
 
     logger.info(
-      "Agent bridge logging started (non-live requests and management)"
+      "Agent bridge logging started (non-live requests and management)",
     );
 
     // Listen for agent log responses (non-live requests)
@@ -338,7 +338,7 @@ class AgentLogCollector extends BaseLogCollector {
    */
   async requestAgentLogs(agentId, options = {}) {
     if (!this.bridgeService) {
-      logger.warning("Bridge service not available, cannot request agent logs");
+      logger.warn("Bridge service not available, cannot request agent logs");
       return null;
     }
 
@@ -493,7 +493,7 @@ class AgentLogCollector extends BaseLogCollector {
     await this.bridgeService.sendToAgent(
       agentId,
       "start_log_stream",
-      streamRequest
+      streamRequest,
     );
 
     return {
@@ -526,7 +526,7 @@ class AgentLogCollector extends BaseLogCollector {
     await this.bridgeService.sendToAgent(
       agentId,
       "stop_log_stream",
-      stopRequest
+      stopRequest,
     );
 
     return {
@@ -581,7 +581,7 @@ class AgentLogCollector extends BaseLogCollector {
 
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
           logger.error(
-            `Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping HTTP polling.`
+            `Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping HTTP polling.`,
           );
           this.stopHttpPolling();
         }
@@ -650,7 +650,7 @@ class AgentLogCollector extends BaseLogCollector {
         "..",
         "agent",
         "logs",
-        "agent.log"
+        "agent.log",
       ),
       "/app/logs/agent.log",
     ];
@@ -684,7 +684,7 @@ class AgentLogCollector extends BaseLogCollector {
         } catch (error) {
           logger.error(
             `Failed to read local agent logs from ${logPath}:`,
-            error
+            error,
           );
         }
       }
@@ -813,7 +813,7 @@ class AgentLogCollector extends BaseLogCollector {
     await this.bridgeService.sendToAgent(
       agentId,
       "start_log_stream",
-      streamRequest
+      streamRequest,
     );
 
     return {
@@ -846,7 +846,7 @@ class AgentLogCollector extends BaseLogCollector {
     await this.bridgeService.sendToAgent(
       agentId,
       "stop_log_stream",
-      stopRequest
+      stopRequest,
     );
 
     return {

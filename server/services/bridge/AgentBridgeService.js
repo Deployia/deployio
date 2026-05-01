@@ -201,7 +201,7 @@ class AgentBridgeService extends EventEmitter {
     try {
       // Validate agent is connected
       if (!this.connectedAgents.has(agentId)) {
-        logger.warning("Received stream from unknown agent", { agentId });
+        logger.warn("Received stream from unknown agent", { agentId });
         return false;
       }
 
@@ -244,7 +244,7 @@ class AgentBridgeService extends EventEmitter {
     try {
       const connectionInfo = this.connectedAgents.get(agentId);
       if (!connectionInfo) {
-        logger.warning("Cannot request logs from disconnected agent", {
+        logger.warn("Cannot request logs from disconnected agent", {
           agentId,
         });
         return null;
@@ -584,7 +584,7 @@ class AgentBridgeService extends EventEmitter {
     try {
       const connectionInfo = this.connectedAgents.get(agentId);
       if (!connectionInfo) {
-        logger.warning("Cannot send message to disconnected agent", {
+        logger.warn("Cannot send message to disconnected agent", {
           agentId,
           event,
         });
