@@ -202,6 +202,19 @@ const FALLBACK_CONFIG = {
   contact_email: "support@deployio.tech",
 };
 
+function setLoading(isLoading) {
+  const loader = document.getElementById("page-loader");
+  if (!loader) {
+    return;
+  }
+
+  if (isLoading) {
+    loader.classList.remove("hidden");
+  } else {
+    loader.classList.add("hidden");
+  }
+}
+
 async function loadConfig() {
   try {
     const response = await fetch("./config.json", { cache: "no-store" });
@@ -219,7 +232,7 @@ async function loadConfig() {
 async function loadSubdomainContext() {
   const currentHost = window.location.host;
   const endpoint =
-    `${window.location.origin}/_deployio/api/v1/external/subdomains/context` +
+    `https://api.deployio.tech/api/v1/external/subdomains/context` +
     `?host=${encodeURIComponent(currentHost)}`;
 
   try {
@@ -247,9 +260,14 @@ async function loadSubdomainContext() {
       subdomain: fallbackSubdomain,
       baseDomain: "deployio.tech",
       isReserved: fallbackIsReserved,
+      isTaken: fallbackIsReserved,
+      status: fallbackIsReserved ? "taken" : "available",
       reason: fallbackIsReserved
         ? "reserved-subdomain-list-fallback"
         : "available-fallback",
+      server: {
+        source: "landing-page-fallback",
+      },
     };
   }
 }
@@ -279,6 +297,23 @@ function applyContextText() {
   const reservedReason = document.getElementById("reserved-reason");
   if (reservedReason) {
     reservedReason.textContent = subdomainContext?.reason || "unknown";
+  }
+
+  const verdict = subdomainContext?.isTaken ? "taken" : "available";
+  const source = subdomainContext?.server?.source || "deployio-api";
+
+  const serverVerdictRegular = document.getElementById(
+    "server-verdict-regular",
+  );
+  if (serverVerdictRegular) {
+    serverVerdictRegular.textContent = `${verdict} (${source})`;
+  }
+
+  const serverVerdictReserved = document.getElementById(
+    "server-verdict-reserved",
+  );
+  if (serverVerdictReserved) {
+    serverVerdictReserved.textContent = `${verdict} (${source})`;
   }
 }
 
@@ -343,13 +378,19 @@ function showContent() {
 
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", async function () {
-  // Load configuration and resolve subdomain state first
-  await loadConfig();
-  await loadSubdomainContext();
-  applyConfigLinks();
+  setLoading(true);
 
-  // Show appropriate content based on subdomain type
-  showContent();
+  // Load configuration and resolve subdomain state first
+  try {
+    await loadConfig();
+    await loadSubdomainContext();
+    applyConfigLinks();
+
+    // Show appropriate content based on subdomain type
+    showContent();
+  } finally {
+    setLoading(false);
+  }
 
   // Initialize neural network
   const canvas = document.getElementById("neural-canvas");

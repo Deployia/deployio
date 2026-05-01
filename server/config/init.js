@@ -25,7 +25,7 @@ module.exports = (app) => {
   connectDB().then((conn) => {
     if (conn) {
       logger.info(
-        `Backend successfully connected to MongoDB at ${conn.connection.host}`
+        `Backend successfully connected to MongoDB at ${conn.connection.host}`,
       );
     }
   });
@@ -47,11 +47,11 @@ module.exports = (app) => {
 
     if (trustProxy) {
       logger.info(
-        "Trust proxy enabled - IP detection will use X-Forwarded-For headers"
+        "Trust proxy enabled - IP detection will use X-Forwarded-For headers",
       );
     } else {
       logger.warn(
-        "Trust proxy disabled in production - rate limiting may not work correctly behind reverse proxy"
+        "Trust proxy disabled in production - rate limiting may not work correctly behind reverse proxy",
       );
     }
   } else {
@@ -75,7 +75,7 @@ module.exports = (app) => {
         // Default compression
         return compression.filter(req, res);
       },
-    })
+    }),
   ); // Response time header for performance monitoring
   app.use((req, res, next) => {
     const start = process.hrtime(); // Use process.hrtime() for more precise timing
@@ -94,7 +94,7 @@ module.exports = (app) => {
 
       if (parseFloat(durationInMs) > 500) {
         logger.warn(
-          `Slow request: ${req.method} ${req.path} - ${res.statusCode} - ${durationInMs}ms`
+          `Slow request: ${req.method} ${req.path} - ${res.statusCode} - ${durationInMs}ms`,
         );
       }
       return originalEnd.call(this, chunk, encoding);
@@ -142,7 +142,7 @@ module.exports = (app) => {
           showExtensions: true,
           tryItOutEnabled: true,
         },
-      })
+      }),
     );
 
     logger.info("📚 Swagger documentation available at /api/v1/docs");
@@ -228,7 +228,7 @@ module.exports = (app) => {
             `https://agent.${baseDomain}`,
             // Add whitelisted subdomains for production
             ...whitelistedSubdomains.map(
-              (sub) => `https://${sub}.${baseDomain}`
+              (sub) => `https://${sub}.${baseDomain}`,
             ),
             // NEVER include localhost in production for security
           ];
@@ -247,6 +247,12 @@ module.exports = (app) => {
         // Check if it's a whitelisted subdomain
         if (hostname.endsWith(`.${baseDomain}`)) {
           const subdomain = hostname.replace(`.${baseDomain}`, "");
+
+          // Allow single-label deployio subdomains for public deployment hosts.
+          if (/^[a-z0-9-]+$/.test(subdomain) && !subdomain.includes(".")) {
+            return true;
+          }
+
           return whitelistedSubdomains.includes(subdomain);
         }
 
@@ -274,8 +280,8 @@ module.exports = (app) => {
       if (isDevelopment) {
         logger.warn(
           `CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(
-            ", "
-          )}`
+            ", ",
+          )}`,
         );
       } else {
         logger.warn(`CORS blocked origin in production: ${origin}`);

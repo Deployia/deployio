@@ -50,6 +50,18 @@
   </head>
 
   <body class="min-h-screen bg-black text-white overflow-x-hidden font-sans">
+    <div
+      id="page-loader"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+    >
+      <div class="flex flex-col items-center gap-3">
+        <div
+          class="h-10 w-10 animate-spin rounded-full border-2 border-blue-400 border-t-transparent"
+        ></div>
+        <p class="text-sm text-blue-200">Checking subdomain status...</p>
+      </div>
+    </div>
+
     <!-- Neural Network Background -->
     <div class="fixed inset-0 z-0 opacity-40 md:opacity-60">
       <canvas id="neural-canvas" class="w-full h-full"></canvas>
@@ -149,6 +161,12 @@
               Subdomain:
               <span id="regular-subdomain-value" class="font-semibold"
                 >unknown</span
+              >
+            </p>
+            <p class="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-0">
+              Server verdict:
+              <span id="server-verdict-regular" class="font-semibold"
+                >checking...</span
               >
             </p>
             <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">
@@ -331,6 +349,12 @@
               Reason:
               <span id="reserved-reason" class="font-semibold"
                 >platform-reserved-subdomain</span
+              >
+            </p>
+            <p class="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-0">
+              Server verdict:
+              <span id="server-verdict-reserved" class="font-semibold"
+                >checking...</span
               >
             </p>
             <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">

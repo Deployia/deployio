@@ -17,6 +17,10 @@ const getSubdomainContext = async (req, res) => {
         ...context,
         platformReservedSubdomains:
           subdomainManager.getPlatformReservedSubdomains(),
+        server: {
+          source: "deployio-api",
+          resolvedAt: new Date().toISOString(),
+        },
       },
     });
   } catch (error) {

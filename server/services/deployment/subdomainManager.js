@@ -194,6 +194,8 @@ class SubdomainManager {
         subdomain: null,
         baseDomain: this.baseDomain,
         isReserved: false,
+        isTaken: false,
+        status: "out-of-scope",
         reason: "not-a-managed-subdomain",
       };
     }
@@ -204,6 +206,8 @@ class SubdomainManager {
         subdomain,
         baseDomain: this.baseDomain,
         isReserved: true,
+        isTaken: true,
+        status: "taken",
         reason: "invalid-subdomain-format",
       };
     }
@@ -214,6 +218,8 @@ class SubdomainManager {
         subdomain,
         baseDomain: this.baseDomain,
         isReserved: true,
+        isTaken: true,
+        status: "taken",
         reason: "platform-reserved-subdomain",
       };
     }
@@ -239,6 +245,8 @@ class SubdomainManager {
         subdomain,
         baseDomain: this.baseDomain,
         isReserved: true,
+        isTaken: true,
+        status: "taken",
         reason: "already-allocated",
       };
     }
@@ -248,6 +256,8 @@ class SubdomainManager {
       subdomain,
       baseDomain: this.baseDomain,
       isReserved: false,
+      isTaken: false,
+      status: "available",
       reason: "available",
     };
   }
