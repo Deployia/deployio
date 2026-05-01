@@ -98,6 +98,28 @@ class DeploymentService:
             "deployio.subdomain": subdomain,
         }
 
+    def _resolve_runtime_port(
+        self, client: docker.DockerClient, image: str, fallback_port: int
+    ) -> int:
+        """
+        Prefer the first EXPOSEd container port from image metadata.
+        Falls back to provided port when metadata is unavailable.
+        """
+        try:
+            img = client.images.get(image)
+            exposed = (img.attrs.get("Config") or {}).get("ExposedPorts") or {}
+            if not exposed:
+                return fallback_port
+
+            first = next(iter(exposed.keys()), "")
+            maybe_port = int(str(first).split("/")[0])
+            if maybe_port > 0:
+                return maybe_port
+        except Exception as e:
+            logger.debug(f"Unable to resolve runtime port from image {image}: {e}")
+
+        return fallback_port
+
     async def deploy(
         self,
         deployment_id: str,
@@ -189,12 +211,15 @@ class DeploymentService:
             await _status("deploying", "Starting container...")
             await _log("info", "Generating Traefik labels for routing...")
 
-            labels = self._build_traefik_labels(deployment_id, subdomain, port)
+            runtime_port = self._resolve_runtime_port(client, image, port)
+            labels = self._build_traefik_labels(
+                deployment_id, subdomain, runtime_port
+            )
             environment = env_vars or {}
 
             await _log("info", f"Container name: {container_name}")
             await _log("info", f"Network: {self.docker_network}")
-            await _log("info", f"Port: {port}")
+            await _log("info", f"Port: {runtime_port}")
             await _log("info", f"Memory limit: {settings.max_memory}")
             await _log("info", f"CPU limit: {settings.max_cpu}")
 
@@ -226,9 +251,9 @@ class DeploymentService:
                     "Test": [
                         "CMD-SHELL",
                         (
-                            f"wget -qO- http://127.0.0.1:{port}/health "
-                            f"|| wget -qO- http://127.0.0.1:{port}/api/health "
-                            f"|| wget -qO- http://127.0.0.1:{port}/ "
+                            f"wget -qO- http://127.0.0.1:{runtime_port}/health "
+                            f"|| wget -qO- http://127.0.0.1:{runtime_port}/api/health "
+                            f"|| wget -qO- http://127.0.0.1:{runtime_port}/ "
                             "|| exit 1"
                         ),
                     ],
@@ -269,6 +294,7 @@ class DeploymentService:
                     "image": image,
                     "subdomain": subdomain,
                     "port": port,
+                    "runtime_port": runtime_port,
                     "url": full_url,
                     "status": "running",
                     "started_at": datetime.utcnow().isoformat(),
@@ -280,6 +306,7 @@ class DeploymentService:
                     "container_name": container_name,
                     "url": full_url,
                     "subdomain": subdomain,
+                    "port": runtime_port,
                 }
             else:
                 # Container started but isn't running — check logs

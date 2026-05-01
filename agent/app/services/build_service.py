@@ -286,7 +286,7 @@ class BuildService:
 
             # Build Docker image
             await self._emit_log(
-                logs_callback, deployment_id, "build", "Building Docker image..."
+                logs_callback, deployment_id, "info", "Building Docker image..."
             )
 
             # Verify Dockerfile exists before building
@@ -512,11 +512,11 @@ class BuildService:
                     try:
                         if inspect.iscoroutinefunction(logs_callback) and event_loop:
                             future = asyncio.run_coroutine_threadsafe(
-                                logs_callback(deployment_id, "build", line), event_loop
+                                logs_callback(deployment_id, "info", line), event_loop
                             )
                             future.result(timeout=5)
                         else:
-                            logs_callback(deployment_id, "build", line)
+                            logs_callback(deployment_id, "info", line)
                     except Exception:
                         pass  # Callback may fail in thread context
 

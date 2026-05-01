@@ -88,7 +88,7 @@ const deploymentSchema = new mongoose.Schema(
           },
           level: {
             type: String,
-            enum: ["info", "warn", "error", "debug"],
+            enum: ["info", "warn", "error", "debug", "build"],
             default: "info",
           },
           message: String,

@@ -304,6 +304,10 @@ class DeploymentOrchestrator {
     try {
       const { deploymentId, level, message } = data;
       if (!deploymentId) return;
+      const normalizedLevel = ["info", "warn", "error", "debug"].includes(level)
+        ? level
+        : "info";
+      const source = level === "build" ? "build" : "deploy";
 
       await Deployment.findOneAndUpdate(
         { deploymentId },
@@ -311,9 +315,9 @@ class DeploymentOrchestrator {
           $push: {
             "build.logs": {
               timestamp: new Date(),
-              level: level || "info",
+              level: normalizedLevel,
               message: message || "",
-              source: "build",
+              source,
             },
           },
         },
