@@ -52,6 +52,17 @@ const ProjectAnalytics = () => {
   }, [deployments, selectedDeploymentId]);
 
   const { connected, liveLogs, liveMetrics } = useDeploymentStream(selectedRuntimeDeploymentId);
+  const liveUptimeSeconds =
+    Number(liveMetrics?.uptime?.seconds ?? liveMetrics?.uptimeSeconds ?? 0) || 0;
+  const formatUptime = (seconds) => {
+    const total = Math.max(0, Number(seconds) || 0);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
+  };
 
   useEffect(() => {
     if (!liveMetrics) return;
@@ -240,6 +251,9 @@ const ProjectAnalytics = () => {
           <p className="text-sm text-gray-300">Mode: {mode === "runtime" ? "Container" : "Build"}</p>
           <p className="text-sm text-gray-300">
             Selected Deployment: {selectedDeploymentId || "None"}
+          </p>
+          <p className="text-sm text-gray-300">
+            Container Uptime: {formatUptime(liveUptimeSeconds)}
           </p>
         </div>
       </div>

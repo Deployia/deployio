@@ -454,6 +454,19 @@ class AgentWebSocketManager:
                     except Exception as e:
                         logger.error(f"Error handling deployment:logs_request in {namespace_path}: {e}")
 
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def deployment_metrics_request(data):
+            """Handle deployment:metrics_request from server."""
+            logger.info(f"Received deployment:metrics_request: {data.get('deploymentId')}")
+            for namespace_path, namespace_instance in self.namespaces.items():
+                if hasattr(namespace_instance, "handle_event"):
+                    try:
+                        await namespace_instance.handle_event("deployment:metrics_request", data)
+                    except Exception as e:
+                        logger.error(
+                            f"Error handling deployment:metrics_request in {namespace_path}: {e}"
+                        )
+
     async def _initialize_namespaces(self):
         """Initialize all registered namespaces after connection"""
         for namespace_path, namespace_instance in self.namespaces.items():
@@ -498,7 +511,7 @@ class AgentWebSocketManager:
                 "connection_time": datetime.now().isoformat(),
                 "capabilities": {
                     "logs": True,
-                    "metrics": False,  # TODO: Enable when implemented
+                    "metrics": True,
                     "builds": False,  # TODO: Enable when implemented
                     "deployments": True,
                 },

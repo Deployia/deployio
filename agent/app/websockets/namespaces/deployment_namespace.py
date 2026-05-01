@@ -35,6 +35,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             "deployment:restart": self._handle_deploy_restart,
             "deployment:status_request": self._handle_status_request,
             "deployment:logs_request": self._handle_logs_request,
+            "deployment:metrics_request": self._handle_metrics_request,
         }
 
     async def _on_connected(self):
@@ -197,10 +198,11 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
     async def _handle_status_request(self, data: Dict[str, Any]):
         """Handle deployment:status_request from server."""
         deployment_id = data.get("deploymentId")
+        container_id = data.get("containerId")
         if not deployment_id:
             return
 
-        result = await deployment_service.get_status(deployment_id)
+        result = await deployment_service.get_status(deployment_id, container_id=container_id)
         await self._emit_status_update(
             deployment_id,
             result.get("status", "unknown"),
@@ -211,19 +213,43 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
     async def _handle_logs_request(self, data: Dict[str, Any]):
         """Handle deployment:logs_request from server."""
         deployment_id = data.get("deploymentId")
+        container_id = data.get("containerId")
         tail = data.get("tail", 200)
         if not deployment_id:
             return
 
-        result = await deployment_service.get_logs(deployment_id, tail=tail)
+        result = await deployment_service.get_logs(
+            deployment_id, tail=tail, container_id=container_id
+        )
         payload = {
             "deploymentId": deployment_id,
             "logs": result.get("logs", ""),
             "lines": result.get("lines", 0),
+            "error": result.get("error"),
             "agentId": settings.agent_id,
             "timestamp": datetime.utcnow().isoformat(),
         }
         await self.emit_to_server("deployment:logs_response", payload)
+
+    async def _handle_metrics_request(self, data: Dict[str, Any]):
+        """Handle deployment:metrics_request from server."""
+        deployment_id = data.get("deploymentId")
+        container_id = data.get("containerId")
+        if not deployment_id:
+            return
+
+        result = await deployment_service.get_metrics(
+            deployment_id, container_id=container_id
+        )
+        payload = {
+            "deploymentId": deployment_id,
+            "metrics": result.get("metrics", {}),
+            "containerId": result.get("container_id"),
+            "error": result.get("error"),
+            "agentId": settings.agent_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        await self.emit_to_server("deployment:metrics", payload)
 
 
 # Global instance

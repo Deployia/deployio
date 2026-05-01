@@ -878,10 +878,24 @@ class LogStreamingNamespace {
       try {
         const availableAgentId = agentBridgeService.getAvailableAgent();
         if (!availableAgentId) return;
+        const deployment = await Deployment.findOne({ deploymentId })
+          .select("runtime.containerId")
+          .lean();
+        const containerId = deployment?.runtime?.containerId || undefined;
         await agentBridgeService.sendToAgent(
           availableAgentId,
           "deployment:logs_request",
-          { deploymentId, tail: 120 },
+          { deploymentId, containerId, tail: 120 },
+        );
+        await agentBridgeService.sendToAgent(
+          availableAgentId,
+          "deployment:metrics_request",
+          { deploymentId, containerId },
+        );
+        await agentBridgeService.sendToAgent(
+          availableAgentId,
+          "deployment:status_request",
+          { deploymentId, containerId },
         );
       } catch (error) {
         logger.warn("Failed requesting realtime deployment logs", {

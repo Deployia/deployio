@@ -53,13 +53,20 @@ class DeploymentService:
         safe_id = deployment_id.replace("dep_", "").replace("_", "-")[:40]
         return f"{CONTAINER_PREFIX}{safe_id}"
 
-    def _resolve_container(self, deployment_id: str):
+    def _resolve_container(self, deployment_id: str, container_id: Optional[str] = None):
         """
         Find a Docker container by deployment_id.
         Tries the literal name first (e.g. 'mern-example'), then the
         prefixed name ('deploy-mern-example'). Returns (container, name).
         """
         client = self._get_client()
+        # 0) Try explicit container id first when provided by platform
+        if container_id:
+            try:
+                c = client.containers.get(container_id)
+                return c, c.name
+            except NotFound:
+                pass
         # 1) Try literal container name
         try:
             c = client.containers.get(deployment_id)
@@ -396,11 +403,13 @@ class DeploymentService:
             logger.error(f"Error restarting container {deployment_id}: {e}")
             return {"status": "error", "error": str(e)}
 
-    async def get_status(self, deployment_id: str) -> Dict[str, Any]:
+    async def get_status(
+        self, deployment_id: str, container_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Get status of a deployed container."""
         try:
             client = self._get_client()
-            container, container_name = self._resolve_container(deployment_id)
+            container, container_name = self._resolve_container(deployment_id, container_id)
             container.reload()
 
             info = {
@@ -436,12 +445,12 @@ class DeploymentService:
             }
 
     async def get_logs(
-        self, deployment_id: str, tail: int = 200
+        self, deployment_id: str, tail: int = 200, container_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get container logs."""
         try:
             client = self._get_client()
-            container, container_name = self._resolve_container(deployment_id)
+            container, container_name = self._resolve_container(deployment_id, container_id)
             logs = container.logs(tail=tail, timestamps=True).decode(
                 "utf-8", errors="replace"
             )
@@ -454,6 +463,87 @@ class DeploymentService:
             return {"deployment_id": deployment_id, "logs": "", "error": "Container not found"}
         except Exception as e:
             return {"deployment_id": deployment_id, "logs": "", "error": str(e)}
+
+    async def get_metrics(
+        self, deployment_id: str, container_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get one-shot runtime metrics for a deployment container."""
+        try:
+            client = self._get_client()
+            container, container_name = self._resolve_container(deployment_id, container_id)
+            container.reload()
+            stats = container.stats(stream=False) or {}
+
+            cpu_total = (
+                (((stats.get("cpu_stats") or {}).get("cpu_usage") or {}).get("total_usage"))
+                or 0
+            )
+            precpu_total = (
+                (((stats.get("precpu_stats") or {}).get("cpu_usage") or {}).get("total_usage"))
+                or 0
+            )
+            cpu_delta = cpu_total - precpu_total
+            system_delta = (
+                ((stats.get("cpu_stats") or {}).get("system_cpu_usage") or 0)
+                - ((stats.get("precpu_stats") or {}).get("system_cpu_usage") or 0)
+            )
+            online_cpus = (
+                (stats.get("cpu_stats") or {}).get("online_cpus")
+                or len((((stats.get("cpu_stats") or {}).get("cpu_usage") or {}).get("percpu_usage")) or [])
+                or 1
+            )
+            cpu_percent = (
+                (cpu_delta / system_delta) * online_cpus * 100.0 if system_delta > 0 else 0.0
+            )
+
+            memory_usage = ((stats.get("memory_stats") or {}).get("usage")) or 0
+            memory_limit = ((stats.get("memory_stats") or {}).get("limit")) or 0
+            memory_percent = (
+                (memory_usage / memory_limit) * 100.0 if memory_limit > 0 else 0.0
+            )
+
+            started_at = (container.attrs.get("State") or {}).get("StartedAt")
+            uptime_seconds = 0
+            if started_at and started_at != "0001-01-01T00:00:00Z":
+                normalized = started_at.replace("Z", "+00:00")
+                started = datetime.fromisoformat(normalized)
+                uptime_seconds = max(
+                    0, int((datetime.utcnow() - started.replace(tzinfo=None)).total_seconds())
+                )
+
+            return {
+                "deployment_id": deployment_id,
+                "container_id": container.id[:12],
+                "container_name": container_name,
+                "metrics": {
+                    "cpu": {
+                        "usagePercent": round(cpu_percent, 2),
+                        "usage": round(cpu_percent, 2),
+                    },
+                    "memory": {
+                        "usageBytes": memory_usage,
+                        "limitBytes": memory_limit,
+                        "usagePercent": round(memory_percent, 2),
+                        "usage": round(memory_percent, 2),
+                    },
+                    "uptime": {
+                        "seconds": uptime_seconds,
+                        "percentage": 100,
+                    },
+                    "resources": {
+                        "cpu": {"usagePercent": round(cpu_percent, 2)},
+                        "memory": {"usagePercent": round(memory_percent, 2)},
+                    },
+                },
+            }
+        except NotFound:
+            return {
+                "deployment_id": deployment_id,
+                "metrics": {},
+                "error": "Container not found",
+            }
+        except Exception as e:
+            return {"deployment_id": deployment_id, "metrics": {}, "error": str(e)}
 
     async def list_deployments(self) -> List[Dict[str, Any]]:
         """List all deployio-managed containers."""

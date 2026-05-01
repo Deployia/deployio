@@ -365,6 +365,9 @@ class DeploymentOrchestrator {
         {
           $set: {
             "runtime.resources": metrics.resources || {},
+            "runtime.lastSeenAt": new Date(),
+            "runtime.uptimeSeconds":
+              metrics.uptime?.seconds ?? metrics.uptimeSeconds ?? 0,
             "metrics.requests.total":
               metrics.requests?.total ?? metrics.http?.requests ?? 0,
             "metrics.errors.total":
@@ -393,8 +396,22 @@ class DeploymentOrchestrator {
 
   async handleRuntimeLogsResponse(data) {
     try {
-      const { deploymentId, logs } = data || {};
-      if (!deploymentId || typeof logs !== "string") return;
+      const { deploymentId, logs, error } = data || {};
+      if (!deploymentId) return;
+      if (error) {
+        const logsNs = webSocketManager.getNamespace("/logs");
+        if (logsNs) {
+          logsNs.to(`deployment:${deploymentId}`).emit("deployment:runtime_log_update", {
+            deploymentId,
+            level: "error",
+            source: "runtime",
+            message: `Runtime log fetch failed: ${error}`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        return;
+      }
+      if (typeof logs !== "string") return;
 
       const entries = logs
         .split("\n")
