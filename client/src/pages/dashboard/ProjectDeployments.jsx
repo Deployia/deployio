@@ -110,6 +110,7 @@ const ProjectDeployments = () => {
       case "error":
         return <FaStop className="w-3 h-3 text-red-400" />;
       case "pending":
+      case "queued":
       case "building":
         return <FaSync className="w-3 h-3 text-yellow-400 animate-spin" />;
       case "stopped":
@@ -148,6 +149,7 @@ const ProjectDeployments = () => {
             <option value="success">Successful</option>
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
+            <option value="queued">Queued</option>
             <option value="running">Running</option>
             <option value="stopped">Stopped</option>
           </select>
@@ -244,7 +246,27 @@ const ProjectDeployments = () => {
                       <span className="hidden sm:inline">Visit</span>
                     </a>
                   )}
-                  {/* Action buttons: Start / Stop / Restart / Cancel */}
+                  {/* Action buttons: Retry / Start / Stop / Restart / Cancel */}
+                  {deployment.status === "queued" && (
+                    <button
+                      onClick={() => handleRestart(deployment)}
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm"
+                    >
+                      <FaSync className="w-3 h-3" />
+                      <span className="hidden sm:inline">Retry</span>
+                    </button>
+                  )}
+
+                  {deployment.status === "pending" && (
+                    <button
+                      onClick={() => handleRestart(deployment)}
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
+                    >
+                      <FaPlay className="w-3 h-3" />
+                      <span className="hidden sm:inline">Start</span>
+                    </button>
+                  )}
+
                   {deployment.status === "running" && (
                     <>
                       <button
