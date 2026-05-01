@@ -10,6 +10,7 @@ from datetime import datetime
 
 from app.websockets.namespaces.base import BaseAgentNamespace
 from app.services.deployment_service import deployment_service
+from app.services.build_service import BuildService
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -99,18 +100,20 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         port = data.get("port", 3000)
         env_vars = data.get("envVars") or {}
 
-        if not deployment_id or not image or not subdomain:
+        # Require deployment id and target subdomain. Image may be omitted
+        # when the agent is expected to clone+build the repo.
+        if not deployment_id or not subdomain:
             logger.error(f"deployment:trigger missing required fields: {data}")
             await self._emit_status_update(
                 deployment_id or "unknown",
                 "failed",
-                "Missing required fields (deploymentId, image, subdomain)",
+                "Missing required fields (deploymentId, subdomain)",
             )
             return
 
         logger.info(
             f"Received deployment trigger: {deployment_id} "
-            f"image={image} subdomain={subdomain} port={port}"
+            f"image={image} repo={data.get('repoUrl')} branch={data.get('branch')} subdomain={subdomain} port={port}"
         )
 
         # Status callback — relays every status change to server
@@ -121,16 +124,34 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         async def log_cb(dep_id, level, message):
             await self._emit_build_log(dep_id, level, message)
 
-        # Run deployment (async, may take several seconds)
-        result = await deployment_service.deploy(
-            deployment_id=deployment_id,
-            image=image,
-            subdomain=subdomain,
-            port=port,
-            env_vars=env_vars,
-            status_callback=status_cb,
-            log_callback=log_cb,
-        )
+        # If image provided, run runtime deploy; otherwise attempt agent-side clone+build
+        branch_name = data.get("branch") or "main"
+        if image:
+            # Run deployment (async, may take several seconds)
+            result = await deployment_service.deploy(
+                deployment_id=deployment_id,
+                image=image,
+                subdomain=subdomain,
+                port=port,
+                env_vars=env_vars,
+                status_callback=status_cb,
+                log_callback=log_cb,
+            )
+        else:
+            # Agent-side build + deploy using BuildService
+            try:
+                build_service = BuildService()
+                result = await build_service.build_and_deploy(
+                    git_url=data.get("repoUrl"),
+                    github_token=data.get("githubToken"),
+                    branch=branch_name,
+                    subdomain=subdomain,
+                    logs_callback=log_cb,
+                    deployment_id=deployment_id,
+                )
+            except Exception as e:
+                logger.error(f"Agent build_and_deploy failed: {e}")
+                result = {"status": "failed", "error": str(e)}
 
         # Final status (deploy() already emits intermediate statuses via callbacks,
         # but we send a definitive "done" event as well)

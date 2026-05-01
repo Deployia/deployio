@@ -56,11 +56,14 @@ class DeploymentOrchestrator {
         deployment.config?.subdomain ||
         deploymentId;
 
-      // Determine Docker image — projects seeded via pipeline have a dockerImage field
-      const dockerImage =
-        project.dockerImage ||
-        deployment.dockerImage ||
-        `${project.slug || project.name.toLowerCase().replace(/\s+/g, "-")}:latest`;
+      // Determine Docker image — projects seeded via pipeline may have a dockerImage field
+      const dockerImage = project.dockerImage || deployment.dockerImage || null;
+
+      // Repo/branch info for agent-side build when image not provided
+      const repoUrl =
+        project.repository?.url || project.repository?.git || null;
+      const branch =
+        deployment.config?.branch || project.repository?.branch || "main";
 
       // Determine container port from project stack or default
       const containerPort =
@@ -76,12 +79,17 @@ class DeploymentOrchestrator {
 
       const payload = {
         deploymentId,
+        // If an image is provided, agent can directly run it; otherwise agent should clone+build
         image: dockerImage,
+        repoUrl,
+        branch,
         subdomain,
         port: containerPort,
         envVars,
         projectName: project.name,
         environment: deployment.config?.environment || "production",
+        // instruct agent to build if no image is available
+        buildIfMissing: !dockerImage,
       };
 
       logger.info("Sending deployment:trigger to agent", {

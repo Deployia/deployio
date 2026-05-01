@@ -16,7 +16,12 @@ import {
   FaTimes,
   FaUser,
 } from "react-icons/fa";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  stopDeployment,
+  restartDeployment,
+  cancelDeployment,
+} from "../../redux/slices/deploymentSlice";
 
 const ProjectDeployments = () => {
   const { onOpenDeployModal } = useOutletContext() || {};
@@ -34,6 +39,7 @@ const ProjectDeployments = () => {
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
   const [filter, setFilter] = useState("all");
+  const dispatch = useDispatch();
 
   const filteredDeployments = Array.isArray(projectDeployments)
     ? filter === "all"
@@ -45,6 +51,33 @@ const ProjectDeployments = () => {
     setSelectedDeployment(deployment);
     setShowLogs(true);
   }, []);
+
+  const handleStop = useCallback(
+    (deployment) => {
+      const id = deployment._id || deployment.id || deployment.deploymentId;
+      if (!id) return;
+      dispatch(stopDeployment(id));
+    },
+    [dispatch],
+  );
+
+  const handleRestart = useCallback(
+    (deployment) => {
+      const id = deployment._id || deployment.id || deployment.deploymentId;
+      if (!id) return;
+      dispatch(restartDeployment(id));
+    },
+    [dispatch],
+  );
+
+  const handleCancel = useCallback(
+    (deployment) => {
+      const id = deployment._id || deployment.id || deployment.deploymentId;
+      if (!id) return;
+      dispatch(cancelDeployment(id));
+    },
+    [dispatch],
+  );
 
   const getStatusBadge = (status) => {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
@@ -210,6 +243,47 @@ const ProjectDeployments = () => {
                       <FaExternalLinkAlt className="w-3 h-3" />
                       <span className="hidden sm:inline">Visit</span>
                     </a>
+                  )}
+                  {/* Action buttons: Start / Stop / Restart / Cancel */}
+                  {deployment.status === "running" && (
+                    <>
+                      <button
+                        onClick={() => handleStop(deployment)}
+                        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
+                      >
+                        <FaStop className="w-3 h-3" />
+                        <span className="hidden sm:inline">Stop</span>
+                      </button>
+                      <button
+                        onClick={() => handleRestart(deployment)}
+                        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm"
+                      >
+                        <FaSync className="w-3 h-3" />
+                        <span className="hidden sm:inline">Restart</span>
+                      </button>
+                    </>
+                  )}
+
+                  {deployment.status === "stopped" && (
+                    <button
+                      onClick={() => handleRestart(deployment)}
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
+                    >
+                      <FaPlay className="w-3 h-3" />
+                      <span className="hidden sm:inline">Start</span>
+                    </button>
+                  )}
+
+                  {["pending", "queued", "building", "deploying"].includes(
+                    deployment.status,
+                  ) && (
+                    <button
+                      onClick={() => handleCancel(deployment)}
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-gray-700/20 border border-gray-600/30 rounded-lg text-gray-300 hover:bg-gray-700/30 transition-colors text-xs sm:text-sm"
+                    >
+                      <FaTimes className="w-3 h-3" />
+                      <span className="hidden sm:inline">Cancel</span>
+                    </button>
                   )}
                 </div>
               </div>

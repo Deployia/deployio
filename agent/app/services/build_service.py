@@ -52,7 +52,9 @@ class BuildService:
         }
 
     def _normalize_repo_url(self, git_url: str) -> str:
-        normalized = git_url.strip().lower().replace("https://", "").replace("http://", "")
+        normalized = (
+            git_url.strip().lower().replace("https://", "").replace("http://", "")
+        )
         if normalized.endswith(".git"):
             normalized = normalized[:-4]
         return normalized.strip("/")
@@ -80,16 +82,28 @@ class BuildService:
         entry["updated_at"] = int(time.time())
         if message:
             entry["logs"].append(
-                {"ts": int(time.time()), "level": "info", "stage": stage, "message": message}
+                {
+                    "ts": int(time.time()),
+                    "level": "info",
+                    "stage": stage,
+                    "message": message,
+                }
             )
 
     def _set_failed(self, deployment_id: str, error: str) -> None:
-        entry = self.active_builds.setdefault(deployment_id, {"deployment_id": deployment_id, "logs": []})
+        entry = self.active_builds.setdefault(
+            deployment_id, {"deployment_id": deployment_id, "logs": []}
+        )
         entry["status"] = "failed"
         entry["error"] = error
         entry["updated_at"] = int(time.time())
         entry["logs"].append(
-            {"ts": int(time.time()), "level": "error", "stage": "failed", "message": error}
+            {
+                "ts": int(time.time()),
+                "level": "error",
+                "stage": "failed",
+                "message": error,
+            }
         )
 
     async def analyze_repository(
@@ -191,12 +205,14 @@ class BuildService:
         branch: str = "main",
         subdomain: Optional[str] = None,
         logs_callback: Optional[Callable] = None,
+        deployment_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Full pipeline: clone → detect → generate Dockerfile → build → deploy.
         Returns: { deployment_id, subdomain, url, status, port }
         """
-        deployment_id = f"dep-{uuid.uuid4().hex[:12]}"
+        # Allow server to provide a deployment_id to keep things in sync
+        deployment_id = deployment_id or f"dep-{uuid.uuid4().hex[:12]}"
         repo_path: Optional[Path] = None
 
         try:
@@ -231,7 +247,9 @@ class BuildService:
                 "NEXT": {"NEXT"},
                 "FASTAPI": {"FASTAPI"},
             }
-            if detected_stack not in allowed_detected_for_profile.get(stack_type, {stack_type}):
+            if detected_stack not in allowed_detected_for_profile.get(
+                stack_type, {stack_type}
+            ):
                 raise ValueError(
                     f"Repository stack mismatch. Expected profile {stack_type}, detected {detected_stack}."
                 )
@@ -411,13 +429,15 @@ class BuildService:
             "deployment_id": result.get("deployment_id"),
             "status": result.get("status"),
             "stack": result.get("stack"),
-            "container_name": self.active_builds.get(result.get("deployment_id", ""), {}).get(
-                "container_name"
-            ),
+            "container_name": self.active_builds.get(
+                result.get("deployment_id", ""), {}
+            ).get("container_name"),
             "url": result.get("url"),
-            "logs_ref": f"/agent/v1/deploy/{result.get('deployment_id')}/logs"
-            if result.get("deployment_id")
-            else None,
+            "logs_ref": (
+                f"/agent/v1/deploy/{result.get('deployment_id')}/logs"
+                if result.get("deployment_id")
+                else None
+            ),
             "error": result.get("error"),
         }
 
@@ -430,7 +450,9 @@ class BuildService:
             return merged
         return runtime
 
-    async def get_deployment_logs(self, deployment_id: str, tail: int = 200) -> Dict[str, Any]:
+    async def get_deployment_logs(
+        self, deployment_id: str, tail: int = 200
+    ) -> Dict[str, Any]:
         runtime = await self.deployment_service.get_logs(deployment_id, tail=tail)
         local = self.active_builds.get(deployment_id, {})
         return {
@@ -444,7 +466,9 @@ class BuildService:
     async def stop_deployment(self, deployment_id: str) -> Dict[str, Any]:
         result = await self.deployment_service.stop(deployment_id)
         if deployment_id in self.active_builds:
-            self.active_builds[deployment_id]["status"] = result.get("status", "stopped")
+            self.active_builds[deployment_id]["status"] = result.get(
+                "status", "stopped"
+            )
         return result
 
     @staticmethod
