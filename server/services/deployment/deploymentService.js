@@ -1,9 +1,36 @@
+const crypto = require("crypto");
 const Deployment = require("@models/Deployment");
 const Project = require("@models/Project");
 const logger = require("@config/logger");
 const deploymentOrchestrator = require("./deploymentOrchestrator");
+const subdomainManager = require("./subdomainManager");
+
+const ACTIVE_DEPLOYMENT_STATUSES = [
+  "pending",
+  "queued",
+  "building",
+  "deploying",
+  "running",
+];
 
 class DeploymentService {
+  async _findAccessibleProject(projectId, userId) {
+    return Project.findOne({
+      _id: projectId,
+      $or: [
+        { owner: userId },
+        {
+          collaborators: {
+            $elemMatch: {
+              user: userId,
+              role: { $in: ["admin", "editor"] },
+            },
+          },
+        },
+      ],
+    }).select("name slug owner repository branch collaborators statistics");
+  }
+
   /**
    * Get all deployments with filtering and pagination
    */
@@ -21,7 +48,19 @@ class DeploymentService {
       } = options;
 
       // First get user's projects
-      const userProjects = await Project.find({ owner: userId }).select("_id");
+      const userProjects = await Project.find({
+        $or: [
+          { owner: userId },
+          {
+            collaborators: {
+              $elemMatch: {
+                user: userId,
+                role: { $in: ["admin", "editor"] },
+              },
+            },
+          },
+        ],
+      }).select("_id");
       const projectIds = userProjects.map((p) => p._id);
 
       // Build query
@@ -156,37 +195,92 @@ class DeploymentService {
    */
   async createDeployment(projectId, deploymentData, userId) {
     try {
-      // Verify project ownership
-      const project = await Project.findOne({ _id: projectId, owner: userId });
+      // Verify project access (owner or collaborator with admin/editor role)
+      const project = await this._findAccessibleProject(projectId, userId);
       if (!project) {
         throw new Error("Project not found or access denied");
       }
 
-      // Generate unique subdomain
-      const subdomain = await Deployment.generateSubdomain(
-        project.name,
-        deploymentData.environment || "dev",
-      );
+      const environment = deploymentData.environment || "staging";
 
-      // Create deployment
-      const deployment = new Deployment({
+      const activeDeployments = await Deployment.countDocuments({
         project: projectId,
-        deployedBy: userId,
-        config: {
-          environment: deploymentData.environment || "development",
-          branch: deploymentData.branch || project.repository.branch || "main",
-          commit: deploymentData.commit,
-          subdomain,
-          customDomain: deploymentData.customDomain,
-        },
-        networking: {
-          subdomain,
-          fullUrl: `https://${subdomain}.deployio.tech`,
-        },
-        status: "pending",
+        status: { $in: ACTIVE_DEPLOYMENT_STATUSES },
       });
 
-      await deployment.save();
+      if (activeDeployments >= 2) {
+        throw new Error("This project already has 2 active deployments");
+      }
+
+      const environmentDeployment = await Deployment.countDocuments({
+        project: projectId,
+        status: { $in: ACTIVE_DEPLOYMENT_STATUSES },
+        "config.environment": environment,
+      });
+
+      if (environmentDeployment > 0) {
+        throw new Error(
+          `A ${environment} deployment already exists for this project`,
+        );
+      }
+
+      const reservation = await subdomainManager.reserveSubdomain({
+        projectId,
+        environment,
+        preferredSubdomain: deploymentData.subdomain,
+      });
+
+      const subdomain = reservation.reservation.subdomain;
+      let deployment;
+
+      // Prepare commit information (from client or project's last commit)
+      const commitData = deploymentData.commit || {
+        hash:
+          project.repository?.metadata?.lastCommit?.sha ||
+          crypto.randomBytes(20).toString("hex"),
+        message:
+          project.repository?.metadata?.lastCommit?.message || "Auto-deploy",
+        author: project.repository?.metadata?.lastCommit?.author || "deployio",
+        timestamp: project.repository?.metadata?.lastCommit?.date || new Date(),
+      };
+
+      try {
+        // Create deployment
+        deployment = new Deployment({
+          project: projectId,
+          deployedBy: userId,
+          config: {
+            environment,
+            branch:
+              deploymentData.branch || project.repository.branch || "main",
+            commit: commitData,
+            subdomain,
+            customDomain: deploymentData.customDomain,
+          },
+          networking: {
+            subdomain,
+            fullUrl: `https://${subdomain}.deployio.tech`,
+          },
+          status: "pending",
+        });
+
+        await deployment.save();
+
+        await subdomainManager.linkDeployment({
+          deploymentId: deployment._id,
+          projectId,
+          environment,
+          subdomain,
+        });
+      } catch (saveError) {
+        await subdomainManager.releaseReservation({
+          projectId,
+          environment,
+          subdomain,
+          reason: "deployment-save-failed",
+        });
+        throw saveError;
+      }
 
       // Update project statistics
       await project.incrementDeploymentCount(false); // Will be true when successful
@@ -204,6 +298,10 @@ class DeploymentService {
 
       return this.transformDeployment(deployment.toObject());
     } catch (error) {
+      if (error && error.message && error.message.includes("subdomain")) {
+        throw error;
+      }
+
       logger.error("Error in createDeployment:", error);
       throw error;
     }

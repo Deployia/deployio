@@ -31,7 +31,7 @@ class NeuralNetwork {
   createNodes() {
     const isMobile = window.innerWidth < 768;
     const nodeCount = Math.floor(
-      (this.canvas.width * this.canvas.height) / (isMobile ? 80000 : 50000)
+      (this.canvas.width * this.canvas.height) / (isMobile ? 80000 : 50000),
     );
     this.nodes = [];
 
@@ -173,53 +173,144 @@ class TypingAnimation {
   }
 }
 
-// Load configuration and check subdomain type
+// Load configuration and subdomain status
 let config = null;
+let subdomainContext = null;
 
-// Load config.json
+const FALLBACK_CONFIG = {
+  reserved_subdomains: [
+    "landing",
+    "admin",
+    "dashboard",
+    "api",
+    "cdn",
+    "static",
+    "assets",
+    "mail",
+    "ftp",
+    "www",
+    "blog",
+    "docs",
+    "support",
+    "status",
+    "monitor",
+    "service",
+    "ai",
+    "agent",
+  ],
+  platform_url: "https://deployio.tech",
+  contact_email: "support@deployio.tech",
+};
+
 async function loadConfig() {
   try {
-    const response = await fetch("./config.json");
+    const response = await fetch("./config.json", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Config request failed with status ${response.status}`);
+    }
+
     config = await response.json();
   } catch (error) {
     console.error("Failed to load config:", error);
-    // Fallback config
-    config = {
-      reserved_subdomains: [
-        "landing",
-        "admin",
-        "dashboard",
-        "api",
-        "cdn",
-        "static",
-        "assets",
-        "mail",
-        "ftp",
-        "www",
-        "blog",
-        "docs",
-        "support",
-        "status",
-        "monitor",
-      ],
-      platform_url: "https://deployio.tech",
-      contact_email: "support@deployio.tech",
+    config = FALLBACK_CONFIG;
+  }
+}
+
+async function loadSubdomainContext() {
+  const currentHost = window.location.host;
+  const endpoint =
+    `${window.location.origin}/_deployio/api/v1/external/subdomains/context` +
+    `?host=${encodeURIComponent(currentHost)}`;
+
+  try {
+    const response = await fetch(endpoint, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Context request failed with status ${response.status}`);
+    }
+
+    const payload = await response.json();
+    if (!payload?.success || !payload?.data) {
+      throw new Error("Invalid subdomain context payload");
+    }
+
+    subdomainContext = payload.data;
+  } catch (error) {
+    const fallbackSubdomain = getCurrentSubdomain();
+    const fallbackReservedList = config?.reserved_subdomains || [];
+    const fallbackIsReserved =
+      !!fallbackSubdomain &&
+      fallbackReservedList.includes(fallbackSubdomain.toLowerCase());
+
+    console.warn("Falling back to local reserved-subdomain rules:", error);
+    subdomainContext = {
+      hostname: window.location.hostname,
+      subdomain: fallbackSubdomain,
+      baseDomain: "deployio.tech",
+      isReserved: fallbackIsReserved,
+      reason: fallbackIsReserved
+        ? "reserved-subdomain-list-fallback"
+        : "available-fallback",
     };
   }
 }
 
-// Check if current subdomain is reserved
 function isReservedSubdomain() {
-  const subdomain = getCurrentSubdomain();
-  if (!subdomain || !config) return false;
-
-  return config.reserved_subdomains.includes(subdomain.toLowerCase());
+  return !!subdomainContext?.isReserved;
 }
 
-// Show appropriate content based on subdomain type
+function applyContextText() {
+  const detectedSubdomain =
+    subdomainContext?.subdomain || getCurrentSubdomain();
+
+  const regularSubdomainValue = document.getElementById(
+    "regular-subdomain-value",
+  );
+  if (regularSubdomainValue) {
+    regularSubdomainValue.textContent = detectedSubdomain || "root-domain";
+  }
+
+  const reservedSubdomainValue = document.getElementById(
+    "reserved-subdomain-value",
+  );
+  if (reservedSubdomainValue && detectedSubdomain) {
+    reservedSubdomainValue.textContent = `(${detectedSubdomain})`;
+  }
+
+  const reservedReason = document.getElementById("reserved-reason");
+  if (reservedReason) {
+    reservedReason.textContent = subdomainContext?.reason || "unknown";
+  }
+}
+
+function applyConfigLinks() {
+  const platformUrl = config?.platform_url || "https://deployio.tech";
+  const contactEmail = config?.contact_email || "support@deployio.tech";
+
+  document
+    .querySelectorAll("a[href='https://deployio.tech']")
+    .forEach((link) => {
+      link.href = platformUrl;
+    });
+
+  const contactLinks = document.querySelectorAll(
+    "a[href='https://deployio.tech/contact']",
+  );
+  contactLinks.forEach((link) => {
+    link.href = `${platformUrl}/contact`;
+  });
+
+  const supportMailLink = document.getElementById("support-email-link");
+  if (supportMailLink) {
+    supportMailLink.href = `mailto:${contactEmail}`;
+    supportMailLink.textContent = contactEmail;
+  }
+}
+
 function showContent() {
   const regularContent = document.getElementById("regular-content");
   const reservedContent = document.getElementById("reserved-content");
+  const detectedSubdomain =
+    subdomainContext?.subdomain || getCurrentSubdomain();
 
   if (isReservedSubdomain()) {
     regularContent.classList.add("hidden");
@@ -229,8 +320,9 @@ function showContent() {
     document.title = "Reserved Subdomain - Deployio";
 
     // Log reserved subdomain access
-    const subdomain = getCurrentSubdomain();
-    console.log(`Reserved subdomain accessed: ${subdomain}.deployio.tech`);
+    console.log(
+      `Reserved subdomain accessed: ${detectedSubdomain || "unknown"}.${subdomainContext?.baseDomain || "deployio.tech"}`,
+    );
 
     // Optional: Send analytics for reserved subdomain access
     // sendReservedSubdomainAnalytics(subdomain);
@@ -239,17 +331,22 @@ function showContent() {
     reservedContent.classList.add("hidden");
 
     // Log regular subdomain access
-    const subdomain = getCurrentSubdomain();
-    if (subdomain) {
-      console.log(`Available subdomain accessed: ${subdomain}.deployio.tech`);
+    if (detectedSubdomain) {
+      console.log(
+        `Available subdomain accessed: ${detectedSubdomain}.${subdomainContext?.baseDomain || "deployio.tech"}`,
+      );
     }
   }
+
+  applyContextText();
 }
 
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", async function () {
-  // Load configuration first
+  // Load configuration and resolve subdomain state first
   await loadConfig();
+  await loadSubdomainContext();
+  applyConfigLinks();
 
   // Show appropriate content based on subdomain type
   showContent();
@@ -301,6 +398,6 @@ function getCurrentSubdomain() {
 function sendReservedSubdomainAnalytics(subdomain) {
   // This could send data to your analytics service
   console.log(
-    `Analytics: Reserved subdomain ${subdomain} accessed at ${new Date().toISOString()}`
+    `Analytics: Reserved subdomain ${subdomain} accessed at ${new Date().toISOString()}`,
   );
 }

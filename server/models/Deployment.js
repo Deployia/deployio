@@ -8,6 +8,9 @@ const deploymentSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      default: function () {
+        return `dep_${crypto.randomBytes(12).toString("hex")}`;
+      },
     },
     // References
     project: {

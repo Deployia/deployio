@@ -165,6 +165,13 @@ const validateDeploymentCreation = [
     .withMessage("Custom domain must be a valid FQDN"),
 ];
 
+const validateSubdomainQuery = [
+  query("environment")
+    .optional()
+    .isIn(["development", "staging", "production"])
+    .withMessage("Environment must be development, staging, or production"),
+];
+
 /**
  * @desc Create new deployment for project
  * @route POST /api/v1/projects/:id/deployments
@@ -174,6 +181,17 @@ router.post(
   validateObjectId,
   validateDeploymentCreation,
   deploymentController.createDeployment,
+);
+
+/**
+ * @desc Get subdomain suggestions for project deployments
+ * @route GET /api/v1/projects/:id/deployments/subdomains
+ */
+router.get(
+  "/:id/deployments/subdomains",
+  validateObjectId,
+  validateSubdomainQuery,
+  deploymentController.getDeploymentSubdomains,
 );
 
 module.exports = router;

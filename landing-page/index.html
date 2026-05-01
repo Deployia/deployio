@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
@@ -145,6 +145,12 @@
               This subdomain is configured and ready for immediate deployment.
               Deploy any application stack with zero configuration.
             </p>
+            <p class="text-blue-300 text-xs sm:text-sm mb-3 sm:mb-0">
+              Subdomain:
+              <span id="regular-subdomain-value" class="font-semibold"
+                >unknown</span
+              >
+            </p>
             <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">
               <div class="flex flex-col items-center gap-1">
                 <span class="text-base sm:text-lg">⚡</span>
@@ -287,6 +293,10 @@
             <p class="text-base sm:text-lg text-gray-300 mb-4">
               This subdomain is reserved for Deployio platform services and is
               not available for user applications.
+              <span
+                class="text-red-300 font-semibold"
+                id="reserved-subdomain-value"
+              ></span>
             </p>
           </div>
 
@@ -316,6 +326,12 @@
             >
               This subdomain is reserved for platform infrastructure and cannot
               be used for user deployments.
+            </p>
+            <p class="text-red-300 text-xs sm:text-sm mb-3 sm:mb-0">
+              Reason:
+              <span id="reserved-reason" class="font-semibold"
+                >platform-reserved-subdomain</span
+              >
             </p>
             <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">
               <div class="flex flex-col items-center gap-1">

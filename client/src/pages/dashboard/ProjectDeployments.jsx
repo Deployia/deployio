@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useCallback, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import {
   FaClock,
   FaCode,
@@ -18,6 +19,7 @@ import {
 import { useSelector } from "react-redux";
 
 const ProjectDeployments = () => {
+  const { onOpenDeployModal } = useOutletContext() || {};
   // Get deployments from Outlet context or Redux
   const projectDeployments = useSelector(
     (state) => state.deployments.projectDeployments,
@@ -96,18 +98,27 @@ const ProjectDeployments = () => {
             View project deployment history
           </p>
         </div>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm w-full sm:w-48"
-        >
-          <option value="all">All Deployments</option>
-          <option value="success">Successful</option>
-          <option value="failed">Failed</option>
-          <option value="pending">Pending</option>
-          <option value="running">Running</option>
-          <option value="stopped">Stopped</option>
-        </select>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button
+            onClick={onOpenDeployModal}
+            className="px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm w-full sm:w-auto"
+          >
+            <FaPlus className="w-4 h-4 mr-2 inline" />
+            Create Deployment
+          </button>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm w-full sm:w-48"
+          >
+            <option value="all">All Deployments</option>
+            <option value="success">Successful</option>
+            <option value="failed">Failed</option>
+            <option value="pending">Pending</option>
+            <option value="running">Running</option>
+            <option value="stopped">Stopped</option>
+          </select>
+        </div>
       </div>
 
       {/* Deployments List */}
@@ -119,7 +130,7 @@ const ProjectDeployments = () => {
         ) : filteredDeployments.length > 0 ? (
           filteredDeployments.map((deployment, index) => (
             <motion.div
-              key={deployment.id}
+              key={deployment._id || deployment.deploymentId || deployment.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -131,15 +142,24 @@ const ProjectDeployments = () => {
                     <FaRocket className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                      <h3 className="text-white font-semibold text-sm sm:text-base">
-                        {/* {deployment.environment || "production"} */}
-                      </h3>
-                      <span className={getStatusBadge(deployment.status)}>
-                        {getStatusIcon(deployment.status)}
-                        <span className="ml-1">{deployment.status}</span>
-                      </span>
-                    </div>
+                    {(() => {
+                      const environment =
+                        deployment?.config?.environment ||
+                        deployment?.environment ||
+                        "staging";
+
+                      return (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                          <h3 className="text-white font-semibold text-sm sm:text-base">
+                            {environment}
+                          </h3>
+                          <span className={getStatusBadge(deployment.status)}>
+                            {getStatusIcon(deployment.status)}
+                            <span className="ml-1">{deployment.status}</span>
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-400">
                       <div className="flex items-center gap-1">
                         <FaCode className="w-3 h-3 flex-shrink-0" />
@@ -180,9 +200,9 @@ const ProjectDeployments = () => {
                     <span className="hidden sm:inline">Logs</span>
                   </button>
 
-                  {deployment.url && (
+                  {(deployment.url || deployment.networking?.fullUrl) && (
                     <a
-                      href={deployment.url}
+                      href={deployment.url || deployment.networking?.fullUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
@@ -195,18 +215,19 @@ const ProjectDeployments = () => {
               </div>
 
               {/* Deployment Details */}
-              {deployment.commit && (
+              {deployment.config?.commit && (
                 <div className="mt-3 sm:mt-4 p-3 bg-neutral-800/50 rounded-lg">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
                       <FaCode className="w-3 h-3 text-gray-400 flex-shrink-0" />
                       <span className="text-gray-400">Commit:</span>
                       <span className="text-white font-mono">
-                        {deployment.commit.hash?.slice(0, 8) || "N/A"}
+                        {deployment.config?.commit?.hash?.slice(0, 8) || "N/A"}
                       </span>
                     </div>
                     <span className="text-gray-300 truncate sm:ml-2">
-                      {deployment.commit.message || "No commit message"}
+                      {deployment.config?.commit?.message ||
+                        "No commit message"}
                     </span>
                   </div>
                 </div>
@@ -226,6 +247,7 @@ const ProjectDeployments = () => {
             </p>
             {filter === "all" && (
               <button
+                onClick={onOpenDeployModal}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
               >
                 <FaPlus className="w-4 h-4 mr-2 inline" />
@@ -272,6 +294,25 @@ const ProjectDeployments = () => {
                 {selectedDeployment.buildLogs &&
                 selectedDeployment.buildLogs.length > 0 ? (
                   selectedDeployment.buildLogs.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={
+                        log.level === "error"
+                          ? "text-red-400"
+                          : log.level === "warning"
+                            ? "text-yellow-400"
+                            : "text-gray-300"
+                      }
+                    >
+                      <span className="text-gray-600 mr-2 text-xs">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                      {log.message}
+                    </div>
+                  ))
+                ) : selectedDeployment.build?.logs &&
+                  selectedDeployment.build.logs.length > 0 ? (
+                  selectedDeployment.build.logs.map((log, idx) => (
                     <div
                       key={idx}
                       className={

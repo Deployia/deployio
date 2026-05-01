@@ -99,7 +99,6 @@ class DeploymentOrchestrator {
           "timeline.queuedAt": new Date(),
         },
       );
-
       // Send to connected agent via WebSocket bridge
       const sent = await this.bridgeService.sendToAgent(
         this.defaultAgentId,
@@ -108,20 +107,32 @@ class DeploymentOrchestrator {
       );
 
       if (!sent) {
-        logger.error("Agent not connected — deployment stuck in queued", {
+        // Agent is offline; leave the deployment queued so it can be retried
+        logger.warn("Agent not connected — leaving deployment queued", {
           deploymentId,
           agent: this.defaultAgentId,
         });
 
+        // Update queue attempt metadata, keep status as queued
         await Deployment.findOneAndUpdate(
           { deploymentId },
           {
-            status: "failed",
-            "error.message": "Agent not connected",
-            "error.code": "AGENT_OFFLINE",
-            "timeline.failedAt": new Date(),
+            status: "queued",
+            "timeline.lastQueueAttemptAt": new Date(),
           },
+          { new: true },
         );
+
+        // Increment queueAttempts counter (use $inc to avoid races)
+        try {
+          await Deployment.findOneAndUpdate(
+            { deploymentId },
+            { $inc: { "timeline.queueAttempts": 1 } },
+          );
+        } catch (e) {
+          logger.debug("Failed to increment queueAttempts", e);
+        }
+
         return false;
       }
 

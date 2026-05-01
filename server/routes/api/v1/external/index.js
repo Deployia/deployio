@@ -2,6 +2,7 @@ const express = require("express");
 const blogRoutes = require("./blog");
 const docsRoutes = require("./docs");
 const notificationRoutes = require("./notifications");
+const subdomainRoutes = require("./subdomains");
 
 const router = express.Router();
 
@@ -9,5 +10,6 @@ const router = express.Router();
 router.use("/blogs", blogRoutes);
 router.use("/docs", docsRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/subdomains", subdomainRoutes);
 
 module.exports = router;

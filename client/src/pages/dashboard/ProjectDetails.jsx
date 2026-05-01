@@ -31,6 +31,10 @@ import {
   updateProject,
   deleteProject,
   toggleArchiveProject,
+  fetchProjectDeployments,
+  fetchDeploymentSubdomains,
+  createDeployment,
+  clearDeploymentError,
   clearProjectError,
   clearProjectSuccess,
 } from "@redux/index";
@@ -45,7 +49,11 @@ const ProjectDetails = () => {
   const { currentProject, loading, error, success } = useSelector(
     (state) => state.projects,
   );
-  const { projectDeployments } = useSelector((state) => state.deployments);
+  const {
+    projectDeployments,
+    loading: deploymentLoading,
+    error: deploymentError,
+  } = useSelector((state) => state.deployments);
   const { projectAnalytics } = useSelector((state) => state.analytics);
 
   // Local state
@@ -57,6 +65,51 @@ const ProjectDetails = () => {
   });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [deploymentForm, setDeploymentForm] = useState({
+    environment: "staging",
+    subdomain: "",
+  });
+  const [subdomainState, setSubdomainState] = useState({
+    suggestions: [],
+    taken: [],
+    capacity: null,
+  });
+
+  // Consider capacity reached when remainingDeployments is 0 or less
+  const isDeploymentCapacityReached =
+    typeof subdomainState.capacity?.maxDeployments === "number" &&
+    (typeof subdomainState.capacity?.remainingDeployments === "number"
+      ? subdomainState.capacity.remainingDeployments <= 0
+      : (subdomainState.capacity?.activeDeployments || 0) >=
+        subdomainState.capacity.maxDeployments);
+
+  const isEnvCapacityReached = (env) => {
+    if (
+      !subdomainState.capacity ||
+      typeof subdomainState.capacity.maxDeployments !== "number"
+    )
+      return false;
+
+    const envActive =
+      subdomainState.capacity.activeDeploymentsInEnvironment || 0;
+    const projectActive = subdomainState.capacity.activeDeployments || 0;
+
+    // Disable an environment if it already has an active deployment,
+    // or if the project is already at its overall maximum.
+    if (deploymentForm.environment === env && envActive > 0) {
+      return true;
+    }
+
+    return projectActive >= subdomainState.capacity.maxDeployments;
+  };
+
+  const refreshDeploymentData = (projectId) => {
+    if (!projectId) return;
+
+    dispatch(fetchProjectById(projectId));
+    dispatch(fetchProjectDeployments(projectId));
+  };
 
   // Get current tab from URL
   useEffect(() => {
@@ -72,7 +125,10 @@ const ProjectDetails = () => {
     if (id) {
       const fetchData = async () => {
         try {
-          await dispatch(fetchProjectById(id)).unwrap();
+          await Promise.all([
+            dispatch(fetchProjectById(id)).unwrap(),
+            dispatch(fetchProjectDeployments(id)).unwrap(),
+          ]);
         } catch {
           // Error handling is done by Redux slice
         }
@@ -145,6 +201,109 @@ const ProjectDetails = () => {
     dispatch(toggleArchiveProject(id));
     setShowArchiveModal(false);
   };
+
+  const handleOpenDeployModal = () => {
+    dispatch(clearDeploymentError({ field: "create" }));
+    setDeploymentForm({
+      environment: "staging",
+      subdomain: "",
+    });
+    setSubdomainState({
+      suggestions: [],
+      taken: [],
+      capacity: null,
+    });
+    refreshDeploymentData(id);
+    setShowDeployModal(true);
+  };
+
+  const handleCloseDeployModal = () => {
+    setShowDeployModal(false);
+    setDeploymentForm({
+      environment: "staging",
+      subdomain: "",
+    });
+    setSubdomainState({
+      suggestions: [],
+      taken: [],
+      capacity: null,
+    });
+    refreshDeploymentData(id);
+  };
+
+  const handleDeploymentEnvironmentChange = (environment) => {
+    setDeploymentForm((previous) => ({
+      ...previous,
+      environment,
+      subdomain: "",
+    }));
+  };
+
+  const handleSubdomainSelection = (subdomain) => {
+    setDeploymentForm((previous) => ({
+      ...previous,
+      subdomain,
+    }));
+  };
+
+  const handleCreateDeployment = async () => {
+    if (isEnvCapacityReached(deploymentForm.environment)) return;
+
+    try {
+      await dispatch(
+        createDeployment({
+          projectId: id,
+          deploymentData: {
+            environment: deploymentForm.environment,
+            subdomain: deploymentForm.subdomain || undefined,
+          },
+        }),
+      ).unwrap();
+
+      // Close modal first so UI updates immediately, then silently refresh both views
+      handleCloseDeployModal();
+      refreshDeploymentData(id);
+      navigate(`/dashboard/projects/${id}/deployments`);
+    } catch {
+      // Deployment errors are surfaced from Redux in the modal.
+    }
+  };
+
+  useEffect(() => {
+    if (!showDeployModal || !id) {
+      return;
+    }
+
+    const loadSubdomains = async () => {
+      try {
+        const result = await dispatch(
+          fetchDeploymentSubdomains({
+            projectId: id,
+            environment: deploymentForm.environment,
+          }),
+        ).unwrap();
+
+        setSubdomainState({
+          suggestions: result.suggestions || [],
+          taken: result.taken || [],
+          capacity: result.capacity || null,
+        });
+
+        setDeploymentForm((previous) =>
+          previous.subdomain || !result.suggestions?.length
+            ? previous
+            : {
+                ...previous,
+                subdomain: result.suggestions[0].subdomain,
+              },
+        );
+      } catch {
+        // Deployment slice captures suggestion errors
+      }
+    };
+
+    loadSubdomains();
+  }, [dispatch, id, showDeployModal, deploymentForm.environment]);
 
   // Helper functions
   const detectTechnology = (project) => {
@@ -371,6 +530,7 @@ const ProjectDetails = () => {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <button
               disabled={currentProject.status === "archived"}
+              onClick={handleOpenDeployModal}
               className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm transition-colors ${
                 currentProject.status === "archived"
                   ? "bg-gray-500/20 border border-gray-500/30 text-gray-500 cursor-not-allowed"
@@ -466,6 +626,7 @@ const ProjectDetails = () => {
             project={currentProject}
             deployments={projectDeployments}
             analytics={projectAnalytics}
+            onOpenDeployModal={handleOpenDeployModal}
           />
         ) : (
           <Outlet
@@ -473,10 +634,201 @@ const ProjectDetails = () => {
               project: currentProject,
               deployments: projectDeployments,
               analytics: projectAnalytics,
+              onOpenDeployModal: handleOpenDeployModal,
             }}
           />
         )}
       </motion.div>
+
+      {showDeployModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={handleCloseDeployModal}
+          />
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-neutral-800/70 bg-neutral-950/95 p-5 sm:p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-xl font-semibold text-white">
+                  Create Deployment
+                </h3>
+                <p className="text-sm text-gray-400 mt-1">
+                  Reserve a subdomain and send the project to the agent.
+                </p>
+                {subdomainState.capacity && (
+                  <div className="text-xs text-gray-400 mt-2">
+                    Active deployments:{" "}
+                    {subdomainState.capacity.activeDeployments} /{" "}
+                    {subdomainState.capacity.maxDeployments}
+                    {typeof subdomainState.capacity
+                      .activeDeploymentsInEnvironment === "number" && (
+                      <span>
+                        {" "}
+                        · In env:{" "}
+                        {subdomainState.capacity.activeDeploymentsInEnvironment}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleCloseDeployModal}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 mb-5">
+              <button
+                type="button"
+                onClick={() => handleDeploymentEnvironmentChange("staging")}
+                disabled={isEnvCapacityReached("staging")}
+                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                  deploymentForm.environment === "staging"
+                    ? "border-blue-500/50 bg-blue-500/10 text-blue-200"
+                    : "border-neutral-800 bg-neutral-900/70 text-gray-300 hover:border-neutral-700"
+                }`}
+              >
+                <div className="font-medium">Staging</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Safer pre-production rollout.
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeploymentEnvironmentChange("production")}
+                disabled={isEnvCapacityReached("production")}
+                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                  deploymentForm.environment === "production"
+                    ? "border-green-500/50 bg-green-500/10 text-green-200"
+                    : "border-neutral-800 bg-neutral-900/70 text-gray-300 hover:border-neutral-700"
+                }`}
+              >
+                <div className="font-medium">Production</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Live traffic deployment target.
+                </div>
+              </button>
+            </div>
+
+            <div className="mb-5 rounded-xl border border-neutral-800 bg-neutral-900/70 p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <div className="text-sm font-medium text-white">
+                    Reserved Subdomain
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Choose one of the available suggestions.
+                  </div>
+                </div>
+                {deploymentLoading.subdomains && (
+                  <div className="text-xs text-gray-400">
+                    Loading suggestions...
+                  </div>
+                )}
+              </div>
+
+              {deploymentError?.create && (
+                <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+                  {deploymentError.create}
+                </div>
+              )}
+
+              {deploymentError?.subdomains && (
+                <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+                  {deploymentError.subdomains}
+                </div>
+              )}
+
+              {isEnvCapacityReached(deploymentForm.environment) && (
+                <div className="mb-3 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+                  This environment already has the maximum number of active
+                  deployments ({subdomainState.capacity?.maxDeployments}). Stop
+                  or delete an existing active deployment in this environment to
+                  create a new one.
+                </div>
+              )}
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(subdomainState.suggestions || []).map((suggestion) => {
+                  const isSelected =
+                    deploymentForm.subdomain === suggestion.subdomain;
+                  return (
+                    <button
+                      key={suggestion.subdomain}
+                      type="button"
+                      onClick={() =>
+                        handleSubdomainSelection(suggestion.subdomain)
+                      }
+                      disabled={isEnvCapacityReached(
+                        deploymentForm.environment,
+                      )}
+                      className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+                        isSelected
+                          ? "border-blue-500/60 bg-blue-500/10 text-white"
+                          : "border-neutral-800 bg-neutral-950/60 text-gray-300 hover:border-neutral-700"
+                      }`}
+                    >
+                      <div className="text-sm font-medium">
+                        {suggestion.subdomain}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {suggestion.reason || "Available for this deployment."}
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {!deploymentLoading.subdomains &&
+                  subdomainState.suggestions.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-neutral-800 px-3 py-4 text-sm text-gray-400 sm:col-span-2">
+                      No suggestions are available yet for this environment.
+                    </div>
+                  )}
+              </div>
+
+              {subdomainState.capacity && (
+                <div className="mt-3 text-xs text-gray-400">
+                  Active deployments:{" "}
+                  {subdomainState.capacity.activeDeployments || 0}
+                  {typeof subdomainState.capacity.maxDeployments === "number"
+                    ? ` / ${subdomainState.capacity.maxDeployments}`
+                    : ""}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={handleCloseDeployModal}
+                className="rounded-lg border border-neutral-800 px-4 py-2 text-sm text-gray-300 hover:bg-neutral-900 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateDeployment}
+                disabled={
+                  deploymentLoading.create ||
+                  !deploymentForm.subdomain ||
+                  isDeploymentCapacityReached
+                }
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  deploymentLoading.create ||
+                  !deploymentForm.subdomain ||
+                  isDeploymentCapacityReached
+                    ? "cursor-not-allowed bg-gray-600 text-gray-300"
+                    : "bg-green-500 text-white hover:bg-green-600"
+                }`}
+              >
+                {deploymentLoading.create ? "Creating..." : "Create Deployment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success/Error Messages */}
       {success.update && (
@@ -572,7 +924,12 @@ const ProjectDetails = () => {
 };
 
 // Project Overview Component
-const ProjectOverview = ({ project, deployments, _analytics }) => {
+const ProjectOverview = ({
+  project,
+  deployments,
+  _analytics,
+  onOpenDeployModal,
+}) => {
   const recentDeployments = Array.isArray(deployments)
     ? deployments.slice(0, 3)
     : [];
@@ -727,7 +1084,10 @@ const ProjectOverview = ({ project, deployments, _analytics }) => {
             Quick Actions
           </h3>
           <div className="space-y-2 sm:space-y-3">
-            <button className="w-full flex items-center gap-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm">
+            <button
+              onClick={onOpenDeployModal}
+              className="w-full flex items-center gap-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
+            >
               <FaPlay className="w-4 h-4" />
               Deploy Now
             </button>

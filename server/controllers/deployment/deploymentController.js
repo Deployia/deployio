@@ -1,6 +1,7 @@
 const { deployment: deploymentService } = require("@services");
 const { validationResult } = require("express-validator");
 const logger = require("@config/logger");
+const subdomainManager = require("@services/deployment/subdomainManager");
 
 class DeploymentController {
   /**
@@ -59,7 +60,7 @@ class DeploymentController {
       const result = await deploymentService.getProjectDeployments(
         projectId,
         userId,
-        options
+        options,
       );
 
       res.status(200).json({
@@ -118,14 +119,14 @@ class DeploymentController {
         });
       }
 
-      const { projectId } = req.params;
+      const projectId = req.params.id;
       const userId = req.user._id;
       const deploymentData = req.body;
 
       const deployment = await deploymentService.createDeployment(
         projectId,
         deploymentData,
-        userId
+        userId,
       );
 
       res.status(201).json({
@@ -138,6 +139,35 @@ class DeploymentController {
       res.status(error.message.includes("not found") ? 404 : 500).json({
         success: false,
         message: error.message || "Failed to create deployment",
+      });
+    }
+  }
+
+  /**
+   * @desc Get subdomain suggestions for a project deployment
+   * @route GET /api/v1/projects/:id/deployments/subdomains
+   * @access Private
+   */
+  async getDeploymentSubdomains(req, res) {
+    try {
+      const { id: projectId } = req.params;
+      const environment = req.query.environment || "staging";
+
+      const result = await subdomainManager.getSuggestions(
+        projectId,
+        environment,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Subdomain suggestions retrieved successfully",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error in getDeploymentSubdomains:", error);
+      res.status(error.message.includes("not found") ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to get subdomain suggestions",
       });
     }
   }
@@ -157,7 +187,7 @@ class DeploymentController {
         id,
         status,
         userId,
-        additionalData
+        additionalData,
       );
 
       res.status(200).json({
@@ -271,7 +301,7 @@ class DeploymentController {
       const result = await deploymentService.getDeploymentLogs(
         id,
         userId,
-        options
+        options,
       );
 
       res.status(200).json({

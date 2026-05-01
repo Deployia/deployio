@@ -1,5 +1,21 @@
 http:
+  middlewares:
+    landing-api-strip-prefix:
+      stripPrefix:
+        prefixes:
+          - /_deployio
+
   routers:
+    # Backend passthrough for landing pages to fetch subdomain context
+    landing-api:
+      rule: "HostRegexp(`[a-z0-9-]+.deployio.tech`) && PathPrefix(`/_deployio`)"
+      entrypoints:
+        - web
+      service: backend
+      middlewares:
+        - landing-api-strip-prefix
+      priority: 200
+
     # Landing page fallback for undefined subdomains
     # Matches any subdomain like *.deployio.tech with lowest priority
     landing:
@@ -10,6 +26,12 @@ http:
       priority: 1
 
   services:
+    # Backend service used by landing API passthrough
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://backend:3000"
+
     # Route to dedicated landing page server
     landing:
       loadBalancer:

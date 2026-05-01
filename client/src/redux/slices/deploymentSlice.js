@@ -63,6 +63,31 @@ export const fetchProjectDeployments = createAsyncThunk(
   },
 );
 
+export const fetchDeploymentSubdomains = createAsyncThunk(
+  "deployments/fetchDeploymentSubdomains",
+  async ({ projectId, environment = "staging" }, { rejectWithValue }) => {
+    try {
+      const response = await api.get(
+        `/projects/${projectId}/deployments/subdomains`,
+        {
+          params: { environment },
+        },
+      );
+
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+
+      return response.data.data || response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          "Failed to fetch deployment subdomains",
+      );
+    }
+  },
+);
+
 export const createDeployment = createAsyncThunk(
   "deployments/createDeployment",
   async ({ projectId, deploymentData }, { rejectWithValue }) => {
@@ -186,6 +211,12 @@ const initialState = {
   projectDeployments: [],
   logs: [],
   metrics: null,
+  subdomains: {
+    environment: "staging",
+    suggestions: [],
+    taken: [],
+    capacity: null,
+  },
   pagination: {
     currentPage: 1,
     totalPages: 1,
@@ -207,6 +238,7 @@ const initialState = {
     restart: false,
     logs: false,
     metrics: false,
+    subdomains: false,
   },
 
   // Error states
@@ -222,6 +254,7 @@ const initialState = {
     restart: null,
     logs: null,
     metrics: null,
+    subdomains: null,
   },
 
   // Success states
@@ -385,6 +418,28 @@ const deploymentSlice = createSlice({
       .addCase(fetchProjectDeployments.rejected, (state, action) => {
         state.loading.fetchProject = false;
         state.error.fetchProject = action.payload;
+      });
+
+    // Fetch deployment subdomain suggestions
+    builder
+      .addCase(fetchDeploymentSubdomains.pending, (state) => {
+        state.loading.subdomains = true;
+        state.error.subdomains = null;
+      })
+      .addCase(fetchDeploymentSubdomains.fulfilled, (state, action) => {
+        state.loading.subdomains = false;
+        state.subdomains = {
+          environment:
+            action.payload.environment || state.subdomains.environment,
+          suggestions: action.payload.suggestions || [],
+          taken: action.payload.taken || [],
+          capacity: action.payload.capacity || null,
+          project: action.payload.project || null,
+        };
+      })
+      .addCase(fetchDeploymentSubdomains.rejected, (state, action) => {
+        state.loading.subdomains = false;
+        state.error.subdomains = action.payload;
       });
 
     // Create deployment
