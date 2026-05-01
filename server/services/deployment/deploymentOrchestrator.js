@@ -33,6 +33,35 @@ class DeploymentOrchestrator {
   }
 
   /**
+   * Get the appropriate agent for deployment
+   * Resolves agent dynamically, falling back to available agents
+   */
+  _getDeploymentAgent() {
+    // Try to get from environment variable first
+    let preferredAgentId = process.env.DEFAULT_AGENT_ID;
+
+    // Ask bridge service for an available agent (prefers the requested one)
+    const availableAgent =
+      this.bridgeService.getAvailableAgent(preferredAgentId);
+
+    if (!availableAgent) {
+      logger.error("No agents available for deployment", {
+        preferredAgent: preferredAgentId,
+      });
+      return null;
+    }
+
+    if (availableAgent !== preferredAgentId && preferredAgentId) {
+      logger.info("Agent ID mismatch — using available agent", {
+        preferred: preferredAgentId,
+        actual: availableAgent,
+      });
+    }
+
+    return availableAgent;
+  }
+
+  /**
    * Trigger a deployment on the agent.
    * Called from deploymentService.createDeployment() after the DB record is saved.
    *
@@ -51,6 +80,15 @@ class DeploymentOrchestrator {
     try {
       const deploymentId =
         deployment.deploymentId || deployment._id?.toString();
+
+      // Resolve agent dynamically
+      const agentId = this._getDeploymentAgent();
+      if (!agentId) {
+        logger.error("Cannot trigger deployment — no agent available", {
+          deploymentId,
+        });
+        return false;
+      }
       const subdomain =
         deployment.networking?.subdomain ||
         deployment.config?.subdomain ||
@@ -94,7 +132,7 @@ class DeploymentOrchestrator {
 
       logger.info("Sending deployment:trigger to agent", {
         deploymentId,
-        agent: this.defaultAgentId,
+        agent: agentId,
         image: dockerImage,
         subdomain,
       });
@@ -109,7 +147,7 @@ class DeploymentOrchestrator {
       );
       // Send to connected agent via WebSocket bridge
       const sent = await this.bridgeService.sendToAgent(
-        this.defaultAgentId,
+        agentId,
         "deployment_trigger",
         payload,
       );
@@ -118,7 +156,7 @@ class DeploymentOrchestrator {
         // Agent is offline; leave the deployment queued so it can be retried
         logger.warn("Agent not connected — leaving deployment queued", {
           deploymentId,
-          agent: this.defaultAgentId,
+          agent: agentId,
         });
 
         // Update queue attempt metadata, keep status as queued
@@ -268,8 +306,16 @@ class DeploymentOrchestrator {
     if (!this.isInitialized || !this.bridgeService) return false;
 
     try {
+      const agentId = this._getDeploymentAgent();
+      if (!agentId) {
+        logger.error("Cannot stop deployment — no agent available", {
+          deploymentId,
+        });
+        return false;
+      }
+
       const sent = await this.bridgeService.sendToAgent(
-        this.defaultAgentId,
+        agentId,
         "deployment_stop",
         { deploymentId },
       );
@@ -295,8 +341,16 @@ class DeploymentOrchestrator {
     if (!this.isInitialized || !this.bridgeService) return false;
 
     try {
+      const agentId = this._getDeploymentAgent();
+      if (!agentId) {
+        logger.error("Cannot restart deployment — no agent available", {
+          deploymentId,
+        });
+        return false;
+      }
+
       const sent = await this.bridgeService.sendToAgent(
-        this.defaultAgentId,
+        agentId,
         "deployment_restart",
         { deploymentId },
       );
@@ -312,9 +366,14 @@ class DeploymentOrchestrator {
    * Get orchestrator status.
    */
   getStatus() {
+    const connectedAgents = this.bridgeService
+      ? Array.from(this.bridgeService.connectedAgents.keys())
+      : [];
     return {
       initialized: this.isInitialized,
-      defaultAgent: this.defaultAgentId,
+      connectedAgents,
+      totalAgentsConnected: connectedAgents.length,
+      availableForDeployment: connectedAgents.length > 0,
       bridgeConnected: this.bridgeService
         ? this.bridgeService.connectedAgents?.size > 0
         : false,

@@ -758,6 +758,49 @@ class AgentBridgeService extends EventEmitter {
   }
 
   /**
+   * Get an available agent for deployment
+   * Tries preferred agent first, falls back to first connected agent
+   */
+  getAvailableAgent(preferredAgentId = null) {
+    try {
+      // Try preferred agent if specified
+      if (preferredAgentId) {
+        const agentInfo = this.connectedAgents.get(preferredAgentId);
+        if (agentInfo && agentInfo.socket.connected) {
+          logger.debug("Using preferred agent", { agentId: preferredAgentId });
+          return preferredAgentId;
+        } else {
+          logger.warn("Preferred agent not available", {
+            preferredAgentId,
+            reason: agentInfo ? "disconnected" : "not found",
+          });
+        }
+      }
+
+      // Fallback to first connected agent
+      for (const [agentId, agentInfo] of this.connectedAgents.entries()) {
+        if (agentInfo.socket.connected) {
+          logger.info("Using fallback agent", {
+            agentId,
+            totalConnected: this.connectedAgents.size,
+          });
+          return agentId;
+        }
+      }
+
+      logger.warn("No connected agents available", {
+        totalAgents: this.connectedAgents.size,
+      });
+      return null;
+    } catch (error) {
+      logger.error("Error getting available agent", {
+        error: error.message,
+      });
+      return null;
+    }
+  }
+
+  /**
    * Enhanced bridge connection with verification logging
    */
   async verifyBridgeConnection(agentId) {
