@@ -4,6 +4,7 @@ Orchestrates: clone -> detect -> build -> deploy with staged status tracking.
 """
 
 import asyncio
+import inspect
 import logging
 import subprocess
 import time
@@ -52,6 +53,8 @@ class BuildService:
         }
 
     def _normalize_repo_url(self, git_url: str) -> str:
+        if not isinstance(git_url, str) or not git_url.strip():
+            raise ValueError("Repository URL is required")
         normalized = (
             git_url.strip().lower().replace("https://", "").replace("http://", "")
         )
@@ -61,12 +64,7 @@ class BuildService:
 
     def _assert_supported_repository(self, git_url: str) -> Dict[str, Any]:
         normalized = self._normalize_repo_url(git_url)
-        if normalized not in self.supported_repositories:
-            raise ValueError(
-                "Unsupported repository for MVP. Supported repos: "
-                "deployio-mern, deployio-next, deployio-fastapi."
-            )
-        return self.supported_repositories[normalized]
+        return self.supported_repositories.get(normalized, {})
 
     def _set_stage(self, deployment_id: str, stage: str, message: str = "") -> None:
         entry = self.active_builds.setdefault(
@@ -117,9 +115,9 @@ class BuildService:
         Returns: { stack, language, framework, port, build_command, start_command }
         """
         deployment_id = f"analyze-{uuid.uuid4().hex[:8]}"
+        repo_path: Optional[str] = None
 
         try:
-            self._assert_supported_repository(git_url)
             repo_profile = self._assert_supported_repository(git_url)
             # Clone repository
             repo_path = await self.git_service.clone_repository(
@@ -129,20 +127,17 @@ class BuildService:
             # Detect stack
             stack_info = await self.git_service.detect_stack(repo_path)
 
-            # Cleanup
-            await self.git_service.cleanup(repo_path)
-
             logger.info(f"✅ Stack detected: {stack_info['stack']}")
             return {
                 "status": "success",
-                "stack": repo_profile["stack"],
+                "stack": repo_profile.get("stack", stack_info.get("stack")),
                 "language": stack_info.get("language"),
-                "framework": repo_profile["framework"],
-                "port": repo_profile["port"],
+                "framework": repo_profile.get("framework", stack_info.get("framework")),
+                "port": repo_profile.get("port", stack_info.get("port", 3000)),
                 "build_command": stack_info.get("build_command"),
                 "start_command": stack_info.get("start_command"),
                 "analysis_id": deployment_id,
-                "supported": True,
+                "supported": bool(repo_profile),
             }
 
         except Exception as e:
@@ -151,6 +146,9 @@ class BuildService:
                 "status": "error",
                 "error": str(e),
             }
+        finally:
+            if repo_path:
+                await self.git_service.cleanup(repo_path)
 
     async def generate_dockerfile(
         self,
@@ -163,9 +161,9 @@ class BuildService:
         Returns: { dockerfile, dockerfile_path, port, stack }
         """
         deployment_id = f"gen-{uuid.uuid4().hex[:8]}"
+        repo_path: Optional[str] = None
 
         try:
-            self._assert_supported_repository(git_url)
             # Clone repository
             repo_path = await self.git_service.clone_repository(
                 git_url, github_token, branch, deployment_id
@@ -181,9 +179,6 @@ class BuildService:
                 stack_type, repo_path, port
             )
 
-            # Cleanup
-            await self.git_service.cleanup(repo_path)
-
             logger.info(f"✅ Dockerfile generated for {stack_type}")
             return {
                 "status": "success",
@@ -197,6 +192,29 @@ class BuildService:
                 "status": "error",
                 "error": str(e),
             }
+        finally:
+            if repo_path:
+                await self.git_service.cleanup(repo_path)
+
+    async def _emit_log(
+        self,
+        logs_callback: Optional[Callable],
+        deployment_id: str,
+        level: str,
+        message: str,
+    ) -> None:
+        if not logs_callback:
+            return
+
+        if inspect.iscoroutinefunction(logs_callback):
+            await logs_callback(deployment_id, level, message)
+            return
+
+        try:
+            logs_callback(deployment_id, level, message)
+        except TypeError:
+            # Backward compatibility for older two-argument callbacks.
+            logs_callback(message, level)
 
     async def build_and_deploy(
         self,
@@ -218,15 +236,18 @@ class BuildService:
         try:
             repo_profile = self._assert_supported_repository(git_url)
             self._set_stage(deployment_id, "queued", "Deployment accepted")
+            event_loop = asyncio.get_running_loop()
 
             # Emit log
-            if logs_callback:
-                await logs_callback(f"[{deployment_id}] Starting deployment...", "info")
+            await self._emit_log(
+                logs_callback, deployment_id, "info", "Starting deployment..."
+            )
 
             # Clone repository
             self._set_stage(deployment_id, "cloning", "Cloning repository")
-            if logs_callback:
-                await logs_callback(f"[{deployment_id}] Cloning repository...", "info")
+            await self._emit_log(
+                logs_callback, deployment_id, "info", "Cloning repository..."
+            )
 
             repo_path_str = await self.git_service.clone_repository(
                 git_url, github_token, branch, deployment_id
@@ -235,36 +256,22 @@ class BuildService:
 
             # Detect stack
             self._set_stage(deployment_id, "detecting", "Detecting stack")
-            if logs_callback:
-                await logs_callback(f"[{deployment_id}] Detecting stack...", "info")
+            await self._emit_log(
+                logs_callback, deployment_id, "info", "Detecting stack..."
+            )
 
             stack_info = await self.git_service.detect_stack(str(repo_path))
-            detected_stack = stack_info.get("stack", "UNKNOWN")
-            stack_type = repo_profile["stack"]
-            port = repo_profile["port"]
-            allowed_detected_for_profile = {
-                "MERN": {"MERN", "EXPRESS", "REACT"},
-                "NEXT": {"NEXT"},
-                "FASTAPI": {"FASTAPI"},
-            }
-            if detected_stack not in allowed_detected_for_profile.get(
-                stack_type, {stack_type}
-            ):
-                raise ValueError(
-                    f"Repository stack mismatch. Expected profile {stack_type}, detected {detected_stack}."
-                )
-
-            if logs_callback:
-                await logs_callback(
-                    f"[{deployment_id}] Stack detected: {stack_type}", "info"
-                )
+            stack_type = repo_profile.get("stack", stack_info.get("stack", "UNKNOWN"))
+            port = repo_profile.get("port", stack_info.get("port", 3000))
+            await self._emit_log(
+                logs_callback, deployment_id, "info", f"Stack detected: {stack_type}"
+            )
 
             self._set_stage(deployment_id, "building", "Preparing Dockerfile")
             # Prefer repository Dockerfile for known examples.
-            if logs_callback:
-                await logs_callback(
-                    f"[{deployment_id}] Preparing Dockerfile...", "info"
-                )
+            await self._emit_log(
+                logs_callback, deployment_id, "info", "Preparing Dockerfile..."
+            )
 
             dockerfile_path = repo_path / "Dockerfile"
             using_repo_dockerfile = dockerfile_path.exists()
@@ -278,10 +285,9 @@ class BuildService:
                 logger.info("Using repository Dockerfile at %s", dockerfile_path)
 
             # Build Docker image
-            if logs_callback:
-                await logs_callback(
-                    f"[{deployment_id}] Building Docker image...", "build"
-                )
+            await self._emit_log(
+                logs_callback, deployment_id, "build", "Building Docker image..."
+            )
 
             # Verify Dockerfile exists before building
             if not dockerfile_path.exists():
@@ -305,6 +311,7 @@ class BuildService:
                 build_command,
                 deployment_id,
                 logs_callback,
+                event_loop,
             )
 
             if not result["success"]:
@@ -332,14 +339,14 @@ class BuildService:
                         build_command,
                         deployment_id,
                         logs_callback,
+                        event_loop,
                     )
                 if not result["success"]:
                     raise Exception(f"Docker build failed: {result['error']}")
 
-            if logs_callback:
-                await logs_callback(
-                    f"[{deployment_id}] ✅ Build completed successfully", "info"
-                )
+            await self._emit_log(
+                logs_callback, deployment_id, "info", "Build completed successfully"
+            )
 
             # Generate subdomain
             if not subdomain:
@@ -348,10 +355,12 @@ class BuildService:
 
             # Deploy to Docker + Traefik
             self._set_stage(deployment_id, "deploying", "Starting runtime container")
-            if logs_callback:
-                await logs_callback(
-                    f"[{deployment_id}] Deploying to subdomain: {subdomain}...", "info"
-                )
+            await self._emit_log(
+                logs_callback,
+                deployment_id,
+                "info",
+                f"Deploying to subdomain: {subdomain}...",
+            )
 
             # Call async deploy method directly (not in thread)
             deploy_result = await self.deployment_service.deploy(
@@ -362,10 +371,13 @@ class BuildService:
                 {},
             )
 
-            if logs_callback:
-                await logs_callback(
-                    f"[{deployment_id}] ✅ Deployment successful!", "info"
-                )
+            deploy_status = deploy_result.get("status")
+            if deploy_status != "running":
+                raise Exception(deploy_result.get("error") or "Deployment failed")
+
+            await self._emit_log(
+                logs_callback, deployment_id, "info", "Deployment successful!"
+            )
 
             self._set_stage(deployment_id, "running", "Deployment running")
             self.active_builds[deployment_id].update(
@@ -384,7 +396,7 @@ class BuildService:
                 "status": "running",
                 "deployment_id": deployment_id,
                 "subdomain": subdomain,
-                "url": f"https://{subdomain}.deployio.tech",
+                "url": deploy_result.get("url") or f"https://{subdomain}.deployio.tech",
                 "port": port,
                 "stack": stack_type,
                 "logs": result.get("logs", []),
@@ -394,10 +406,9 @@ class BuildService:
             logger.error(f"❌ Deployment failed: {e}")
             self._set_failed(deployment_id, str(e))
 
-            if logs_callback:
-                await logs_callback(
-                    f"[{deployment_id}] ❌ Deployment failed: {e}", "error"
-                )
+            await self._emit_log(
+                logs_callback, deployment_id, "error", f"Deployment failed: {e}"
+            )
 
             return {
                 "status": "error",
@@ -476,6 +487,7 @@ class BuildService:
         build_command: list,
         deployment_id: str,
         logs_callback: Optional[Callable] = None,
+        event_loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> Dict[str, Any]:
         """
         Run Docker build command and stream logs via callback.
@@ -498,8 +510,14 @@ class BuildService:
                 # If callback provided, emit log (but don't await in thread)
                 if logs_callback:
                     try:
-                        logs_callback(f"[{deployment_id}] {line}", "build")
-                    except:
+                        if inspect.iscoroutinefunction(logs_callback) and event_loop:
+                            future = asyncio.run_coroutine_threadsafe(
+                                logs_callback(deployment_id, "build", line), event_loop
+                            )
+                            future.result(timeout=5)
+                        else:
+                            logs_callback(deployment_id, "build", line)
+                    except Exception:
                         pass  # Callback may fail in thread context
 
             process.wait()

@@ -103,16 +103,38 @@ class DeploymentOrchestrator {
       const branch =
         deployment.config?.branch || project.repository?.branch || "main";
 
-      // Determine container port from project stack or default
+      const deploymentEnvironment =
+        deployment.config?.environment || "production";
+      const deploymentEnvVars = Array.isArray(deployment.environmentVariables)
+        ? deployment.environmentVariables
+        : [];
+      const projectEnvVars = Array.isArray(
+        project.deployment?.environment?.[deploymentEnvironment],
+      )
+        ? project.deployment.environment[deploymentEnvironment]
+        : [];
+
+      const mergedEnvVars = [...projectEnvVars, ...deploymentEnvVars].reduce(
+        (acc, envVar) => {
+          if (!envVar?.key) return acc;
+          acc[envVar.key] = envVar.value ?? "";
+          return acc;
+        },
+        {},
+      );
+
+      // Determine container port from deployment config or project defaults
       const containerPort =
-        deployment.containerPort || project.stack?.containerPort || 3000;
+        deployment.containerPort ||
+        project.deployment?.buildConfig?.port ||
+        project.deployment?.runtime?.port ||
+        3000;
 
       // Environment variables from deployment config
       const envVars = {
-        NODE_ENV: deployment.config?.environment || "production",
+        NODE_ENV: deploymentEnvironment,
         PORT: String(containerPort),
-        ...(deployment.config?.envVars || {}),
-        ...(project.deploymentConfig?.envVars || {}),
+        ...mergedEnvVars,
       };
 
       const payload = {
@@ -125,7 +147,7 @@ class DeploymentOrchestrator {
         port: containerPort,
         envVars,
         projectName: project.name,
-        environment: deployment.config?.environment || "production",
+        environment: deploymentEnvironment,
         // instruct agent to build if no image is available
         buildIfMissing: !dockerImage,
       };
@@ -142,7 +164,7 @@ class DeploymentOrchestrator {
         { deploymentId },
         {
           status: "queued",
-          "timeline.queuedAt": new Date(),
+          queuedAt: new Date(),
         },
       );
       // Send to connected agent via WebSocket bridge
@@ -164,20 +186,10 @@ class DeploymentOrchestrator {
           { deploymentId },
           {
             status: "queued",
-            "timeline.lastQueueAttemptAt": new Date(),
+            queuedAt: new Date(),
           },
           { new: true },
         );
-
-        // Increment queueAttempts counter (use $inc to avoid races)
-        try {
-          await Deployment.findOneAndUpdate(
-            { deploymentId },
-            { $inc: { "timeline.queueAttempts": 1 } },
-          );
-        } catch (e) {
-          logger.debug("Failed to increment queueAttempts", e);
-        }
 
         return false;
       }
@@ -208,39 +220,50 @@ class DeploymentOrchestrator {
         message,
       });
 
-      const updateFields = { status };
+      const setFields = { status, updatedAt: new Date() };
+      let pushFields = null;
 
-      // Map agent status to timeline fields
-      const timelineMap = {
-        building: "timeline.buildStartedAt",
-        deploying: "timeline.deployStartedAt",
-        running: "timeline.completedAt",
-        failed: "timeline.failedAt",
-        stopped: "timeline.stoppedAt",
+      // Map agent status to schema lifecycle fields
+      const lifecycleMap = {
+        queued: "queuedAt",
+        building: "buildStartedAt",
+        deploying: "deployStartedAt",
+        running: "deployCompletedAt",
+        failed: "stoppedAt",
+        stopped: "stoppedAt",
+        error: "stoppedAt",
       };
 
-      if (timelineMap[status]) {
-        updateFields[timelineMap[status]] = new Date();
+      if (lifecycleMap[status]) {
+        setFields[lifecycleMap[status]] = new Date();
+      }
+      if (status === "deploying") {
+        setFields.buildCompletedAt = new Date();
       }
 
       // If container info provided, store it
       if (container_id) {
-        updateFields["container.containerId"] = container_id;
+        setFields["runtime.containerId"] = container_id;
       }
       if (url) {
-        updateFields["networking.fullUrl"] = url;
-        updateFields["networking.isAccessible"] = status === "running";
+        setFields["networking.fullUrl"] = url;
       }
 
       // If failed, record error
       if (status === "failed" && message) {
-        updateFields["error.message"] = message;
-        updateFields["error.timestamp"] = new Date();
+        pushFields = {
+          "build.logs": {
+            timestamp: new Date(),
+            level: "error",
+            source: "deploy",
+            message,
+          },
+        };
       }
 
       const deployment = await Deployment.findOneAndUpdate(
         { deploymentId },
-        { $set: updateFields },
+        { $set: setFields, ...(pushFields ? { $push: pushFields } : {}) },
         { new: true },
       );
 
@@ -286,10 +309,11 @@ class DeploymentOrchestrator {
         { deploymentId },
         {
           $push: {
-            buildLogs: {
+            "build.logs": {
               timestamp: new Date(),
               level: level || "info",
               message: message || "",
+              source: "build",
             },
           },
         },

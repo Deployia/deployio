@@ -157,10 +157,13 @@ const ProjectDetails = () => {
       );
       setIsEditing(false);
     }
-    if (error.project) {
-      setTimeout(() => dispatch(clearProjectError({ field: "project" })), 5000);
+    if (error.currentProject) {
+      setTimeout(
+        () => dispatch(clearProjectError({ field: "currentProject" })),
+        5000,
+      );
     }
-  }, [success.update, error.project, dispatch]);
+  }, [success.update, error.currentProject, dispatch]);
 
   // Handle tab navigation
   const handleTabChange = (tab) => {
@@ -190,11 +193,14 @@ const ProjectDetails = () => {
   };
 
   // Confirm handlers
-  const handleConfirmDelete = () => {
-    dispatch(deleteProject(id)).then(() => {
+  const handleConfirmDelete = async () => {
+    try {
+      await dispatch(deleteProject(id)).unwrap();
       setShowDeleteModal(false);
       navigate("/dashboard/projects");
-    });
+    } catch {
+      // error surfaced by redux slice
+    }
   };
 
   const handleConfirmArchive = () => {
@@ -262,7 +268,6 @@ const ProjectDetails = () => {
 
       // Close modal first so UI updates immediately, then silently refresh both views
       handleCloseDeployModal();
-      refreshDeploymentData(id);
       navigate(`/dashboard/projects/${id}/deployments`);
     } catch {
       // Deployment errors are surfaced from Redux in the modal.
@@ -273,6 +278,7 @@ const ProjectDetails = () => {
     if (!showDeployModal || !id) {
       return;
     }
+    let cancelled = false;
 
     const loadSubdomains = async () => {
       try {
@@ -282,6 +288,8 @@ const ProjectDetails = () => {
             environment: deploymentForm.environment,
           }),
         ).unwrap();
+
+        if (cancelled) return;
 
         setSubdomainState({
           suggestions: result.suggestions || [],
@@ -303,6 +311,9 @@ const ProjectDetails = () => {
     };
 
     loadSubdomains();
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch, id, showDeployModal, deploymentForm.environment]);
 
   // Helper functions
@@ -841,13 +852,13 @@ const ProjectDetails = () => {
         </motion.div>
       )}
 
-      {error.project && (
+      {error.currentProject && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400"
         >
-          {error.project}
+          {error.currentProject}
         </motion.div>
       )}
 

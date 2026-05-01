@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
   FaClock,
@@ -18,13 +18,16 @@ import {
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
+  fetchDeploymentLogs,
+  fetchProjectDeployments,
   stopDeployment,
   restartDeployment,
   cancelDeployment,
+  clearLogs,
 } from "../../redux/slices/deploymentSlice";
 
 const ProjectDeployments = () => {
-  const { onOpenDeployModal } = useOutletContext() || {};
+  const { onOpenDeployModal, project } = useOutletContext() || {};
   // Get deployments from Outlet context or Redux
   const projectDeployments = useSelector(
     (state) => state.deployments.projectDeployments,
@@ -35,10 +38,14 @@ const ProjectDeployments = () => {
   const errorDeployments = useSelector(
     (state) => state.deployments.error.fetchProject,
   );
+  const logsLoading = useSelector((state) => state.deployments.loading.logs);
+  const deploymentLogs = useSelector((state) => state.deployments.logs);
 
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState("status");
   const [filter, setFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState({});
   const dispatch = useDispatch();
 
   const filteredDeployments = Array.isArray(projectDeployments)
@@ -49,35 +56,134 @@ const ProjectDeployments = () => {
 
   const handleViewLogs = useCallback((deployment) => {
     setSelectedDeployment(deployment);
+    setActiveDetailTab("status");
     setShowLogs(true);
   }, []);
 
-  const handleStop = useCallback(
-    (deployment) => {
-      const id = deployment._id || deployment.id || deployment.deploymentId;
-      if (!id) return;
-      dispatch(stopDeployment(id));
+  const selectedDeploymentId = useMemo(
+    () =>
+      selectedDeployment?._id ||
+      selectedDeployment?.id ||
+      selectedDeployment?.deploymentId,
+    [selectedDeployment],
+  );
+
+  const formatLogs = useCallback((logsPayload) => {
+    if (!logsPayload) return [];
+    if (Array.isArray(logsPayload)) return logsPayload;
+    if (Array.isArray(logsPayload.logs)) return logsPayload.logs;
+    if (Array.isArray(logsPayload.data?.logs)) return logsPayload.data.logs;
+    return [];
+  }, []);
+
+  const loadDeploymentLogs = useCallback(
+    async (deploymentId) => {
+      if (!deploymentId) return;
+      await dispatch(
+        fetchDeploymentLogs({
+          deploymentId,
+          params: { lines: 200 },
+        }),
+      );
     },
     [dispatch],
+  );
+
+  const withActionLoading = useCallback(async (deployment, actionFn, key) => {
+    const id = deployment?._id || deployment?.id || deployment?.deploymentId;
+    if (!id) return;
+    if (actionLoading[id]) return;
+
+    setActionLoading((prev) => ({ ...prev, [id]: key }));
+    try {
+      await actionFn(id).unwrap();
+      if (project?._id || project?.id) {
+        await dispatch(fetchProjectDeployments(project._id || project.id));
+      }
+    } finally {
+      setActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  }, [actionLoading, dispatch, project]);
+
+  const handleStop = useCallback(
+    async (deployment) => {
+      await withActionLoading(deployment, (id) => dispatch(stopDeployment(id)), "stop");
+    },
+    [dispatch, withActionLoading],
   );
 
   const handleRestart = useCallback(
-    (deployment) => {
-      const id = deployment._id || deployment.id || deployment.deploymentId;
-      if (!id) return;
-      dispatch(restartDeployment(id));
+    async (deployment) => {
+      await withActionLoading(
+        deployment,
+        (id) => dispatch(restartDeployment(id)),
+        "restart",
+      );
     },
-    [dispatch],
+    [dispatch, withActionLoading],
   );
 
   const handleCancel = useCallback(
-    (deployment) => {
-      const id = deployment._id || deployment.id || deployment.deploymentId;
-      if (!id) return;
-      dispatch(cancelDeployment(id));
+    async (deployment) => {
+      await withActionLoading(
+        deployment,
+        (id) => dispatch(cancelDeployment(id)),
+        "cancel",
+      );
     },
-    [dispatch],
+    [dispatch, withActionLoading],
   );
+
+  const handleDownloadLogs = useCallback(() => {
+    if (!selectedDeploymentId) return;
+    const logs = formatLogs(deploymentLogs);
+    const contents = logs
+      .map((log) => `[${new Date(log.timestamp).toISOString()}] ${log.level || "info"} ${log.message || ""}`)
+      .join("\n");
+    const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedDeploymentId}-logs.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [deploymentLogs, formatLogs, selectedDeploymentId]);
+
+  useEffect(() => {
+    if (!showLogs || !selectedDeploymentId) return undefined;
+    loadDeploymentLogs(selectedDeploymentId);
+    return undefined;
+  }, [showLogs, selectedDeploymentId, loadDeploymentLogs]);
+
+  useEffect(() => {
+    if (!showLogs || !selectedDeploymentId) return undefined;
+    if (!["pending", "queued", "building", "deploying"].includes(selectedDeployment?.status)) {
+      return undefined;
+    }
+    const timer = setInterval(() => {
+      loadDeploymentLogs(selectedDeploymentId);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [showLogs, selectedDeploymentId, selectedDeployment?.status, loadDeploymentLogs]);
+
+  useEffect(() => {
+    if (!selectedDeploymentId || !Array.isArray(projectDeployments)) return;
+    const updated = projectDeployments.find(
+      (item) =>
+        (item._id || item.id || item.deploymentId) === selectedDeploymentId,
+    );
+    if (updated) {
+      setSelectedDeployment(updated);
+    }
+  }, [projectDeployments, selectedDeploymentId]);
+
+  useEffect(() => () => {
+    dispatch(clearLogs());
+  }, [dispatch]);
 
   const getStatusBadge = (status) => {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
@@ -112,6 +218,7 @@ const ProjectDeployments = () => {
       case "pending":
       case "queued":
       case "building":
+      case "deploying":
         return <FaSync className="w-3 h-3 text-yellow-400 animate-spin" />;
       case "stopped":
         return <FaStop className="w-3 h-3 text-gray-400" />;
@@ -250,6 +357,7 @@ const ProjectDeployments = () => {
                   {deployment.status === "queued" && (
                     <button
                       onClick={() => handleRestart(deployment)}
+                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
                       className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm"
                     >
                       <FaSync className="w-3 h-3" />
@@ -260,6 +368,7 @@ const ProjectDeployments = () => {
                   {deployment.status === "pending" && (
                     <button
                       onClick={() => handleRestart(deployment)}
+                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
                       className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
                     >
                       <FaPlay className="w-3 h-3" />
@@ -271,6 +380,7 @@ const ProjectDeployments = () => {
                     <>
                       <button
                         onClick={() => handleStop(deployment)}
+                        disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
                         className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
                       >
                         <FaStop className="w-3 h-3" />
@@ -278,6 +388,7 @@ const ProjectDeployments = () => {
                       </button>
                       <button
                         onClick={() => handleRestart(deployment)}
+                        disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
                         className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm"
                       >
                         <FaSync className="w-3 h-3" />
@@ -289,6 +400,7 @@ const ProjectDeployments = () => {
                   {deployment.status === "stopped" && (
                     <button
                       onClick={() => handleRestart(deployment)}
+                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
                       className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
                     >
                       <FaPlay className="w-3 h-3" />
@@ -301,6 +413,7 @@ const ProjectDeployments = () => {
                   ) && (
                     <button
                       onClick={() => handleCancel(deployment)}
+                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
                       className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-gray-700/20 border border-gray-600/30 rounded-lg text-gray-300 hover:bg-gray-700/30 transition-colors text-xs sm:text-sm"
                     >
                       <FaTimes className="w-3 h-3" />
@@ -385,30 +498,57 @@ const ProjectDeployments = () => {
                 </button>
               </div>
             </div>
+            <div className="px-4 sm:px-6 pt-4">
+              <div className="flex items-center gap-2 border-b border-neutral-800">
+                {["status", "logs", "metrics", "controls"].map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveDetailTab(tab)}
+                    className={`px-3 py-2 text-sm capitalize border-b-2 transition-colors ${
+                      activeDetailTab === tab
+                        ? "border-blue-500 text-blue-300"
+                        : "border-transparent text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="p-4 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[60vh]">
-              <div className="bg-black/50 rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm space-y-1">
-                {selectedDeployment.buildLogs &&
-                selectedDeployment.buildLogs.length > 0 ? (
-                  selectedDeployment.buildLogs.map((log, idx) => (
-                    <div
-                      key={idx}
-                      className={
-                        log.level === "error"
-                          ? "text-red-400"
-                          : log.level === "warning"
-                            ? "text-yellow-400"
-                            : "text-gray-300"
-                      }
+              {activeDetailTab === "status" && (
+                <div className="space-y-3 text-sm">
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Status</div>
+                    <div className="text-white font-medium mt-1">{selectedDeployment.status}</div>
+                  </div>
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Live URL</div>
+                    <a
+                      href={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-300 break-all"
                     >
-                      <span className="text-gray-600 mr-2 text-xs">
-                        {new Date(log.timestamp).toLocaleTimeString()}
-                      </span>
-                      {log.message}
+                      {selectedDeployment.url || selectedDeployment.networking?.fullUrl || "Not available yet"}
+                    </a>
+                  </div>
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Environment</div>
+                    <div className="text-white mt-1">
+                      {selectedDeployment.environment || selectedDeployment.config?.environment || "staging"}
                     </div>
-                  ))
-                ) : selectedDeployment.build?.logs &&
-                  selectedDeployment.build.logs.length > 0 ? (
-                  selectedDeployment.build.logs.map((log, idx) => (
+                  </div>
+                </div>
+              )}
+              {activeDetailTab === "logs" && (
+                <div className="bg-black/50 rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm space-y-1">
+                  {logsLoading && (
+                    <div className="text-blue-300 mb-2">Loading latest logs...</div>
+                  )}
+                  {formatLogs(deploymentLogs).length > 0 ? (
+                    formatLogs(deploymentLogs).map((log, idx) => (
                     <div
                       key={idx}
                       className={
@@ -451,14 +591,68 @@ const ProjectDeployments = () => {
                     )}
                   </>
                 )}
-              </div>
+                </div>
+              )}
+              {activeDetailTab === "metrics" && (
+                <div className="space-y-3 text-sm">
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Requests (total)</div>
+                    <div className="text-white mt-1">{selectedDeployment.metrics?.requests ?? 0}</div>
+                  </div>
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Errors (total)</div>
+                    <div className="text-white mt-1">{selectedDeployment.metrics?.errors ?? 0}</div>
+                  </div>
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Uptime</div>
+                    <div className="text-white mt-1">{selectedDeployment.metrics?.uptime ?? 0}%</div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Live container metrics streaming will populate this tab as backend metrics events are completed.
+                  </div>
+                </div>
+              )}
+              {activeDetailTab === "controls" && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    disabled={!["running"].includes(selectedDeployment.status)}
+                    onClick={() => handleStop(selectedDeployment)}
+                    className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 disabled:opacity-40"
+                  >
+                    Stop
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!["running", "stopped", "failed", "queued", "pending"].includes(selectedDeployment.status)}
+                    onClick={() => handleRestart(selectedDeployment)}
+                    className="px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 disabled:opacity-40"
+                  >
+                    Restart
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!["pending", "queued", "building", "deploying"].includes(selectedDeployment.status)}
+                    onClick={() => handleCancel(selectedDeployment)}
+                    className="px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 disabled:opacity-40"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
             <div className="p-4 sm:p-6 border-t border-neutral-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm">
+              <button
+                onClick={handleDownloadLogs}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+              >
                 <FaDownload className="w-4 h-4" />
                 Download Logs
               </button>
-              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm">
+              <button
+                onClick={() => loadDeploymentLogs(selectedDeploymentId)}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm"
+              >
                 <FaSync className="w-4 h-4" />
                 Refresh
               </button>

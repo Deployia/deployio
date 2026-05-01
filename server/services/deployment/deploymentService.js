@@ -259,7 +259,7 @@ class DeploymentService {
           },
           networking: {
             subdomain,
-            fullUrl: `https://${subdomain}.deployio.tech`,
+            fullUrl: `https://${subdomain}.${subdomainManager.baseDomain}`,
           },
           status: "pending",
         });
@@ -531,7 +531,7 @@ class DeploymentService {
       buildCompletedAt: deployment.build?.completedAt,
       deployStartedAt: deployment.deployStartedAt,
       deployCompletedAt: deployment.deployCompletedAt,
-      buildLogs: deployment.buildLogs || [],
+      buildLogs: deployment.build?.logs || [],
     };
   }
 }
