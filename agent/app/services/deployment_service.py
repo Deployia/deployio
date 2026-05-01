@@ -87,6 +87,7 @@ class DeploymentService:
             f"traefik.http.routers.{router_name}.rule": f"Host(`{domain}`)",
             f"traefik.http.routers.{router_name}.entrypoints": "web",
             f"traefik.http.routers.{router_name}.priority": "5",
+            "traefik.docker.network": self.docker_network,
             # Service (load balancer)
             f"traefik.http.services.{router_name}.loadbalancer.server.port": str(
                 port
@@ -204,27 +205,30 @@ class DeploymentService:
                 await _log("info", f"Creating network: {self.docker_network}")
                 client.networks.create(self.docker_network, driver="bridge")
 
-            # Run the container
-            await _log("info", "🚀 Starting container...")
-            container = client.containers.run(
-                image=image,
-                name=container_name,
-                detach=True,
-                labels=labels,
-                environment=environment,
-                network=self.docker_network,
-                mem_limit=settings.max_memory,
+            run_kwargs = {
+                "image": image,
+                "name": container_name,
+                "detach": True,
+                "labels": labels,
+                "environment": environment,
+                "network": self.docker_network,
+                "mem_limit": settings.max_memory,
                 # cpu_quota is in microseconds per cpu_period (100000 = 1 CPU)
                 # 0.25 CPU = 25000 microseconds
-                cpu_quota=int(float(settings.max_cpu) * 100000),
-                restart_policy={"Name": "unless-stopped"},
-                healthcheck={
+                "cpu_quota": int(float(settings.max_cpu) * 100000),
+                "restart_policy": {"Name": "unless-stopped"},
+            }
+
+            if settings.enable_container_healthcheck:
+                # Optional. Some app images fail generic checks and get
+                # filtered out by Traefik as unhealthy.
+                run_kwargs["healthcheck"] = {
                     "Test": [
                         "CMD-SHELL",
                         (
-                            f"wget -qO- http://localhost:{port}/health "
-                            f"|| wget -qO- http://localhost:{port}/api/health "
-                            f"|| wget -qO- http://localhost:{port}/ "
+                            f"wget -qO- http://127.0.0.1:{port}/health "
+                            f"|| wget -qO- http://127.0.0.1:{port}/api/health "
+                            f"|| wget -qO- http://127.0.0.1:{port}/ "
                             "|| exit 1"
                         ),
                     ],
@@ -232,8 +236,11 @@ class DeploymentService:
                     "Timeout": 5_000_000_000,
                     "Retries": 3,
                     "StartPeriod": 15_000_000_000,
-                },
-            )
+                }
+
+            # Run the container
+            await _log("info", "🚀 Starting container...")
+            container = client.containers.run(**run_kwargs)
 
             container_id = container.id[:12]
             full_url = f"https://{subdomain}.{self.base_domain}"

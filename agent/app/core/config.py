@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     # Deployment Configuration
     max_concurrent_deployments: int = 5
     deployment_timeout: int = 600
+    enable_container_healthcheck: bool = False
     # Traefik Auth
     traefik_auth_users: Optional[str] = None
 
