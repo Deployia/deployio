@@ -11,6 +11,7 @@
 const Deployment = require("@models/Deployment");
 const Project = require("@models/Project");
 const logger = require("@config/logger");
+const webSocketManager = require("@config/webSocketManager");
 
 class DeploymentOrchestrator {
   constructor() {
@@ -291,6 +292,17 @@ class DeploymentOrchestrator {
         status,
         dbId: deployment._id,
       });
+
+      const logsNs = webSocketManager.getNamespace("/logs");
+      if (logsNs) {
+        logsNs.to(`deployment:${deploymentId}`).emit("deployment:status_update", {
+          deploymentId,
+          status,
+          message,
+          url: deployment.networking?.fullUrl,
+          timestamp: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       logger.error("Error handling status update:", error);
     }
@@ -322,8 +334,55 @@ class DeploymentOrchestrator {
           },
         },
       );
+
+      const logsNs = webSocketManager.getNamespace("/logs");
+      if (logsNs) {
+        logsNs.to(`deployment:${deploymentId}`).emit("deployment:log_update", {
+          deploymentId,
+          level: normalizedLevel,
+          source,
+          message: message || "",
+          timestamp: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       logger.error("Error handling build log:", error);
+    }
+  }
+
+  async handleRuntimeMetrics(data) {
+    try {
+      const { deploymentId, metrics = {} } = data || {};
+      if (!deploymentId) return;
+
+      await Deployment.findOneAndUpdate(
+        { deploymentId },
+        {
+          $set: {
+            "runtime.resources": metrics.resources || {},
+            "metrics.requests.total":
+              metrics.requests?.total ?? metrics.http?.requests ?? 0,
+            "metrics.errors.total":
+              metrics.errors?.total ?? metrics.http?.errors ?? 0,
+            "metrics.uptime.percentage":
+              metrics.uptime?.percentage ?? metrics.uptime ?? 0,
+            "metrics.lastUpdatedAt": new Date(),
+          },
+        },
+      );
+
+      const logsNs = webSocketManager.getNamespace("/logs");
+      if (logsNs) {
+        logsNs
+          .to(`deployment:${deploymentId}`)
+          .emit("deployment:metrics_update", {
+            deploymentId,
+            metrics,
+            timestamp: new Date().toISOString(),
+          });
+      }
+    } catch (error) {
+      logger.error("Error handling runtime metrics:", error);
     }
   }
 

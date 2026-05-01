@@ -2,8 +2,69 @@ const Project = require("@models/Project");
 const Deployment = require("@models/Deployment");
 const { deployment } = require("@services");
 const logger = require("@config/logger");
+const subdomainManager = require("@services/deployment/subdomainManager");
+
+const ACTIVE_DEPLOYMENT_STATUSES = [
+  "pending",
+  "queued",
+  "building",
+  "deploying",
+  "running",
+  "stopping",
+];
 
 class ProjectService {
+  _scheduleProjectCleanup(projectId) {
+    setImmediate(async () => {
+      await this._runProjectCleanup(projectId);
+    });
+  }
+
+  async _runProjectCleanup(projectId) {
+    const project = await Project.findById(projectId);
+    if (!project) return;
+
+    try {
+      project.deletion.cleanupStatus = "in_progress";
+      project.deletion.cleanupStartedAt = new Date();
+      project.deletion.cleanupError = null;
+      await project.save();
+
+      const deployments = await Deployment.find({ project: projectId });
+      for (const deploymentRecord of deployments) {
+        if (ACTIVE_DEPLOYMENT_STATUSES.includes(deploymentRecord.status)) {
+          await deployment.stopDeploymentBySystem(
+            deploymentRecord,
+            "project-cleanup",
+          );
+        }
+        if (deploymentRecord.status !== "deleted") {
+          await deploymentRecord.updateStatus("deleted", {
+            deletedAt: new Date(),
+            deleteReason: "project-cleanup",
+          });
+        }
+        await subdomainManager.releaseDeploymentReservation({
+          deploymentId: deploymentRecord._id,
+          reason: "project-cleanup",
+        });
+      }
+
+      project.deletion.cleanupStatus = "completed";
+      project.deletion.cleanupCompletedAt = new Date();
+      project.deletion.hardDeleteEligibleAt = new Date(
+        Date.now() + 12 * 60 * 60 * 1000,
+      );
+      await project.save();
+    } catch (error) {
+      logger.error("Error in project cleanup:", error);
+      project.deletion.cleanupStatus = "failed";
+      project.deletion.cleanupCompletedAt = new Date();
+      project.deletion.cleanupError = error.message;
+      await project.save();
+    }
+  }
+
   /**
    * Get user projects with pagination and filtering
    */
@@ -176,26 +237,27 @@ class ProjectService {
         throw new Error("Project not found or access denied");
       }
 
-      // Check if project has active deployments
-      const activeDeployments = await Deployment.countDocuments({
-        project: projectId,
-        status: { $in: ["running", "building", "deploying"] },
-      });
-
-      if (activeDeployments > 0) {
-        throw new Error(
-          "Cannot delete project with active deployments. Stop all deployments first."
-        );
+      if (project.deletion?.cleanupStatus === "queued") {
+        return {
+          success: true,
+          message: "Project deletion already requested",
+        };
       }
 
-      // Soft delete - mark as archived
+      // Soft delete - mark as archived + queue cleanup
       project.status = "archived";
       project.archivedAt = new Date();
+      project.deletion.requestedAt = new Date();
+      project.deletion.requestedBy = userId;
+      project.deletion.cleanupStatus = "queued";
+      project.deletion.cleanupCompletedAt = null;
+      project.deletion.cleanupError = null;
       await project.save();
+      this._scheduleProjectCleanup(project._id);
 
       return {
         success: true,
-        message: "Project archived successfully",
+        message: "Project archived and cleanup requested",
       };
     } catch (error) {
       logger.error("Error in deleteProject:", error);
@@ -303,6 +365,7 @@ class ProjectService {
 
       // Status and visibility
       status: project.status,
+      deletion: project.deletion,
       visibility: project.visibility,
 
       // Statistics (frontend expects deploymentCount)

@@ -533,6 +533,12 @@ const ProjectDetails = () => {
                     ? "Active"
                     : currentProject.status || "Not Deployed"}
                 </span>
+                {currentProject.deletion?.cleanupStatus &&
+                  currentProject.deletion.cleanupStatus !== "none" && (
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Cleanup: {currentProject.deletion.cleanupStatus}
+                    </span>
+                  )}
               </div>
             </div>
           </div>

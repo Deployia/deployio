@@ -551,6 +551,14 @@ class AgentBridgeService extends EventEmitter {
       this.emit("deployment:logs_response", data);
     });
 
+    socket.on("deployment:metrics", async (data) => {
+      logger.debug("Deployment metrics from agent", {
+        agentId,
+        deploymentId: data.deploymentId,
+      });
+      this.emit("deployment:metrics", data);
+    });
+
     logger.debug("Agent event handlers setup completed", { agentId });
   }
 

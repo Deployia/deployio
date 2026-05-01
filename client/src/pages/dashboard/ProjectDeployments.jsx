@@ -24,7 +24,10 @@ import {
   restartDeployment,
   cancelDeployment,
   clearLogs,
+  deleteDeployment,
+  probeDeployment,
 } from "../../redux/slices/deploymentSlice";
+import useDeploymentStream from "../../hooks/useDeploymentStream";
 
 const ProjectDeployments = () => {
   const { onOpenDeployModal, project } = useOutletContext() || {};
@@ -40,6 +43,7 @@ const ProjectDeployments = () => {
   );
   const logsLoading = useSelector((state) => state.deployments.loading.logs);
   const deploymentLogs = useSelector((state) => state.deployments.logs);
+  const deploymentProbe = useSelector((state) => state.deployments.probe);
 
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
@@ -67,6 +71,8 @@ const ProjectDeployments = () => {
       selectedDeployment?.deploymentId,
     [selectedDeployment],
   );
+  const { connected, liveLogs, liveMetrics, liveStatus } =
+    useDeploymentStream(selectedDeploymentId);
 
   const formatLogs = useCallback((logsPayload) => {
     if (!logsPayload) return [];
@@ -134,6 +140,19 @@ const ProjectDeployments = () => {
         (id) => dispatch(cancelDeployment(id)),
         "cancel",
       );
+    },
+    [dispatch, withActionLoading],
+  );
+
+  const handleDelete = useCallback(
+    async (deployment) => {
+      await withActionLoading(
+        deployment,
+        (id) => dispatch(deleteDeployment(id)),
+        "delete",
+      );
+      setShowLogs(false);
+      setSelectedDeployment(null);
     },
     [dispatch, withActionLoading],
   );
@@ -540,10 +559,22 @@ const ProjectDeployments = () => {
                       {selectedDeployment.environment || selectedDeployment.config?.environment || "staging"}
                     </div>
                   </div>
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Realtime</div>
+                    <div className="text-white mt-1">
+                      {connected ? "Connected" : "Disconnected"}{" "}
+                      {liveStatus?.status ? `• ${liveStatus.status}` : ""}
+                    </div>
+                  </div>
                 </div>
               )}
               {activeDetailTab === "logs" && (
                 <div className="bg-black/50 rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm space-y-1">
+                  {liveLogs.length > 0 && (
+                    <div className="text-green-300 mb-2">
+                      Live stream active ({liveLogs.length} new lines)
+                    </div>
+                  )}
                   {logsLoading && (
                     <div className="text-blue-300 mb-2">Loading latest logs...</div>
                   )}
@@ -605,7 +636,27 @@ const ProjectDeployments = () => {
                   </div>
                   <div className="bg-neutral-800/50 rounded-lg p-3">
                     <div className="text-gray-400">Uptime</div>
-                    <div className="text-white mt-1">{selectedDeployment.metrics?.uptime ?? 0}%</div>
+                    <div className="text-white mt-1">{liveMetrics?.uptime?.percentage ?? selectedDeployment.metrics?.uptime ?? 0}%</div>
+                  </div>
+                  <div className="bg-neutral-800/50 rounded-lg p-3">
+                    <div className="text-gray-400">Live Preview Probe</div>
+                    <div className="text-white mt-1">
+                      {deploymentProbe?.probe?.status || "No probe yet"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => dispatch(probeDeployment(selectedDeploymentId))}
+                      className="mt-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-blue-300"
+                    >
+                      Refresh Preview
+                    </button>
+                    {deploymentProbe?.probe?.preview?.body && (
+                      <pre className="mt-2 text-xs text-gray-300 whitespace-pre-wrap max-h-40 overflow-auto">
+                        {typeof deploymentProbe.probe.preview.body === "string"
+                          ? deploymentProbe.probe.preview.body
+                          : JSON.stringify(deploymentProbe.probe.preview.body, null, 2)}
+                      </pre>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500">
                     Live container metrics streaming will populate this tab as backend metrics events are completed.
@@ -637,6 +688,14 @@ const ProjectDeployments = () => {
                     className="px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 disabled:opacity-40"
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(actionLoading[selectedDeploymentId])}
+                    onClick={() => handleDelete(selectedDeployment)}
+                    className="px-4 py-2 bg-red-900/30 border border-red-500/30 rounded-lg text-red-300 disabled:opacity-40"
+                  >
+                    Delete
                   </button>
                 </div>
               )}

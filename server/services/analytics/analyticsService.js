@@ -62,6 +62,34 @@ class AnalyticsService {
 
       // Get technology distribution
       const techDistribution = await this._getTechnologyDistribution(userId);
+      const avgUptime = await Deployment.aggregate([
+        {
+          $match: {
+            deployedBy: new mongoose.Types.ObjectId(userId),
+            "metrics.uptime.percentage": { $exists: true },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            avgUptime: { $avg: "$metrics.uptime.percentage" },
+            avgErrorRate: {
+              $avg: {
+                $cond: [
+                  { $gt: ["$metrics.requests.total", 0] },
+                  {
+                    $divide: [
+                      "$metrics.errors.total",
+                      "$metrics.requests.total",
+                    ],
+                  },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]);
 
       return {
         overview: {
@@ -70,6 +98,16 @@ class AnalyticsService {
           activeProjects,
           successRate,
           failedDeployments,
+          runtime: {
+            avgUptime:
+              avgUptime[0]?.avgUptime != null
+                ? Math.round(avgUptime[0].avgUptime)
+                : 0,
+            avgErrorRate:
+              avgUptime[0]?.avgErrorRate != null
+                ? Number((avgUptime[0].avgErrorRate * 100).toFixed(2))
+                : 0,
+          },
         },
         recentActivity,
         techDistribution,

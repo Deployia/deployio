@@ -127,9 +127,11 @@ router.get(
         "building",
         "deploying",
         "running",
+        "stopping",
         "failed",
         "stopped",
         "cancelled",
+        "deleted",
         "error",
       ]),
     query("environment")

@@ -141,7 +141,7 @@ export const stopDeployment = createAsyncThunk(
   "deployments/stopDeployment",
   async (deploymentId, { rejectWithValue }) => {
     try {
-      const response = await api.post(`/deployments/${deploymentId}/cancel`);
+      const response = await api.post(`/deployments/${deploymentId}/stop`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -160,6 +160,34 @@ export const restartDeployment = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to restart deployment",
+      );
+    }
+  },
+);
+
+export const deleteDeployment = createAsyncThunk(
+  "deployments/deleteDeployment",
+  async (deploymentId, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`/deployments/${deploymentId}`);
+      return { ...response.data, deploymentId };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to delete deployment",
+      );
+    }
+  },
+);
+
+export const probeDeployment = createAsyncThunk(
+  "deployments/probeDeployment",
+  async (deploymentId, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/deployments/${deploymentId}/probe`);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to probe deployment",
       );
     }
   },
@@ -211,6 +239,7 @@ const initialState = {
   projectDeployments: [],
   logs: [],
   metrics: null,
+  probe: null,
   subdomains: {
     environment: "staging",
     suggestions: [],
@@ -612,6 +641,25 @@ const deploymentSlice = createSlice({
         state.error.restart = action.payload;
       });
 
+    builder
+      .addCase(deleteDeployment.pending, (state) => {
+        state.loading.delete = true;
+        state.error.delete = null;
+      })
+      .addCase(deleteDeployment.fulfilled, (state, action) => {
+        state.loading.delete = false;
+        state.success.delete = true;
+        const deploymentId = action.payload.deploymentId;
+        const matches = (d) =>
+          [d._id, d.id, d.deploymentId].map(String).includes(String(deploymentId));
+        state.deployments = state.deployments.filter((d) => !matches(d));
+        state.projectDeployments = state.projectDeployments.filter((d) => !matches(d));
+      })
+      .addCase(deleteDeployment.rejected, (state, action) => {
+        state.loading.delete = false;
+        state.error.delete = action.payload;
+      });
+
     // Fetch deployment logs
     builder
       .addCase(fetchDeploymentLogs.pending, (state) => {
@@ -625,6 +673,19 @@ const deploymentSlice = createSlice({
       .addCase(fetchDeploymentLogs.rejected, (state, action) => {
         state.loading.logs = false;
         state.error.logs = action.payload;
+      });
+
+    builder
+      .addCase(probeDeployment.pending, (state) => {
+        state.loading.metrics = true;
+      })
+      .addCase(probeDeployment.fulfilled, (state, action) => {
+        state.loading.metrics = false;
+        state.probe = action.payload;
+      })
+      .addCase(probeDeployment.rejected, (state, action) => {
+        state.loading.metrics = false;
+        state.error.metrics = action.payload;
       });
   },
 });

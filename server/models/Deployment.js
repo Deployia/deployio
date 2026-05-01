@@ -63,9 +63,11 @@ const deploymentSchema = new mongoose.Schema(
         "building",
         "deploying",
         "running",
+        "stopping",
         "failed",
         "stopped",
         "cancelled",
+        "deleted",
         "error",
       ],
       default: "pending",
@@ -287,6 +289,8 @@ const deploymentSchema = new mongoose.Schema(
     firstAccessAt: Date,
     lastAccessAt: Date,
     stoppedAt: Date,
+    deletedAt: Date,
+    deleteReason: String,
   },
   {
     timestamps: true,
@@ -369,6 +373,9 @@ deploymentSchema.methods.updateStatus = function (
     case "cancelled":
     case "error":
       this.stoppedAt = now;
+      break;
+    case "deleted":
+      this.deletedAt = now;
       break;
   }
 

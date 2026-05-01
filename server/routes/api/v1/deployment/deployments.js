@@ -36,9 +36,11 @@ const validateStatusUpdate = [
       "building",
       "deploying",
       "running",
+      "stopping",
       "failed",
       "stopped",
       "cancelled",
+      "deleted",
       "error",
     ])
     .withMessage("Invalid status value"),
@@ -94,6 +96,12 @@ router.post(
 );
 
 /**
+ * @desc Stop deployment
+ * @route POST /api/v1/deployments/:id/stop
+ */
+router.post("/:id/stop", validateObjectId, deploymentController.stopDeployment);
+
+/**
  * @desc Delete deployment
  * @route DELETE /api/v1/deployments/:id
  */
@@ -114,5 +122,7 @@ router.get(
   ],
   deploymentController.getDeploymentLogs,
 );
+
+router.get("/:id/probe", validateObjectId, deploymentController.probeDeployment);
 
 module.exports = router;

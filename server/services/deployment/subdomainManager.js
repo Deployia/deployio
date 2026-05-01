@@ -33,6 +33,7 @@ const DEFAULT_PLATFORM_RESERVED_SUBDOMAINS = [
 ];
 
 const SUBDOMAIN_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const HOLD_DURATION_MS = 12 * 60 * 60 * 1000;
 
 class SubdomainManager {
   constructor() {
@@ -164,9 +165,13 @@ class SubdomainManager {
   }
 
   async _getTakenSubdomains(environment = null) {
+    const now = new Date();
     const [takenReservations, takenDeployments] = await Promise.all([
       ReservedSubdomain.find({
-        status: { $in: ["reserved", "active"] },
+        $or: [
+          { status: { $in: ["reserved", "active"] } },
+          { status: "hold", holdUntil: { $gt: now } },
+        ],
         ...(environment ? { environment } : {}),
       })
         .select("subdomain")
@@ -227,7 +232,10 @@ class SubdomainManager {
     const [reservedRecord, deploymentRecord] = await Promise.all([
       ReservedSubdomain.findOne({
         subdomain,
-        status: { $in: ["reserved", "active"] },
+        $or: [
+          { status: { $in: ["reserved", "active"] } },
+          { status: "hold", holdUntil: { $gt: new Date() } },
+        ],
       })
         .select("_id")
         .lean(),
@@ -289,7 +297,10 @@ class SubdomainManager {
         : Promise.resolve([]),
       ReservedSubdomain.find({
         project: projectId,
-        status: { $in: ["reserved", "active"] },
+        $or: [
+          { status: { $in: ["reserved", "active"] } },
+          { status: "hold", holdUntil: { $gt: new Date() } },
+        ],
         ...(environment ? { environment } : {}),
       })
         .select("_id")
@@ -428,19 +439,28 @@ class SubdomainManager {
     }
 
     try {
-      const reservation = await ReservedSubdomain.create({
-        project: projectId,
-        deployment: deploymentId,
-        environment,
-        subdomain: chosen,
-        status: "reserved",
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        metadata: {
-          source: "subdomain-manager",
-          reason: "deployment-reservation",
-          suggestions: suggestions.map((item) => item.subdomain),
+      const reservation = await ReservedSubdomain.findOneAndUpdate(
+        { subdomain: chosen },
+        {
+          $set: {
+            project: projectId,
+            deployment: deploymentId,
+            environment,
+            subdomain: chosen,
+            status: "reserved",
+            reservedAt: new Date(),
+            releasedAt: null,
+            holdUntil: null,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            metadata: {
+              source: "subdomain-manager",
+              reason: "deployment-reservation",
+              suggestions: suggestions.map((item) => item.subdomain),
+            },
+          },
         },
-      });
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
 
       return {
         reservation,
@@ -495,11 +515,12 @@ class SubdomainManager {
         ...(projectId ? { project: projectId } : {}),
         ...(environment ? { environment } : {}),
         ...(subdomain ? { subdomain } : {}),
-        status: { $in: ["reserved", "active"] },
+        status: { $in: ["reserved", "active", "hold"] },
       },
       {
         $set: {
-          status: "released",
+          status: "hold",
+          holdUntil: new Date(Date.now() + HOLD_DURATION_MS),
           releasedAt: new Date(),
           "metadata.reason": reason,
         },
@@ -514,10 +535,14 @@ class SubdomainManager {
     }
 
     return ReservedSubdomain.findOneAndUpdate(
-      { deployment: deploymentId, status: { $in: ["reserved", "active"] } },
+      {
+        deployment: deploymentId,
+        status: { $in: ["reserved", "active", "hold"] },
+      },
       {
         $set: {
-          status: "released",
+          status: "hold",
+          holdUntil: new Date(Date.now() + HOLD_DURATION_MS),
           releasedAt: new Date(),
           "metadata.reason": reason,
         },

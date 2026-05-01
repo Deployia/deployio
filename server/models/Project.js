@@ -588,6 +588,22 @@ const projectSchema = new mongoose.Schema(
     // Timestamps & Metadata
     lastAccessed: Date,
     archivedAt: Date,
+    deletion: {
+      requestedAt: Date,
+      requestedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      cleanupStatus: {
+        type: String,
+        enum: ["none", "queued", "in_progress", "completed", "failed"],
+        default: "none",
+      },
+      cleanupStartedAt: Date,
+      cleanupCompletedAt: Date,
+      cleanupError: String,
+      hardDeleteEligibleAt: Date,
+    },
   },
   {
     timestamps: true,

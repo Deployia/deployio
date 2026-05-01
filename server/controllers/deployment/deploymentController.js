@@ -2,6 +2,7 @@ const { deployment: deploymentService } = require("@services");
 const { validationResult } = require("express-validator");
 const logger = require("@config/logger");
 const subdomainManager = require("@services/deployment/subdomainManager");
+const deploymentProbeService = require("@services/deployment/deploymentProbeService");
 
 class DeploymentController {
   /**
@@ -257,6 +258,32 @@ class DeploymentController {
   }
 
   /**
+   * @desc Stop deployment
+   * @route POST /api/v1/deployments/:id/stop
+   * @access Private
+   */
+  async stopDeployment(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user._id;
+
+      const deployment = await deploymentService.stopDeployment(id, userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Deployment stopped successfully",
+        data: { deployment },
+      });
+    } catch (error) {
+      logger.error("Error in stopDeployment:", error);
+      res.status(error.message.includes("not found") ? 404 : 400).json({
+        success: false,
+        message: error.message || "Failed to stop deployment",
+      });
+    }
+  }
+
+  /**
    * @desc Delete deployment
    * @route DELETE /api/v1/deployments/:id
    * @access Private
@@ -314,6 +341,32 @@ class DeploymentController {
       res.status(error.message.includes("not found") ? 404 : 500).json({
         success: false,
         message: error.message || "Failed to fetch deployment logs",
+      });
+    }
+  }
+
+  async probeDeployment(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user._id;
+      const deployment = await deploymentService.getDeploymentById(id, userId);
+      const url = deployment.url || deployment.networking?.fullUrl;
+      const probe = await deploymentProbeService.probeUrl(url);
+
+      res.status(200).json({
+        success: true,
+        message: "Deployment probe completed",
+        data: {
+          deploymentId: deployment.deploymentId || deployment.id,
+          url,
+          probe,
+        },
+      });
+    } catch (error) {
+      logger.error("Error in probeDeployment:", error);
+      res.status(error.message.includes("not found") ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to probe deployment",
       });
     }
   }

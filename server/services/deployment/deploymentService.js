@@ -12,6 +12,26 @@ const ACTIVE_DEPLOYMENT_STATUSES = [
   "deploying",
   "running",
 ];
+const TERMINAL_DEPLOYMENT_STATUSES = [
+  "stopped",
+  "failed",
+  "cancelled",
+  "error",
+  "deleted",
+];
+const ALLOWED_STATUS_TRANSITIONS = {
+  pending: ["queued", "building", "deploying", "running", "cancelled", "failed", "error", "deleted"],
+  queued: ["building", "deploying", "running", "cancelled", "failed", "error", "deleted"],
+  building: ["deploying", "running", "failed", "cancelled", "error", "deleted"],
+  deploying: ["running", "failed", "cancelled", "error", "deleted"],
+  running: ["stopping", "stopped", "failed", "error", "deleted"],
+  stopping: ["stopped", "failed", "error", "deleted"],
+  stopped: ["pending", "queued", "deleted"],
+  failed: ["pending", "queued", "deleted"],
+  cancelled: ["pending", "queued", "deleted"],
+  error: ["pending", "queued", "deleted"],
+  deleted: [],
+};
 
 class DeploymentService {
   async _findAccessibleProject(projectId, userId) {
@@ -29,6 +49,43 @@ class DeploymentService {
         },
       ],
     }).select("name slug owner repository branch collaborators statistics");
+  }
+
+  _canTransition(currentStatus, nextStatus) {
+    if (currentStatus === nextStatus) return true;
+    return (ALLOWED_STATUS_TRANSITIONS[currentStatus] || []).includes(nextStatus);
+  }
+
+  _assertTransitionAllowed(currentStatus, nextStatus) {
+    if (!this._canTransition(currentStatus, nextStatus)) {
+      throw new Error(
+        `Invalid deployment state transition: ${currentStatus} -> ${nextStatus}`,
+      );
+    }
+  }
+
+  async _findAccessibleDeployment(deploymentId, userId) {
+    const deployment = await Deployment.findById(deploymentId)
+      .populate("project", "owner collaborators")
+      .populate("deployedBy", "name email");
+
+    if (!deployment) {
+      throw new Error("Deployment not found");
+    }
+
+    const isOwner = deployment.project?.owner?.toString() === userId.toString();
+    const isCollaborator =
+      deployment.project?.collaborators?.some(
+        (collab) =>
+          collab.user?.toString() === userId.toString() &&
+          ["admin", "editor"].includes(collab.role),
+      ) || false;
+
+    if (!isOwner && !isCollaborator) {
+      throw new Error("Access denied");
+    }
+
+    return deployment;
   }
 
   /**
@@ -114,8 +171,7 @@ class DeploymentService {
    */
   async getProjectDeployments(projectId, userId, options = {}) {
     try {
-      // Verify project ownership
-      const project = await Project.findOne({ _id: projectId, owner: userId });
+      const project = await this._findAccessibleProject(projectId, userId);
       if (!project) {
         throw new Error("Project not found or access denied");
       }
@@ -169,21 +225,8 @@ class DeploymentService {
    */
   async getDeploymentById(deploymentId, userId) {
     try {
-      const deployment = await Deployment.findById(deploymentId)
-        .populate("project", "name repository.url owner")
-        .populate("deployedBy", "name email")
-        .lean();
-
-      if (!deployment) {
-        throw new Error("Deployment not found");
-      }
-
-      // Check access permissions
-      if (deployment.project.owner.toString() !== userId.toString()) {
-        throw new Error("Access denied");
-      }
-
-      return this.transformDeployment(deployment);
+      const deployment = await this._findAccessibleDeployment(deploymentId, userId);
+      return this.transformDeployment(deployment.toObject());
     } catch (error) {
       logger.error("Error in getDeploymentById:", error);
       throw error;
@@ -282,9 +325,6 @@ class DeploymentService {
         throw saveError;
       }
 
-      // Update project statistics
-      await project.incrementDeploymentCount(false); // Will be true when successful
-
       // Trigger deployment on the agent via orchestrator
       try {
         await deploymentOrchestrator.triggerDeploy(deployment, project);
@@ -317,19 +357,8 @@ class DeploymentService {
     additionalData = {},
   ) {
     try {
-      const deployment = await Deployment.findById(deploymentId).populate(
-        "project",
-        "owner",
-      );
-
-      if (!deployment) {
-        throw new Error("Deployment not found");
-      }
-
-      // Check access permissions
-      if (deployment.project.owner.toString() !== userId.toString()) {
-        throw new Error("Access denied");
-      }
+      const deployment = await this._findAccessibleDeployment(deploymentId, userId);
+      this._assertTransitionAllowed(deployment.status, status);
 
       // Update status with additional data
       await deployment.updateStatus(status, additionalData);
@@ -386,35 +415,85 @@ class DeploymentService {
    */
   async cancelDeployment(deploymentId, userId) {
     try {
-      const result = await this.updateDeploymentStatus(
-        deploymentId,
-        "cancelled",
-        userId,
-        {
-          cancelled: true,
-          cancelledAt: new Date(),
-        },
-      );
-
-      // Stop the container on the agent via orchestrator
-      try {
-        const deploymentOrchestrator = require("./deploymentOrchestrator");
-        const deployment = await Deployment.findById(deploymentId);
-        if (deployment) {
-          await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
-        }
-      } catch (orchErr) {
-        logger.warn(
-          "Orchestrator stop trigger failed (non-blocking):",
-          orchErr.message,
-        );
+      const deployment = await this._findAccessibleDeployment(deploymentId, userId);
+      if (["cancelled", "deleted"].includes(deployment.status)) {
+        return this.transformDeployment(deployment.toObject());
       }
 
-      return result;
+      if (TERMINAL_DEPLOYMENT_STATUSES.includes(deployment.status)) {
+        await deployment.updateStatus("cancelled", {
+          cancelled: true,
+          cancelledAt: new Date(),
+        });
+        return this.transformDeployment(deployment.toObject());
+      }
+
+      try {
+        await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+      } catch (orchErr) {
+        logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
+      }
+
+      await deployment.updateStatus("cancelled", {
+        cancelled: true,
+        cancelledAt: new Date(),
+      });
+
+      return this.transformDeployment(deployment.toObject());
     } catch (error) {
       logger.error("Error in cancelDeployment:", error);
       throw error;
     }
+  }
+
+  async stopDeployment(deploymentId, userId) {
+    try {
+      const deployment = await this._findAccessibleDeployment(deploymentId, userId);
+      if (["stopped", "deleted"].includes(deployment.status)) {
+        return this.transformDeployment(deployment.toObject());
+      }
+
+      if (deployment.status !== "running") {
+        throw new Error("Only running deployments can be stopped");
+      }
+
+      await deployment.updateStatus("stopping", { stoppingAt: new Date() });
+      try {
+        await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+      } catch (orchErr) {
+        logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
+      }
+      await deployment.updateStatus("stopped", { stoppedAt: new Date() });
+
+      return this.transformDeployment(deployment.toObject());
+    } catch (error) {
+      logger.error("Error in stopDeployment:", error);
+      throw error;
+    }
+  }
+
+  async stopDeploymentBySystem(deployment, reason = "project-cleanup") {
+    if (!deployment || TERMINAL_DEPLOYMENT_STATUSES.includes(deployment.status)) {
+      return deployment;
+    }
+
+    if (deployment.status === "running") {
+      await deployment.updateStatus("stopping", { reason, stoppingAt: new Date() });
+      try {
+        await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+      } catch (orchErr) {
+        logger.warn("System stop failed (non-blocking):", orchErr.message);
+      }
+      await deployment.updateStatus("stopped", { reason, stoppedAt: new Date() });
+      return deployment;
+    }
+
+    await deployment.updateStatus("cancelled", {
+      reason,
+      cancelled: true,
+      cancelledAt: new Date(),
+    });
+    return deployment;
   }
 
   /**
@@ -422,28 +501,23 @@ class DeploymentService {
    */
   async deleteDeployment(deploymentId, userId) {
     try {
-      const deployment = await Deployment.findById(deploymentId).populate(
-        "project",
-        "owner",
-      );
-
-      if (!deployment) {
-        throw new Error("Deployment not found");
+      const deployment = await this._findAccessibleDeployment(deploymentId, userId);
+      if (deployment.status === "deleted") {
+        return { success: true, message: "Deployment already deleted" };
       }
 
-      // Check access permissions
-      if (deployment.project.owner.toString() !== userId.toString()) {
-        throw new Error("Access denied");
+      if (!TERMINAL_DEPLOYMENT_STATUSES.includes(deployment.status)) {
+        await this.stopDeploymentBySystem(deployment, "deployment-delete");
       }
 
-      // Can only delete stopped, failed, or cancelled deployments
-      if (
-        !["stopped", "failed", "cancelled", "error"].includes(deployment.status)
-      ) {
-        throw new Error("Cannot delete active deployment. Stop it first.");
-      }
-
-      await Deployment.findByIdAndDelete(deploymentId);
+      await deployment.updateStatus("deleted", {
+        deletedAt: new Date(),
+        deleteReason: "user-requested",
+      });
+      await subdomainManager.releaseDeploymentReservation({
+        deploymentId: deployment._id,
+        reason: "deployment-deleted",
+      });
 
       return { success: true, message: "Deployment deleted successfully" };
     } catch (error) {
@@ -457,20 +531,11 @@ class DeploymentService {
    */
   async getDeploymentLogs(deploymentId, userId, options = {}) {
     try {
-      const deployment = await Deployment.findById(deploymentId)
-        .populate("project", "owner")
-        .select("build.logs project");
-
-      if (!deployment) {
-        throw new Error("Deployment not found");
-      }
-
-      // Check access permissions
-      if (deployment.project.owner.toString() !== userId.toString()) {
-        throw new Error("Access denied");
-      }
+      const deployment = await this._findAccessibleDeployment(deploymentId, userId);
 
       const { level, source, limit = 100, offset = 0 } = options;
+      const parsedLimit = Number.parseInt(limit, 10) || 100;
+      const parsedOffset = Number.parseInt(offset, 10) || 0;
       let logs = deployment.build.logs || [];
 
       // Apply filters
@@ -483,15 +548,15 @@ class DeploymentService {
 
       // Apply pagination
       const totalLogs = logs.length;
-      logs = logs.slice(offset, offset + limit);
+      logs = logs.slice(parsedOffset, parsedOffset + parsedLimit);
 
       return {
         logs,
         pagination: {
           total: totalLogs,
-          offset: parseInt(offset),
-          limit: parseInt(limit),
-          hasMore: offset + limit < totalLogs,
+          offset: parsedOffset,
+          limit: parsedLimit,
+          hasMore: parsedOffset + parsedLimit < totalLogs,
         },
       };
     } catch (error) {

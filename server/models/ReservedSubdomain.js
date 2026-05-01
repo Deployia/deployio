@@ -25,12 +25,11 @@ const reservedSubdomainSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
-      unique: true,
       index: true,
     },
     status: {
       type: String,
-      enum: ["reserved", "active", "released", "expired"],
+      enum: ["reserved", "active", "hold", "released", "expired"],
       default: "reserved",
       index: true,
     },
@@ -39,6 +38,7 @@ const reservedSubdomainSchema = new mongoose.Schema(
       default: Date.now,
     },
     releasedAt: Date,
+    holdUntil: Date,
     expiresAt: Date,
     metadata: {
       source: {
@@ -56,5 +56,15 @@ const reservedSubdomainSchema = new mongoose.Schema(
 
 reservedSubdomainSchema.index({ project: 1, environment: 1, status: 1 });
 reservedSubdomainSchema.index({ deployment: 1, status: 1 });
+reservedSubdomainSchema.index(
+  { subdomain: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["reserved", "active", "hold"] },
+    },
+    name: "unique_active_reserved_hold_subdomain",
+  },
+);
 
 module.exports = mongoose.model("ReservedSubdomain", reservedSubdomainSchema);

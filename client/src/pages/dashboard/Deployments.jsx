@@ -415,63 +415,18 @@ const Deployments = () => {
                   </a>
                 </div>
               )}
-              {/* Action Buttons - Mobile Responsive */}
+              {/* Navigation Actions */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
-                  onClick={() => handleViewLogs(deployment)}
+                  onClick={() =>
+                    navigate(
+                      `/dashboard/projects/${deployment.project?.id || deployment.project?._id}/deployments`,
+                    )
+                  }
                   className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
                 >
                   <FaEye className="w-3 h-3" />
-                  <span className="hidden sm:inline">View Logs</span>
-                  <span className="sm:hidden">View Logs</span>
-                </button>
-
-                {deployment.status === "success" && (
-                  <button
-                    onClick={() =>
-                      handleRestart(deployment.id || deployment._id)
-                    }
-                    disabled={loading.restart}
-                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
-                  >
-                    <FaRedo className="w-3 h-3" />
-                    <span className="hidden sm:inline">
-                      {loading.restart ? "Restarting..." : "Redeploy"}
-                    </span>
-                    <span className="sm:hidden">
-                      {loading.restart ? "Restarting..." : "Redeploy"}
-                    </span>
-                  </button>
-                )}
-
-                {deployment.status === "running" && (
-                  <button
-                    onClick={() => handleStop(deployment.id || deployment._id)}
-                    disabled={loading.stop}
-                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
-                  >
-                    <FaStop className="w-3 h-3" />
-                    <span className="hidden sm:inline">
-                      {loading.stop ? "Stopping..." : "Cancel"}
-                    </span>
-                    <span className="sm:hidden">
-                      {loading.stop ? "Stopping..." : "Cancel"}
-                    </span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => handleDeleteConfirm(deployment)}
-                  disabled={loading.delete}
-                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50"
-                >
-                  <FaTrash className="w-3 h-3" />
-                  <span className="hidden sm:inline">
-                    {loading.delete ? "Deleting..." : "Delete"}
-                  </span>
-                  <span className="sm:hidden">
-                    {loading.delete ? "Deleting..." : "Delete"}
-                  </span>
+                  <span>Open Project Deployment</span>
                 </button>
               </div>
             </motion.div>
