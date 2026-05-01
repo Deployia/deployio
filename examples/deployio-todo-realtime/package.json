@@ -1,0 +1,21 @@
+{
+  "name": "deployio-todo-realtime",
+  "version": "1.0.0",
+  "description": "Real-time Todo Application - Next.js Full-Stack",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "next": "^14.0.0",
+    "better-sqlite3": "^9.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "eslint-config-next": "^14.0.0"
+  }
+}

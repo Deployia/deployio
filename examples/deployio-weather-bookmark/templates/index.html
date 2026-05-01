@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather + Bookmarking</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #0066cc 0%, #00d4ff 50%, #33cc99 100%);
+        min-height: 100vh;
+        padding: 20px;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+          radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(255,255,255,0.05) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+      }
+
+      .header {
+        text-align: center;
+        color: white;
+        margin-bottom: 40px;
+        background: linear-gradient(135deg, rgba(0, 102, 204, 0.3) 0%, rgba(0, 212, 255, 0.3) 100%);
+        padding: 40px 20px;
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .header h1 {
+        font-size: 3em;
+        margin-bottom: 10px;
+        font-weight: 900;
+        text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+      }linear-gradient(135deg, #0066cc 0%, #0088ff 100%);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 5px 15px rgba(0, 102, 204, 0.3);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 102, 204, 0.4);
+      }
+
+      button.remove {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+        padding: 8px 15px;
+        font-size: 14px;
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
+      }
+
+      button.remove:hover {
+        box-shadow: 0 8px 20px rgba(255, 107, 107, 0.4);
+      }
+
+      button.bookmark {
+        background: linear-gradient(135deg, #33cc99 0%, #00dd88 100%);
+        padding: 8px 15px;
+        font-size: 14px;
+        box-shadow: 0 5px 15px rgba(51, 204, 153, 0.3);
+      }
+
+      button.bookmark:hover {
+        box-shadow: 0 8px 20px rgba(51, 204, 153, 0.4);
+      }
+
+      .weather-result {
+        background: linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(51, 204, 153, 0.1) 100%);
+        padding: 25px;
+        border-radius: 15px;
+        margin-top: 20px;
+        display: none;
+        border: 2px solid rgba(0, 212, 255, 0.3);
+        backdrop-filter: blur(10px);
+      }
+
+      .weather-result.show {
+        display: block;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .weather-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .weather-details {
+        flex: 1;
+      }
+
+      .weather-details h3 {
+        color: #0066cc;
+        font-size: 1.8em;
+        margin-bottom: 10px;
+      }
+
+      .temp {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #0066cc;
+        margin-bottom: 5px;
+      }
+
+      .condition {
+        color: #00d4ff;
+        font-size: 1.1em;
+      }
+
+      .bookmarks-section {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .bookmarks-section h2 {
+        color: #0066cc;
+        margin-bottom: 20px;
+        border-bottom: 3px solid #33cc99;
+        padding-bottom: 10px;
+        font-size: 1.5em;
+      }
+
+      .bookmarks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+      }
+
+      .bookmark-card {
+        background: linear-gradient(135deg, #0066cc 0%, #00d4ff 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 180px;
+        box-shadow: 0 10px 30px rgba(0, 102, 204, 0.2);
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .bookmark-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+      }
+
+      .bookmark-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 102, 204, 0.3);
+      }
+
+      .bookmark-city {
+        font-size: 1.6em;
+        font-weight: bold;
+        margin-bottom: 10px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .bookmark-temp {
+        font-size: 2.2em;
+        font-weight: bold;
+        margin-bottom: 5px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .bookmark-condition {
+        font-size: 0.95em;
+        margin-bottom: 15px;
+        opacity: 0.95;
+        position: relative;
+        z-index: 1;
+      }
+
+      .error {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 15px;
+        display: none;
+        font-weight: 600;
+      }
+
+      .error.show {
+        display: block;
+      }
+
+      .loading {
+        text-align: center;
+        color: #0066cc;
+        font-style: italic;
+        padding: 20px;
+      }
+
+      .empty-message {
+        text-align: center;
+        color: #0066cc;
+        padding: 40px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .bookmark-condition {
+        font-size: 0.95em;
+        margin-bottom: 15px;
+        opacity: 0.9;
+      }
+
+      .empty-message {
+        text-align: center;
+        color: #a0aec0;
+        padding: 40px;
+        font-style: italic;
+      }
+
+      .error {
+        background: #fed7d7;
+        color: #c53030;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 15px;
+        display: none;
+      }
+
+      .error.show {
+        display: block;
+      }
+
+      .loading {
+        text-align: center;
+        color: #667eea;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🌤️ Weather Bookmark</h1>
+        <p>Find and bookmark your favorite cities' weather</p>
+      </div>
+
+      <div class="search-section">
+        <div class="search-box">
+          <input
+            type="text"
+            id="cityInput"
+            placeholder="Enter city name... (e.g., London, Paris, Tokyo)"
+          />
+          <button onclick="searchWeather()">Search</button>
+        </div>
+
+        <div id="weatherResult" class="weather-result">
+          <div class="weather-info">
+            <div class="weather-details">
+              <h3 id="resultCity"></h3>
+              <div class="temp" id="resultTemp"></div>
+              <div class="condition" id="resultCondition"></div>
+            </div>
+            <div class="weather-result actions" id="resultActions"></div>
+          </div>
+        </div>
+
+        <div id="error" class="error"></div>
+      </div>
+
+      <div class="bookmarks-section">
+        <h2>📍 Bookmarked Cities</h2>
+        <div id="bookmarksList" class="bookmarks-grid">
+          <div class="empty-message">
+            No bookmarks yet. Search for a city and add it!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = "/api";
+
+      async function searchWeather() {
+        const city = document.getElementById("cityInput").value.trim();
+        if (!city) {
+          showError("Please enter a city name");
+          return;
+        }
+
+        try {
+          document.getElementById("error").classList.remove("show");
+          const response = await fetch(`${API_BASE}/weather/${city}`);
+          if (!response.ok) throw new Error("City not found");
+
+          const data = await response.json();
+          displayWeather(data);
+        } catch (err) {
+          showError(err.message || "Failed to fetch weather");
+        }
+      }
+
+      function displayWeather(data) {
+        document.getElementById("resultCity").textContent = data.city;
+        document.getElementById("resultTemp").textContent =
+          `${data.temperature}°C`;
+        document.getElementById("resultCondition").textContent = data.condition;
+
+        const actions = document.getElementById("resultActions");
+        actions.innerHTML = "";
+
+        const button = document.createElement("button");
+        button.textContent = data.bookmarked
+          ? "Remove Bookmark"
+          : "Add Bookmark";
+        button.className = data.bookmarked ? "remove" : "bookmark";
+        button.onclick = () =>
+          data.bookmarked ? removeBookmark(data.city) : addBookmark(data.city);
+        actions.appendChild(button);
+
+        document.getElementById("weatherResult").classList.add("show");
+      }
+
+      async function addBookmark(city) {
+        try {
+          const response = await fetch(`${API_BASE}/bookmark`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ city }),
+          });
+          if (!response.ok) throw new Error("Failed to bookmark");
+          loadBookmarks();
+          searchWeather();
+        } catch (err) {
+          showError(err.message);
+        }
+      }
+
+      async function removeBookmark(city) {
+        try {
+          const response = await fetch(`${API_BASE}/bookmark/${city}`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Failed to remove bookmark");
+          loadBookmarks();
+          searchWeather();
+        } catch (err) {
+          showError(err.message);
+        }
+      }
+
+      async function loadBookmarks() {
+        try {
+          const response = await fetch(`${API_BASE}/bookmarks`);
+          const bookmarks = await response.json();
+
+          const list = document.getElementById("bookmarksList");
+          if (bookmarks.length === 0) {
+            list.innerHTML =
+              '<div class="empty-message">No bookmarks yet. Search for a city and add it!</div>';
+            return;
+          }
+
+          list.innerHTML = bookmarks
+            .map(
+              (b) => `
+                    <div class="bookmark-card">
+                        <div>
+                            <div class="bookmark-city">${b.city}</div>
+                            <div class="bookmark-temp">${b.temperature}°C</div>
+                            <div class="bookmark-condition">${b.condition}</div>
+                        </div>
+                        <button class="remove" onclick="removeBookmark('${b.city}')">Remove</button>
+                    </div>
+                `,
+            )
+            .join("");
+        } catch (err) {
+          console.error("Failed to load bookmarks:", err);
+        }
+      }
+
+      function showError(message) {
+        const error = document.getElementById("error");
+        error.textContent = message;
+        error.classList.add("show");
+      }
+
+      // Allow Enter key to search
+      document.getElementById("cityInput").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") searchWeather();
+      });
+
+      // Load bookmarks on page load
+      window.addEventListener("load", loadBookmarks);
+    </script>
+  </body>
+</html>

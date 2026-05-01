@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movie CRUD Application</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .header {
+        text-align: center;
+        background: linear-gradient(135deg, #e94560 0%, #c41e3a 100%);
+        color: white;
+        margin-bottom: 40px;
+        padding: 40px 20px;
+        border-radius: 15px;
+        box-shadow: 0 15px 40px rgba(233, 69, 96, 0.4);
+      }
+      .header h1 {
+        font-size: 3em;
+        margin-bottom: 10px;
+        font-weight: 900;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .header p {
+        font-size: 1.2em;
+        opacity: 0.95;
+        font-weight: 300;
+        letter-spacing: 1px;
+      }
+      .form-section {
+        background: linear-gradient(135deg, #2a2a3e 0%, #1f1f35 100%);
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        border: 2px solid #e94560;
+      }
+      .form-section h2 {
+        color: #ffd700;
+        font-size:2px;
+        border: 2px solid #e94560;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #1f1f35;
+        color: white;
+        transition: all 0.3s;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #ffd700;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        background: #2a2a3e;
+      }
+      textarea {
+        grid-column: 1 / -1;
+        resize: vertical;
+        min-height: 80px;
+      }
+      button {
+        background: linear-gradient(135deg, #e94560 0%, #c41e3a 100%);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 5px 15px rgba(233, 69, 96, 0.3);
+      }
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(233, 69, 96, 0.5)
+        font-size: 14px;
+      }
+      textarea {
+        grid-column: 1 / -1;
+        resize: vertical;
+        min-height: linear-gradient(135deg, #ff006e 0%, #c80064 100%);
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+      button.delete:hover {
+        box-shadow: 0 5px 15px rgba(255, 0, 110, 0.4);
+      }
+      button.update {
+        background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
+        color: #1a1a2e;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      button.update:hover {
+        box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+      }
+      .movies-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+      }
+      .movie-card {
+        background: linear-gradient(135deg, #2a2a3e 0%, #1f1f35 100%);
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s;
+        border-left: 5px solid #e94560;
+        position: relative;
+        overflow: hidden;
+      }
+      .movie-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 215, 0, 0.05);
+        border-radius: 50%;
+        transform: translate(30%, -30%);
+      }
+      .movie-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 40px rgba(233, 69, 96, 0.3);
+      }
+      .movie-card h3 {
+        color: #ffd700;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+        font-weight: 700;
+      }
+      .movie-info {
+        margin: 10px 0;
+        color: #b8b8c8;
+        font-size: 0.95em;
+      }
+      .movie-info strong {
+        color: #e94560;
+      }
+      .rating {
+        color: #ffd700;
+        font-weight: bold;
+        font-size: 1.1em;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      .actions button {
+        flex: 1;
+      }
+      .empty {
+        text-align: center;
+        color: #b8b8c8;
+        padding: 60px 40px;
+        background: linear-gradient(135deg, rgba(233, 69, 96, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
+        border-radius: 15px;
+        font-size: 1.2em;
+      }
+      .loading {
+        text-align: center;
+        color: #ffd700;
+        font-size: 1.1em;
+        padding: 40px
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+      }
+      .actions button {
+        flex: 1;
+      }
+      .empty {
+        text-align: center;
+        color: white;
+        padding: 40px;
+      }
+      .loading {
+        text-align: center;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
