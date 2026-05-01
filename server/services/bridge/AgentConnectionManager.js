@@ -253,6 +253,8 @@ class AgentConnectionManager {
         "http://localhost:3000",
         "https://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://backend:3000",
+        "http://backend",
         "https://deployio.tech",
         "https://api.deployio.tech",
       ];
