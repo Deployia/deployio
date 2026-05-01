@@ -216,6 +216,9 @@ function setupNamespaces(features) {
             agentBridgeService.on("deployment:metrics", (data) => {
               deploymentOrchestrator.handleRuntimeMetrics(data);
             });
+            agentBridgeService.on("deployment:logs_response", (data) => {
+              deploymentOrchestrator.handleRuntimeLogsResponse(data);
+            });
 
             logger.info(
               "✓ Deployment orchestrator integrated with agent bridge",

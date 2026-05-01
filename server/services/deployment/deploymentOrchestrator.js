@@ -391,6 +391,37 @@ class DeploymentOrchestrator {
     }
   }
 
+  async handleRuntimeLogsResponse(data) {
+    try {
+      const { deploymentId, logs } = data || {};
+      if (!deploymentId || typeof logs !== "string") return;
+
+      const entries = logs
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(-120)
+        .map((line) => ({
+          deploymentId,
+          level: "info",
+          source: "runtime",
+          message: line,
+          timestamp: new Date().toISOString(),
+        }));
+
+      const logsNs = webSocketManager.getNamespace("/logs");
+      if (logsNs) {
+        entries.forEach((entry) => {
+          logsNs
+            .to(`deployment:${deploymentId}`)
+            .emit("deployment:runtime_log_update", entry);
+        });
+      }
+    } catch (error) {
+      logger.error("Error handling runtime logs response:", error);
+    }
+  }
+
   /**
    * Stop a deployment via the agent.
    */

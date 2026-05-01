@@ -25,8 +25,6 @@ const ProjectAnalytics = () => {
   const [search, setSearch] = useState("");
   const [chartPoints, setChartPoints] = useState([]);
 
-  const { connected, liveLogs, liveMetrics } = useDeploymentStream(selectedDeploymentId);
-
   useEffect(() => {
     if (!projectId) return;
     dispatch(fetchProjectDeployments(projectId));
@@ -45,20 +43,47 @@ const ProjectAnalytics = () => {
     dispatch(fetchDeploymentLogs({ deploymentId: selectedDeploymentId, params: { lines: 500 } }));
   }, [dispatch, mode, selectedDeploymentId]);
 
+  const selectedRuntimeDeploymentId = useMemo(() => {
+    const selected = deployments.find(
+      (deployment) =>
+        (deployment._id || deployment.id || deployment.deploymentId) === selectedDeploymentId,
+    );
+    return selected?.deploymentId || selectedDeploymentId;
+  }, [deployments, selectedDeploymentId]);
+
+  const { connected, liveLogs, liveMetrics } = useDeploymentStream(selectedRuntimeDeploymentId);
+
   useEffect(() => {
     if (!liveMetrics) return;
+    const resources = liveMetrics.resources || {};
+    const cpuRaw =
+      liveMetrics.cpu?.usagePercent ||
+      resources.cpu?.usagePercent ||
+      resources.cpu?.usage ||
+      liveMetrics.cpu ||
+      0;
+    const memoryRaw =
+      liveMetrics.memory?.usagePercent ||
+      resources.memory?.usagePercent ||
+      resources.memory?.usage ||
+      liveMetrics.memory ||
+      0;
     setChartPoints((prev) => {
       const point = {
         time: new Date().toLocaleTimeString(),
-        cpu: liveMetrics.cpu?.usagePercent || liveMetrics.cpu || 0,
-        memory: liveMetrics.memory?.usagePercent || liveMetrics.memory || 0,
+        cpu: Number(cpuRaw) || 0,
+        memory: Number(memoryRaw) || 0,
       };
       return [...prev.slice(-29), point];
     });
   }, [liveMetrics]);
 
   const baseLogs = mode === "runtime" ? liveLogs : buildLogs;
-  const normalizedLogs = Array.isArray(baseLogs) ? baseLogs : [];
+  const normalizedLogs = Array.isArray(baseLogs)
+    ? baseLogs
+    : Array.isArray(baseLogs?.logs)
+      ? baseLogs.logs
+      : [];
   const filteredLogs = useMemo(
     () =>
       normalizedLogs.filter((item) => {

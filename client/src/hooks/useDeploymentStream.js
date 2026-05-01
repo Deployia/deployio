@@ -11,6 +11,9 @@ export default function useDeploymentStream(deploymentId) {
   useEffect(() => {
     if (!deploymentId) return undefined;
     let mounted = true;
+    setLiveLogs([]);
+    setLiveMetrics(null);
+    setLiveStatus(null);
 
     const init = async () => {
       const socket = await webSocketService.connect("/logs");
@@ -22,6 +25,9 @@ export default function useDeploymentStream(deploymentId) {
       socket.on("connect", () => setConnected(true));
       socket.on("disconnect", () => setConnected(false));
       socket.on("deployment:log_update", (entry) => {
+        setLiveLogs((prev) => [...prev.slice(-299), entry]);
+      });
+      socket.on("deployment:runtime_log_update", (entry) => {
         setLiveLogs((prev) => [...prev.slice(-299), entry]);
       });
       socket.on("deployment:metrics_update", (event) => {
@@ -36,9 +42,11 @@ export default function useDeploymentStream(deploymentId) {
     return () => {
       mounted = false;
       if (socketRef.current) {
+        socketRef.current.emit("deployment:unsubscribe", { deploymentId });
         socketRef.current.off("connect");
         socketRef.current.off("disconnect");
         socketRef.current.off("deployment:log_update");
+        socketRef.current.off("deployment:runtime_log_update");
         socketRef.current.off("deployment:metrics_update");
         socketRef.current.off("deployment:status_update");
       }

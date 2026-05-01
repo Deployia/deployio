@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useOutletContext } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import {
   FaCheckCircle,
   FaClock,
@@ -16,6 +16,8 @@ import {
   FaTerminal,
   FaTimes,
   FaTimesCircle,
+  FaBan,
+  FaTrash,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -33,6 +35,7 @@ import useDeploymentStream from "../../hooks/useDeploymentStream";
 const ProjectDeployments = () => {
   const { onOpenDeployModal, project } = useOutletContext() || {};
   const location = useLocation();
+  const navigate = useNavigate();
   const projectDeployments = useSelector(
     (state) => state.deployments.projectDeployments,
   );
@@ -52,6 +55,7 @@ const ProjectDeployments = () => {
   const [filter, setFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
   const [iframeFailed, setIframeFailed] = useState(false);
+  const autoOpenHandledRef = useRef(false);
   const dispatch = useDispatch();
   const logEndRef = useRef(null);
   const stageOrder = ["queued", "cloning", "detecting", "building", "deploying", "running"];
@@ -76,7 +80,11 @@ const ProjectDeployments = () => {
       selectedDeployment?.deploymentId,
     [selectedDeployment],
   );
-  const { connected, liveLogs, liveStatus } = useDeploymentStream(selectedDeploymentId);
+  const selectedDeploymentRuntimeId = useMemo(
+    () => selectedDeployment?.deploymentId || selectedDeploymentId,
+    [selectedDeployment?.deploymentId, selectedDeploymentId],
+  );
+  const { connected, liveLogs, liveStatus } = useDeploymentStream(selectedDeploymentRuntimeId);
   const selectedProbe = deploymentProbe?.deploymentId === selectedDeploymentId ? deploymentProbe : null;
 
   const formatLogs = useCallback((logsPayload) => {
@@ -293,7 +301,7 @@ const ProjectDeployments = () => {
     String(liveStatus?.status || selectedDeployment?.status || "").toLowerCase();
 
   useEffect(() => {
-    if (!location.state?.openLatestDeploymentPanel || showPanel) return;
+    if (!location.state?.openLatestDeploymentPanel || showPanel || autoOpenHandledRef.current) return;
     if (!Array.isArray(projectDeployments) || projectDeployments.length === 0) return;
 
     const inProgress = projectDeployments.find((deployment) =>
@@ -307,7 +315,11 @@ const ProjectDeployments = () => {
     setSelectedDeployment(latest);
     setActiveDetailTab("pipeline");
     setShowPanel(true);
-  }, [location.state, projectDeployments, showPanel]);
+    autoOpenHandledRef.current = true;
+    if (location.state?.openLatestDeploymentPanel) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate, projectDeployments, showPanel]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -422,6 +434,42 @@ const ProjectDeployments = () => {
                             <span className="hidden sm:inline">Visit</span>
                           </a>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => handleRestart(deployment)}
+                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
+                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                        >
+                          <FaSync className="w-3 h-3" />
+                          <span className="hidden sm:inline">Restart</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStop(deployment)}
+                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
+                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                        >
+                          <FaStop className="w-3 h-3" />
+                          <span className="hidden sm:inline">Stop</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCancel(deployment)}
+                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
+                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 hover:bg-gray-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                        >
+                          <FaBan className="w-3 h-3" />
+                          <span className="hidden sm:inline">Cancel</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(deployment)}
+                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
+                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-red-900/40 border border-red-500/30 rounded-lg text-red-200 hover:bg-red-900/60 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                        >
+                          <FaTrash className="w-3 h-3" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -499,7 +547,7 @@ const ProjectDeployments = () => {
             </div>
 
             <div className="px-5 pt-4 flex gap-2 border-b border-neutral-800">
-              {["pipeline", "preview", "logs", "controls"].map((tab) => (
+              {["pipeline", "preview", "logs"].map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -652,40 +700,6 @@ const ProjectDeployments = () => {
                 </div>
               )}
 
-              {activeDetailTab === "controls" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleStop(selectedDeployment)}
-                      className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300"
-                    >
-                      Stop
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRestart(selectedDeployment)}
-                      className="px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-yellow-300"
-                    >
-                      Restart
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCancel(selectedDeployment)}
-                      className="px-3 py-2 rounded-lg bg-gray-500/20 border border-gray-500/30 text-gray-200"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(selectedDeployment)}
-                      className="px-3 py-2 rounded-lg bg-red-900/40 border border-red-500/30 text-red-200"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </motion.div>
         </div>

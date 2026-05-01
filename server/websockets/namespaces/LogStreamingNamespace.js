@@ -8,6 +8,8 @@ const logger = require("@config/logger");
 const {
   logCollectorService,
 } = require("@services/logging/LogCollectorService");
+const Deployment = require("@models/Deployment");
+const agentBridgeService = require("@services/bridge/AgentBridgeService");
 
 class LogStreamingNamespace {
   constructor() {
@@ -15,6 +17,7 @@ class LogStreamingNamespace {
     this.activeStreams = new Map();
     this.userRooms = new Map(); // userId -> Set of rooms
     this.roomUsers = new Map(); // roomId -> Set of userIds
+    this.deploymentRealtimePollers = new Map(); // socketId:deploymentId -> interval
   }
 
   /**
@@ -56,6 +59,10 @@ class LogStreamingNamespace {
       .on(
         "deployment:subscribe",
         instance.handleDeploymentLogSubscription.bind(instance)
+      )
+      .on(
+        "deployment:unsubscribe",
+        instance.handleDeploymentLogUnsubscribe.bind(instance)
       )
       .on(
         "metrics:subscribe",
@@ -154,6 +161,7 @@ class LogStreamingNamespace {
         await this.stopLogStream(socket, { streamId });
       }
     }
+    this.cleanupDeploymentPollersForSocket(socket.id);
   }
 
   /**
@@ -304,8 +312,7 @@ class LogStreamingNamespace {
       socket.join(roomId);
 
       if (realtime) {
-        // TODO: Start real-time deployment log streaming
-        // This would connect to the agent service for live container logs
+        this.startDeploymentRealtimePolling(socket, deploymentId);
       }
 
       // Get recent deployment logs
@@ -331,6 +338,14 @@ class LogStreamingNamespace {
         error: error.message,
       });
     }
+  }
+
+  async handleDeploymentLogUnsubscribe(socket, data) {
+    const { deploymentId } = data || {};
+    if (!deploymentId) return;
+    const roomId = `deployment:${deploymentId}`;
+    socket.leave(roomId);
+    this.stopDeploymentRealtimePolling(socket.id, deploymentId);
   }
 
   /**
@@ -839,13 +854,60 @@ class LogStreamingNamespace {
    * Get deployment logs
    */
   async getDeploymentLogs(deploymentId) {
-    // TODO: Implement deployment log fetching
-    // This should get real-time logs from the agent service for the specific deployment
+    const deployment = await Deployment.findOne({
+      $or: [{ deploymentId }, { _id: deploymentId }],
+    })
+      .select("build.logs deploymentId")
+      .lean();
+    const logs = Array.isArray(deployment?.build?.logs) ? deployment.build.logs : [];
     return {
-      logs: [],
-      totalLines: 0,
+      logs,
+      totalLines: logs.length,
       source: "deployment-logs",
     };
+  }
+
+  startDeploymentRealtimePolling(socket, deploymentId) {
+    const pollerKey = `${socket.id}:${deploymentId}`;
+    if (this.deploymentRealtimePollers.has(pollerKey)) return;
+
+    const tick = async () => {
+      try {
+        const availableAgentId = agentBridgeService.getAvailableAgent();
+        if (!availableAgentId) return;
+        await agentBridgeService.sendToAgent(
+          availableAgentId,
+          "deployment:logs_request",
+          { deploymentId, tail: 120 },
+        );
+      } catch (error) {
+        logger.warn("Failed requesting realtime deployment logs", {
+          deploymentId,
+          socketId: socket.id,
+          error: error.message,
+        });
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 5000);
+    this.deploymentRealtimePollers.set(pollerKey, interval);
+  }
+
+  stopDeploymentRealtimePolling(socketId, deploymentId) {
+    const pollerKey = `${socketId}:${deploymentId}`;
+    const interval = this.deploymentRealtimePollers.get(pollerKey);
+    if (!interval) return;
+    clearInterval(interval);
+    this.deploymentRealtimePollers.delete(pollerKey);
+  }
+
+  cleanupDeploymentPollersForSocket(socketId) {
+    for (const [key, interval] of this.deploymentRealtimePollers.entries()) {
+      if (!key.startsWith(`${socketId}:`)) continue;
+      clearInterval(interval);
+      this.deploymentRealtimePollers.delete(key);
+    }
   }
 
   /**

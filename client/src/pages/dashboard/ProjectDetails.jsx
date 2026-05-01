@@ -66,6 +66,7 @@ const ProjectDetails = () => {
     environment: "staging",
     subdomain: "",
   });
+  const [hasLoadedProjectOnce, setHasLoadedProjectOnce] = useState(false);
   const [subdomainState, setSubdomainState] = useState({
     suggestions: [],
     taken: [],
@@ -127,6 +128,8 @@ const ProjectDetails = () => {
           ]);
         } catch {
           // Error handling is done by Redux slice
+        } finally {
+          setHasLoadedProjectOnce(true);
         }
       };
 
@@ -386,7 +389,10 @@ const ProjectDetails = () => {
         return <FaCode className="w-4 h-4 text-gray-400" />;
     }
   };
-  if (loading.currentProject) {
+  const shouldShowProjectLoading =
+    loading.currentProject || (!hasLoadedProjectOnce && !currentProject);
+
+  if (shouldShowProjectLoading) {
     return (
       <div className="min-h-screen">
         <SEO
