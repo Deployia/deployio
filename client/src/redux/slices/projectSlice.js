@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../utils/api";
 
+const extractProject = (payload) =>
+  payload?.project || payload?.data?.project || payload?.data || payload || null;
+
+const getProjectIdentity = (project) => project?._id || project?.id;
+
 // Initial state with modular loading/error pattern
 const initialState = {
   projects: [],
@@ -8,9 +13,13 @@ const initialState = {
   loading: {
     projects: false,
     currentProject: false,
+    fetchingById: false,
     create: false,
     update: false,
+    updating: false,
     delete: false,
+    deleting: false,
+    archiving: false,
     connect: false,
     analyze: false,
     dockerfile: false,
@@ -21,6 +30,7 @@ const initialState = {
     create: null,
     update: null,
     delete: null,
+    archiving: null,
     connect: null,
     analyze: null,
     dockerfile: null,
@@ -266,10 +276,12 @@ const projectSlice = createSlice({
       // Fetch Project By ID
       .addCase(fetchProjectById.pending, (state) => {
         state.loading.currentProject = true;
+        state.loading.fetchingById = true;
         state.error.currentProject = null;
       })
       .addCase(fetchProjectById.fulfilled, (state, action) => {
         state.loading.currentProject = false;
+        state.loading.fetchingById = false;
         if (action.payload.project) {
           state.currentProject = {
             ...action.payload.project,
@@ -281,8 +293,8 @@ const projectSlice = createSlice({
       })
       .addCase(fetchProjectById.rejected, (state, action) => {
         state.loading.currentProject = false;
+        state.loading.fetchingById = false;
         state.error.currentProject = action.payload;
-        state.currentProject = null;
       })
 
       // Create Project
@@ -294,8 +306,10 @@ const projectSlice = createSlice({
       .addCase(createProject.fulfilled, (state, action) => {
         state.loading.create = false;
         state.success.create = true;
-        state.projects.unshift(action.payload);
-        state.currentProject = action.payload;
+        const createdProject = extractProject(action.payload);
+        if (!createdProject) return;
+        state.projects.unshift(createdProject);
+        state.currentProject = createdProject;
       })
       .addCase(createProject.rejected, (state, action) => {
         state.loading.create = false;
@@ -306,28 +320,37 @@ const projectSlice = createSlice({
       // Update Project
       .addCase(updateProject.pending, (state) => {
         state.loading.update = true;
+        state.loading.updating = true;
         state.error.update = null;
         state.success.update = false;
       })
       .addCase(updateProject.fulfilled, (state, action) => {
         state.loading.update = false;
+        state.loading.updating = false;
         state.success.update = true;
+        const updatedProject = extractProject(action.payload);
+        const updatedProjectId = getProjectIdentity(updatedProject);
+        if (!updatedProjectId) return;
 
         // Update in projects array
         const index = state.projects.findIndex(
-          (p) => p._id === action.payload._id,
+          (p) => getProjectIdentity(p) === updatedProjectId,
         );
         if (index !== -1) {
-          state.projects[index] = action.payload;
+          state.projects[index] = updatedProject;
         }
 
         // Update current project if it's the same
-        if (state.currentProject?._id === action.payload._id) {
-          state.currentProject = action.payload;
+        if (getProjectIdentity(state.currentProject) === updatedProjectId) {
+          state.currentProject = {
+            ...state.currentProject,
+            ...updatedProject,
+          };
         }
       })
       .addCase(updateProject.rejected, (state, action) => {
         state.loading.update = false;
+        state.loading.updating = false;
         state.error.update = action.payload;
         state.success.update = false;
       })
@@ -335,11 +358,13 @@ const projectSlice = createSlice({
       // Delete Project
       .addCase(deleteProject.pending, (state) => {
         state.loading.delete = true;
+        state.loading.deleting = true;
         state.error.delete = null;
         state.success.delete = false;
       })
       .addCase(deleteProject.fulfilled, (state, action) => {
         state.loading.delete = false;
+        state.loading.deleting = false;
         state.success.delete = true;
 
         // Remove from projects array
@@ -352,33 +377,45 @@ const projectSlice = createSlice({
       })
       .addCase(deleteProject.rejected, (state, action) => {
         state.loading.delete = false;
+        state.loading.deleting = false;
         state.error.delete = action.payload;
         state.success.delete = false;
       }) // Toggle Archive Project
       .addCase(toggleArchiveProject.pending, (state) => {
         state.loading.update = true;
+        state.loading.archiving = true;
         state.error.update = null;
+        state.error.archiving = null;
         state.success.update = false;
       })
       .addCase(toggleArchiveProject.fulfilled, (state, action) => {
         state.loading.update = false;
+        state.loading.archiving = false;
         state.success.update = true;
+        const updatedProject = extractProject(action.payload);
+        const updatedProjectId = getProjectIdentity(updatedProject);
+        if (!updatedProjectId) return;
 
         // Update the project with archive status
         const index = state.projects.findIndex(
-          (p) => p._id === action.payload._id,
+          (p) => getProjectIdentity(p) === updatedProjectId,
         );
         if (index !== -1) {
-          state.projects[index] = action.payload;
+          state.projects[index] = updatedProject;
         }
 
-        if (state.currentProject?._id === action.payload._id) {
-          state.currentProject = action.payload;
+        if (getProjectIdentity(state.currentProject) === updatedProjectId) {
+          state.currentProject = {
+            ...state.currentProject,
+            ...updatedProject,
+          };
         }
       })
       .addCase(toggleArchiveProject.rejected, (state, action) => {
         state.loading.update = false;
+        state.loading.archiving = false;
         state.error.update = action.payload;
+        state.error.archiving = action.payload;
         state.success.update = false;
       })
 

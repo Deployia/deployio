@@ -1,6 +1,16 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import api from "../../utils/api";
 
+const extractDeployment = (payload) =>
+  payload?.data?.deployment ||
+  payload?.deployment ||
+  payload?.data ||
+  payload ||
+  null;
+
+const extractLogs = (payload) =>
+  payload?.data?.logs || payload?.logs || payload?.data || payload || [];
+
 // Async thunks for deployment operations
 export const fetchDeployments = createAsyncThunk(
   "deployments/fetchDeployments",
@@ -30,7 +40,7 @@ export const fetchDeployment = createAsyncThunk(
   async (deploymentId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/deployments/${deploymentId}`);
-      return response.data;
+      return response.data?.data?.deployment || response.data?.deployment || null;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch deployment",
@@ -199,7 +209,7 @@ export const fetchDeploymentLogs = createAsyncThunk(
     try {
       const { lines = 100, since } = params;
       const queryParams = new URLSearchParams({
-        lines: lines.toString(),
+        limit: lines.toString(),
         ...(since && { since }),
       });
       const response = await api.get(
@@ -265,6 +275,7 @@ const initialState = {
     deploy: false,
     stop: false,
     restart: false,
+    cancel: false,
     logs: false,
     metrics: false,
     subdomains: false,
@@ -281,6 +292,7 @@ const initialState = {
     deploy: null,
     stop: null,
     restart: null,
+    cancel: null,
     logs: null,
     metrics: null,
     subdomains: null,
@@ -294,6 +306,7 @@ const initialState = {
     deploy: false,
     stop: false,
     restart: false,
+    cancel: false,
   },
 
   // UI state
@@ -424,7 +437,7 @@ const deploymentSlice = createSlice({
       })
       .addCase(fetchDeployment.fulfilled, (state, action) => {
         state.loading.fetchOne = false;
-        state.currentDeployment = action.payload.deployment || action.payload;
+        state.currentDeployment = action.payload;
       })
       .addCase(fetchDeployment.rejected, (state, action) => {
         state.loading.fetchOne = false;
@@ -481,10 +494,12 @@ const deploymentSlice = createSlice({
       .addCase(createDeployment.fulfilled, (state, action) => {
         state.loading.create = false;
         state.success.create = true;
-        const newDeployment = action.payload.deployment || action.payload;
-        state.deployments.unshift(newDeployment);
-        state.projectDeployments.unshift(newDeployment);
-        state.currentDeployment = newDeployment;
+        const newDeployment = extractDeployment(action.payload);
+        if (newDeployment?._id || newDeployment?.id || newDeployment?.deploymentId) {
+          state.deployments.unshift(newDeployment);
+          state.projectDeployments.unshift(newDeployment);
+          state.currentDeployment = newDeployment;
+        }
       })
       .addCase(createDeployment.rejected, (state, action) => {
         state.loading.create = false;
@@ -499,7 +514,8 @@ const deploymentSlice = createSlice({
       .addCase(updateDeploymentStatusAPI.fulfilled, (state, action) => {
         state.loading.update = false;
         state.success.update = true;
-        const updatedDeployment = action.payload.deployment || action.payload;
+        const updatedDeployment = extractDeployment(action.payload);
+        if (!updatedDeployment?._id) return;
 
         // Update in deployments list
         const index = state.deployments.findIndex(
@@ -533,14 +549,15 @@ const deploymentSlice = createSlice({
     // Cancel deployment
     builder
       .addCase(cancelDeployment.pending, (state) => {
-        state.loading.delete = true;
-        state.error.delete = null;
-        state.success.delete = false;
+        state.loading.cancel = true;
+        state.error.cancel = null;
+        state.success.cancel = false;
       })
       .addCase(cancelDeployment.fulfilled, (state, action) => {
-        state.loading.delete = false;
-        state.success.delete = true;
-        const deployment = action.payload;
+        state.loading.cancel = false;
+        state.success.cancel = true;
+        const deployment = extractDeployment(action.payload);
+        if (!deployment?._id) return;
 
         // Update deployment status in all arrays (cancelled deployment)
         const index = state.deployments.findIndex(
@@ -565,8 +582,9 @@ const deploymentSlice = createSlice({
         }
       })
       .addCase(cancelDeployment.rejected, (state, action) => {
-        state.loading.delete = false;
-        state.error.delete = action.payload;
+        state.loading.cancel = false;
+        state.error.cancel = action.payload;
+        state.success.cancel = false;
       }); // Stop deployment
     builder
       .addCase(stopDeployment.pending, (state) => {
@@ -577,7 +595,8 @@ const deploymentSlice = createSlice({
       .addCase(stopDeployment.fulfilled, (state, action) => {
         state.loading.stop = false;
         state.success.stop = true;
-        const updatedDeployment = action.payload.deployment || action.payload;
+        const updatedDeployment = extractDeployment(action.payload);
+        if (!updatedDeployment?._id) return;
 
         // Update deployment status in all relevant arrays
         [state.deployments, state.projectDeployments].forEach(
@@ -614,7 +633,8 @@ const deploymentSlice = createSlice({
       .addCase(restartDeployment.fulfilled, (state, action) => {
         state.loading.restart = false;
         state.success.restart = true;
-        const updatedDeployment = action.payload.deployment || action.payload;
+        const updatedDeployment = extractDeployment(action.payload);
+        if (!updatedDeployment?._id) return;
 
         // Update deployment status in all relevant arrays
         [state.deployments, state.projectDeployments].forEach(
@@ -668,7 +688,7 @@ const deploymentSlice = createSlice({
       })
       .addCase(fetchDeploymentLogs.fulfilled, (state, action) => {
         state.loading.logs = false;
-        state.logs = action.payload.logs || action.payload;
+        state.logs = extractLogs(action.payload);
       })
       .addCase(fetchDeploymentLogs.rejected, (state, action) => {
         state.loading.logs = false;

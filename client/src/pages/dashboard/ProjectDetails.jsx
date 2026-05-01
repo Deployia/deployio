@@ -17,12 +17,8 @@ import {
   FaCalendarAlt,
   FaPlay,
   FaExternalLinkAlt,
-  FaHistory,
-  FaShieldAlt,
-  FaTerminal,
   FaEye,
   FaArchive,
-  FaSync,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
@@ -115,7 +111,7 @@ const ProjectDetails = () => {
   useEffect(() => {
     const pathSegments = location.pathname.split("/");
     const lastSegment = pathSegments[pathSegments.length - 1];
-    if (["deployments", "analytics", "settings"].includes(lastSegment)) {
+    if (["analysis", "deployments", "analytics", "settings"].includes(lastSegment)) {
       setActiveTab(lastSegment);
     } else {
       setActiveTab("overview");
@@ -268,7 +264,9 @@ const ProjectDetails = () => {
 
       // Close modal first so UI updates immediately, then silently refresh both views
       handleCloseDeployModal();
-      navigate(`/dashboard/projects/${id}/deployments`);
+      navigate(`/dashboard/projects/${id}/deployments`, {
+        state: { openLatestDeploymentPanel: true },
+      });
     } catch {
       // Deployment errors are surfaced from Redux in the modal.
     }
@@ -454,6 +452,7 @@ const ProjectDetails = () => {
 
   const tabs = [
     { id: "overview", label: "Overview", icon: FaEye },
+    { id: "analysis", label: "Analysis", icon: FaCode },
     { id: "deployments", label: "Deployments", icon: FaRocket },
     { id: "analytics", label: "Analytics", icon: FaChartLine },
     { id: "settings", label: "Settings", icon: FaCog },
@@ -644,6 +643,9 @@ const ProjectDetails = () => {
             deployments={projectDeployments}
             analytics={projectAnalytics}
             onOpenDeployModal={handleOpenDeployModal}
+            onNavigateDeployments={() =>
+              navigate(`/dashboard/projects/${id}/deployments`)
+            }
           />
         ) : (
           <Outlet
@@ -946,6 +948,7 @@ const ProjectOverview = ({
   deployments,
   _analytics,
   onOpenDeployModal,
+  onNavigateDeployments,
 }) => {
   const recentDeployments = Array.isArray(deployments)
     ? deployments.slice(0, 3)
@@ -1020,7 +1023,7 @@ const ProjectOverview = ({
             <div className="space-y-3">
               {recentDeployments.map((deployment) => (
                 <div
-                  key={deployment._id}
+                  key={deployment._id || deployment.id || deployment.deploymentId}
                   className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1035,7 +1038,7 @@ const ProjectOverview = ({
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-white font-medium text-sm sm:text-base">
-                        {/* {deployment?.environment || "production"} */}
+                        {deployment?.environment || "unknown"}
                       </p>
                       <p className="text-gray-400 text-xs sm:text-sm truncate">
                         {new Date(deployment.createdAt).toLocaleString()}
@@ -1102,23 +1105,20 @@ const ProjectOverview = ({
           </h3>
           <div className="space-y-2 sm:space-y-3">
             <button
+              type="button"
               onClick={onOpenDeployModal}
               className="w-full flex items-center gap-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
             >
               <FaPlay className="w-4 h-4" />
-              Deploy Now
+              New Deployment
             </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm">
-              <FaTerminal className="w-4 h-4" />
-              Open Terminal
-            </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 hover:bg-purple-500/30 transition-colors text-sm">
-              <FaHistory className="w-4 h-4" />
-              View Logs
-            </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 hover:bg-orange-500/30 transition-colors text-sm">
-              <FaSync className="w-4 h-4" />
-              Sync Repository
+            <button
+              type="button"
+              onClick={onNavigateDeployments}
+              className="w-full flex items-center gap-3 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+            >
+              <FaRocket className="w-4 h-4" />
+              View Deployments
             </button>
           </div>
         </div>
@@ -1156,131 +1156,6 @@ const ProjectOverview = ({
           </div>
         </div>
 
-        {/* AI Analysis - Mobile Responsive */}
-        <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
-            AI Analysis
-          </h3>
-          <div className="space-y-3">
-            {/* Confidence Score */}
-            <div className="p-3 bg-purple-500/10 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <FaShieldAlt className="w-4 h-4 text-purple-400" />
-                <span className="text-purple-400 text-sm font-medium">
-                  Confidence
-                </span>
-              </div>
-              <p className="text-white text-sm">
-                {Math.round((project.aiAnalysis?.confidence || 0) * 100)}% -{" "}
-                {project.aiAnalysis?.approach || "basic"}
-              </p>
-            </div>
-
-            {/* Technology Stack */}
-            {project.aiAnalysis?.technologyStack && (
-              <div className="p-3 bg-blue-500/10 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <FaCode className="w-4 h-4 text-blue-400" />
-                  <span className="text-blue-400 text-sm font-medium">
-                    Technology Stack
-                  </span>
-                </div>
-                <div className="text-white text-xs space-y-1">
-                  {project.aiAnalysis.technologyStack.framework && (
-                    <p>
-                      Framework:{" "}
-                      <span className="text-gray-300">
-                        {project.aiAnalysis.technologyStack.framework}
-                      </span>
-                    </p>
-                  )}
-                  {project.aiAnalysis.technologyStack.runtime && (
-                    <p>
-                      Runtime:{" "}
-                      <span className="text-gray-300">
-                        {project.aiAnalysis.technologyStack.runtime}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Recommendations */}
-            {project.aiAnalysis?.insights?.recommendations?.length > 0 && (
-              <div className="p-3 bg-green-500/10 rounded-lg">
-                <span className="text-green-400 text-sm font-medium">
-                  Recommendations (
-                  {project.aiAnalysis.insights.recommendations.length})
-                </span>
-              </div>
-            )}
-
-            {/* Warnings */}
-            {project.aiAnalysis?.insights?.warnings?.length > 0 && (
-              <div className="p-3 bg-yellow-500/10 rounded-lg">
-                <span className="text-yellow-400 text-sm font-medium">
-                  Warnings ({project.aiAnalysis.insights.warnings.length})
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Config Files - Mobile Responsive */}
-        <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
-            Configuration Files
-          </h3>
-          <div className="space-y-3">
-            {/* Dockerfile */}
-            {project.deployment?.dockerfile && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <FaCode className="w-4 h-4 text-orange-400" />
-                  <span className="text-orange-400 text-sm font-medium">
-                    Dockerfile
-                  </span>
-                </div>
-                <div className="bg-black/40 rounded p-2 max-h-40 overflow-y-auto">
-                  <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-words">
-                    {project.deployment.dockerfile}
-                  </pre>
-                </div>
-              </div>
-            )}
-
-            {/* Build Config */}
-            {project.deployment?.buildConfig && (
-              <div className="pt-3 border-t border-neutral-700">
-                <div className="flex items-center gap-2 mb-2">
-                  <FaCode className="w-4 h-4 text-blue-400" />
-                  <span className="text-blue-400 text-sm font-medium">
-                    Build Config
-                  </span>
-                </div>
-                <div className="text-white text-xs space-y-1">
-                  {project.deployment.buildConfig.buildCommand && (
-                    <p
-                      className="text-gray-300 truncate"
-                      title={project.deployment.buildConfig.buildCommand}
-                    >
-                      Build: {project.deployment.buildConfig.buildCommand}
-                    </p>
-                  )}
-                  {project.deployment.buildConfig.startCommand && (
-                    <p
-                      className="text-gray-300 truncate"
-                      title={project.deployment.buildConfig.startCommand}
-                    >
-                      Start: {project.deployment.buildConfig.startCommand}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

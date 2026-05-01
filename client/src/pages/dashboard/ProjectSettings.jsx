@@ -1,240 +1,140 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  FaCog,
-  FaGithub,
-  FaTrash,
   FaArchive,
-  FaUsers,
-  FaKey,
   FaBell,
+  FaCog,
   FaDatabase,
-  FaShieldAlt,
   FaExclamationTriangle,
-  FaSave,
-  FaSync,
+  FaGithub,
   FaPlus,
+  FaSave,
+  FaShieldAlt,
   FaTimes,
-  FaCheck,
-  FaChevronDown,
+  FaTrash,
+  FaUsers,
 } from "react-icons/fa";
 import {
-  updateProject,
-  deleteProject,
-  toggleArchiveProject,
   clearProjectError,
   clearProjectSuccess,
+  deleteProject,
+  toggleArchiveProject,
+  updateProject,
 } from "@redux/index";
+
+const ENVIRONMENTS = ["production", "staging", "development"];
 
 const ProjectSettings = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
-
   const { currentProject, loading, error, success } = useSelector(
-    (state) => state.projects
+    (state) => state.projects,
   );
 
-  // Form states
+  const [activeSection, setActiveSection] = useState("general");
+  const [activeEnv, setActiveEnv] = useState("production");
+  const initializedProjectId = useRef(null);
+
   const [generalSettings, setGeneralSettings] = useState({
     name: "",
     description: "",
     visibility: "private",
-    autoDeployEnabled: false,
-    deploymentBranch: "main",
+    autoDeployment: { enabled: false, branch: "main", environments: ["production"] },
   });
-
-  const [repositorySettings, setRepositorySettings] = useState({
-    url: "",
-    branch: "main",
-    autoSync: false,
-    webhookEnabled: false,
-  });
-
+  const [repositorySettings, setRepositorySettings] = useState({ url: "", branch: "main" });
   const [collaborators, setCollaborators] = useState([]);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
-
-  const [environmentVariables, setEnvironmentVariables] = useState([]);
-  const [newEnvVar, setNewEnvVar] = useState({ key: "", value: "" });
-
-  const [notifications, setNotifications] = useState({
-    deploymentSuccess: true,
-    deploymentFailure: true,
-    securityAlerts: true,
-    weeklyReports: false,
+  const [notifications, setNotifications] = useState({ email: true });
+  const [envByTarget, setEnvByTarget] = useState({
+    production: [],
+    staging: [],
+    development: [],
   });
+  const [newEnvVar, setNewEnvVar] = useState({ key: "", value: "", isSecret: true });
 
-  const [activeSection, setActiveSection] = useState("general");
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-
-  // Initialize form data when project loads
   useEffect(() => {
-    if (currentProject) {
-      setGeneralSettings({
-        name: currentProject.name || "",
-        description: currentProject.description || "",
-        visibility: currentProject.visibility || "private",
-        autoDeployEnabled:
-          currentProject.settings?.autoDeployment?.enabled || false,
-        deploymentBranch:
-          currentProject.settings?.autoDeployment?.branch || "main",
-      });
-
-      setRepositorySettings({
-        url: currentProject.repository?.url || "",
-        branch: currentProject.repository?.branch || "main",
-        autoSync: false, // Not in current API
-        webhookEnabled: false, // Not in current API
-      });
-
-      setCollaborators(currentProject.collaborators || []);
-
-      // Convert deployment environment variables to the expected format
-      const envVars = [];
-      if (currentProject.deployment?.environment) {
-        Object.entries(currentProject.deployment.environment).forEach(
-          ([env, vars]) => {
-            if (Array.isArray(vars)) {
-              vars.forEach((envVar, index) => {
-                envVars.push({
-                  id: `${env}_${index}`,
-                  key: envVar.key || envVar.name,
-                  value: envVar.value,
-                  environment: env,
-                });
-              });
-            }
-          }
-        );
-      }
-      setEnvironmentVariables(envVars);
-
-      // Set notifications from settings
-      setNotifications({
-        deploymentSuccess:
-          currentProject.settings?.notifications?.email || true,
-        deploymentFailure:
-          currentProject.settings?.notifications?.email || true,
-        securityAlerts: true,
-        weeklyReports: currentProject.settings?.notifications?.slack === "true",
-      });
+    const projectIdentity = currentProject?._id || currentProject?.id;
+    if (!projectIdentity || initializedProjectId.current === projectIdentity) {
+      return;
     }
+    initializedProjectId.current = projectIdentity;
+
+    setGeneralSettings({
+      name: currentProject.name || "",
+      description: currentProject.description || "",
+      visibility: currentProject.visibility || "private",
+      autoDeployment: {
+        enabled: Boolean(currentProject.settings?.autoDeployment?.enabled),
+        branch: currentProject.settings?.autoDeployment?.branch || "main",
+        environments: currentProject.settings?.autoDeployment?.environments || [
+          "production",
+        ],
+      },
+    });
+
+    setRepositorySettings({
+      url: currentProject.repository?.url || "",
+      branch: currentProject.repository?.branch || "main",
+    });
+    setCollaborators(currentProject.collaborators || []);
+    setNotifications({
+      email: currentProject.settings?.notifications?.email ?? true,
+    });
+
+    const source = currentProject.deployment?.environment || {};
+    setEnvByTarget({
+      production: Array.isArray(source.production) ? source.production : [],
+      staging: Array.isArray(source.staging) ? source.staging : [],
+      development: Array.isArray(source.development) ? source.development : [],
+    });
   }, [currentProject]);
 
-  // Clear messages
   useEffect(() => {
     if (success.update) {
-      setTimeout(
+      const timer = setTimeout(
         () => dispatch(clearProjectSuccess({ field: "update" })),
-        3000
+        3000,
       );
+      return () => clearTimeout(timer);
     }
-    if (error.project) {
-      setTimeout(() => dispatch(clearProjectError({ field: "project" })), 5000);
-    }
-  }, [success.update, error.project, dispatch]);
+    return undefined;
+  }, [dispatch, success.update]);
 
-  const handleGeneralSettingsUpdate = () => {
-    dispatch(updateProject({ id, data: generalSettings }));
-  };
-
-  const handleRepositorySettingsUpdate = () => {
-    dispatch(
-      updateProject({
-        id,
-        data: { repository: repositorySettings },
-      })
+  useEffect(() => {
+    if (!error.update && !error.currentProject) return undefined;
+    const timer = setTimeout(
+      () => dispatch(clearProjectError({ field: "update" })),
+      5000,
     );
+    return () => clearTimeout(timer);
+  }, [dispatch, error.currentProject, error.update]);
+
+  const saveProject = (updateData) =>
+    dispatch(updateProject({ projectId: id, updateData }));
+
+  const addEnvVar = () => {
+    if (!newEnvVar.key.trim()) return;
+    setEnvByTarget((prev) => ({
+      ...prev,
+      [activeEnv]: [...prev[activeEnv], { ...newEnvVar, key: newEnvVar.key.trim() }],
+    }));
+    setNewEnvVar({ key: "", value: "", isSecret: true });
   };
 
-  const handleAddCollaborator = () => {
-    if (
-      newCollaboratorEmail &&
-      !collaborators.find((c) => c.email === newCollaboratorEmail)
-    ) {
-      const newCollaborator = {
-        email: newCollaboratorEmail,
-        role: "viewer",
-        addedAt: new Date().toISOString(),
-      };
-      const updatedCollaborators = [...collaborators, newCollaborator];
-      setCollaborators(updatedCollaborators);
-      setNewCollaboratorEmail("");
-      dispatch(
-        updateProject({
-          id,
-          data: { collaborators: updatedCollaborators },
-        })
-      );
-    }
+  const removeEnvVar = (index) => {
+    setEnvByTarget((prev) => ({
+      ...prev,
+      [activeEnv]: prev[activeEnv].filter((_, i) => i !== index),
+    }));
   };
 
-  const handleRemoveCollaborator = (email) => {
-    const updatedCollaborators = collaborators.filter((c) => c.email !== email);
-    setCollaborators(updatedCollaborators);
-    dispatch(
-      updateProject({
-        id,
-        data: { collaborators: updatedCollaborators },
-      })
-    );
-  };
-
-  const handleAddEnvironmentVariable = () => {
-    if (newEnvVar.key && newEnvVar.value) {
-      const updatedEnvVars = [
-        ...environmentVariables,
-        { ...newEnvVar, id: Date.now() },
-      ];
-      setEnvironmentVariables(updatedEnvVars);
-      setNewEnvVar({ key: "", value: "" });
-      dispatch(
-        updateProject({
-          id,
-          data: { environmentVariables: updatedEnvVars },
-        })
-      );
-    }
-  };
-
-  const handleRemoveEnvironmentVariable = (envVarId) => {
-    const updatedEnvVars = environmentVariables.filter(
-      (env) => env.id !== envVarId
-    );
-    setEnvironmentVariables(updatedEnvVars);
-    dispatch(
-      updateProject({
-        id,
-        data: { environmentVariables: updatedEnvVars },
-      })
-    );
-  };
-
-  const handleNotificationsUpdate = () => {
-    dispatch(
-      updateProject({
-        id,
-        data: { notifications },
-      })
-    );
-  };
-
-  const handleDeleteProject = () => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this project? This action cannot be undone and will delete all deployments and data associated with this project."
-      )
-    ) {
-      dispatch(deleteProject(id)).then(() => {
-        navigate("/dashboard/projects");
-      });
-    }
-  };
-
-  const handleArchiveToggle = () => {
-    dispatch(toggleArchiveProject(id));
+  const handleDeleteProject = async () => {
+    if (!window.confirm("Delete this project permanently?")) return;
+    await dispatch(deleteProject(id));
+    navigate("/dashboard/projects");
   };
 
   const sections = [
@@ -247,628 +147,352 @@ const ProjectSettings = () => {
     { id: "danger", label: "Danger Zone", icon: FaExclamationTriangle },
   ];
 
-  if (loading.project) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header - Mobile Responsive */}
       <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-white">
-          Project Settings
-        </h2>
-        <p className="text-gray-400 mt-1 text-sm sm:text-base">
-          Configure your project settings and preferences
+        <h2 className="text-2xl font-bold text-white">Project Settings</h2>
+        <p className="text-gray-400 mt-1">
+          Configure project behavior, environments, and deployment defaults.
         </p>
       </div>
 
-      <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 sm:gap-6">
-        {/* Mobile Sidebar Toggle */}
-        <div className="lg:hidden mb-4">
-          <button
-            onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl text-white"
-          >
-            <span className="flex items-center gap-2">
-              <FaCog className="w-4 h-4" />
-              Project Settings
-            </span>
-            <motion.div
-              animate={{ rotate: showMobileSidebar ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <FaChevronDown className="w-4 h-4" />
-            </motion.div>
-          </button>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1">
+          <div className="bg-neutral-900/50 border border-neutral-800/50 rounded-xl p-4 space-y-2">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2 ${
+                    activeSection === section.id
+                      ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                      : "text-gray-300 hover:bg-neutral-800/60"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {section.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Sidebar - Mobile Responsive */}
-        <div
-          className={`lg:col-span-1 ${
-            showMobileSidebar ? "block" : "hidden lg:block"
-          }`}
-        >
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4">
-            <nav className="space-y-2">
-              {sections.map((section) => {
-                const Icon = section.icon;
-                return (
+        <div className="lg:col-span-3 bg-neutral-900/50 border border-neutral-800/50 rounded-xl p-6">
+          {activeSection === "general" && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-white">General</h3>
+              <input
+                value={generalSettings.name}
+                onChange={(e) =>
+                  setGeneralSettings((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                placeholder="Project name"
+              />
+              <textarea
+                value={generalSettings.description}
+                onChange={(e) =>
+                  setGeneralSettings((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                rows={3}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                placeholder="Description"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <select
+                  value={generalSettings.visibility}
+                  onChange={(e) =>
+                    setGeneralSettings((prev) => ({ ...prev, visibility: e.target.value }))
+                  }
+                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                >
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                </select>
+                <input
+                  value={generalSettings.autoDeployment.branch}
+                  onChange={(e) =>
+                    setGeneralSettings((prev) => ({
+                      ...prev,
+                      autoDeployment: { ...prev.autoDeployment, branch: e.target.value },
+                    }))
+                  }
+                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                  placeholder="Auto deploy branch"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  saveProject({
+                    name: generalSettings.name,
+                    description: generalSettings.description,
+                    visibility: generalSettings.visibility,
+                    settings: {
+                      ...currentProject?.settings,
+                      autoDeployment: generalSettings.autoDeployment,
+                    },
+                  })
+                }
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+              >
+                <FaSave className="w-4 h-4" /> Save General Settings
+              </button>
+            </div>
+          )}
+
+          {activeSection === "repository" && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-white">Repository</h3>
+              <input
+                value={repositorySettings.url}
+                onChange={(e) =>
+                  setRepositorySettings((prev) => ({ ...prev, url: e.target.value }))
+                }
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                placeholder="Repository URL"
+              />
+              <input
+                value={repositorySettings.branch}
+                onChange={(e) =>
+                  setRepositorySettings((prev) => ({ ...prev, branch: e.target.value }))
+                }
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                placeholder="Branch"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  saveProject({
+                    repository: {
+                      ...currentProject?.repository,
+                      ...repositorySettings,
+                    },
+                  })
+                }
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+              >
+                <FaSave className="w-4 h-4" /> Save Repository
+              </button>
+            </div>
+          )}
+
+          {activeSection === "collaborators" && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-white">Collaborators</h3>
+              <div className="flex gap-2">
+                <input
+                  value={newCollaboratorEmail}
+                  onChange={(e) => setNewCollaboratorEmail(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                  placeholder="email@example.com"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newCollaboratorEmail.trim()) return;
+                    const updated = [
+                      ...collaborators,
+                      { email: newCollaboratorEmail.trim(), role: "viewer" },
+                    ];
+                    setCollaborators(updated);
+                    setNewCollaboratorEmail("");
+                    saveProject({ collaborators: updated });
+                  }}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  <FaPlus className="w-4 h-4" />
+                </button>
+              </div>
+              {collaborators.map((collaborator) => (
+                <div
+                  key={collaborator.email}
+                  className="flex items-center justify-between bg-neutral-800/60 rounded-lg px-3 py-2"
+                >
+                  <div className="text-gray-200">{collaborator.email}</div>
                   <button
-                    key={section.id}
+                    type="button"
                     onClick={() => {
-                      setActiveSection(section.id);
-                      setShowMobileSidebar(false); // Close mobile sidebar on selection
+                      const updated = collaborators.filter(
+                        (item) => item.email !== collaborator.email,
+                      );
+                      setCollaborators(updated);
+                      saveProject({ collaborators: updated });
                     }}
-                    className={`w-full flex items-center gap-2 sm:gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm sm:text-base ${
-                      activeSection === section.id
-                        ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                        : "text-gray-400 hover:text-white hover:bg-neutral-800/50"
+                    className="text-red-300 hover:text-red-200"
+                  >
+                    <FaTimes className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeSection === "environment" && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-white">Environment Variables</h3>
+              <div className="flex gap-2">
+                {ENVIRONMENTS.map((env) => (
+                  <button
+                    key={env}
+                    type="button"
+                    onClick={() => setActiveEnv(env)}
+                    className={`px-3 py-1 rounded-lg text-sm ${
+                      activeEnv === env
+                        ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                        : "bg-neutral-800 text-gray-300"
                     }`}
                   >
-                    <Icon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                    <span className="truncate">{section.label}</span>
+                    {env}
                   </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
+                ))}
+              </div>
 
-        {/* Content - Mobile Responsive */}
-        <div className="lg:col-span-3">
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6">
-            {/* General Settings */}
-            {activeSection === "general" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h3 className="text-lg sm:text-xl font-semibold text-white">
-                  General Settings
-                </h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">
-                      Project Name
-                    </label>
-                    <input
-                      type="text"
-                      value={generalSettings.name}
-                      onChange={(e) =>
-                        setGeneralSettings({
-                          ...generalSettings,
-                          name: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      value={generalSettings.description}
-                      onChange={(e) =>
-                        setGeneralSettings({
-                          ...generalSettings,
-                          description: e.target.value,
-                        })
-                      }
-                      rows={3}
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none resize-none text-sm sm:text-base"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">
-                      Visibility
-                    </label>
-                    <select
-                      value={generalSettings.visibility}
-                      onChange={(e) =>
-                        setGeneralSettings({
-                          ...generalSettings,
-                          visibility: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
-                    >
-                      <option value="private">Private</option>
-                      <option value="public">Public</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">
-                      Deployment Branch
-                    </label>
-                    <input
-                      type="text"
-                      value={generalSettings.deploymentBranch}
-                      onChange={(e) =>
-                        setGeneralSettings({
-                          ...generalSettings,
-                          deploymentBranch: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="autoDeploy"
-                      checked={generalSettings.autoDeployEnabled}
-                      onChange={(e) =>
-                        setGeneralSettings({
-                          ...generalSettings,
-                          autoDeployEnabled: e.target.checked,
-                        })
-                      }
-                      className="rounded"
-                    />
-                    <label
-                      htmlFor="autoDeploy"
-                      className="text-white text-sm sm:text-base"
-                    >
-                      Enable auto-deployment on push
-                    </label>
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <input
+                  value={newEnvVar.key}
+                  onChange={(e) =>
+                    setNewEnvVar((prev) => ({ ...prev, key: e.target.value }))
+                  }
+                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                  placeholder="KEY"
+                />
+                <input
+                  value={newEnvVar.value}
+                  onChange={(e) =>
+                    setNewEnvVar((prev) => ({ ...prev, value: e.target.value }))
+                  }
+                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                  placeholder="VALUE"
+                />
                 <button
-                  onClick={handleGeneralSettingsUpdate}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
+                  type="button"
+                  onClick={addEnvVar}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2"
                 >
-                  <FaSave className="w-4 h-4" />
-                  Save Changes
+                  <FaPlus className="w-4 h-4" /> Add
                 </button>
-              </motion.div>
-            )}
+              </div>
 
-            {/* Repository Settings */}
-            {activeSection === "repository" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h3 className="text-xl font-semibold text-white">
-                  Repository Settings
-                </h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">
-                      Repository URL
-                    </label>
-                    <input
-                      type="url"
-                      value={repositorySettings.url}
-                      onChange={(e) =>
-                        setRepositorySettings({
-                          ...repositorySettings,
-                          url: e.target.value,
-                        })
-                      }
-                      placeholder="https://github.com/username/repository"
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">
-                      Default Branch
-                    </label>
-                    <input
-                      type="text"
-                      value={repositorySettings.branch}
-                      onChange={(e) =>
-                        setRepositorySettings({
-                          ...repositorySettings,
-                          branch: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="autoSync"
-                      checked={repositorySettings.autoSync}
-                      onChange={(e) =>
-                        setRepositorySettings({
-                          ...repositorySettings,
-                          autoSync: e.target.checked,
-                        })
-                      }
-                      className="rounded"
-                    />
-                    <label htmlFor="autoSync" className="text-white">
-                      Auto-sync repository changes
-                    </label>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="webhook"
-                      checked={repositorySettings.webhookEnabled}
-                      onChange={(e) =>
-                        setRepositorySettings({
-                          ...repositorySettings,
-                          webhookEnabled: e.target.checked,
-                        })
-                      }
-                      className="rounded"
-                    />
-                    <label htmlFor="webhook" className="text-white">
-                      Enable webhook for deployments
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleRepositorySettingsUpdate}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              <div className="space-y-2">
+                {(envByTarget[activeEnv] || []).map((item, index) => (
+                  <div
+                    key={`${item.key}-${index}`}
+                    className="flex items-center justify-between bg-neutral-800/60 rounded-lg px-3 py-2"
                   >
-                    <FaSave className="w-4 h-4" />
-                    Save Repository Settings
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors">
-                    <FaSync className="w-4 h-4" />
-                    Sync Now
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Collaborators */}
-            {activeSection === "collaborators" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h3 className="text-lg sm:text-xl font-semibold text-white">
-                  Collaborators
-                </h3>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="email"
-                    value={newCollaboratorEmail}
-                    onChange={(e) => setNewCollaboratorEmail(e.target.value)}
-                    placeholder="collaborator@example.com"
-                    className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
-                  />
-                  <button
-                    onClick={handleAddCollaborator}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
-                  >
-                    <FaPlus className="w-4 h-4" />
-                    Add
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {collaborators.length > 0 ? (
-                    collaborators.map((collaborator) => (
-                      <div
-                        key={collaborator.email}
-                        className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <FaUsers className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-white text-sm sm:text-base truncate">
-                              {collaborator.email}
-                            </p>
-                            <p className="text-gray-400 text-xs sm:text-sm">
-                              Role: {collaborator.role}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            handleRemoveCollaborator(collaborator.email)
-                          }
-                          className="p-2 text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
-                        >
-                          <FaTimes className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">
-                      No collaborators added yet
-                    </p>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Environment Variables */}
-            {activeSection === "environment" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h3 className="text-lg sm:text-xl font-semibold text-white">
-                  Environment Variables
-                </h3>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="text"
-                    value={newEnvVar.key}
-                    onChange={(e) =>
-                      setNewEnvVar({ ...newEnvVar, key: e.target.value })
-                    }
-                    placeholder="VARIABLE_NAME"
-                    className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newEnvVar.value}
-                      onChange={(e) =>
-                        setNewEnvVar({ ...newEnvVar, value: e.target.value })
-                      }
-                      placeholder="variable_value"
-                      className="flex-1 px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm sm:text-base"
-                    />
+                    <div className="min-w-0">
+                      <p className="text-white font-mono text-sm truncate">{item.key}</p>
+                      <p className="text-gray-400 text-xs truncate">
+                        {item.isSecret ? "********" : item.value}
+                      </p>
+                    </div>
                     <button
-                      onClick={handleAddEnvironmentVariable}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex-shrink-0"
+                      type="button"
+                      onClick={() => removeEnvVar(index)}
+                      className="text-red-300 hover:text-red-200"
                     >
-                      <FaPlus className="w-4 h-4" />
+                      <FaTimes className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
+                ))}
+              </div>
 
-                <div className="space-y-3">
-                  {environmentVariables.length > 0 ? (
-                    environmentVariables.map((envVar) => (
-                      <div
-                        key={envVar.id}
-                        className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <FaKey className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-white font-mono text-sm sm:text-base truncate">
-                              {envVar.key}
-                            </p>
-                            <p className="text-gray-400 text-xs sm:text-sm">
-                              ••••••••
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            handleRemoveEnvironmentVariable(envVar.id)
-                          }
-                          className="p-2 text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
-                        >
-                          <FaTimes className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">
-                      No environment variables configured
-                    </p>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Notifications */}
-            {activeSection === "notifications" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
+              <button
+                type="button"
+                onClick={() =>
+                  saveProject({
+                    deployment: {
+                      ...currentProject?.deployment,
+                      environment: envByTarget,
+                    },
+                  })
+                }
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
               >
-                <h3 className="text-xl font-semibold text-white">
-                  Notification Settings
-                </h3>
+                <FaSave className="w-4 h-4" /> Save {activeEnv} Variables
+              </button>
+            </div>
+          )}
 
-                <div className="space-y-4">
-                  {Object.entries(notifications).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg"
-                    >
-                      <div>
-                        <p className="text-white capitalize">
-                          {key.replace(/([A-Z])/g, " $1").trim()}
-                        </p>
-                        <p className="text-gray-400 text-sm">
-                          {key === "deploymentSuccess" &&
-                            "Get notified when deployments succeed"}
-                          {key === "deploymentFailure" &&
-                            "Get notified when deployments fail"}
-                          {key === "securityAlerts" &&
-                            "Receive security-related notifications"}
-                          {key === "weeklyReports" &&
-                            "Weekly project performance reports"}
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={value}
-                        onChange={(e) =>
-                          setNotifications({
-                            ...notifications,
-                            [key]: e.target.checked,
-                          })
-                        }
-                        className="rounded"
-                      />
-                    </div>
-                  ))}
-                </div>
+          {activeSection === "notifications" && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-white">Notifications</h3>
+              <label className="flex items-center gap-2 text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={notifications.email}
+                  onChange={(e) =>
+                    setNotifications((prev) => ({ ...prev, email: e.target.checked }))
+                  }
+                />
+                Email notifications
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  saveProject({
+                    settings: {
+                      ...currentProject?.settings,
+                      notifications,
+                    },
+                  })
+                }
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+              >
+                <FaSave className="w-4 h-4" /> Save Notifications
+              </button>
+            </div>
+          )}
 
+          {activeSection === "security" && (
+            <div className="space-y-3">
+              <h3 className="text-xl font-semibold text-white">Security</h3>
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-200">
+                SSL is enabled for deployments by default.
+              </div>
+            </div>
+          )}
+
+          {activeSection === "danger" && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-red-300">Danger Zone</h3>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={handleNotificationsUpdate}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  type="button"
+                  onClick={() => dispatch(toggleArchiveProject(id))}
+                  className="px-4 py-2 rounded-lg border border-yellow-500/40 text-yellow-200 bg-yellow-500/10 flex items-center gap-2"
                 >
-                  <FaSave className="w-4 h-4" />
-                  Save Notification Settings
+                  <FaArchive className="w-4 h-4" />
+                  {currentProject?.status === "archived" ? "Unarchive" : "Archive"}
                 </button>
-              </motion.div>
-            )}
-
-            {/* Security */}
-            {activeSection === "security" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h3 className="text-xl font-semibold text-white">
-                  Security Settings
-                </h3>
-
-                <div className="space-y-4">
-                  <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FaCheck className="w-4 h-4 text-green-400" />
-                      <span className="text-green-400 font-medium">
-                        SSL Certificate
-                      </span>
-                    </div>
-                    <p className="text-gray-300 text-sm">
-                      Your project is secured with SSL encryption
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FaExclamationTriangle className="w-4 h-4 text-yellow-400" />
-                      <span className="text-yellow-400 font-medium">
-                        Security Scan
-                      </span>
-                    </div>
-                    <p className="text-gray-300 text-sm mb-3">
-                      Last security scan: 3 days ago
-                    </p>
-                    <button className="flex items-center gap-2 px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded text-sm">
-                      <FaSync className="w-3 h-3" />
-                      Run Security Scan
-                    </button>
-                  </div>
-
-                  <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FaShieldAlt className="w-4 h-4 text-blue-400" />
-                      <span className="text-blue-400 font-medium">
-                        Access Control
-                      </span>
-                    </div>
-                    <p className="text-gray-300 text-sm">
-                      Configure who can access and modify this project
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Danger Zone */}
-            {activeSection === "danger" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h3 className="text-xl font-semibold text-red-400">
-                  Danger Zone
-                </h3>
-
-                <div className="space-y-4">
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-white font-medium mb-1">
-                          Archive Project
-                        </h4>
-                        <p className="text-gray-400 text-sm">
-                          {currentProject?.isArchived
-                            ? "Unarchive this project to make it active again"
-                            : "Archive this project to make it read-only"}
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleArchiveToggle}
-                        className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/30 rounded-lg transition-colors"
-                      >
-                        <FaArchive className="w-4 h-4" />
-                        {currentProject?.isArchived ? "Unarchive" : "Archive"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-white font-medium mb-1">
-                          Delete Project
-                        </h4>
-                        <p className="text-gray-400 text-sm">
-                          Permanently delete this project and all associated
-                          data. This action cannot be undone.
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleDeleteProject}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"
-                      >
-                        <FaTrash className="w-4 h-4" />
-                        Delete Project
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </div>
+                <button
+                  type="button"
+                  onClick={handleDeleteProject}
+                  className="px-4 py-2 rounded-lg border border-red-500/40 text-red-200 bg-red-500/10 flex items-center gap-2"
+                >
+                  <FaTrash className="w-4 h-4" />
+                  Delete Project
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Success/Error Messages */}
       {success.update && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-green-400"
-        >
-          Settings updated successfully!
+        <motion.div className="fixed bottom-4 right-4 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-300">
+          Settings updated.
         </motion.div>
       )}
-
-      {error.project && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400"
-        >
-          {error.project}
+      {(error.update || error.currentProject) && (
+        <motion.div className="fixed bottom-4 right-4 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300">
+          {error.update || error.currentProject}
         </motion.div>
       )}
     </div>

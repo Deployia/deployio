@@ -326,10 +326,15 @@ class DeploymentOrchestrator {
         {
           $push: {
             "build.logs": {
-              timestamp: new Date(),
-              level: normalizedLevel,
-              message: message || "",
-              source,
+              $each: [
+                {
+                  timestamp: new Date(),
+                  level: normalizedLevel,
+                  message: message || "",
+                  source,
+                },
+              ],
+              $slice: -2000,
             },
           },
         },

@@ -33,11 +33,11 @@ export default defineConfig(({ mode }) => {
       // Allow localhost connections and WebSocket protocols in development
       return (
         baseCSP +
-        " connect-src 'self' http://localhost:* ws://localhost:* https: wss:;"
+        " connect-src 'self' http://localhost:* ws://localhost:* https: wss:; frame-src 'self' https:;"
       );
     } else {
       // Strict HTTPS only in production
-      return baseCSP + " connect-src 'self' https: wss:;";
+      return baseCSP + " connect-src 'self' https: wss:; frame-src 'self' https:;";
     }
   };
 

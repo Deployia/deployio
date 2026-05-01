@@ -1,20 +1,21 @@
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useOutletContext } from "react-router-dom";
 import {
+  FaCheckCircle,
   FaClock,
-  FaCode,
   FaDownload,
   FaExternalLinkAlt,
-  FaHistory,
+  FaInfoCircle,
   FaPlay,
   FaPlus,
   FaRocket,
+  FaSpinner,
   FaStop,
   FaSync,
   FaTerminal,
   FaTimes,
-  FaUser,
+  FaTimesCircle,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -31,7 +32,7 @@ import useDeploymentStream from "../../hooks/useDeploymentStream";
 
 const ProjectDeployments = () => {
   const { onOpenDeployModal, project } = useOutletContext() || {};
-  // Get deployments from Outlet context or Redux
+  const location = useLocation();
   const projectDeployments = useSelector(
     (state) => state.deployments.projectDeployments,
   );
@@ -46,11 +47,14 @@ const ProjectDeployments = () => {
   const deploymentProbe = useSelector((state) => state.deployments.probe);
 
   const [selectedDeployment, setSelectedDeployment] = useState(null);
-  const [showLogs, setShowLogs] = useState(false);
-  const [activeDetailTab, setActiveDetailTab] = useState("status");
+  const [showPanel, setShowPanel] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState("pipeline");
   const [filter, setFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
+  const [iframeFailed, setIframeFailed] = useState(false);
   const dispatch = useDispatch();
+  const logEndRef = useRef(null);
+  const stageOrder = ["queued", "cloning", "detecting", "building", "deploying", "running"];
 
   const filteredDeployments = Array.isArray(projectDeployments)
     ? filter === "all"
@@ -60,8 +64,9 @@ const ProjectDeployments = () => {
 
   const handleViewLogs = useCallback((deployment) => {
     setSelectedDeployment(deployment);
-    setActiveDetailTab("status");
-    setShowLogs(true);
+    setActiveDetailTab("pipeline");
+    setShowPanel(true);
+    setIframeFailed(false);
   }, []);
 
   const selectedDeploymentId = useMemo(
@@ -71,8 +76,8 @@ const ProjectDeployments = () => {
       selectedDeployment?.deploymentId,
     [selectedDeployment],
   );
-  const { connected, liveLogs, liveMetrics, liveStatus } =
-    useDeploymentStream(selectedDeploymentId);
+  const { connected, liveLogs, liveStatus } = useDeploymentStream(selectedDeploymentId);
+  const selectedProbe = deploymentProbe?.deploymentId === selectedDeploymentId ? deploymentProbe : null;
 
   const formatLogs = useCallback((logsPayload) => {
     if (!logsPayload) return [];
@@ -151,7 +156,7 @@ const ProjectDeployments = () => {
         (id) => dispatch(deleteDeployment(id)),
         "delete",
       );
-      setShowLogs(false);
+      setShowPanel(false);
       setSelectedDeployment(null);
     },
     [dispatch, withActionLoading],
@@ -173,13 +178,14 @@ const ProjectDeployments = () => {
   }, [deploymentLogs, formatLogs, selectedDeploymentId]);
 
   useEffect(() => {
-    if (!showLogs || !selectedDeploymentId) return undefined;
+    if (!showPanel || !selectedDeploymentId) return undefined;
     loadDeploymentLogs(selectedDeploymentId);
+    dispatch(probeDeployment(selectedDeploymentId));
     return undefined;
-  }, [showLogs, selectedDeploymentId, loadDeploymentLogs]);
+  }, [dispatch, showPanel, selectedDeploymentId, loadDeploymentLogs]);
 
   useEffect(() => {
-    if (!showLogs || !selectedDeploymentId) return undefined;
+    if (!showPanel || !selectedDeploymentId) return undefined;
     if (!["pending", "queued", "building", "deploying"].includes(selectedDeployment?.status)) {
       return undefined;
     }
@@ -187,7 +193,7 @@ const ProjectDeployments = () => {
       loadDeploymentLogs(selectedDeploymentId);
     }, 4000);
     return () => clearInterval(timer);
-  }, [showLogs, selectedDeploymentId, selectedDeployment?.status, loadDeploymentLogs]);
+  }, [showPanel, selectedDeploymentId, selectedDeployment?.status, loadDeploymentLogs]);
 
   useEffect(() => {
     if (!selectedDeploymentId || !Array.isArray(projectDeployments)) return;
@@ -200,12 +206,18 @@ const ProjectDeployments = () => {
     }
   }, [projectDeployments, selectedDeploymentId]);
 
+  useEffect(() => {
+    if (!showPanel || activeDetailTab !== "logs") return;
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [showPanel, activeDetailTab, liveLogs, deploymentLogs]);
+
   useEffect(() => () => {
     dispatch(clearLogs());
   }, [dispatch]);
 
   const getStatusBadge = (status) => {
-    const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
+    const baseClasses =
+      "inline-flex items-center justify-center min-w-[112px] px-3 py-1 rounded-full text-xs font-medium";
     switch (status) {
       case "success":
       case "running":
@@ -245,6 +257,57 @@ const ProjectDeployments = () => {
         return <FaClock className="w-3 h-3 text-blue-400" />;
     }
   };
+
+  const deriveStageFromLogs = useMemo(() => {
+    const allLogs = [...formatLogs(deploymentLogs), ...liveLogs];
+    const lastLogs = allLogs.slice(-120);
+    const contains = (needle) =>
+      lastLogs.some((log) =>
+        String(log.message || "")
+          .toLowerCase()
+          .includes(needle),
+      );
+
+    if (contains("cloning") || contains("repository cloned")) return "cloning";
+    if (contains("detect") || contains("using repository dockerfile")) return "detecting";
+    if (
+      contains("running build command") ||
+      contains("[build] step") ||
+      contains("sending build context")
+    ) {
+      return "building";
+    }
+    if (
+      contains("starting deployment") ||
+      contains("starting container") ||
+      contains("container started")
+    ) {
+      return "deploying";
+    }
+    if (contains("container is running") || contains("deployment completed")) return "running";
+    return null;
+  }, [deploymentLogs, formatLogs, liveLogs]);
+
+  const effectivePipelineStage =
+    deriveStageFromLogs ||
+    String(liveStatus?.status || selectedDeployment?.status || "").toLowerCase();
+
+  useEffect(() => {
+    if (!location.state?.openLatestDeploymentPanel || showPanel) return;
+    if (!Array.isArray(projectDeployments) || projectDeployments.length === 0) return;
+
+    const inProgress = projectDeployments.find((deployment) =>
+      ["pending", "queued", "cloning", "detecting", "building", "deploying"].includes(
+        String(deployment.status || "").toLowerCase(),
+      ),
+    );
+    const latest = inProgress || projectDeployments[0];
+    if (!latest) return;
+
+    setSelectedDeployment(latest);
+    setActiveDetailTab("pipeline");
+    setShowPanel(true);
+  }, [location.state, projectDeployments, showPanel]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -295,171 +358,91 @@ const ProjectDeployments = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-all duration-200"
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 hover:border-neutral-700/50 transition-all duration-200"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                  <div className="p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
-                    <FaRocket className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {(() => {
-                      const environment =
-                        deployment?.config?.environment ||
-                        deployment?.environment ||
-                        "staging";
+              <div className="flex flex-col xl:flex-row xl:items-start gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-500/20 rounded-lg flex-shrink-0 mt-0.5">
+                      <FaRocket className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      {(() => {
+                        const environment =
+                          deployment?.config?.environment ||
+                          deployment?.environment ||
+                          "staging";
 
-                      return (
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                          <h3 className="text-white font-semibold text-sm sm:text-base">
-                            {environment}
-                          </h3>
-                          <span className={getStatusBadge(deployment.status)}>
-                            {getStatusIcon(deployment.status)}
-                            <span className="ml-1">{deployment.status}</span>
-                          </span>
-                        </div>
-                      );
-                    })()}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <FaCode className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">
-                          {deployment.branch || "main"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <FaUser className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">
-                          {deployment.deployedBy?.email || "System"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <FaClock className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">
-                          {new Date(deployment.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      {deployment.buildDuration && (
+                        return (
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                            <h3 className="text-white font-semibold text-sm sm:text-base">
+                              {environment}
+                            </h3>
+                            <span className={getStatusBadge(deployment.status)}>
+                              {getStatusIcon(deployment.status)}
+                              <span className="ml-1">{deployment.status}</span>
+                            </span>
+                          </div>
+                        );
+                      })()}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-xs sm:text-sm text-gray-400">
                         <div className="flex items-center gap-1">
-                          <FaHistory className="w-3 h-3 flex-shrink-0" />
+                          <FaInfoCircle className="w-3 h-3 flex-shrink-0" />
                           <span className="truncate">
-                            {Math.round(deployment.buildDuration / 1000)}s
+                            {deployment.subdomain || deployment.networking?.subdomain || "No subdomain"}
                           </span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-1">
+                          <FaClock className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">
+                            {new Date(deployment.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="sm:col-span-2 text-xs text-gray-400 break-all">
+                          URL: {deployment.url || deployment.networking?.fullUrl || "Not available"}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <button
+                          onClick={() => handleViewLogs(deployment)}
+                          className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-xs sm:text-sm"
+                        >
+                          <FaTerminal className="w-3 h-3" />
+                          <span className="hidden sm:inline">View Details</span>
+                        </button>
+
+                        {(deployment.url || deployment.networking?.fullUrl) && (
+                          <a
+                            href={deployment.url || deployment.networking?.fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
+                          >
+                            <FaExternalLinkAlt className="w-3 h-3" />
+                            <span className="hidden sm:inline">Visit</span>
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2 sm:gap-2">
-                  <button
-                    onClick={() => handleViewLogs(deployment)}
-                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-xs sm:text-sm"
-                  >
-                    <FaTerminal className="w-3 h-3" />
-                    <span className="hidden sm:inline">Logs</span>
-                  </button>
-
-                  {(deployment.url || deployment.networking?.fullUrl) && (
-                    <a
-                      href={deployment.url || deployment.networking?.fullUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
-                    >
-                      <FaExternalLinkAlt className="w-3 h-3" />
-                      <span className="hidden sm:inline">Visit</span>
-                    </a>
+                {(deployment.status === "running" || deployment.status === "success") &&
+                  (deployment.url || deployment.networking?.fullUrl) && (
+                    <div className="w-full xl:w-[360px] xl:ml-auto">
+                      <div className="w-full rounded-lg border border-neutral-800 bg-neutral-950/70 p-2">
+                        <div className="text-xs text-gray-400 px-1 pb-2">Live Preview</div>
+                        <div className="h-40 rounded overflow-hidden bg-black/40">
+                          <iframe
+                            title={`card-preview-${deployment._id || deployment.deploymentId || deployment.id}`}
+                            src={deployment.url || deployment.networking?.fullUrl}
+                            sandbox="allow-same-origin allow-scripts allow-forms"
+                            className="w-full h-full border-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   )}
-                  {/* Action buttons: Retry / Start / Stop / Restart / Cancel */}
-                  {deployment.status === "queued" && (
-                    <button
-                      onClick={() => handleRestart(deployment)}
-                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
-                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm"
-                    >
-                      <FaSync className="w-3 h-3" />
-                      <span className="hidden sm:inline">Retry</span>
-                    </button>
-                  )}
-
-                  {deployment.status === "pending" && (
-                    <button
-                      onClick={() => handleRestart(deployment)}
-                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
-                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
-                    >
-                      <FaPlay className="w-3 h-3" />
-                      <span className="hidden sm:inline">Start</span>
-                    </button>
-                  )}
-
-                  {deployment.status === "running" && (
-                    <>
-                      <button
-                        onClick={() => handleStop(deployment)}
-                        disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
-                        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
-                      >
-                        <FaStop className="w-3 h-3" />
-                        <span className="hidden sm:inline">Stop</span>
-                      </button>
-                      <button
-                        onClick={() => handleRestart(deployment)}
-                        disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
-                        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm"
-                      >
-                        <FaSync className="w-3 h-3" />
-                        <span className="hidden sm:inline">Restart</span>
-                      </button>
-                    </>
-                  )}
-
-                  {deployment.status === "stopped" && (
-                    <button
-                      onClick={() => handleRestart(deployment)}
-                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
-                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-xs sm:text-sm"
-                    >
-                      <FaPlay className="w-3 h-3" />
-                      <span className="hidden sm:inline">Start</span>
-                    </button>
-                  )}
-
-                  {["pending", "queued", "building", "deploying"].includes(
-                    deployment.status,
-                  ) && (
-                    <button
-                      onClick={() => handleCancel(deployment)}
-                      disabled={Boolean(actionLoading[deployment._id || deployment.id || deployment.deploymentId])}
-                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-gray-700/20 border border-gray-600/30 rounded-lg text-gray-300 hover:bg-gray-700/30 transition-colors text-xs sm:text-sm"
-                    >
-                      <FaTimes className="w-3 h-3" />
-                      <span className="hidden sm:inline">Cancel</span>
-                    </button>
-                  )}
-                </div>
               </div>
-
-              {/* Deployment Details */}
-              {deployment.config?.commit && (
-                <div className="mt-3 sm:mt-4 p-3 bg-neutral-800/50 rounded-lg">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs sm:text-sm">
-                    <div className="flex items-center gap-2">
-                      <FaCode className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                      <span className="text-gray-400">Commit:</span>
-                      <span className="text-white font-mono">
-                        {deployment.config?.commit?.hash?.slice(0, 8) || "N/A"}
-                      </span>
-                    </div>
-                    <span className="text-gray-300 truncate sm:ml-2">
-                      {deployment.config?.commit?.message ||
-                        "No commit message"}
-                    </span>
-                  </div>
-                </div>
-              )}
             </motion.div>
           ))
         ) : (
@@ -486,238 +469,226 @@ const ProjectDeployments = () => {
         )}
       </div>
 
-      {/* Logs Modal */}
-      {showLogs && selectedDeployment && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        >
+      {/* Deployment detail panel */}
+      {showPanel && selectedDeployment && (
+        <div className="fixed inset-0 z-50 flex">
+          <button
+            type="button"
+            className="flex-1 bg-black/50"
+            onClick={() => setShowPanel(false)}
+          />
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-4xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-hidden"
+            initial={{ x: 80, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="w-full max-w-3xl bg-neutral-950 border-l border-neutral-800 overflow-y-auto"
           >
-            <div className="p-4 sm:p-6 border-b border-neutral-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white">
-                    Deployment Logs
-                  </h3>
-                  <p className="text-gray-400 mt-1 text-sm sm:text-base">
-                    {/* {selectedDeployment.environment} -{" "} */}
-                    {new Date(selectedDeployment.createdAt).toLocaleString()}
-                  </p>
-                </div>
+            <div className="p-5 border-b border-neutral-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-white">Deployment Details</h3>
+                <p className="text-sm text-gray-400">
+                  {(selectedDeployment.environment || selectedDeployment.config?.environment || "staging")} · {selectedDeployment.status}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPanel(false)}
+                className="text-gray-300 hover:text-white"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-5 pt-4 flex gap-2 border-b border-neutral-800">
+              {["pipeline", "preview", "logs", "controls"].map((tab) => (
                 <button
-                  onClick={() => setShowLogs(false)}
-                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveDetailTab(tab)}
+                  className={`px-3 py-2 text-sm border-b-2 capitalize ${
+                    activeDetailTab === tab
+                      ? "border-blue-500 text-blue-300"
+                      : "border-transparent text-gray-400 hover:text-white"
+                  }`}
                 >
-                  <FaTimes className="w-4 h-4 sm:w-5 sm:h-5" />
+                  {tab}
                 </button>
-              </div>
+              ))}
             </div>
-            <div className="px-4 sm:px-6 pt-4">
-              <div className="flex items-center gap-2 border-b border-neutral-800">
-                {["status", "logs", "metrics", "controls"].map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveDetailTab(tab)}
-                    className={`px-3 py-2 text-sm capitalize border-b-2 transition-colors ${
-                      activeDetailTab === tab
-                        ? "border-blue-500 text-blue-300"
-                        : "border-transparent text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[60vh]">
-              {activeDetailTab === "status" && (
-                <div className="space-y-3 text-sm">
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Status</div>
-                    <div className="text-white font-medium mt-1">{selectedDeployment.status}</div>
+
+            <div className="p-5 space-y-5">
+              {activeDetailTab === "pipeline" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2 text-sm">
+                    <div className="bg-neutral-900/60 rounded-lg p-2">
+                      <span className="text-gray-400">Deployment ID: </span>
+                      <span className="text-white">{selectedDeployment.deploymentId || selectedDeployment.id}</span>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded-lg p-2">
+                      <span className="text-gray-400">Health: </span>
+                      <span className="text-white">{selectedDeployment.healthStatus || "unknown"}</span>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded-lg p-2">
+                      <span className="text-gray-400">Branch: </span>
+                      <span className="text-white">{selectedDeployment.branch || "main"}</span>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded-lg p-2">
+                      <span className="text-gray-400">Deployed by: </span>
+                      <span className="text-white">{selectedDeployment.deployedBy?.email || "system"}</span>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded-lg p-2 md:col-span-2">
+                      <span className="text-gray-400">Commit: </span>
+                      <span className="text-white">
+                        {(selectedDeployment.commit?.hash || "N/A").slice(0, 8)}{" "}
+                        {selectedDeployment.commit?.message
+                          ? `- ${selectedDeployment.commit.message}`
+                          : ""}
+                      </span>
+                    </div>
                   </div>
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Live URL</div>
+                  {stageOrder.map((stage, index) => {
+                    const currentStage = String(effectivePipelineStage || "").toLowerCase();
+                    const stageIndex = stageOrder.indexOf(currentStage);
+                    const isDone = stageIndex > index || currentStage === "running";
+                    const isActive = stage === currentStage;
+                    const failed = currentStage === "failed";
+                    return (
+                      <div
+                        key={stage}
+                        className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          {failed && isActive ? (
+                            <FaTimesCircle className="w-4 h-4 text-red-400" />
+                          ) : isDone ? (
+                            <FaCheckCircle className="w-4 h-4 text-green-400" />
+                          ) : isActive ? (
+                            <FaSpinner className="w-4 h-4 text-blue-400 animate-spin" />
+                          ) : (
+                            <FaClock className="w-4 h-4 text-gray-500" />
+                          )}
+                          <span className="text-white capitalize">{stage}</span>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {isDone ? "done" : isActive ? "running" : "pending"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {activeDetailTab === "preview" && (
+                <div className="space-y-3">
+                  <div className="text-xs text-yellow-200 bg-yellow-500/10 border border-yellow-500/20 rounded p-2">
+                    Some deployments block iframe embedding via CSP/X-Frame-Options. If preview is blocked,
+                    open the URL directly.
+                  </div>
+                  {(selectedProbe?.probe?.preview?.contentType || "").includes(
+                    "application/json",
+                  ) ? (
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3">
+                      <div className="text-sm text-gray-300 mb-2">
+                        Status code: {selectedProbe?.probe?.statusCode || "N/A"}
+                      </div>
+                      <pre className="text-xs text-gray-200 whitespace-pre-wrap max-h-[360px] overflow-auto">
+                        {typeof selectedProbe?.probe?.preview?.body === "string"
+                          ? selectedProbe.probe.preview.body
+                          : JSON.stringify(selectedProbe?.probe?.preview?.body || {}, null, 2)}
+                      </pre>
+                    </div>
+                  ) : selectedDeployment?.status === "running" &&
+                    !iframeFailed &&
+                    (selectedDeployment.url || selectedDeployment.networking?.fullUrl) ? (
+                    <div className="h-[420px] rounded-lg overflow-hidden border border-neutral-800">
+                      <iframe
+                        title="deployment-preview"
+                        src={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
+                        sandbox="allow-same-origin allow-scripts allow-forms"
+                        className="w-full h-full border-0"
+                        onError={() => setIframeFailed(true)}
+                      />
+                    </div>
+                  ) : (
                     <a
                       href={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-300 break-all"
+                      className="text-blue-300 underline break-all"
                     >
-                      {selectedDeployment.url || selectedDeployment.networking?.fullUrl || "Not available yet"}
+                      {selectedDeployment.url || selectedDeployment.networking?.fullUrl || "URL not available"}
                     </a>
-                  </div>
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Environment</div>
-                    <div className="text-white mt-1">
-                      {selectedDeployment.environment || selectedDeployment.config?.environment || "staging"}
-                    </div>
-                  </div>
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Realtime</div>
-                    <div className="text-white mt-1">
-                      {connected ? "Connected" : "Disconnected"}{" "}
-                      {liveStatus?.status ? `• ${liveStatus.status}` : ""}
-                    </div>
-                  </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => dispatch(probeDeployment(selectedDeploymentId))}
+                    className="px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm"
+                  >
+                    Refresh Probe
+                  </button>
                 </div>
               )}
+
               {activeDetailTab === "logs" && (
-                <div className="bg-black/50 rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm space-y-1">
-                  {liveLogs.length > 0 && (
-                    <div className="text-green-300 mb-2">
-                      Live stream active ({liveLogs.length} new lines)
-                    </div>
-                  )}
-                  {logsLoading && (
-                    <div className="text-blue-300 mb-2">Loading latest logs...</div>
-                  )}
-                  {formatLogs(deploymentLogs).length > 0 ? (
-                    formatLogs(deploymentLogs).map((log, idx) => (
-                    <div
-                      key={idx}
-                      className={
-                        log.level === "error"
-                          ? "text-red-400"
-                          : log.level === "warning"
-                            ? "text-yellow-400"
-                            : "text-gray-300"
-                      }
-                    >
-                      <span className="text-gray-600 mr-2 text-xs">
-                        {new Date(log.timestamp).toLocaleTimeString()}
-                      </span>
-                      {log.message}
-                    </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="text-gray-500">
-                      No build logs available yet.
-                    </div>
-                    {["pending", "queued", "building", "deploying"].includes(
-                      selectedDeployment.status,
-                    ) && (
-                      <div className="text-yellow-400 animate-pulse mt-2">
-                        ⏳ Deployment in progress — logs will appear shortly...
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-400">
+                    {connected ? "Live stream connected" : "Live stream disconnected"}
+                  </div>
+                  <div className="bg-black/70 border border-neutral-800 rounded-lg p-3 font-mono text-xs h-[420px] overflow-auto">
+                    {[...formatLogs(deploymentLogs), ...liveLogs].map((log, idx) => (
+                      <div key={idx} className="mb-1 text-gray-300">
+                        [{new Date(log.timestamp || Date.now()).toLocaleTimeString()}]{" "}
+                        {log.message || ""}
                       </div>
-                    )}
-                    {selectedDeployment.status === "running" && (
-                      <div className="text-green-400 mt-2">
-                        ✓ Deployment completed successfully!
-                      </div>
-                    )}
-                    {selectedDeployment.status === "failed" && (
-                      <div className="text-red-400 mt-2">
-                        ✗ Deployment failed
-                        {selectedDeployment.error?.message &&
-                          `: ${selectedDeployment.error.message}`}
-                      </div>
-                    )}
-                  </>
-                )}
+                    ))}
+                    <div ref={logEndRef} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadLogs}
+                    className="px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm flex items-center gap-2"
+                  >
+                    <FaDownload className="w-3 h-3" /> Download Logs
+                  </button>
                 </div>
               )}
-              {activeDetailTab === "metrics" && (
-                <div className="space-y-3 text-sm">
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Requests (total)</div>
-                    <div className="text-white mt-1">{selectedDeployment.metrics?.requests ?? 0}</div>
-                  </div>
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Errors (total)</div>
-                    <div className="text-white mt-1">{selectedDeployment.metrics?.errors ?? 0}</div>
-                  </div>
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Uptime</div>
-                    <div className="text-white mt-1">{liveMetrics?.uptime?.percentage ?? selectedDeployment.metrics?.uptime ?? 0}%</div>
-                  </div>
-                  <div className="bg-neutral-800/50 rounded-lg p-3">
-                    <div className="text-gray-400">Live Preview Probe</div>
-                    <div className="text-white mt-1">
-                      {deploymentProbe?.probe?.status || "No probe yet"}
-                    </div>
+
+              {activeDetailTab === "controls" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => dispatch(probeDeployment(selectedDeploymentId))}
-                      className="mt-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-blue-300"
+                      onClick={() => handleStop(selectedDeployment)}
+                      className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300"
                     >
-                      Refresh Preview
+                      Stop
                     </button>
-                    {deploymentProbe?.probe?.preview?.body && (
-                      <pre className="mt-2 text-xs text-gray-300 whitespace-pre-wrap max-h-40 overflow-auto">
-                        {typeof deploymentProbe.probe.preview.body === "string"
-                          ? deploymentProbe.probe.preview.body
-                          : JSON.stringify(deploymentProbe.probe.preview.body, null, 2)}
-                      </pre>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Live container metrics streaming will populate this tab as backend metrics events are completed.
+                    <button
+                      type="button"
+                      onClick={() => handleRestart(selectedDeployment)}
+                      className="px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-yellow-300"
+                    >
+                      Restart
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCancel(selectedDeployment)}
+                      className="px-3 py-2 rounded-lg bg-gray-500/20 border border-gray-500/30 text-gray-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(selectedDeployment)}
+                      className="px-3 py-2 rounded-lg bg-red-900/40 border border-red-500/30 text-red-200"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               )}
-              {activeDetailTab === "controls" && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    disabled={!["running"].includes(selectedDeployment.status)}
-                    onClick={() => handleStop(selectedDeployment)}
-                    className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 disabled:opacity-40"
-                  >
-                    Stop
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!["running", "stopped", "failed", "queued", "pending"].includes(selectedDeployment.status)}
-                    onClick={() => handleRestart(selectedDeployment)}
-                    className="px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 disabled:opacity-40"
-                  >
-                    Restart
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!["pending", "queued", "building", "deploying"].includes(selectedDeployment.status)}
-                    onClick={() => handleCancel(selectedDeployment)}
-                    className="px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 disabled:opacity-40"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={Boolean(actionLoading[selectedDeploymentId])}
-                    onClick={() => handleDelete(selectedDeployment)}
-                    className="px-4 py-2 bg-red-900/30 border border-red-500/30 rounded-lg text-red-300 disabled:opacity-40"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="p-4 sm:p-6 border-t border-neutral-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              <button
-                onClick={handleDownloadLogs}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
-              >
-                <FaDownload className="w-4 h-4" />
-                Download Logs
-              </button>
-              <button
-                onClick={() => loadDeploymentLogs(selectedDeploymentId)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-400 hover:bg-gray-500/30 transition-colors text-sm"
-              >
-                <FaSync className="w-4 h-4" />
-                Refresh
-              </button>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
 
       {/* Error Message */}

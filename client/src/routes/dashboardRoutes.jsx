@@ -9,6 +9,7 @@ const Dashboard = lazy(() => import("@dashboard/Dashboard"));
 const Projects = lazy(() => import("@dashboard/Projects"));
 const CreateProject = lazy(() => import("@pages/projects/CreateProject"));
 const ProjectDetails = lazy(() => import("@dashboard/ProjectDetails"));
+const ProjectAnalysis = lazy(() => import("@dashboard/ProjectAnalysis"));
 const ProjectDeployments = lazy(() => import("@dashboard/ProjectDeployments"));
 const ProjectAnalytics = lazy(() => import("@dashboard/ProjectAnalytics"));
 const ProjectSettings = lazy(() => import("@dashboard/ProjectSettings"));
@@ -31,6 +32,7 @@ export default function DashboardRoutes() {
           <Route path="projects" element={<Projects />} />
           <Route path="projects/create" element={<CreateProject />} />
           <Route path="projects/:id" element={<ProjectDetails />}>
+            <Route path="analysis" element={<ProjectAnalysis />} />
             <Route path="deployments" element={<ProjectDeployments />} />
             <Route path="analytics" element={<ProjectAnalytics />} />
             <Route path="settings" element={<ProjectSettings />} />
