@@ -67,8 +67,9 @@ const ProjectDeployments = () => {
   const [iframeFailed, setIframeFailed] = useState(false);
   const lastPanelOpenIntentRef = useRef(null);
   const busyActionIdsRef = useRef(new Set());
+  const prevShowPanelRef = useRef(false);
   const dispatch = useDispatch();
-  const logEndRef = useRef(null);
+  const logScrollContainerRef = useRef(null);
   const stageOrder = ["queued", "cloning", "detecting", "building", "deploying", "running"];
 
   const filteredDeployments = Array.isArray(projectDeployments)
@@ -311,11 +312,6 @@ const ProjectDeployments = () => {
     }
   }, [projectDeployments, selectedDeploymentId]);
 
-  useEffect(() => {
-    if (!showPanel) return;
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [showPanel, liveLogs, deploymentLogs]);
-
   useEffect(() => () => {
     dispatch(clearLogs());
   }, [dispatch]);
@@ -405,6 +401,28 @@ const ProjectDeployments = () => {
     );
   }, [deploymentLogs, liveLogs, formatLogs]);
 
+  useEffect(() => {
+    const wasOpen = prevShowPanelRef.current;
+    prevShowPanelRef.current = showPanel;
+    if (!showPanel || wasOpen) return;
+    requestAnimationFrame(() => {
+      const el = logScrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, [showPanel]);
+
+  useEffect(() => {
+    if (!showPanel) return;
+    const el = logScrollContainerRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const nearBottom = distanceFromBottom < 100;
+    if (nearBottom || scrollHeight <= clientHeight + 1) {
+      el.scrollTop = scrollHeight;
+    }
+  }, [showPanel, mergedPanelLogs]);
+
   const normalizedStatus = String(
     liveStatus?.status || selectedDeployment?.status || "",
   ).toLowerCase();
@@ -425,28 +443,44 @@ const ProjectDeployments = () => {
 
   useEffect(() => {
     if (!location.state?.openLatestDeploymentPanel) return;
-    if (!Array.isArray(projectDeployments) || projectDeployments.length === 0) return;
 
-    const focusId = location.state?.focusDeploymentId;
-    const intentSignature = `${location.key}|${focusId || ""}`;
+    const seq = location.state?.openDeploymentsSeq;
+    const intentSignature =
+      seq != null ? `seq:${seq}` : `${location.key}|${location.state?.focusDeploymentId || ""}`;
     if (lastPanelOpenIntentRef.current === intentSignature) return;
 
-    let chosen = null;
-    if (focusId) {
-      chosen = projectDeployments.find((d) =>
-        [d._id, d.id, d.deploymentId].some((v) => v != null && String(v) === String(focusId)),
-      );
+    const pid = project?._id || project?.id;
+    if (pid) {
+      dispatch(fetchProjectDeployments(pid));
     }
-    if (!chosen) {
-      chosen = projectDeployments.find((deployment) =>
+
+    const focusId = location.state?.focusDeploymentId;
+    const pin = location.state?.pinDeployment;
+    const list = Array.isArray(projectDeployments) ? projectDeployments : [];
+
+    const matchesFocus = (d) =>
+      Boolean(focusId) &&
+      [d._id, d.id, d.deploymentId].some((v) => v != null && String(v) === String(focusId));
+
+    const matchesPin = (d) =>
+      Boolean(pin) &&
+      ([d._id, d.id].some((v) => v != null && String(v) === String(pin._id || pin.id)) ||
+        (pin.deploymentId &&
+          d.deploymentId &&
+          String(d.deploymentId) === String(pin.deploymentId)));
+
+    let chosen =
+      list.find((d) => matchesFocus(d)) ||
+      list.find((d) => matchesPin(d)) ||
+      list.find((d) =>
         ["pending", "queued", "cloning", "detecting", "building", "deploying"].includes(
-          String(deployment.status || "").toLowerCase(),
+          String(d.status || "").toLowerCase(),
         ),
-      );
-    }
-    if (!chosen) {
-      chosen = projectDeployments[0];
-    }
+      ) ||
+      list[0] ||
+      pin ||
+      null;
+
     if (!chosen) return;
 
     lastPanelOpenIntentRef.current = intentSignature;
@@ -455,11 +489,15 @@ const ProjectDeployments = () => {
     setIframeFailed(false);
     navigate(location.pathname, { replace: true, state: {} });
   }, [
+    dispatch,
     location.key,
     location.pathname,
     location.state?.focusDeploymentId,
+    location.state?.openDeploymentsSeq,
     location.state?.openLatestDeploymentPanel,
+    location.state?.pinDeployment,
     navigate,
+    project,
     projectDeployments,
   ]);
 
@@ -828,7 +866,10 @@ const ProjectDeployments = () => {
                       {connected ? "Live · connected" : "Live · disconnected"}
                     </span>
                   </div>
-                  <div className="bg-black/70 border border-neutral-800 rounded-lg p-3 font-mono text-xs min-h-[280px] max-h-[48vh] overflow-auto">
+                  <div
+                    ref={logScrollContainerRef}
+                    className="bg-black/70 border border-neutral-800 rounded-lg p-3 font-mono text-xs min-h-[280px] max-h-[48vh] overflow-y-auto overflow-x-hidden"
+                  >
                     {logsLoading && (
                       <div className="text-blue-300 text-xs mb-2">Loading saved logs…</div>
                     )}
@@ -855,7 +896,6 @@ const ProjectDeployments = () => {
                         </div>
                       );
                     })}
-                    <div ref={logEndRef} />
                   </div>
                 </div>
 

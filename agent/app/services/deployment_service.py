@@ -5,6 +5,7 @@ Configures Traefik labels for automatic subdomain routing with SSL.
 """
 
 import asyncio
+import json
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -51,6 +52,28 @@ class DeploymentService:
         # Sanitize — Docker container names must match [a-zA-Z0-9][a-zA-Z0-9_.-]
         safe_id = deployment_id.replace("dep_", "").replace("_", "-")[:40]
         return f"{CONTAINER_PREFIX}{safe_id}"
+
+    @staticmethod
+    def _coerce_env_vars(raw: Optional[Dict[str, Any]]) -> Dict[str, str]:
+        """
+        Bridge / JSON may send numbers or nested values. Docker expects str→str.
+        """
+        if not raw:
+            return {}
+        out: Dict[str, str] = {}
+        for key, val in raw.items():
+            if key is None:
+                continue
+            ks = str(key).strip()
+            if not ks:
+                continue
+            if val is None:
+                out[ks] = ""
+            elif isinstance(val, (dict, list)):
+                out[ks] = json.dumps(val, separators=(",", ":"))
+            else:
+                out[ks] = str(val)
+        return out
 
     def _resolve_container(self, deployment_id: str, container_id: Optional[str] = None):
         """
@@ -229,7 +252,7 @@ class DeploymentService:
             labels = self._build_traefik_labels(
                 deployment_id, subdomain, runtime_port
             )
-            environment = env_vars or {}
+            environment = self._coerce_env_vars(env_vars)
 
             await _log("info", f"Container name: {container_name}")
             await _log("info", f"Network: {self.docker_network}")

@@ -152,9 +152,16 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             )
             return
 
+        env_keys = sorted((env_vars or {}).keys())
         logger.info(
-            f"Received deployment trigger: {deployment_id} "
-            f"image={image} repo={data.get('repoUrl')} branch={data.get('branch')} subdomain={subdomain} port={port}"
+            "Received deployment trigger: %s image=%s repo=%s branch=%s subdomain=%s port=%s env_keys=%s",
+            deployment_id,
+            image,
+            data.get("repoUrl"),
+            data.get("branch"),
+            subdomain,
+            port,
+            env_keys[:25],
         )
 
         async def status_cb(dep_id, status, message, **kwargs):
@@ -185,6 +192,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                     logs_callback=log_cb,
                     deployment_id=deployment_id,
                     status_callback=status_cb,
+                    env_vars=env_vars,
                 )
             except Exception as e:
                 logger.error(f"Agent build_and_deploy failed: {e}")

@@ -304,6 +304,13 @@ const ProjectDetails = () => {
         payload?.deployment ||
         null;
       const focusDeploymentId = created?.deploymentId || created?._id || created?.id;
+      const pinDeployment = created
+        ? {
+            ...created,
+            _id: created._id || created.id,
+            id: created.id || created._id,
+          }
+        : null;
 
       // Close modal first so UI updates immediately, then open deployments tab with panel intent
       handleCloseDeployModal();
@@ -311,6 +318,8 @@ const ProjectDetails = () => {
         replace: false,
         state: {
           openLatestDeploymentPanel: true,
+          openDeploymentsSeq: Date.now(),
+          ...(pinDeployment ? { pinDeployment } : {}),
           ...(focusDeploymentId ? { focusDeploymentId: String(focusDeploymentId) } : {}),
         },
       });

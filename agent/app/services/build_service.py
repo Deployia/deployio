@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, Optional
 
 from app.services.git_service import GitService
 from app.services.dockerfile_service import DockerfileService
-from app.services.deployment_service import deployment_service
+from app.services.deployment_service import DeploymentService, deployment_service
 
 logger = logging.getLogger(__name__)
 
@@ -252,14 +252,19 @@ class BuildService:
         logs_callback: Optional[Callable] = None,
         deployment_id: Optional[str] = None,
         status_callback: Optional[Callable] = None,
+        env_vars: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Full pipeline: clone → detect → generate Dockerfile → build → deploy.
+        ``env_vars`` are merged from the platform (project + deployment) and passed
+        to ``deployment_service.deploy`` as container runtime environment (same as
+        image-only deploy path on the agent).
         Returns: { deployment_id, subdomain, url, status, port }
         """
         # Allow server to provide a deployment_id to keep things in sync
         deployment_id = deployment_id or f"dep-{uuid.uuid4().hex[:12]}"
         repo_path: Optional[Path] = None
+        runtime_env = DeploymentService._coerce_env_vars(env_vars)
 
         async def _stage(stage: str, message: str = "") -> None:
             await self._set_stage(
@@ -421,6 +426,18 @@ class BuildService:
                 "info",
                 f"Deploying to subdomain: {subdomain}...",
             )
+            if runtime_env:
+                await self._emit_log(
+                    logs_callback,
+                    deployment_id,
+                    "info",
+                    "Injecting %d runtime environment variable(s): %s"
+                    % (
+                        len(runtime_env),
+                        ", ".join(sorted(runtime_env.keys())[:20])
+                        + ("…" if len(runtime_env) > 20 else ""),
+                    ),
+                )
 
             # Do not pass status_callback into deploy(): it emits a generic "building"
             # phase that would overwrite real pipeline state after the image is built.
@@ -429,7 +446,7 @@ class BuildService:
                 f"deployio/{deployment_id}:latest",
                 subdomain,
                 port,
-                {},
+                runtime_env,
                 status_callback=None,
                 log_callback=logs_callback,
             )
@@ -493,13 +510,13 @@ class BuildService:
         deployment_id: Optional[str] = None,
         github_token: Optional[str] = None,
     ) -> Dict[str, Any]:
-        _ = env
         result = await self.build_and_deploy(
             git_url=repo_url,
             github_token=github_token,
             branch=branch,
             subdomain=subdomain,
             deployment_id=deployment_id,
+            env_vars=env,
         )
         return {
             "deployment_id": result.get("deployment_id"),
