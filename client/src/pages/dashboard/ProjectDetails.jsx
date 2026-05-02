@@ -127,7 +127,12 @@ const ProjectDetails = () => {
     } else {
       setActiveTab("overview");
     }
-  }, [location.pathname]); // Fetch project data on mount
+  }, [location.pathname]);
+
+  useEffect(() => {
+    setHasLoadedProjectOnce(false);
+  }, [id]);
+
   useEffect(() => {
     if (id) {
       const fetchData = async () => {
@@ -441,8 +446,9 @@ const ProjectDetails = () => {
 
         {/* Header Skeleton */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15 }}
           className="mb-8"
         >
           <div className="flex items-center gap-4 mb-6">
@@ -509,8 +515,9 @@ const ProjectDetails = () => {
 
       {/* Header - Mobile Responsive */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15 }}
         className="mb-6 sm:mb-8"
       >
         {/* Project Header - Mobile Responsive */}
@@ -650,9 +657,9 @@ const ProjectDetails = () => {
 
       {/* Tabs - Mobile Responsive */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ duration: 0.15 }}
         className="border-b border-neutral-800/50 mb-6 sm:mb-8"
       >
         <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
@@ -678,9 +685,9 @@ const ProjectDetails = () => {
 
       {/* Tab Content */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ duration: 0.15 }}
       >
         {activeTab === "overview" ? (
           <ProjectOverview

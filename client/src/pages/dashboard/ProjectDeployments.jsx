@@ -789,6 +789,7 @@ const ProjectDeployments = () => {
                   <h4 className="text-sm font-medium text-white mb-2">Pipeline</h4>
                   <div className="space-y-2">
                     {stageOrder.map((stage) => {
+                      const index = stageOrder.indexOf(stage);
                       const currentStage = String(effectivePipelineStage || "").toLowerCase();
                       const stageIndex = stageOrder.indexOf(currentStage);
                       const isDone = stageIndex > index || currentStage === "running";

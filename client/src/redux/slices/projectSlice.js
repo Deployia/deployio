@@ -274,10 +274,19 @@ const projectSlice = createSlice({
       })
 
       // Fetch Project By ID
-      .addCase(fetchProjectById.pending, (state) => {
+      .addCase(fetchProjectById.pending, (state, action) => {
         state.loading.currentProject = true;
         state.loading.fetchingById = true;
         state.error.currentProject = null;
+        const requestedId =
+          action.meta?.arg != null ? String(action.meta.arg) : null;
+        const currentId =
+          state.currentProject?._id != null
+            ? String(state.currentProject._id)
+            : null;
+        if (requestedId && currentId && requestedId !== currentId) {
+          state.currentProject = null;
+        }
       })
       .addCase(fetchProjectById.fulfilled, (state, action) => {
         state.loading.currentProject = false;
