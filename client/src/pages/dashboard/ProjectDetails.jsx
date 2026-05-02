@@ -282,7 +282,7 @@ const ProjectDetails = () => {
     if (isEnvCapacityReached(deploymentForm.environment)) return;
 
     try {
-      await dispatch(
+      const payload = await dispatch(
         createDeployment({
           projectId: id,
           deploymentData: {
@@ -294,10 +294,20 @@ const ProjectDetails = () => {
 
       await dispatch(fetchProjectDeployments(id)).unwrap().catch(() => {});
 
-      // Close modal first so UI updates immediately, then silently refresh both views
+      const created =
+        payload?.data?.deployment ||
+        payload?.deployment ||
+        null;
+      const focusDeploymentId = created?.deploymentId || created?._id || created?.id;
+
+      // Close modal first so UI updates immediately, then open deployments tab with panel intent
       handleCloseDeployModal();
       navigate(`/dashboard/projects/${id}/deployments`, {
-        state: { openLatestDeploymentPanel: true },
+        replace: false,
+        state: {
+          openLatestDeploymentPanel: true,
+          ...(focusDeploymentId ? { focusDeploymentId: String(focusDeploymentId) } : {}),
+        },
       });
     } catch {
       // Deployment errors are surfaced from Redux in the modal.

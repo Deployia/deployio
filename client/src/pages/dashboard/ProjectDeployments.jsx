@@ -62,12 +62,11 @@ const ProjectDeployments = () => {
 
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showPanel, setShowPanel] = useState(false);
-  const [activeDetailTab, setActiveDetailTab] = useState("pipeline");
   const [filter, setFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
   const [iframeFailed, setIframeFailed] = useState(false);
-  const [autoManagedPanel, setAutoManagedPanel] = useState(false);
-  const autoOpenHandledRef = useRef(false);
+  const lastPanelOpenIntentRef = useRef(null);
+  const busyActionIdsRef = useRef(new Set());
   const dispatch = useDispatch();
   const logEndRef = useRef(null);
   const stageOrder = ["queued", "cloning", "detecting", "building", "deploying", "running"];
@@ -78,12 +77,11 @@ const ProjectDeployments = () => {
       : projectDeployments.filter((d) => d.status === filter)
     : [];
 
-  const handleViewLogs = useCallback((deployment) => {
+  const openDeploymentDetail = useCallback((deployment) => {
+    if (!deployment) return;
     setSelectedDeployment(deployment);
-    setActiveDetailTab("pipeline");
     setShowPanel(true);
     setIframeFailed(false);
-    setAutoManagedPanel(false);
   }, []);
 
   const selectedDeploymentId = useMemo(
@@ -137,69 +135,102 @@ const ProjectDeployments = () => {
 
   const withActionLoading = useCallback(async (deployment, actionFn, key) => {
     const id = deployment?._id || deployment?.id || deployment?.deploymentId;
-    if (!id) return;
-    if (actionLoading[id]) return;
+    if (!id) return null;
+    if (busyActionIdsRef.current.has(String(id))) return null;
 
+    busyActionIdsRef.current.add(String(id));
     setActionLoading((prev) => ({ ...prev, [id]: key }));
     try {
       await actionFn(id).unwrap();
       if (project?._id || project?.id) {
-        await dispatch(fetchProjectDeployments(project._id || project.id));
+        const r = await dispatch(fetchProjectDeployments(project._id || project.id));
+        return { deployments: r.payload?.deployments ?? null, actionId: id };
       }
+      return { deployments: null, actionId: id };
+    } catch {
+      return null;
     } finally {
+      busyActionIdsRef.current.delete(String(id));
       setActionLoading((prev) => {
         const next = { ...prev };
         delete next[id];
         return next;
       });
     }
-  }, [actionLoading, dispatch, project]);
+  }, [dispatch, project]);
+
+  const resolveFreshDeployment = useCallback(
+    (list, deployment, actionId) => {
+      const needle = String(actionId ?? "");
+      if (Array.isArray(list) && list.length) {
+        const hit = list.find((d) =>
+          [d._id, d.id, d.deploymentId].some((v) => v != null && String(v) === needle),
+        );
+        if (hit) return hit;
+      }
+      return deployment;
+    },
+    [],
+  );
 
   const handleStop = useCallback(
     async (deployment) => {
-      await withActionLoading(deployment, (id) => dispatch(stopDeployment(id)), "stop");
+      const res = await withActionLoading(deployment, (id) => dispatch(stopDeployment(id)), "stop");
+      if (res) openDeploymentDetail(resolveFreshDeployment(res.deployments, deployment, res.actionId));
     },
-    [dispatch, withActionLoading],
+    [dispatch, openDeploymentDetail, resolveFreshDeployment, withActionLoading],
   );
 
   const handleRestart = useCallback(
     async (deployment) => {
-      await withActionLoading(
+      const res = await withActionLoading(
         deployment,
         (id) => dispatch(restartDeployment(id)),
         "restart",
       );
+      if (res) openDeploymentDetail(resolveFreshDeployment(res.deployments, deployment, res.actionId));
     },
-    [dispatch, withActionLoading],
+    [dispatch, openDeploymentDetail, resolveFreshDeployment, withActionLoading],
   );
 
   const handleCancel = useCallback(
     async (deployment) => {
-      await withActionLoading(
+      const res = await withActionLoading(
         deployment,
         (id) => dispatch(cancelDeployment(id)),
         "cancel",
       );
+      if (res) openDeploymentDetail(resolveFreshDeployment(res.deployments, deployment, res.actionId));
     },
-    [dispatch, withActionLoading],
+    [dispatch, openDeploymentDetail, resolveFreshDeployment, withActionLoading],
   );
 
   const handleDelete = useCallback(
     async (deployment) => {
-      await withActionLoading(
+      const res = await withActionLoading(
         deployment,
         (id) => dispatch(deleteDeployment(id)),
         "delete",
       );
-      setShowPanel(false);
-      setSelectedDeployment(null);
+      if (!res) return;
+      const deletedKey = String(res.actionId ?? "");
+      const selectedKey = String(
+        selectedDeployment?._id || selectedDeployment?.id || selectedDeployment?.deploymentId || "",
+      );
+      if (selectedKey && deletedKey === selectedKey) {
+        setShowPanel(false);
+        setSelectedDeployment(null);
+      }
     },
-    [dispatch, withActionLoading],
+    [dispatch, selectedDeployment, withActionLoading],
   );
 
   const handleDownloadLogs = useCallback(() => {
     if (!selectedIdForApi) return;
-    const logs = formatLogs(deploymentLogs);
+    const logs = [...formatLogs(deploymentLogs), ...liveLogs].sort(
+      (a, b) =>
+        new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime(),
+    );
     const contents = logs
       .map((log) => {
         const raw = log?.message;
@@ -225,7 +256,7 @@ const ProjectDeployments = () => {
     a.download = `${selectedIdForApi}-logs.txt`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [deploymentLogs, formatLogs, selectedIdForApi]);
+  }, [deploymentLogs, formatLogs, liveLogs, selectedIdForApi]);
 
   useEffect(() => {
     if (!showPanel || !selectedIdForApi) return undefined;
@@ -281,9 +312,9 @@ const ProjectDeployments = () => {
   }, [projectDeployments, selectedDeploymentId]);
 
   useEffect(() => {
-    if (!showPanel || activeDetailTab !== "logs") return;
+    if (!showPanel) return;
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [showPanel, activeDetailTab, liveLogs, deploymentLogs]);
+  }, [showPanel, liveLogs, deploymentLogs]);
 
   useEffect(() => () => {
     dispatch(clearLogs());
@@ -366,6 +397,14 @@ const ProjectDeployments = () => {
     return null;
   }, [deploymentLogs, formatLogs, liveLogs]);
 
+  const mergedPanelLogs = useMemo(() => {
+    const rows = [...formatLogs(deploymentLogs), ...liveLogs];
+    return rows.sort(
+      (a, b) =>
+        new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime(),
+    );
+  }, [deploymentLogs, liveLogs, formatLogs]);
+
   const normalizedStatus = String(
     liveStatus?.status || selectedDeployment?.status || "",
   ).toLowerCase();
@@ -385,36 +424,44 @@ const ProjectDeployments = () => {
     : deriveStageFromLogs || normalizedStatus || "queued";
 
   useEffect(() => {
-    if (!location.state?.openLatestDeploymentPanel || showPanel || autoOpenHandledRef.current) return;
+    if (!location.state?.openLatestDeploymentPanel) return;
     if (!Array.isArray(projectDeployments) || projectDeployments.length === 0) return;
 
-    const inProgress = projectDeployments.find((deployment) =>
-      ["pending", "queued", "cloning", "detecting", "building", "deploying"].includes(
-        String(deployment.status || "").toLowerCase(),
-      ),
-    );
-    const latest = inProgress || projectDeployments[0];
-    if (!latest) return;
+    const focusId = location.state?.focusDeploymentId;
+    const intentSignature = `${location.key}|${focusId || ""}`;
+    if (lastPanelOpenIntentRef.current === intentSignature) return;
 
-    setSelectedDeployment(latest);
-    setActiveDetailTab("pipeline");
-    setShowPanel(true);
-    setAutoManagedPanel(true);
-    autoOpenHandledRef.current = true;
-    if (location.state?.openLatestDeploymentPanel) {
-      navigate(location.pathname, { replace: true, state: {} });
+    let chosen = null;
+    if (focusId) {
+      chosen = projectDeployments.find((d) =>
+        [d._id, d.id, d.deploymentId].some((v) => v != null && String(v) === String(focusId)),
+      );
     }
-  }, [location.pathname, location.state, navigate, projectDeployments, showPanel]);
+    if (!chosen) {
+      chosen = projectDeployments.find((deployment) =>
+        ["pending", "queued", "cloning", "detecting", "building", "deploying"].includes(
+          String(deployment.status || "").toLowerCase(),
+        ),
+      );
+    }
+    if (!chosen) {
+      chosen = projectDeployments[0];
+    }
+    if (!chosen) return;
 
-  useEffect(() => {
-    if (!autoManagedPanel || !showPanel) return;
-    if (effectivePipelineStage !== "running") return;
-    const timer = setTimeout(() => {
-      setShowPanel(false);
-      setAutoManagedPanel(false);
-    }, 2200);
-    return () => clearTimeout(timer);
-  }, [autoManagedPanel, effectivePipelineStage, showPanel]);
+    lastPanelOpenIntentRef.current = intentSignature;
+    setSelectedDeployment(chosen);
+    setShowPanel(true);
+    setIframeFailed(false);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [
+    location.key,
+    location.pathname,
+    location.state?.focusDeploymentId,
+    location.state?.openLatestDeploymentPanel,
+    navigate,
+    projectDeployments,
+  ]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -511,7 +558,8 @@ const ProjectDeployments = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-3">
                         <button
-                          onClick={() => handleViewLogs(deployment)}
+                          type="button"
+                          onClick={() => openDeploymentDetail(deployment)}
                           className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors text-xs sm:text-sm"
                         >
                           <FaTerminal className="w-3 h-3" />
@@ -649,143 +697,144 @@ const ProjectDeployments = () => {
               </button>
             </div>
 
-            <div className="px-5 pt-4 flex gap-2 border-b border-neutral-800">
-              {["pipeline", "preview", "logs"].map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveDetailTab(tab)}
-                  className={`px-3 py-2 text-sm border-b-2 capitalize ${
-                    activeDetailTab === tab
-                      ? "border-blue-500 text-blue-300"
-                      : "border-transparent text-gray-400 hover:text-white"
-                  }`}
+            <div className="px-5 py-3 border-b border-neutral-800 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleRestart(selectedDeployment)}
+                disabled={
+                  !!actionLoading[
+                    selectedDeployment._id || selectedDeployment.id || selectedDeployment.deploymentId
+                  ]
+                }
+                className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 text-xs disabled:opacity-50"
+              >
+                <FaSync className="w-3 h-3" /> Restart
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStop(selectedDeployment)}
+                disabled={
+                  !!actionLoading[
+                    selectedDeployment._id || selectedDeployment.id || selectedDeployment.deploymentId
+                  ]
+                }
+                className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-xs disabled:opacity-50"
+              >
+                <FaStop className="w-3 h-3" /> Stop
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancel(selectedDeployment)}
+                disabled={
+                  !!actionLoading[
+                    selectedDeployment._id || selectedDeployment.id || selectedDeployment.deploymentId
+                  ]
+                }
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 text-xs disabled:opacity-50"
+              >
+                <FaBan className="w-3 h-3" /> Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadLogs}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 text-xs"
+              >
+                <FaDownload className="w-3 h-3" /> Download
+              </button>
+              {(selectedDeployment.url || selectedDeployment.networking?.fullUrl) && (
+                <a
+                  href={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-xs"
                 >
-                  {tab}
-                </button>
-              ))}
+                  <FaExternalLinkAlt className="w-3 h-3" /> Open site
+                </a>
+              )}
             </div>
 
             <div className="p-5 space-y-5">
-              {activeDetailTab === "pipeline" && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2 text-sm">
-                    <div className="bg-neutral-900/60 rounded-lg p-2">
-                      <span className="text-gray-400">Deployment ID: </span>
-                      <span className="text-white">{selectedDeployment.deploymentId || selectedDeployment.id}</span>
-                    </div>
-                    <div className="bg-neutral-900/60 rounded-lg p-2">
-                      <span className="text-gray-400">Health: </span>
-                      <span className="text-white">{selectedDeployment.healthStatus || "unknown"}</span>
-                    </div>
-                    <div className="bg-neutral-900/60 rounded-lg p-2">
-                      <span className="text-gray-400">Branch: </span>
-                      <span className="text-white">{selectedDeployment.branch || "main"}</span>
-                    </div>
-                    <div className="bg-neutral-900/60 rounded-lg p-2">
-                      <span className="text-gray-400">Deployed by: </span>
-                      <span className="text-white">{selectedDeployment.deployedBy?.email || "system"}</span>
-                    </div>
-                    <div className="bg-neutral-900/60 rounded-lg p-2 md:col-span-2">
-                      <span className="text-gray-400">Commit: </span>
-                      <span className="text-white">
-                        {(selectedDeployment.commit?.hash || "N/A").slice(0, 8)}{" "}
-                        {selectedDeployment.commit?.message
-                          ? `- ${selectedDeployment.commit.message}`
-                          : ""}
-                      </span>
-                    </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                  <div className="bg-neutral-900/60 rounded-lg p-2">
+                    <span className="text-gray-400">Deployment ID: </span>
+                    <span className="text-white font-mono text-xs break-all">
+                      {selectedDeployment.deploymentId || selectedDeployment.id}
+                    </span>
                   </div>
-                  {stageOrder.map((stage, index) => {
-                    const currentStage = String(effectivePipelineStage || "").toLowerCase();
-                    const stageIndex = stageOrder.indexOf(currentStage);
-                    const isDone = stageIndex > index || currentStage === "running";
-                    const isActive = stage === currentStage;
-                    const failed = currentStage === "failed";
-                    return (
-                      <div
-                        key={stage}
-                        className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-2">
-                          {failed && isActive ? (
-                            <FaTimesCircle className="w-4 h-4 text-red-400" />
-                          ) : isDone ? (
-                            <FaCheckCircle className="w-4 h-4 text-green-400" />
-                          ) : isActive ? (
-                            <FaSpinner className="w-4 h-4 text-blue-400 animate-spin" />
-                          ) : (
-                            <FaClock className="w-4 h-4 text-gray-500" />
-                          )}
-                          <span className="text-white capitalize">{stage}</span>
+                  <div className="bg-neutral-900/60 rounded-lg p-2">
+                    <span className="text-gray-400">Health: </span>
+                    <span className="text-white">{selectedDeployment.healthStatus || "unknown"}</span>
+                  </div>
+                  <div className="bg-neutral-900/60 rounded-lg p-2">
+                    <span className="text-gray-400">Branch: </span>
+                    <span className="text-white">{selectedDeployment.branch || "main"}</span>
+                  </div>
+                  <div className="bg-neutral-900/60 rounded-lg p-2">
+                    <span className="text-gray-400">Deployed by: </span>
+                    <span className="text-white">{selectedDeployment.deployedBy?.email || "system"}</span>
+                  </div>
+                  <div className="bg-neutral-900/60 rounded-lg p-2 md:col-span-2">
+                    <span className="text-gray-400">Commit: </span>
+                    <span className="text-white">
+                      {(selectedDeployment.commit?.hash || "N/A").slice(0, 8)}{" "}
+                      {selectedDeployment.commit?.message
+                        ? `- ${selectedDeployment.commit.message}`
+                        : ""}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium text-white mb-2">Pipeline</h4>
+                  <div className="space-y-2">
+                    {stageOrder.map((stage) => {
+                      const currentStage = String(effectivePipelineStage || "").toLowerCase();
+                      const stageIndex = stageOrder.indexOf(currentStage);
+                      const isDone = stageIndex > index || currentStage === "running";
+                      const isActive = stage === currentStage;
+                      const failed = currentStage === "failed";
+                      return (
+                        <div
+                          key={stage}
+                          className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2">
+                            {failed && isActive ? (
+                              <FaTimesCircle className="w-4 h-4 text-red-400" />
+                            ) : isDone ? (
+                              <FaCheckCircle className="w-4 h-4 text-green-400" />
+                            ) : isActive ? (
+                              <FaSpinner className="w-4 h-4 text-blue-400 animate-spin" />
+                            ) : (
+                              <FaClock className="w-4 h-4 text-gray-500" />
+                            )}
+                            <span className="text-white capitalize">{stage}</span>
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {isDone ? "done" : isActive ? "running" : "pending"}
+                          </span>
                         </div>
-                        <span className="text-xs text-gray-400">
-                          {isDone ? "done" : isActive ? "running" : "pending"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {activeDetailTab === "preview" && (
-                <div className="space-y-3">
-                  <div className="text-xs text-yellow-200 bg-yellow-500/10 border border-yellow-500/20 rounded p-2">
-                    Some deployments block iframe embedding via CSP/X-Frame-Options. If preview is blocked,
-                    open the URL directly.
+                      );
+                    })}
                   </div>
-                  {(selectedProbe?.probe?.preview?.contentType || "").includes(
-                    "application/json",
-                  ) ? (
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3">
-                      <div className="text-sm text-gray-300 mb-2">
-                        Status code: {selectedProbe?.probe?.statusCode || "N/A"}
-                      </div>
-                      <pre className="text-xs text-gray-200 whitespace-pre-wrap max-h-[360px] overflow-auto">
-                        {typeof selectedProbe?.probe?.preview?.body === "string"
-                          ? selectedProbe.probe.preview.body
-                          : JSON.stringify(selectedProbe?.probe?.preview?.body || {}, null, 2)}
-                      </pre>
-                    </div>
-                  ) : selectedDeployment?.status === "running" &&
-                    !iframeFailed &&
-                    (selectedDeployment.url || selectedDeployment.networking?.fullUrl) ? (
-                    <div className="h-[420px] rounded-lg overflow-hidden border border-neutral-800">
-                      <iframe
-                        title="deployment-preview"
-                        src={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
-                        sandbox="allow-same-origin allow-scripts allow-forms"
-                        className="w-full h-full border-0"
-                        onError={() => setIframeFailed(true)}
-                      />
-                    </div>
-                  ) : (
-                    <a
-                      href={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-300 underline break-all"
-                    >
-                      {selectedDeployment.url || selectedDeployment.networking?.fullUrl || "URL not available"}
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => dispatch(probeDeployment(selectedIdForApi))}
-                    className="px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm"
-                  >
-                    Refresh Probe
-                  </button>
                 </div>
-              )}
 
-              {activeDetailTab === "logs" && (
-                <div className="space-y-2">
-                  <div className="text-xs text-gray-400">
-                    {connected ? "Live stream connected" : "Live stream disconnected"}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-white">Activity</h4>
+                    <span className="text-xs text-gray-500">
+                      {connected ? "Live · connected" : "Live · disconnected"}
+                    </span>
                   </div>
-                  <div className="bg-black/70 border border-neutral-800 rounded-lg p-3 font-mono text-xs h-[420px] overflow-auto">
-                    {[...formatLogs(deploymentLogs), ...liveLogs].map((log, idx) => {
+                  <div className="bg-black/70 border border-neutral-800 rounded-lg p-3 font-mono text-xs min-h-[280px] max-h-[48vh] overflow-auto">
+                    {logsLoading && (
+                      <div className="text-blue-300 text-xs mb-2">Loading saved logs…</div>
+                    )}
+                    {!mergedPanelLogs.length && !logsLoading ? (
+                      <div className="text-gray-500">No activity yet. Streamed build and runtime lines appear here.</div>
+                    ) : null}
+                    {mergedPanelLogs.map((log, idx) => {
                       const raw = log?.message;
                       const text =
                         raw == null
@@ -800,23 +849,53 @@ const ProjectDeployments = () => {
                                 }
                               })();
                       return (
-                        <div key={idx} className="mb-1 text-gray-300">
+                        <div key={`${idx}-${log.timestamp}`} className="mb-1 text-gray-300">
                           [{new Date(log.timestamp || Date.now()).toLocaleTimeString()}] {text}
                         </div>
                       );
                     })}
                     <div ref={logEndRef} />
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleDownloadLogs}
-                    className="px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm flex items-center gap-2"
-                  >
-                    <FaDownload className="w-3 h-3" /> Download Logs
-                  </button>
                 </div>
-              )}
 
+                {selectedDeployment?.status === "running" &&
+                  (selectedDeployment.url || selectedDeployment.networking?.fullUrl) && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-white">Preview</h4>
+                        <button
+                          type="button"
+                          onClick={() => dispatch(probeDeployment(selectedIdForApi))}
+                          className="text-xs text-blue-300 hover:underline"
+                        >
+                          Refresh probe
+                        </button>
+                      </div>
+                      <p className="text-xs text-yellow-200/90 bg-yellow-500/10 border border-yellow-500/20 rounded p-2">
+                        Some apps block iframes (CSP). Use Open site if this stays blank.
+                      </p>
+                      {(selectedProbe?.probe?.preview?.contentType || "").includes("application/json") ? (
+                        <pre className="text-xs text-gray-200 whitespace-pre-wrap max-h-[200px] overflow-auto border border-neutral-800 rounded p-2">
+                          {typeof selectedProbe?.probe?.preview?.body === "string"
+                            ? selectedProbe.probe.preview.body
+                            : JSON.stringify(selectedProbe?.probe?.preview?.body || {}, null, 2)}
+                        </pre>
+                      ) : !iframeFailed ? (
+                        <div className="h-48 rounded-lg overflow-hidden border border-neutral-800">
+                          <iframe
+                            title="deployment-preview-inline"
+                            src={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
+                            sandbox="allow-same-origin allow-scripts allow-forms"
+                            className="w-full h-full border-0"
+                            onError={() => setIframeFailed(true)}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">Preview unavailable in-frame.</p>
+                      )}
+                    </div>
+                  )}
+              </div>
             </div>
           </motion.div>
         </div>
