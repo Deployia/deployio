@@ -63,6 +63,41 @@ class DeploymentOrchestrator {
   }
 
   /**
+   * Map Docker engine / bridge statuses onto Deployment schema values.
+   */
+  _normalizeAgentStatus(raw) {
+    if (raw == null || typeof raw !== "string") return "pending";
+    const s = raw.toLowerCase();
+    const platform = new Set([
+      "pending",
+      "queued",
+      "cloning",
+      "detecting",
+      "building",
+      "deploying",
+      "running",
+      "stopping",
+      "failed",
+      "stopped",
+      "cancelled",
+      "deleted",
+      "error",
+    ]);
+    if (platform.has(s)) return s;
+    const docker = {
+      created: "deploying",
+      restarting: "deploying",
+      removing: "stopping",
+      paused: "stopped",
+      exited: "stopped",
+      dead: "failed",
+      not_found: "stopped",
+      unknown: "deploying",
+    };
+    return docker[s] || "deploying";
+  }
+
+  /**
    * Trigger a deployment on the agent.
    * Called from deploymentService.createDeployment() after the DB record is saved.
    *
@@ -208,11 +243,18 @@ class DeploymentOrchestrator {
    */
   async handleStatusUpdate(data) {
     try {
-      const { deploymentId, status, message, container_id, url } = data;
+      let { deploymentId, status, message, container_id, url } = data;
 
       if (!deploymentId) {
         logger.warn("Received status_update without deploymentId");
         return;
+      }
+
+      status = this._normalizeAgentStatus(status);
+
+      // Align agent terminal state with dashboard filters (failed vs error).
+      if (status === "error") {
+        status = "failed";
       }
 
       logger.info("Deployment status update received", {
@@ -227,6 +269,8 @@ class DeploymentOrchestrator {
       // Map agent status to schema lifecycle fields
       const lifecycleMap = {
         queued: "queuedAt",
+        cloning: "buildStartedAt",
+        detecting: "buildStartedAt",
         building: "buildStartedAt",
         deploying: "deployStartedAt",
         running: "deployCompletedAt",

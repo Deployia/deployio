@@ -559,6 +559,16 @@ class AgentBridgeService extends EventEmitter {
       this.emit("deployment:metrics", data);
     });
 
+    // Live container log chunks from agent logs namespace (deployment-scoped tail)
+    socket.on("deployment_live_container_logs", async (data) => {
+      logger.debug("Deployment live container logs from agent", {
+        agentId,
+        deploymentId: data?.deploymentId,
+        bytes: typeof data?.logs === "string" ? data.logs.length : 0,
+      });
+      this.emit("deployment_live_container_logs", data);
+    });
+
     logger.debug("Agent event handlers setup completed", { agentId });
   }
 

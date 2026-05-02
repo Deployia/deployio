@@ -373,11 +373,18 @@ const deploymentSlice = createSlice({
     // Update deployment status (for real-time updates)
     updateDeploymentStatus: (state, action) => {
       const { deploymentId, status, buildLogs } = action.payload;
+      const matchesId = (d) => {
+        if (!d || deploymentId == null) return false;
+        const key = String(deploymentId);
+        return (
+          String(d._id) === key ||
+          String(d.id) === key ||
+          String(d.deploymentId) === key
+        );
+      };
 
       // Update in deployments list
-      const deploymentIndex = state.deployments.findIndex(
-        (d) => d._id === deploymentId,
-      );
+      const deploymentIndex = state.deployments.findIndex(matchesId);
       if (deploymentIndex !== -1) {
         state.deployments[deploymentIndex].status = status;
         if (buildLogs) {
@@ -386,9 +393,7 @@ const deploymentSlice = createSlice({
       }
 
       // Update in project deployments
-      const projectDeploymentIndex = state.projectDeployments.findIndex(
-        (d) => d._id === deploymentId,
-      );
+      const projectDeploymentIndex = state.projectDeployments.findIndex(matchesId);
       if (projectDeploymentIndex !== -1) {
         state.projectDeployments[projectDeploymentIndex].status = status;
         if (buildLogs) {
@@ -398,10 +403,7 @@ const deploymentSlice = createSlice({
       }
 
       // Update current deployment
-      if (
-        state.currentDeployment &&
-        state.currentDeployment._id === deploymentId
-      ) {
+      if (state.currentDeployment && matchesId(state.currentDeployment)) {
         state.currentDeployment.status = status;
         if (buildLogs) {
           state.currentDeployment.buildLogs = buildLogs;

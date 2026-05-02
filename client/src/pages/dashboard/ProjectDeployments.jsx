@@ -29,8 +29,19 @@ import {
   clearLogs,
   deleteDeployment,
   probeDeployment,
+  updateDeploymentStatus,
 } from "../../redux/slices/deploymentSlice";
 import useDeploymentStream from "../../hooks/useDeploymentStream";
+
+const DEPLOYMENT_POLL_STATUSES = new Set([
+  "pending",
+  "queued",
+  "cloning",
+  "detecting",
+  "building",
+  "deploying",
+  "stopping",
+]);
 
 const ProjectDeployments = () => {
   const { onOpenDeployModal, project } = useOutletContext() || {};
@@ -82,11 +93,21 @@ const ProjectDeployments = () => {
       selectedDeployment?.deploymentId,
     [selectedDeployment],
   );
+  /** Prefer runtime dep_* id for logs, probe, and WebSocket rooms. */
+  const selectedIdForApi = useMemo(
+    () =>
+      selectedDeployment?.deploymentId ||
+      selectedDeployment?._id ||
+      selectedDeployment?.id,
+    [selectedDeployment],
+  );
   const selectedDeploymentRuntimeId = useMemo(
     () => selectedDeployment?.deploymentId || selectedDeploymentId,
     [selectedDeployment?.deploymentId, selectedDeploymentId],
   );
-  const { connected, liveLogs, liveStatus } = useDeploymentStream(selectedDeploymentRuntimeId);
+  const { connected, liveLogs, liveStatus } = useDeploymentStream(
+    selectedDeploymentRuntimeId,
+  );
   const selectedProbe =
     deploymentProbe?.deploymentId === selectedDeploymentRuntimeId ||
     deploymentProbe?.deploymentId === selectedDeploymentId
@@ -177,7 +198,7 @@ const ProjectDeployments = () => {
   );
 
   const handleDownloadLogs = useCallback(() => {
-    if (!selectedDeploymentId) return;
+    if (!selectedIdForApi) return;
     const logs = formatLogs(deploymentLogs);
     const contents = logs
       .map((log) => `[${new Date(log.timestamp).toISOString()}] ${log.level || "info"} ${log.message || ""}`)
@@ -186,28 +207,52 @@ const ProjectDeployments = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${selectedDeploymentId}-logs.txt`;
+    a.download = `${selectedIdForApi}-logs.txt`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [deploymentLogs, formatLogs, selectedDeploymentId]);
+  }, [deploymentLogs, formatLogs, selectedIdForApi]);
 
   useEffect(() => {
-    if (!showPanel || !selectedDeploymentId) return undefined;
-    loadDeploymentLogs(selectedDeploymentId);
-    dispatch(probeDeployment(selectedDeploymentId));
+    if (!showPanel || !selectedIdForApi) return undefined;
+    loadDeploymentLogs(selectedIdForApi);
+    dispatch(probeDeployment(selectedIdForApi));
     return undefined;
-  }, [dispatch, showPanel, selectedDeploymentId, loadDeploymentLogs]);
+  }, [dispatch, showPanel, selectedIdForApi, loadDeploymentLogs]);
 
   useEffect(() => {
-    if (!showPanel || !selectedDeploymentId) return undefined;
-    if (!["pending", "queued", "building", "deploying"].includes(selectedDeployment?.status)) {
+    if (!showPanel || !selectedIdForApi) return undefined;
+    const st = String(selectedDeployment?.status || "").toLowerCase();
+    if (!DEPLOYMENT_POLL_STATUSES.has(st)) {
       return undefined;
     }
     const timer = setInterval(() => {
-      loadDeploymentLogs(selectedDeploymentId);
+      loadDeploymentLogs(selectedIdForApi);
     }, 4000);
     return () => clearInterval(timer);
-  }, [showPanel, selectedDeploymentId, selectedDeployment?.status, loadDeploymentLogs]);
+  }, [
+    showPanel,
+    selectedIdForApi,
+    selectedDeployment?.status,
+    loadDeploymentLogs,
+  ]);
+
+  useEffect(() => {
+    if (!liveStatus?.status) return;
+    const targetId =
+      liveStatus.deploymentId || selectedDeploymentRuntimeId;
+    if (!targetId) return;
+    dispatch(
+      updateDeploymentStatus({
+        deploymentId: targetId,
+        status: liveStatus.status,
+      }),
+    );
+  }, [
+    dispatch,
+    liveStatus?.deploymentId,
+    liveStatus?.status,
+    selectedDeploymentRuntimeId,
+  ]);
 
   useEffect(() => {
     if (!selectedDeploymentId || !Array.isArray(projectDeployments)) return;
@@ -242,6 +287,8 @@ const ProjectDeployments = () => {
       case "pending":
       case "queued":
         return `${baseClasses} bg-yellow-500/20 text-yellow-400 border border-yellow-500/30`;
+      case "cloning":
+      case "detecting":
       case "building":
       case "deploying":
         return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30 animate-pulse`;
@@ -262,6 +309,8 @@ const ProjectDeployments = () => {
         return <FaStop className="w-3 h-3 text-red-400" />;
       case "pending":
       case "queued":
+      case "cloning":
+      case "detecting":
       case "building":
       case "deploying":
         return <FaSync className="w-3 h-3 text-yellow-400 animate-spin" />;
@@ -306,12 +355,7 @@ const ProjectDeployments = () => {
     liveStatus?.status || selectedDeployment?.status || "",
   ).toLowerCase();
   const inProgressStatuses = new Set([
-    "pending",
-    "queued",
-    "cloning",
-    "detecting",
-    "building",
-    "deploying",
+    ...DEPLOYMENT_POLL_STATUSES,
   ]);
   const terminalOrStableStatus = new Set([
     "running",
@@ -570,7 +614,15 @@ const ProjectDeployments = () => {
               <div>
                 <h3 className="text-xl font-semibold text-white">Deployment Details</h3>
                 <p className="text-sm text-gray-400">
-                  {(selectedDeployment.environment || selectedDeployment.config?.environment || "staging")} · {selectedDeployment.status}
+                  {(selectedDeployment.environment || selectedDeployment.config?.environment || "staging")} ·{" "}
+                  <span className="text-gray-300">
+                    {liveStatus?.status || selectedDeployment.status}
+                  </span>
+                  {liveStatus?.message ? (
+                    <span className="block text-xs text-gray-500 mt-1 truncate">
+                      {liveStatus.message}
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <button
@@ -704,7 +756,7 @@ const ProjectDeployments = () => {
                   )}
                   <button
                     type="button"
-                    onClick={() => dispatch(probeDeployment(selectedDeploymentId))}
+                    onClick={() => dispatch(probeDeployment(selectedIdForApi))}
                     className="px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm"
                   >
                     Refresh Probe

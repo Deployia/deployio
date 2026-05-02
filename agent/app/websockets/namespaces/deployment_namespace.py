@@ -1,11 +1,30 @@
 """
-Agent Deployment Namespace
-Handles deployment lifecycle events via WebSocket bridge.
-Server sends trigger/stop/restart, agent executes and reports back.
+Agent Deployment Namespace — **all deployment-scoped Docker I/O**
+
+How we find the container
+-------------------------
+`DeploymentService._resolve_container(deployment_id, container_id)` (see service docstring):
+  1. Optional `containerId` from the platform (Mongo `runtime.containerId`) — full Docker id.
+  2. Else literal name == `deployment_id` (legacy).
+  3. Else prefixed name `deploy-{sanitized(dep_…)}` — how DeployIO names containers.
+
+How logs reach the Analytics / Deployments UI
+-----------------------------------------------
+**One-shot** (e.g. manual refresh): server → `deployment_logs_request` → `_handle_logs_request`
+→ `deployment:logs_response` → `deploymentOrchestrator.handleRuntimeLogsResponse`
+→ Socket.IO room `deployment:{deploymentId}` → `deployment:runtime_log_update` events.
+
+**Live tail** (realtime subscribe): server → `start_deployment_container_logs` → background loop here
+→ `deployment_live_container_logs` (same payload shape as one-shot) → orchestrator
+→ same room / same client events. Client `useDeploymentStream` + `ProjectAnalytics` / `ProjectDeployments`
+listen on `/logs` with `deployment:subscribe` { deploymentId, realtime: true }.
+
+Build / pipeline logs use `deployment:build_log` + `deployment:status_update` (separate from container stdout).
 """
 
+import asyncio
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from datetime import datetime
 
 from app.websockets.namespaces.base import BaseAgentNamespace
@@ -15,20 +34,49 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+_DOCKER_STATUS_MAP = {
+    "running": "running",
+    "created": "deploying",
+    "restarting": "deploying",
+    "removing": "stopping",
+    "paused": "stopped",
+    "exited": "stopped",
+    "dead": "failed",
+    "not_found": "stopped",
+}
+
+
+def _normalize_runtime_status(raw: Optional[str]) -> str:
+    if not raw or not isinstance(raw, str):
+        return "deploying"
+    s = raw.lower().strip()
+    platform = {
+        "pending",
+        "queued",
+        "cloning",
+        "detecting",
+        "building",
+        "deploying",
+        "running",
+        "stopping",
+        "failed",
+        "stopped",
+        "cancelled",
+        "deleted",
+        "error",
+    }
+    if s in platform:
+        return s
+    return _DOCKER_STATUS_MAP.get(s, "deploying")
+
 
 class AgentDeploymentNamespace(BaseAgentNamespace):
-    """
-    Deployment namespace — handles deployment:trigger, deployment:stop,
-    deployment:restart events from the server, executes via DeploymentService,
-    and emits status updates / build logs back to the server.
-    """
-
     def __init__(self):
         super().__init__("/agent-bridge")
         self._streaming = False
+        self._live_container_log_tasks: Dict[str, asyncio.Task] = {}
 
     async def _register_event_handlers(self):
-        """Register deployment event handlers."""
         self.event_handlers = {
             "deployment:trigger": self._handle_deploy_trigger,
             "deployment:stop": self._handle_deploy_stop,
@@ -36,23 +84,25 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             "deployment:status_request": self._handle_status_request,
             "deployment:logs_request": self._handle_logs_request,
             "deployment:metrics_request": self._handle_metrics_request,
+            "start_deployment_container_logs": self._handle_start_deployment_container_logs,
+            "stop_deployment_container_logs": self._handle_stop_deployment_container_logs,
         }
 
     async def _on_connected(self):
-        """Handle connection established."""
-        logger.info("Deployment namespace connected — ready for deployment commands")
+        logger.info("Deployment namespace connected — deployment + runtime log streaming")
 
     async def start_streaming(self):
-        """Deployment namespace is event-driven, but implements streaming lifecycle for base compatibility."""
         self._streaming = True
         logger.debug("Deployment namespace streaming enabled")
 
     async def stop_streaming(self):
-        """Stop deployment namespace streaming lifecycle hook."""
         self._streaming = False
         logger.debug("Deployment namespace streaming disabled")
 
-    # ── Emit helpers ──────────────────────────────────────────────────
+    async def cleanup(self):
+        for dep_id in list(self._live_container_log_tasks.keys()):
+            await self._stop_live_container_logs(dep_id)
+        await super().cleanup()
 
     async def _emit_status_update(
         self,
@@ -61,7 +111,6 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         message: str = "",
         **extra,
     ):
-        """Emit deployment status update back to server."""
         payload = {
             "deploymentId": deployment_id,
             "status": status,
@@ -78,7 +127,6 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         level: str,
         message: str,
     ):
-        """Emit a single build log line back to server."""
         payload = {
             "deploymentId": deployment_id,
             "level": level,
@@ -88,21 +136,13 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         }
         await self.emit_to_server("deployment:build_log", payload)
 
-    # ── Event handlers ────────────────────────────────────────────────
-
     async def _handle_deploy_trigger(self, data: Dict[str, Any]):
-        """
-        Handle deployment:trigger from server.
-        Expected data: {deploymentId, image, subdomain, port, envVars}
-        """
         deployment_id = data.get("deploymentId")
         image = data.get("image")
         subdomain = data.get("subdomain")
         port = data.get("port", 3000)
         env_vars = data.get("envVars") or {}
 
-        # Require deployment id and target subdomain. Image may be omitted
-        # when the agent is expected to clone+build the repo.
         if not deployment_id or not subdomain:
             logger.error(f"deployment:trigger missing required fields: {data}")
             await self._emit_status_update(
@@ -117,18 +157,14 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             f"image={image} repo={data.get('repoUrl')} branch={data.get('branch')} subdomain={subdomain} port={port}"
         )
 
-        # Status callback — relays every status change to server
         async def status_cb(dep_id, status, message, **kwargs):
             await self._emit_status_update(dep_id, status, message, **kwargs)
 
-        # Log callback — relays every build log line to server
         async def log_cb(dep_id, level, message):
             await self._emit_build_log(dep_id, level, message)
 
-        # If image provided, run runtime deploy; otherwise attempt agent-side clone+build
         branch_name = data.get("branch") or "main"
         if image:
-            # Run deployment (async, may take several seconds)
             result = await deployment_service.deploy(
                 deployment_id=deployment_id,
                 image=image,
@@ -139,7 +175,6 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                 log_callback=log_cb,
             )
         else:
-            # Agent-side build + deploy using BuildService
             try:
                 build_service = BuildService()
                 result = await build_service.build_and_deploy(
@@ -149,14 +184,15 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                     subdomain=subdomain,
                     logs_callback=log_cb,
                     deployment_id=deployment_id,
+                    status_callback=status_cb,
                 )
             except Exception as e:
                 logger.error(f"Agent build_and_deploy failed: {e}")
                 result = {"status": "failed", "error": str(e)}
 
-        # Final status (deploy() already emits intermediate statuses via callbacks,
-        # but we send a definitive "done" event as well)
         final_status = result.get("status", "unknown")
+        if final_status == "error":
+            final_status = "failed"
         await self._emit_status_update(
             deployment_id,
             final_status,
@@ -166,7 +202,6 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         )
 
     async def _handle_deploy_stop(self, data: Dict[str, Any]):
-        """Handle deployment:stop from server."""
         deployment_id = data.get("deploymentId")
         if not deployment_id:
             logger.error("deployment:stop missing deploymentId")
@@ -181,7 +216,6 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         )
 
     async def _handle_deploy_restart(self, data: Dict[str, Any]):
-        """Handle deployment:restart from server."""
         deployment_id = data.get("deploymentId")
         if not deployment_id:
             logger.error("deployment:restart missing deploymentId")
@@ -196,22 +230,22 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         )
 
     async def _handle_status_request(self, data: Dict[str, Any]):
-        """Handle deployment:status_request from server."""
         deployment_id = data.get("deploymentId")
         container_id = data.get("containerId")
         if not deployment_id:
             return
 
         result = await deployment_service.get_status(deployment_id, container_id=container_id)
+        raw_status = result.get("status", "unknown")
+        mapped = _normalize_runtime_status(raw_status)
         await self._emit_status_update(
             deployment_id,
-            result.get("status", "unknown"),
+            mapped,
             "",
             **{k: v for k, v in result.items() if k not in ("deployment_id", "status")},
         )
 
     async def _handle_logs_request(self, data: Dict[str, Any]):
-        """Handle deployment:logs_request from server."""
         deployment_id = data.get("deploymentId")
         container_id = data.get("containerId")
         tail = data.get("tail", 200)
@@ -232,7 +266,6 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         await self.emit_to_server("deployment:logs_response", payload)
 
     async def _handle_metrics_request(self, data: Dict[str, Any]):
-        """Handle deployment:metrics_request from server."""
         deployment_id = data.get("deploymentId")
         container_id = data.get("containerId")
         if not deployment_id:
@@ -251,6 +284,90 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         }
         await self.emit_to_server("deployment:metrics", payload)
 
+    async def _handle_start_deployment_container_logs(self, data: Dict[str, Any]):
+        deployment_id = data.get("deploymentId")
+        if not deployment_id:
+            logger.warning("start_deployment_container_logs missing deploymentId")
+            return
+        await self._start_live_container_logs(
+            deployment_id,
+            data.get("containerId"),
+            int(data.get("tail") or 200),
+            float(data.get("intervalMs") or 2500) / 1000.0,
+        )
 
-# Global instance
+    async def _handle_stop_deployment_container_logs(self, data: Dict[str, Any]):
+        deployment_id = data.get("deploymentId")
+        if deployment_id:
+            await self._stop_live_container_logs(deployment_id)
+
+    async def _start_live_container_logs(
+        self,
+        deployment_id: str,
+        container_id: Optional[str],
+        tail: int,
+        interval_sec: float,
+    ) -> None:
+        if deployment_id in self._live_container_log_tasks:
+            t = self._live_container_log_tasks[deployment_id]
+            if t and not t.done():
+                logger.debug("Live container log stream already running: %s", deployment_id)
+                return
+
+        async def loop():
+            logger.info(
+                "Live container log stream started dep=%s interval=%ss",
+                deployment_id,
+                interval_sec,
+            )
+            while True:
+                try:
+                    result = await deployment_service.get_logs(
+                        deployment_id,
+                        tail=tail,
+                        container_id=container_id,
+                    )
+                    await self.emit_to_server(
+                        "deployment_live_container_logs",
+                        {
+                            "deploymentId": deployment_id,
+                            "logs": result.get("logs") or "",
+                            "error": result.get("error"),
+                            "agentId": settings.agent_id,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                    )
+                except asyncio.CancelledError:
+                    logger.info("Live container log stream cancelled: %s", deployment_id)
+                    raise
+                except Exception as e:
+                    logger.warning("Live container log tick failed %s: %s", deployment_id, e)
+                    try:
+                        await self.emit_to_server(
+                            "deployment_live_container_logs",
+                            {
+                                "deploymentId": deployment_id,
+                                "logs": "",
+                                "error": str(e),
+                                "agentId": settings.agent_id,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            },
+                        )
+                    except Exception:
+                        pass
+                await asyncio.sleep(max(1.0, interval_sec))
+
+        self._live_container_log_tasks[deployment_id] = asyncio.create_task(loop())
+
+    async def _stop_live_container_logs(self, deployment_id: str) -> None:
+        task = self._live_container_log_tasks.pop(deployment_id, None)
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        logger.info("Live container log stream stopped: %s", deployment_id)
+
+
 agent_deployment_namespace = AgentDeploymentNamespace()

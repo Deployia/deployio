@@ -66,7 +66,13 @@ class BuildService:
         normalized = self._normalize_repo_url(git_url)
         return self.supported_repositories.get(normalized, {})
 
-    def _set_stage(self, deployment_id: str, stage: str, message: str = "") -> None:
+    async def _set_stage(
+        self,
+        deployment_id: str,
+        stage: str,
+        message: str = "",
+        status_callback: Optional[Callable] = None,
+    ) -> None:
         entry = self.active_builds.setdefault(
             deployment_id,
             {
@@ -87,8 +93,21 @@ class BuildService:
                     "message": message,
                 }
             )
+        if status_callback:
+            try:
+                if inspect.iscoroutinefunction(status_callback):
+                    await status_callback(deployment_id, stage, message)
+                else:
+                    status_callback(deployment_id, stage, message)
+            except Exception:
+                logger.debug("status_callback failed for stage %s", stage, exc_info=True)
 
-    def _set_failed(self, deployment_id: str, error: str) -> None:
+    async def _set_failed(
+        self,
+        deployment_id: str,
+        error: str,
+        status_callback: Optional[Callable] = None,
+    ) -> None:
         entry = self.active_builds.setdefault(
             deployment_id, {"deployment_id": deployment_id, "logs": []}
         )
@@ -103,6 +122,14 @@ class BuildService:
                 "message": error,
             }
         )
+        if status_callback:
+            try:
+                if inspect.iscoroutinefunction(status_callback):
+                    await status_callback(deployment_id, "failed", error)
+                else:
+                    status_callback(deployment_id, "failed", error)
+            except Exception:
+                logger.debug("status_callback failed on failed stage", exc_info=True)
 
     async def analyze_repository(
         self,
@@ -224,6 +251,7 @@ class BuildService:
         subdomain: Optional[str] = None,
         logs_callback: Optional[Callable] = None,
         deployment_id: Optional[str] = None,
+        status_callback: Optional[Callable] = None,
     ) -> Dict[str, Any]:
         """
         Full pipeline: clone → detect → generate Dockerfile → build → deploy.
@@ -233,9 +261,14 @@ class BuildService:
         deployment_id = deployment_id or f"dep-{uuid.uuid4().hex[:12]}"
         repo_path: Optional[Path] = None
 
+        async def _stage(stage: str, message: str = "") -> None:
+            await self._set_stage(
+                deployment_id, stage, message, status_callback=status_callback
+            )
+
         try:
             repo_profile = self._assert_supported_repository(git_url)
-            self._set_stage(deployment_id, "queued", "Deployment accepted")
+            await _stage("queued", "Deployment accepted")
             event_loop = asyncio.get_running_loop()
 
             # Emit log
@@ -244,7 +277,7 @@ class BuildService:
             )
 
             # Clone repository
-            self._set_stage(deployment_id, "cloning", "Cloning repository")
+            await _stage("cloning", "Cloning repository")
             await self._emit_log(
                 logs_callback, deployment_id, "info", "Cloning repository..."
             )
@@ -255,7 +288,7 @@ class BuildService:
             repo_path = Path(repo_path_str)
 
             # Detect stack
-            self._set_stage(deployment_id, "detecting", "Detecting stack")
+            await _stage("detecting", "Detecting stack")
             await self._emit_log(
                 logs_callback, deployment_id, "info", "Detecting stack..."
             )
@@ -267,24 +300,32 @@ class BuildService:
                 logs_callback, deployment_id, "info", f"Stack detected: {stack_type}"
             )
 
-            self._set_stage(deployment_id, "building", "Preparing Dockerfile")
-            # Prefer repository Dockerfile for known examples.
+            await _stage("building", "Preparing Dockerfile")
             await self._emit_log(
                 logs_callback, deployment_id, "info", "Preparing Dockerfile..."
             )
 
-            dockerfile_path = repo_path / "Dockerfile"
-            using_repo_dockerfile = dockerfile_path.exists()
-            if not using_repo_dockerfile:
+            # Prefer a valid repository Dockerfile (FROM + CMD/ENTRYPOINT) over templates.
+            existing_df = await self.dockerfile_service.check_existing_dockerfile(
+                str(repo_path)
+            )
+            using_repo_dockerfile = bool(existing_df.get("valid"))
+            if using_repo_dockerfile and existing_df.get("path"):
+                dockerfile_path = Path(existing_df["path"])
+                logger.info("Using repository Dockerfile at %s", dockerfile_path)
+            else:
                 dockerfile_info = await self.dockerfile_service.generate_dockerfile(
                     stack_type, str(repo_path), port
                 )
                 _ = dockerfile_info
                 dockerfile_path = repo_path / "Dockerfile.generated"
-            else:
-                logger.info("Using repository Dockerfile at %s", dockerfile_path)
+                if not dockerfile_path.exists() and dockerfile_info.get(
+                    "dockerfile_path"
+                ):
+                    dockerfile_path = Path(dockerfile_info["dockerfile_path"])
 
             # Build Docker image
+            await _stage("building", "Running Docker build")
             await self._emit_log(
                 logs_callback, deployment_id, "info", "Building Docker image..."
             )
@@ -320,11 +361,25 @@ class BuildService:
                         "Build failed with repository Dockerfile for %s, retrying with generated profile",
                         deployment_id,
                     )
-                    dockerfile_info = await self.dockerfile_service.generate_dockerfile(
-                        stack_type, str(repo_path), port
+                    await self._emit_log(
+                        logs_callback,
+                        deployment_id,
+                        "warn",
+                        "Repository Dockerfile build failed; retrying with generated Dockerfile...",
                     )
-                    _ = dockerfile_info
-                    dockerfile_path = repo_path / "Dockerfile.generated"
+                    dockerfile_info = await self.dockerfile_service.generate_dockerfile(
+                        stack_type, str(repo_path), port, force_template=True
+                    )
+                    path_str = dockerfile_info.get("dockerfile_path")
+                    dockerfile_path = (
+                        Path(path_str)
+                        if path_str
+                        else repo_path / "Dockerfile.generated"
+                    )
+                    if not dockerfile_path.exists():
+                        raise Exception(
+                            f"Generated Dockerfile missing after retry at {dockerfile_path}"
+                        )
                     build_command = [
                         "docker",
                         "build",
@@ -354,7 +409,7 @@ class BuildService:
                 subdomain = f"{repo_name}-{deployment_id[:6]}"
 
             # Deploy to Docker + Traefik
-            self._set_stage(deployment_id, "deploying", "Starting runtime container")
+            await _stage("deploying", "Starting runtime container")
             await self._emit_log(
                 logs_callback,
                 deployment_id,
@@ -362,13 +417,16 @@ class BuildService:
                 f"Deploying to subdomain: {subdomain}...",
             )
 
-            # Call async deploy method directly (not in thread)
+            # Do not pass status_callback into deploy(): it emits a generic "building"
+            # phase that would overwrite real pipeline state after the image is built.
             deploy_result = await self.deployment_service.deploy(
                 deployment_id,
                 f"deployio/{deployment_id}:latest",
                 subdomain,
                 port,
                 {},
+                status_callback=None,
+                log_callback=logs_callback,
             )
 
             deploy_status = deploy_result.get("status")
@@ -379,7 +437,7 @@ class BuildService:
                 logs_callback, deployment_id, "info", "Deployment successful!"
             )
 
-            self._set_stage(deployment_id, "running", "Deployment running")
+            await _stage("running", "Deployment running")
             self.active_builds[deployment_id].update(
                 {
                     "url": deploy_result.get("url"),
@@ -404,7 +462,9 @@ class BuildService:
 
         except Exception as e:
             logger.error(f"❌ Deployment failed: {e}")
-            self._set_failed(deployment_id, str(e))
+            await self._set_failed(
+                deployment_id, str(e), status_callback=status_callback
+            )
 
             await self._emit_log(
                 logs_callback, deployment_id, "error", f"Deployment failed: {e}"
@@ -428,13 +488,13 @@ class BuildService:
         deployment_id: Optional[str] = None,
         github_token: Optional[str] = None,
     ) -> Dict[str, Any]:
-        # deployment_id/env are accepted for contract compatibility.
-        _ = deployment_id, env
+        _ = env
         result = await self.build_and_deploy(
             git_url=repo_url,
             github_token=github_token,
             branch=branch,
             subdomain=subdomain,
+            deployment_id=deployment_id,
         )
         return {
             "deployment_id": result.get("deployment_id"),

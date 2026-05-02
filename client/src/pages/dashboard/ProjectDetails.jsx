@@ -35,6 +35,16 @@ import {
   clearProjectSuccess,
 } from "@redux/index";
 
+const DEPLOYMENT_POLL_STATUSES = new Set([
+  "pending",
+  "queued",
+  "cloning",
+  "detecting",
+  "building",
+  "deploying",
+  "stopping",
+]);
+
 const ProjectDetails = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -136,6 +146,23 @@ const ProjectDetails = () => {
       fetchData();
     }
   }, [id, dispatch]);
+
+  // Poll deployments while any row is still progressing (keeps overview + tabs in sync).
+  useEffect(() => {
+    if (!id) return undefined;
+    const hasInFlight = Array.isArray(projectDeployments)
+      ? projectDeployments.some((d) =>
+          DEPLOYMENT_POLL_STATUSES.has(
+            String(d?.status || "").toLowerCase(),
+          ),
+        )
+      : false;
+    if (!hasInFlight) return undefined;
+    const timer = setInterval(() => {
+      dispatch(fetchProjectDeployments(id));
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [id, dispatch, projectDeployments]);
 
   // Update edit form when currentProject changes
   useEffect(() => {
@@ -264,6 +291,8 @@ const ProjectDetails = () => {
           },
         }),
       ).unwrap();
+
+      await dispatch(fetchProjectDeployments(id)).unwrap().catch(() => {});
 
       // Close modal first so UI updates immediately, then silently refresh both views
       handleCloseDeployModal();

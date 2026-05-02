@@ -19,6 +19,8 @@ class LogStreamingNamespace {
     this.userRooms = new Map(); // userId -> Set of rooms
     this.roomUsers = new Map(); // roomId -> Set of userIds
     this.deploymentRealtimePollers = new Map(); // socketId:deploymentId -> interval
+    /** Refcount of realtime subscribers per deploymentId → one agent container log stream */
+    this.deploymentContainerLogStreamRefs = new Map();
   }
 
   /**
@@ -163,6 +165,63 @@ class LogStreamingNamespace {
       }
     }
     this.cleanupDeploymentPollersForSocket(socket.id);
+    const realtimeDeps = socket._deployioRealtimeDeps
+      ? [...socket._deployioRealtimeDeps]
+      : [];
+    for (const depId of realtimeDeps) {
+      await this._releaseDeploymentLiveLogStream(socket, depId);
+    }
+  }
+
+  async _acquireDeploymentLiveLogStream(socket, deploymentId, containerId) {
+    if (!socket._deployioRealtimeDeps) {
+      socket._deployioRealtimeDeps = new Set();
+    }
+    if (socket._deployioRealtimeDeps.has(deploymentId)) {
+      return;
+    }
+    socket._deployioRealtimeDeps.add(deploymentId);
+    const prev = this.deploymentContainerLogStreamRefs.get(deploymentId) || 0;
+    this.deploymentContainerLogStreamRefs.set(deploymentId, prev + 1);
+    if (prev !== 0) return;
+
+    const availableAgentId = agentBridgeService.getAvailableAgent();
+    if (!availableAgentId) return;
+    await agentBridgeService.sendToAgent(availableAgentId, "start_deployment_container_logs", {
+      deploymentId,
+      containerId,
+      tail: 200,
+      intervalMs: 2500,
+    });
+  }
+
+  async _releaseDeploymentLiveLogStream(socket, deploymentId) {
+    if (!socket._deployioRealtimeDeps?.has(deploymentId)) {
+      return;
+    }
+    socket._deployioRealtimeDeps.delete(deploymentId);
+    const prev = this.deploymentContainerLogStreamRefs.get(deploymentId) || 0;
+    const next = prev - 1;
+    if (next <= 0) {
+      this.deploymentContainerLogStreamRefs.delete(deploymentId);
+      try {
+        const availableAgentId = agentBridgeService.getAvailableAgent();
+        if (availableAgentId) {
+          await agentBridgeService.sendToAgent(
+            availableAgentId,
+            "stop_deployment_container_logs",
+            { deploymentId },
+          );
+        }
+      } catch (err) {
+        logger.warn("Could not stop agent deployment container log stream", {
+          deploymentId,
+          error: err.message,
+        });
+      }
+    } else {
+      this.deploymentContainerLogStreamRefs.set(deploymentId, next);
+    }
   }
 
   /**
@@ -314,6 +373,18 @@ class LogStreamingNamespace {
 
       if (realtime) {
         this.startDeploymentRealtimePolling(socket, deploymentId);
+        try {
+          const deployment = await Deployment.findOne({ deploymentId })
+            .select("runtime.containerId")
+            .lean();
+          const containerId = deployment?.runtime?.containerId || undefined;
+          await this._acquireDeploymentLiveLogStream(socket, deploymentId, containerId);
+        } catch (err) {
+          logger.warn("Could not start agent deployment container log stream", {
+            deploymentId,
+            error: err.message,
+          });
+        }
       }
 
       // Get recent deployment logs
@@ -347,6 +418,7 @@ class LogStreamingNamespace {
     const roomId = `deployment:${deploymentId}`;
     socket.leave(roomId);
     this.stopDeploymentRealtimePolling(socket.id, deploymentId);
+    await this._releaseDeploymentLiveLogStream(socket, deploymentId);
   }
 
   /**
@@ -882,19 +954,16 @@ class LogStreamingNamespace {
           .select("runtime.containerId")
           .lean();
         const containerId = deployment?.runtime?.containerId || undefined;
+        // Container stdout/stderr is streamed via logs namespace (`deployment_live_container_logs`)
+        // when the client subscribed with realtime. Keep metrics + status polling here.
         await agentBridgeService.sendToAgent(
           availableAgentId,
-          "deployment:logs_request",
-          { deploymentId, containerId, tail: 120 },
-        );
-        await agentBridgeService.sendToAgent(
-          availableAgentId,
-          "deployment:metrics_request",
+          "deployment_metrics_request",
           { deploymentId, containerId },
         );
         await agentBridgeService.sendToAgent(
           availableAgentId,
-          "deployment:status_request",
+          "deployment_status_request",
           { deploymentId, containerId },
         );
       } catch (error) {

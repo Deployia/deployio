@@ -267,7 +267,9 @@ CMD ["nginx", "-g", "daemon off;"]
     @staticmethod
     async def check_existing_dockerfile(repo_path: str) -> Dict:
         """
-        Check if a valid Dockerfile exists in the repository.
+        Check if a usable Dockerfile exists in the repository (FROM + CMD/ENTRYPOINT).
+
+        BuildService prefers this path before generating templates.
 
         Returns: {
             "exists": true/false,
@@ -322,12 +324,14 @@ CMD ["nginx", "-g", "daemon off;"]
         stack_type: str,
         repo_path: Optional[str] = None,
         port: Optional[int] = None,
+        *,
+        force_template: bool = False,
     ) -> Dict[str, str]:
         """
         Generate Dockerfile for the given stack type, or use existing if valid.
 
         Strategy:
-        1. If Dockerfile exists in repo and is valid, use it
+        1. If Dockerfile exists in repo and is valid, use it (unless force_template)
         2. Otherwise, generate from template
 
         Returns: {
@@ -339,7 +343,7 @@ CMD ["nginx", "-g", "daemon off;"]
         }
         """
         # First, check for existing Dockerfile if repo_path provided
-        if repo_path:
+        if repo_path and not force_template:
             existing = await DockerfileService.check_existing_dockerfile(repo_path)
             if existing["valid"]:
                 logger.info(f"Using existing Dockerfile from {existing['path']}")

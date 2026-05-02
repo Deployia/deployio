@@ -6,7 +6,6 @@ Configures Traefik labels for automatic subdomain routing with SSL.
 
 import asyncio
 import logging
-import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -55,9 +54,17 @@ class DeploymentService:
 
     def _resolve_container(self, deployment_id: str, container_id: Optional[str] = None):
         """
-        Find a Docker container by deployment_id.
-        Tries the literal name first (e.g. 'mern-example'), then the
-        prefixed name ('deploy-mern-example'). Returns (container, name).
+        Resolve the Docker container for a platform deployment.
+
+        Order (first match wins):
+        1. ``container_id`` — full Docker id when the platform stored it
+           (e.g. Mongo ``runtime.containerId`` from inspect).
+        2. Literal name ``deployment_id`` — legacy / human-named containers.
+        3. Prefixed name ``deploy-{sanitized_id}`` — default naming from
+           :meth:`_container_name`.
+
+        Returns ``(container, resolved_name)``. Used by ``get_logs``,
+        ``get_metrics``, ``get_status``, stop/restart, etc.
         """
         client = self._get_client()
         # 0) Try explicit container id first when provided by platform

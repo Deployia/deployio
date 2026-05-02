@@ -6,10 +6,21 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import {
   fetchDeploymentLogs,
   fetchProjectDeployments,
+  updateDeploymentStatus,
 } from "../../redux/slices/deploymentSlice";
 import useDeploymentStream from "../../hooks/useDeploymentStream";
 
 const LEVELS = ["all", "info", "warning", "error"];
+
+const IN_FLIGHT = new Set([
+  "pending",
+  "queued",
+  "cloning",
+  "detecting",
+  "building",
+  "deploying",
+  "stopping",
+]);
 
 const ProjectAnalytics = () => {
   const dispatch = useDispatch();
@@ -31,9 +42,22 @@ const ProjectAnalytics = () => {
   }, [dispatch, projectId]);
 
   useEffect(() => {
+    if (!projectId) return undefined;
+    const busy = deployments.some((d) =>
+      IN_FLIGHT.has(String(d?.status || "").toLowerCase()),
+    );
+    if (!busy) return undefined;
+    const t = setInterval(() => {
+      dispatch(fetchProjectDeployments(projectId));
+    }, 4000);
+    return () => clearInterval(t);
+  }, [dispatch, projectId, deployments]);
+
+  useEffect(() => {
     if (!selectedDeploymentId && deployments.length > 0) {
+      const first = deployments[0];
       const firstId =
-        deployments[0]._id || deployments[0].id || deployments[0].deploymentId || "";
+        first.deploymentId || first._id || first.id || "";
       setSelectedDeploymentId(firstId);
     }
   }, [deployments, selectedDeploymentId]);
@@ -51,7 +75,21 @@ const ProjectAnalytics = () => {
     return selected?.deploymentId || selectedDeploymentId;
   }, [deployments, selectedDeploymentId]);
 
-  const { connected, liveLogs, liveMetrics } = useDeploymentStream(selectedRuntimeDeploymentId);
+  const { connected, liveLogs, liveMetrics, liveStatus } = useDeploymentStream(
+    selectedRuntimeDeploymentId,
+  );
+
+  useEffect(() => {
+    if (!liveStatus?.status) return;
+    const targetId = liveStatus.deploymentId || selectedRuntimeDeploymentId;
+    if (!targetId) return;
+    dispatch(
+      updateDeploymentStatus({
+        deploymentId: targetId,
+        status: liveStatus.status,
+      }),
+    );
+  }, [dispatch, liveStatus?.deploymentId, liveStatus?.status, selectedRuntimeDeploymentId]);
   const liveUptimeSeconds =
     Number(liveMetrics?.uptime?.seconds ?? liveMetrics?.uptimeSeconds ?? 0) || 0;
   const formatUptime = (seconds) => {
@@ -185,12 +223,14 @@ const ProjectAnalytics = () => {
               className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm"
             >
               {deployments.map((deployment) => {
-                const deploymentId =
-                  deployment._id || deployment.id || deployment.deploymentId || "";
+                const value =
+                  deployment.deploymentId || deployment._id || deployment.id || "";
+                const labelId = deployment.deploymentId || deployment._id || "";
                 return (
-                  <option key={deploymentId} value={deploymentId}>
+                  <option key={value} value={value}>
                     {deployment.environment || deployment.config?.environment || "staging"} •{" "}
                     {deployment.status}
+                    {labelId ? ` (${String(labelId).slice(0, 14)}...)` : ""}
                   </option>
                 );
               })}
@@ -250,10 +290,23 @@ const ProjectAnalytics = () => {
           </p>
           <p className="text-sm text-gray-300">Mode: {mode === "runtime" ? "Container" : "Build"}</p>
           <p className="text-sm text-gray-300">
-            Selected Deployment: {selectedDeploymentId || "None"}
+            Deployment:{" "}
+            <span className="text-white font-mono text-xs break-all">
+              {selectedRuntimeDeploymentId || selectedDeploymentId || "—"}
+            </span>
+          </p>
+          <p className="text-sm text-gray-300">
+            Pipeline status:{" "}
+            <span className="text-white">{liveStatus?.status || "—"}</span>
+            {liveStatus?.message ? (
+              <span className="block text-xs text-gray-500 mt-1">{liveStatus.message}</span>
+            ) : null}
           </p>
           <p className="text-sm text-gray-300">
             Container Uptime: {formatUptime(liveUptimeSeconds)}
+          </p>
+          <p className="text-xs text-gray-500">
+            Runtime logs and metrics refresh while you stay on this page (agent push + server poll).
           </p>
         </div>
       </div>

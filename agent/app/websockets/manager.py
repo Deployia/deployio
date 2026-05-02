@@ -5,7 +5,7 @@ Handles real-time communication with DeployIO Server
 
 import asyncio
 import logging
-from typing import Dict, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable, Any
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -29,6 +29,8 @@ class AgentWebSocketManager:
             None  # Dedicated bridge client
         )
         self.namespaces: Dict[str, Any] = {}
+        # All bridge namespace instances (logs + deployment both register /agent-bridge path)
+        self.bridge_namespace_handlers: List[Any] = []
         self.connection_handlers: list[Callable] = []
         self.is_connected: bool = False
         self.bridge_connected: bool = False
@@ -184,7 +186,51 @@ class AgentWebSocketManager:
             namespace_instance: Namespace class instance
         """
         self.namespaces[namespace_path] = namespace_instance
+        if namespace_instance not in self.bridge_namespace_handlers:
+            self.bridge_namespace_handlers.append(namespace_instance)
         logger.debug(f"Registered namespace: {namespace_path}")
+
+    async def route_bridge_namespace_event(
+        self,
+        socket_event: str,
+        handler_event: str,
+        data: Any,
+    ) -> None:
+        """
+        Route server → agent bridge events to the correct namespace.
+
+        Registry paths:
+        - /agent-bridge → AgentLogsNamespace (admin / host system logs only)
+        - /agent-bridge-deploy → AgentDeploymentNamespace (deployments, runtime, live tail)
+        """
+        from app.websockets.core.registry import agent_registry
+
+        logs_only = frozenset({"request_logs", "start_log_stream", "stop_log_stream"})
+        if socket_event in logs_only:
+            ns = agent_registry.get_namespace("/agent-bridge")
+            if ns and hasattr(ns, "handle_event"):
+                await ns.handle_event(handler_event, data)
+            return
+
+        deployment_sockets = frozenset(
+            {
+                "deployment_trigger",
+                "deployment_stop",
+                "deployment_restart",
+                "deployment_status_request",
+                "deployment_logs_request",
+                "deployment_metrics_request",
+                "start_deployment_container_logs",
+                "stop_deployment_container_logs",
+            }
+        )
+        if socket_event in deployment_sockets:
+            ns = agent_registry.get_namespace("/agent-bridge-deploy")
+            if ns and hasattr(ns, "handle_event"):
+                await ns.handle_event(handler_event, data)
+            return
+
+        logger.warning("Unknown bridge socket event (not routed): %s", socket_event)
 
     async def emit_to_namespace(
         self, namespace: str, event: str, data: Any, room: str = None
@@ -356,46 +402,60 @@ class AgentWebSocketManager:
         async def request_logs(data):
             """Handle log requests from server"""
             logger.info(f"Received log request from server: {data}")
-
-            # Forward to the appropriate namespace
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("request_logs", data)
-                    except Exception as e:
-                        logger.error(
-                            f"Error handling request_logs in {namespace_path}: {e}"
-                        )
+            try:
+                await self.route_bridge_namespace_event("request_logs", "request_logs", data)
+            except Exception as e:
+                logger.error(f"Error handling request_logs: {e}")
 
         @self.bridge_client.event(namespace="/agent-bridge")
         async def start_log_stream(data):
             """Handle start log stream requests from server"""
             logger.info(f"Received start log stream request: {data}")
-
-            # Forward to the appropriate namespace
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("start_log_stream", data)
-                    except Exception as e:
-                        logger.error(
-                            f"Error handling start_log_stream in {namespace_path}: {e}"
-                        )
+            try:
+                await self.route_bridge_namespace_event("start_log_stream", "start_log_stream", data)
+            except Exception as e:
+                logger.error(f"Error handling start_log_stream: {e}")
 
         @self.bridge_client.event(namespace="/agent-bridge")
         async def stop_log_stream(data):
             """Handle stop log stream requests from server"""
             logger.info(f"Received stop log stream request: {data}")
+            try:
+                await self.route_bridge_namespace_event("stop_log_stream", "stop_log_stream", data)
+            except Exception as e:
+                logger.error(f"Error handling stop_log_stream: {e}")
 
-            # Forward to the appropriate namespace
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("stop_log_stream", data)
-                    except Exception as e:
-                        logger.error(
-                            f"Error handling stop_log_stream in {namespace_path}: {e}"
-                        )
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def start_deployment_container_logs(data):
+            """Start live tail of container logs for a deployment (deployment namespace)."""
+            logger.debug(
+                "Received start_deployment_container_logs",
+                {"deploymentId": data.get("deploymentId")},
+            )
+            try:
+                await self.route_bridge_namespace_event(
+                    "start_deployment_container_logs",
+                    "start_deployment_container_logs",
+                    data,
+                )
+            except Exception as e:
+                logger.error(f"Error handling start_deployment_container_logs: {e}")
+
+        @self.bridge_client.event(namespace="/agent-bridge")
+        async def stop_deployment_container_logs(data):
+            """Stop live container log stream for a deployment."""
+            logger.debug(
+                "Received stop_deployment_container_logs",
+                {"deploymentId": data.get("deploymentId")},
+            )
+            try:
+                await self.route_bridge_namespace_event(
+                    "stop_deployment_container_logs",
+                    "stop_deployment_container_logs",
+                    data,
+                )
+            except Exception as e:
+                logger.error(f"Error handling stop_deployment_container_logs: {e}")
 
         # ── Deployment events (server → agent) ──────────────────────────
 
@@ -403,80 +463,87 @@ class AgentWebSocketManager:
         async def deployment_trigger(data):
             """Handle deployment:trigger from server — start a deployment."""
             logger.info(f"Received deployment:trigger: {data.get('deploymentId')}")
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("deployment:trigger", data)
-                    except Exception as e:
-                        logger.error(f"Error handling deployment:trigger in {namespace_path}: {e}")
+            try:
+                await self.route_bridge_namespace_event(
+                    "deployment_trigger", "deployment:trigger", data
+                )
+            except Exception as e:
+                logger.error(f"Error handling deployment:trigger: {e}")
 
         @self.bridge_client.event(namespace="/agent-bridge")
         async def deployment_stop(data):
             """Handle deployment:stop from server — stop a container."""
             logger.info(f"Received deployment:stop: {data.get('deploymentId')}")
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("deployment:stop", data)
-                    except Exception as e:
-                        logger.error(f"Error handling deployment:stop in {namespace_path}: {e}")
+            try:
+                await self.route_bridge_namespace_event("deployment_stop", "deployment:stop", data)
+            except Exception as e:
+                logger.error(f"Error handling deployment:stop: {e}")
 
         @self.bridge_client.event(namespace="/agent-bridge")
         async def deployment_restart(data):
             """Handle deployment:restart from server — restart a container."""
             logger.info(f"Received deployment:restart: {data.get('deploymentId')}")
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("deployment:restart", data)
-                    except Exception as e:
-                        logger.error(f"Error handling deployment:restart in {namespace_path}: {e}")
+            try:
+                await self.route_bridge_namespace_event(
+                    "deployment_restart", "deployment:restart", data
+                )
+            except Exception as e:
+                logger.error(f"Error handling deployment:restart: {e}")
 
         @self.bridge_client.event(namespace="/agent-bridge")
         async def deployment_status_request(data):
             """Handle deployment:status_request from server."""
             logger.info(f"Received deployment:status_request: {data.get('deploymentId')}")
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("deployment:status_request", data)
-                    except Exception as e:
-                        logger.error(f"Error handling deployment:status_request in {namespace_path}: {e}")
+            try:
+                await self.route_bridge_namespace_event(
+                    "deployment_status_request", "deployment:status_request", data
+                )
+            except Exception as e:
+                logger.error(f"Error handling deployment:status_request: {e}")
 
         @self.bridge_client.event(namespace="/agent-bridge")
         async def deployment_logs_request(data):
             """Handle deployment:logs_request from server."""
             logger.info(f"Received deployment:logs_request: {data.get('deploymentId')}")
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("deployment:logs_request", data)
-                    except Exception as e:
-                        logger.error(f"Error handling deployment:logs_request in {namespace_path}: {e}")
+            try:
+                await self.route_bridge_namespace_event(
+                    "deployment_logs_request", "deployment:logs_request", data
+                )
+            except Exception as e:
+                logger.error(f"Error handling deployment:logs_request: {e}")
 
         @self.bridge_client.event(namespace="/agent-bridge")
         async def deployment_metrics_request(data):
             """Handle deployment:metrics_request from server."""
             logger.info(f"Received deployment:metrics_request: {data.get('deploymentId')}")
-            for namespace_path, namespace_instance in self.namespaces.items():
-                if hasattr(namespace_instance, "handle_event"):
-                    try:
-                        await namespace_instance.handle_event("deployment:metrics_request", data)
-                    except Exception as e:
-                        logger.error(
-                            f"Error handling deployment:metrics_request in {namespace_path}: {e}"
-                        )
+            try:
+                await self.route_bridge_namespace_event(
+                    "deployment_metrics_request", "deployment:metrics_request", data
+                )
+            except Exception as e:
+                logger.error(f"Error handling deployment:metrics_request: {e}")
 
     async def _initialize_namespaces(self):
         """Initialize all registered namespaces after connection"""
-        for namespace_path, namespace_instance in self.namespaces.items():
+        seen = set()
+        for namespace_instance in self.bridge_namespace_handlers:
+            iid = id(namespace_instance)
+            if iid in seen:
+                continue
+            seen.add(iid)
             try:
-                # Initialize the namespace instance
                 if hasattr(namespace_instance, "on_connected"):
                     await namespace_instance.on_connected()
-                logger.debug(f"SUCCESS: Initialized namespace: {namespace_path}")
+                logger.debug(
+                    "SUCCESS: Initialized namespace handler %s",
+                    type(namespace_instance).__name__,
+                )
             except Exception as e:
-                logger.error(f"Failed to initialize namespace {namespace_path}: {e}")
+                logger.error(
+                    "Failed to initialize namespace %s: %s",
+                    type(namespace_instance).__name__,
+                    e,
+                )
 
     def add_connection_handler(self, handler: Callable):
         """Add global connection event handler"""
@@ -494,6 +561,7 @@ class AgentWebSocketManager:
                 else None
             ),
             "namespaces": list(self.namespaces.keys()),
+            "bridge_handlers": [type(ns).__name__ for ns in self.bridge_namespace_handlers],
             "reconnect_attempts": self.reconnect_attempts,
             "agent_id": settings.agent_id,
         }

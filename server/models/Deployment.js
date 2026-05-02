@@ -60,6 +60,8 @@ const deploymentSchema = new mongoose.Schema(
       enum: [
         "pending",
         "queued",
+        "cloning",
+        "detecting",
         "building",
         "deploying",
         "running",

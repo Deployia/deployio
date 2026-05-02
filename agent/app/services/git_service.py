@@ -11,7 +11,6 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Dict, Any, Optional
-from subprocess import run, PIPE, DEVNULL
 
 from git import Repo, GitCommandError
 
