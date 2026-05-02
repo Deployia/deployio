@@ -330,6 +330,9 @@ class BuildService:
                 logs_callback, deployment_id, "info", "Building Docker image..."
             )
 
+            if str(stack_type).upper() == "NEXT":
+                DockerfileService.ensure_next_public_dir(repo_path)
+
             # Verify Dockerfile exists before building
             if not dockerfile_path.exists():
                 raise Exception(f"Dockerfile not found at {dockerfile_path}")
@@ -380,6 +383,8 @@ class BuildService:
                         raise Exception(
                             f"Generated Dockerfile missing after retry at {dockerfile_path}"
                         )
+                    if str(stack_type).upper() == "NEXT":
+                        DockerfileService.ensure_next_public_dir(repo_path)
                     build_command = [
                         "docker",
                         "build",
@@ -563,6 +568,8 @@ class BuildService:
 
             logs = []
             for line in process.stdout:
+                if not isinstance(line, str):
+                    line = str(line)
                 line = line.rstrip()
                 logs.append(line)
                 logger.info(f"[BUILD] {line}")

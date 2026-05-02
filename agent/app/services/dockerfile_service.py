@@ -9,6 +9,20 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Works with or without package-lock.json (npm ci requires a lockfile).
+_NPM_INSTALL_ALL = (
+    "RUN set -eux; "
+    "if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then "
+    "npm ci; "
+    "else npm install --no-audit --no-fund; fi"
+)
+_NPM_INSTALL_PROD = (
+    "RUN set -eux; "
+    "if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then "
+    "npm ci --omit=dev; "
+    "else npm install --no-audit --no-fund --omit=dev; fi"
+)
+
 
 class DockerfileService:
     """
@@ -25,8 +39,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install dependencies (lockfile optional)
+""" + _NPM_INSTALL_ALL + """
 
 # Copy application code
 COPY . .
@@ -51,8 +65,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (lockfile optional)
+""" + _NPM_INSTALL_ALL + """
 
 # Copy source
 COPY . .
@@ -68,8 +82,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev
+# Install production dependencies only (lockfile optional)
+""" + _NPM_INSTALL_PROD + """
 
 # Copy built application from builder
 COPY --from=builder /app/.next ./.next
@@ -93,8 +107,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install dependencies (lockfile optional)
+""" + _NPM_INSTALL_PROD + """
 
 # Copy application code
 COPY . .
@@ -233,8 +247,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (lockfile optional)
+""" + _NPM_INSTALL_ALL + """
 
 # Copy source
 COPY . .
@@ -245,9 +259,14 @@ RUN npm run build
 # Production stage: serve with nginx
 FROM nginx:alpine
 
-# Copy nginx config
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf || true
+# Minimal SPA config (no repo nginx.conf required)
+RUN rm -f /etc/nginx/conf.d/default.conf && printf '%s\\n' \\
+  'server {' \\
+  '  listen 80;' \\
+  '  server_name localhost;' \\
+  '  root /usr/share/nginx/html;' \\
+  '  location / { try_files $uri $uri/ /index.html; }' \\
+  '}' > /etc/nginx/conf.d/default.conf
 
 # Copy built React app
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -263,6 +282,19 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \\
 CMD ["nginx", "-g", "daemon off;"]
 """,
     }
+
+    @staticmethod
+    def ensure_next_public_dir(repo_path: Path) -> None:
+        """Next.js images often COPY ./public; create an empty directory if absent."""
+        repo_path = Path(repo_path)
+        public = repo_path / "public"
+        if public.is_dir():
+            return
+        public.mkdir(parents=True, exist_ok=True)
+        gitkeep = public / ".gitkeep"
+        if not gitkeep.exists():
+            gitkeep.write_text("", encoding="utf-8")
+        logger.info("Created empty public/ for Next.js build context at %s", public)
 
     @staticmethod
     async def check_existing_dockerfile(repo_path: str) -> Dict:
@@ -373,6 +405,8 @@ CMD ["nginx", "-g", "daemon off;"]
                 with open(dockerfile_path, "w") as f:
                     f.write(template)
                 logger.info(f"Generated Dockerfile written to {dockerfile_path}")
+                if stack_upper == "NEXT":
+                    DockerfileService.ensure_next_public_dir(repo_path)
             except Exception as e:
                 logger.warning(f"Failed to write Dockerfile to {dockerfile_path}: {e}")
                 dockerfile_path = None

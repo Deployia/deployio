@@ -320,42 +320,78 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                 deployment_id,
                 interval_sec,
             )
-            while True:
-                try:
-                    result = await deployment_service.get_logs(
-                        deployment_id,
-                        tail=tail,
-                        container_id=container_id,
-                    )
-                    await self.emit_to_server(
-                        "deployment_live_container_logs",
-                        {
-                            "deploymentId": deployment_id,
-                            "logs": result.get("logs") or "",
-                            "error": result.get("error"),
-                            "agentId": settings.agent_id,
-                            "timestamp": datetime.utcnow().isoformat(),
-                        },
-                    )
-                except asyncio.CancelledError:
-                    logger.info("Live container log stream cancelled: %s", deployment_id)
-                    raise
-                except Exception as e:
-                    logger.warning("Live container log tick failed %s: %s", deployment_id, e)
+            missing_streak = 0
+
+            def _is_container_missing(err: Optional[str]) -> bool:
+                if not err:
+                    return False
+                e = err.lower()
+                return "not found" in e or "no such container" in e
+
+            try:
+                while True:
                     try:
-                        await self.emit_to_server(
-                            "deployment_live_container_logs",
-                            {
-                                "deploymentId": deployment_id,
-                                "logs": "",
-                                "error": str(e),
-                                "agentId": settings.agent_id,
-                                "timestamp": datetime.utcnow().isoformat(),
-                            },
+                        result = await deployment_service.get_logs(
+                            deployment_id,
+                            tail=tail,
+                            container_id=container_id,
                         )
-                    except Exception:
-                        pass
-                await asyncio.sleep(max(1.0, interval_sec))
+                        err = result.get("error")
+                        if _is_container_missing(err):
+                            missing_streak += 1
+                            await self.emit_to_server(
+                                "deployment_live_container_logs",
+                                {
+                                    "deploymentId": deployment_id,
+                                    "logs": result.get("logs") or "",
+                                    "error": err,
+                                    "agentId": settings.agent_id,
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                },
+                            )
+                            if missing_streak >= 2:
+                                logger.info(
+                                    "Stopping live container log stream (no container): %s",
+                                    deployment_id,
+                                )
+                                break
+                        else:
+                            missing_streak = 0
+                            await self.emit_to_server(
+                                "deployment_live_container_logs",
+                                {
+                                    "deploymentId": deployment_id,
+                                    "logs": result.get("logs") or "",
+                                    "error": err,
+                                    "agentId": settings.agent_id,
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                },
+                            )
+                    except asyncio.CancelledError:
+                        logger.info(
+                            "Live container log stream cancelled: %s", deployment_id
+                        )
+                        raise
+                    except Exception as e:
+                        logger.warning(
+                            "Live container log tick failed %s: %s", deployment_id, e
+                        )
+                        try:
+                            await self.emit_to_server(
+                                "deployment_live_container_logs",
+                                {
+                                    "deploymentId": deployment_id,
+                                    "logs": "",
+                                    "error": str(e),
+                                    "agentId": settings.agent_id,
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                },
+                            )
+                        except Exception:
+                            pass
+                    await asyncio.sleep(max(1.0, interval_sec))
+            finally:
+                self._live_container_log_tasks.pop(deployment_id, None)
 
         self._live_container_log_tasks[deployment_id] = asyncio.create_task(loop())
 

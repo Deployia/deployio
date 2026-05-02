@@ -951,8 +951,33 @@ class LogStreamingNamespace {
         const availableAgentId = agentBridgeService.getAvailableAgent();
         if (!availableAgentId) return;
         const deployment = await Deployment.findOne({ deploymentId })
-          .select("runtime.containerId")
+          .select("runtime.containerId status")
           .lean();
+        const st = String(deployment?.status || "").toLowerCase();
+        const terminalWithoutRuntime = [
+          "failed",
+          "stopped",
+          "cancelled",
+          "error",
+          "deleted",
+        ].includes(st);
+        const hasContainer = Boolean(deployment?.runtime?.containerId);
+        if (terminalWithoutRuntime && !hasContainer) {
+          const handle = this.deploymentRealtimePollers.get(pollerKey);
+          if (handle) {
+            clearInterval(handle);
+            this.deploymentRealtimePollers.delete(pollerKey);
+          }
+          try {
+            await this._releaseDeploymentLiveLogStream(socket, deploymentId);
+          } catch (e) {
+            logger.debug("release live log stream after terminal deployment", {
+              deploymentId,
+              message: e?.message,
+            });
+          }
+          return;
+        }
         const containerId = deployment?.runtime?.containerId || undefined;
         // Container stdout/stderr is streamed via logs namespace (`deployment_live_container_logs`)
         // when the client subscribed with realtime. Keep metrics + status polling here.

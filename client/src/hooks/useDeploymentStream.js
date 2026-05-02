@@ -1,12 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import webSocketService from "../services/websocketService";
 
+function formatLogMessage(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 function normalizeLogEntry(entry, fallbackTs) {
   if (!entry || typeof entry !== "object") {
     return {
       timestamp: fallbackTs,
       level: "info",
-      message: String(entry ?? ""),
+      message: formatLogMessage(entry),
     };
   }
   const ts = entry.timestamp || entry.ts || fallbackTs;
@@ -23,7 +34,7 @@ function normalizeLogEntry(entry, fallbackTs) {
   return {
     timestamp,
     level: entry.level || "info",
-    message: entry.message != null ? String(entry.message) : "",
+    message: formatLogMessage(entry.message),
   };
 }
 

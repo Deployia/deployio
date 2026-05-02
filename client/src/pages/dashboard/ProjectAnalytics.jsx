@@ -103,7 +103,7 @@ const ProjectAnalytics = () => {
   };
 
   useEffect(() => {
-    if (!liveMetrics) return;
+    if (!liveMetrics || liveMetrics.unavailable) return;
     const resources = liveMetrics.resources || {};
     const cpuRaw =
       liveMetrics.cpu?.usagePercent ||
@@ -137,7 +137,19 @@ const ProjectAnalytics = () => {
     () =>
       normalizedLogs.filter((item) => {
         const level = String(item.level || "info").toLowerCase();
-        const message = String(item.message || "");
+        const rawMsg = item?.message;
+        const message =
+          typeof rawMsg === "string"
+            ? rawMsg
+            : rawMsg != null
+              ? (() => {
+                  try {
+                    return JSON.stringify(rawMsg);
+                  } catch {
+                    return String(rawMsg);
+                  }
+                })()
+              : "";
         const levelMatch = levelFilter === "all" || level === levelFilter;
         const queryMatch =
           !search.trim() || message.toLowerCase().includes(search.trim().toLowerCase());
@@ -274,7 +286,19 @@ const ProjectAnalytics = () => {
                 <span className="text-gray-500">
                   [{new Date(log.timestamp || Date.now()).toLocaleTimeString()}]
                 </span>{" "}
-                <span className="text-gray-300">{log.message || String(log)}</span>
+                <span className="text-gray-300">
+                  {typeof log.message === "string"
+                    ? log.message
+                    : log.message != null
+                      ? (() => {
+                          try {
+                            return JSON.stringify(log.message);
+                          } catch {
+                            return String(log.message);
+                          }
+                        })()
+                      : String(log)}
+                </span>
               </div>
             ))}
           </div>
@@ -302,6 +326,11 @@ const ProjectAnalytics = () => {
               <span className="block text-xs text-gray-500 mt-1">{liveStatus.message}</span>
             ) : null}
           </p>
+          {liveMetrics?.unavailable ? (
+            <p className="text-xs text-amber-300">
+              No running container — metrics stay empty until a deployment reaches the running state.
+            </p>
+          ) : null}
           <p className="text-sm text-gray-300">
             Container Uptime: {formatUptime(liveUptimeSeconds)}
           </p>

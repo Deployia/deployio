@@ -201,7 +201,22 @@ const ProjectDeployments = () => {
     if (!selectedIdForApi) return;
     const logs = formatLogs(deploymentLogs);
     const contents = logs
-      .map((log) => `[${new Date(log.timestamp).toISOString()}] ${log.level || "info"} ${log.message || ""}`)
+      .map((log) => {
+        const raw = log?.message;
+        const msg =
+          raw == null
+            ? ""
+            : typeof raw === "string"
+              ? raw
+              : (() => {
+                  try {
+                    return JSON.stringify(raw);
+                  } catch {
+                    return String(raw);
+                  }
+                })();
+        return `[${new Date(log.timestamp).toISOString()}] ${log.level || "info"} ${msg}`;
+      })
       .join("\n");
     const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -770,12 +785,26 @@ const ProjectDeployments = () => {
                     {connected ? "Live stream connected" : "Live stream disconnected"}
                   </div>
                   <div className="bg-black/70 border border-neutral-800 rounded-lg p-3 font-mono text-xs h-[420px] overflow-auto">
-                    {[...formatLogs(deploymentLogs), ...liveLogs].map((log, idx) => (
-                      <div key={idx} className="mb-1 text-gray-300">
-                        [{new Date(log.timestamp || Date.now()).toLocaleTimeString()}]{" "}
-                        {log.message || ""}
-                      </div>
-                    ))}
+                    {[...formatLogs(deploymentLogs), ...liveLogs].map((log, idx) => {
+                      const raw = log?.message;
+                      const text =
+                        raw == null
+                          ? ""
+                          : typeof raw === "string"
+                            ? raw
+                            : (() => {
+                                try {
+                                  return JSON.stringify(raw);
+                                } catch {
+                                  return String(raw);
+                                }
+                              })();
+                      return (
+                        <div key={idx} className="mb-1 text-gray-300">
+                          [{new Date(log.timestamp || Date.now()).toLocaleTimeString()}] {text}
+                        </div>
+                      );
+                    })}
                     <div ref={logEndRef} />
                   </div>
                   <button

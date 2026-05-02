@@ -546,7 +546,22 @@ class DeploymentService:
         except NotFound:
             return {
                 "deployment_id": deployment_id,
-                "metrics": {},
+                "metrics": {
+                    "unavailable": True,
+                    "reason": "container_not_found",
+                    "cpu": {"usagePercent": 0, "usage": 0},
+                    "memory": {
+                        "usageBytes": 0,
+                        "limitBytes": 0,
+                        "usagePercent": 0,
+                        "usage": 0,
+                    },
+                    "uptime": {"seconds": 0, "percentage": 0},
+                    "resources": {
+                        "cpu": {"usagePercent": 0},
+                        "memory": {"usagePercent": 0},
+                    },
+                },
                 "error": "Container not found",
             }
         except Exception as e:
