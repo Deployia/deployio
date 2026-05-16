@@ -180,7 +180,8 @@ const getRepositories = async (req, res) => {
     const { provider } = req.params;
     const {
       page = 1,
-      per_page = 30,
+      per_page: perPageParam,
+      limit,
       sort = "updated",
       type = "all",
       visibility = "all",
@@ -189,9 +190,11 @@ const getRepositories = async (req, res) => {
       playground = false, // Check for playground flag
     } = req.query;
 
+    const per_page = perPageParam || limit || 30;
+
     const options = {
       page: parseInt(page),
-      per_page: Math.min(parseInt(per_page), 100),
+      per_page: Math.min(parseInt(per_page, 10), 100),
       sort,
       type,
       visibility,

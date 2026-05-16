@@ -19,41 +19,63 @@ class GitLabProvider extends BaseGitProvider {
     };
   }
 
-  async getRepositories(options = {}) {
+  _buildListProjectsParams(options = {}) {
     const {
-      membership = true,
-      owned = true,
-      starred = false,
-      visibility = "private", // private, internal, public
-      orderBy = "updated_at",
-      sort = "desc",
-      perPage = 30,
-      maxPages = 5,
+      page = 1,
+      per_page: perPageOption,
+      perPage: perPageAlias,
+      limit,
+      sort = "updated",
+      type = "all",
     } = options;
 
-    const endpoint = "/projects";
-    const params = {
-      membership,
-      owned,
-      starred,
-      visibility,
-      order_by: orderBy,
-      sort,
-      per_page: perPage,
+    const perPage = Math.min(
+      parseInt(perPageOption || perPageAlias || limit || 30, 10),
+      100,
+    );
+    const pageNum = parseInt(page, 10) || 1;
+
+    const orderByMap = {
+      updated: "last_activity_at",
+      created: "created_at",
+      name: "name",
+      stars: "star_count",
     };
 
-    const projects = await this.getAllPages(endpoint, { params, maxPages });
-    const repositories = projects.map((project) =>
+    const params = {
+      membership: true,
+      order_by: orderByMap[sort] || "last_activity_at",
+      sort: "desc",
+      per_page: perPage,
+      page: pageNum,
+    };
+
+    if (type === "private") {
+      params.visibility = "private";
+    } else if (type === "public") {
+      params.visibility = "public";
+    }
+
+    return { params, perPage, pageNum };
+  }
+
+  async getRepositories(options = {}) {
+    const endpoint = "/projects";
+    const { params, perPage, pageNum } = this._buildListProjectsParams(options);
+
+    const projects = await this.makeRequest(endpoint, { params });
+    const projectList = Array.isArray(projects) ? projects : [];
+    const repositories = projectList.map((project) =>
       this.normalizeRepository(project),
     );
 
     return {
       repositories,
       pagination: {
-        page: 1,
-        per_page: repositories.length,
+        page: pageNum,
+        per_page: perPage,
         total_count: repositories.length,
-        has_more: projects.length >= perPage * maxPages,
+        has_more: projectList.length >= perPage,
       },
     };
   }
@@ -185,28 +207,24 @@ class GitLabProvider extends BaseGitProvider {
   }
 
   async searchRepositories(query, options = {}) {
-    const {
-      orderBy = "updated_at",
-      sort = "desc",
-      perPage = 30,
-      maxPages = 3,
-    } = options;
-
     const endpoint = "/projects";
-    const params = {
-      search: query,
-      order_by: orderBy,
-      sort,
-      per_page: perPage,
-    };
+    const { params, perPage, pageNum } = this._buildListProjectsParams(options);
+    params.search = query;
 
-    const projects = await this.getAllPages(endpoint, { params, maxPages });
+    const projects = await this.makeRequest(endpoint, { params });
+    const projectList = Array.isArray(projects) ? projects : [];
 
     return {
-      totalCount: projects.length,
-      repositories: projects.map((project) =>
-        this.normalizeRepository(project)
+      totalCount: projectList.length,
+      repositories: projectList.map((project) =>
+        this.normalizeRepository(project),
       ),
+      pagination: {
+        page: pageNum,
+        per_page: perPage,
+        total_count: projectList.length,
+        has_more: projectList.length >= perPage,
+      },
     };
   }
 
@@ -286,12 +304,15 @@ class GitLabProvider extends BaseGitProvider {
 
   // Override repository normalization for GitLab's structure
   normalizeRepository(project) {
+    const isPrivate =
+      project.visibility === "private" || project.visibility === "internal";
     return {
       id: project.id,
       name: project.name,
       fullName: project.path_with_namespace,
       description: project.description,
-      private: project.visibility !== "public",
+      private: isPrivate,
+      isPrivate,
       defaultBranch: project.default_branch,
       htmlUrl: project.web_url,
       cloneUrl: project.http_url_to_repo,

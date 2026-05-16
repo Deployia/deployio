@@ -23,11 +23,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { connectedProviders, fetchConnections } = useGitProviders();
-  const githubConnection = connectedProviders.find(
-    (provider) => provider.provider === "github",
-  );
-  const selectedProvider =
-    stepData.selectedProvider || (githubConnection ? "github" : null);
+  const selectedProvider = stepData.selectedProvider || null;
 
   // Keep the wizard aligned with the shared Git provider state.
   useEffect(() => {
@@ -90,16 +86,6 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
     dispatch(setSelectedProvider(providerId));
   };
 
-  const handleContinue = () => {
-    if (selectedProvider) {
-      if (stepData.selectedProvider !== selectedProvider) {
-        dispatch(setSelectedProvider(selectedProvider));
-      }
-      dispatch(completeStep(1));
-      onNext();
-    }
-  };
-
   const handleGoToIntegrations = () => {
     navigate("/dashboard/integrations");
   };
@@ -144,6 +130,25 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   const handleConnect = () => {
     handleGoToIntegrations();
   };
+
+  const handleContinue = () => {
+    if (!selectedProvider) return;
+    const status = getProviderStatus(selectedProvider);
+    if (status !== "connected") return;
+
+    if (stepData.selectedProvider !== selectedProvider) {
+      dispatch(setSelectedProvider(selectedProvider));
+    }
+    dispatch(completeStep(1));
+    onNext();
+  };
+
+  const selectedProviderMeta = providers.find((p) => p.id === selectedProvider);
+  const selectedProviderStatus = selectedProvider
+    ? getProviderStatus(selectedProvider)
+    : null;
+  const canContinue =
+    selectedProvider && selectedProviderStatus === "connected" && !loading;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -309,35 +314,41 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
 
       {/* Action Buttons */}
       <div className="mt-6 sm:mt-8 text-center">
-        {githubConnection ? (
+        <button
+          type="button"
+          onClick={handleContinue}
+          disabled={!canContinue}
+          className={`
+            w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base
+            ${
+              canContinue
+                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
+            }
+          `}
+        >
+          {loading ? (
+            <>
+              <FaSpinner className="w-4 h-4 animate-spin" />
+              <span>Loading...</span>
+            </>
+          ) : selectedProviderMeta ? (
+            <span>Continue with {selectedProviderMeta.name}</span>
+          ) : (
+            <span>Select a connected provider</span>
+          )}
+        </button>
+
+        {selectedProvider && selectedProviderStatus !== "connected" && (
           <button
-            onClick={handleContinue}
-            disabled={loading}
-            className={`
-              w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base
-              ${
-                loading
-                  ? "bg-blue-600/50 text-white cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }
-            `}
-          >
-            {loading ? (
-              <>
-                <FaSpinner className="w-4 h-4 animate-spin" />
-                <span>Syncing GitHub connection...</span>
-              </>
-            ) : (
-              <span>Continue with GitHub</span>
-            )}
-          </button>
-        ) : (
-          <button
+            type="button"
             onClick={handleGoToIntegrations}
-            className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base bg-blue-600 hover:bg-blue-700 text-white"
+            className="mt-3 w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-600"
           >
             <FaExternalLinkAlt className="w-4 h-4" />
-            <span>Connect GitHub in Integrations</span>
+            <span>
+              Connect {selectedProviderMeta?.name || "provider"} in Integrations
+            </span>
           </button>
         )}
       </div>

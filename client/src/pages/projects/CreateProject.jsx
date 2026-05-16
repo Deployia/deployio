@@ -23,13 +23,9 @@ import {
   updateStep,
   resetWizard,
   completeWizard,
-  setSelectedProvider,
   createProjectFromState,
 } from "@redux/slices/projectCreationSlice";
-import {
-  fetchConnectedProviders,
-  selectConnectedProviders,
-} from "@redux/slices/gitProviderSlice";
+import { fetchConnectedProviders } from "@redux/slices/gitProviderSlice";
 
 const CreateProject = () => {
   const dispatch = useDispatch();
@@ -38,13 +34,6 @@ const CreateProject = () => {
   // Redux state
   const { currentStep, completedSteps, stepData, loading, error, isCompleted } =
     useSelector((state) => state.projectCreation);
-  const connectedProviders = useSelector(selectConnectedProviders);
-  const githubConnection = connectedProviders.find(
-    (provider) => provider.provider === "github",
-  );
-
-  // const { } = useSelector((state) => state.auth);
-
   // Initialize session on component mount
   useEffect(() => {
     dispatch(fetchConnectedProviders());
@@ -56,14 +45,6 @@ const CreateProject = () => {
       }
     };
   }, [dispatch, isCompleted]);
-
-  useEffect(() => {
-    if (githubConnection && currentStep === 1) {
-      dispatch(setSelectedProvider("github"));
-      dispatch(completeStep(1));
-      dispatch(updateStep({ step: 2 }));
-    }
-  }, [dispatch, githubConnection, currentStep]);
 
   // Handle step navigation
   const canProceedToNext = () => {

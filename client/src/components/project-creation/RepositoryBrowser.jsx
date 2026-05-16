@@ -14,6 +14,7 @@ import {
   FaChevronUp,
   FaCode,
   FaEye,
+  FaArrowLeft,
 } from "react-icons/fa";
 import {
   setSelectedRepository,
@@ -22,15 +23,21 @@ import {
 } from "@redux/slices/projectCreationSlice";
 import { useGitProviders } from "@hooks/useGitProviders";
 import { toApiProviderId, toConnectionProviderId } from "@/utils/gitProviderIds";
+import { getProviderDisplayName } from "@/utils/providerUtils";
 
-const RepositoryBrowser = ({ stepData, onNext, loading }) => {
+const RepositoryBrowser = ({ stepData, onNext, onPrevious, loading }) => {
   const dispatch = useDispatch();
   const { fetchProviderRepositories, repositories } = useGitProviders();
   const [localFilters, setLocalFilters] = useState(stepData.repositoryFilters);
   const [showFilters, setShowFilters] = useState(false);
-  const provider = stepData.selectedProvider || "github";
-  const connectionKey = toConnectionProviderId(toApiProviderId(provider));
-  const repoState = repositories[connectionKey] || {
+  const provider = stepData.selectedProvider;
+  const connectionKey = provider
+    ? toConnectionProviderId(toApiProviderId(provider))
+    : null;
+  const providerLabel = provider
+    ? getProviderDisplayName(toApiProviderId(provider))
+    : "";
+  const repoState = (connectionKey && repositories[connectionKey]) || {
     loading: false,
     data: [],
     pagination: { page: 1, totalPages: 1, totalCount: 0, hasMore: false },
@@ -105,11 +112,40 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
     { value: "private", label: "Private Only" },
   ];
 
+  if (!provider) {
+    return (
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 text-center py-12">
+        <p className="text-neutral-400 mb-4">No Git provider selected.</p>
+        {onPrevious && (
+          <button
+            type="button"
+            onClick={onPrevious}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm"
+          >
+            <FaArrowLeft className="w-4 h-4" />
+            Choose provider
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6">
       {/* Header */}
-      <div className="text-center mb-6 sm:mb-8">
-        <motion.div
+      <div className="mb-6 sm:mb-8">
+        {onPrevious && (
+          <button
+            type="button"
+            onClick={onPrevious}
+            className="mb-4 inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+          >
+            <FaArrowLeft className="w-4 h-4" />
+            Change provider
+          </button>
+        )}
+        <div className="text-center">
+          <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -120,11 +156,12 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
             Select Your Repository
           </h2>
           <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto px-2">
-            Choose the repository you want to deploy. We&apos;ll analyze its
-            structure and dependencies to create the optimal deployment
-            configuration.
+            Browsing repositories from{" "}
+            <span className="text-white font-medium">{providerLabel}</span>.
+            Choose the repository you want to deploy.
           </p>
         </motion.div>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -227,9 +264,21 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
             <h3 className="text-lg font-medium text-neutral-300 mb-2">
               No repositories found
             </h3>
-            <p className="text-neutral-500">
-              Try adjusting your search or filter criteria.
+            <p className="text-neutral-500 mb-4">
+              {repoState.error
+                ? repoState.error
+                : "Try adjusting your search or filter criteria."}
             </p>
+            {onPrevious && (
+              <button
+                type="button"
+                onClick={onPrevious}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-400 hover:text-blue-300"
+              >
+                <FaArrowLeft className="w-4 h-4" />
+                Use a different provider
+              </button>
+            )}
           </div>
         ) : (
           repositoryList.map((repo, index) => {
@@ -258,7 +307,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
                       <h3 className="text-lg font-semibold text-white">
                         {repo.fullName || `${repo.owner}/${repo.name}`}
                       </h3>
-                      {repo.isPrivate ? (
+                      {(repo.isPrivate ?? repo.private) ? (
                         <div className="flex items-center space-x-1 text-yellow-400">
                           <FaLock className="w-3 h-3" />
                           <span className="text-xs font-medium">Private</span>
