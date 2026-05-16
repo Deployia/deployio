@@ -43,7 +43,7 @@ export function parseEnvFile(content) {
         upper.includes("TOKEN") ||
         upper.includes("KEY"),
       required: false,
-      source: "env-file",
+      source: "env-example",
     });
   });
 

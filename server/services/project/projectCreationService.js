@@ -453,7 +453,10 @@ class ProjectCreationService {
     };
 
     const envInput = config.environmentVariables || {};
-    const { normalizeEnvVarValue } = require("../../utils/envVarNormalize");
+    const {
+      normalizeEnvVarValue,
+      normalizeEnvVarSource,
+    } = require("../../utils/envVarNormalize");
     const mapEnv = (list = []) =>
       list
         .filter((env) => env?.key)
@@ -462,7 +465,7 @@ class ProjectCreationService {
           value: normalizeEnvVarValue(env.key, env.value || ""),
           isSecret: !!env.isSecret,
           required: !!env.required,
-          source: env.source || "user",
+          source: normalizeEnvVarSource(env.source || "user"),
         }));
 
     const deploymentEnvVars = {

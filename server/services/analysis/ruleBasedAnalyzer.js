@@ -260,13 +260,12 @@ class RuleBasedAnalyzer {
       const envVars = await this._detectEnvVarsFromContent(
         fileContents.envExample,
       );
-      const envSourcePath = fileContents.envExampleSource || "env-example";
       const mapEnvTemplate = (env) => ({
         key: env.key,
         value: env.default ?? "",
         isSecret: !!env.isSecret,
         required: true,
-        source: envSourcePath,
+        source: "env-example",
       });
       const envTemplate = {
         development: envVars.map(mapEnvTemplate),

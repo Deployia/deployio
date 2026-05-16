@@ -15,6 +15,27 @@ export const EMPTY_ENVIRONMENT_VARIABLES = {
   production: [],
 };
 
+const VALID_ENV_VAR_SOURCES = new Set(["env-example", "user", "system"]);
+
+/** Coerce env var `source` to values allowed by the Project schema. */
+export const normalizeEnvVarSource = (source) => {
+  if (!source || source === "env-file") {
+    return "env-example";
+  }
+  if (VALID_ENV_VAR_SOURCES.has(source)) {
+    return source;
+  }
+  return "env-example";
+};
+
+const normalizeEnvVarRow = (row) => {
+  if (!row || typeof row !== "object") return row;
+  return {
+    ...row,
+    source: normalizeEnvVarSource(row.source),
+  };
+};
+
 /** Normalize env-var maps from API, legacy shapes, or partial objects. */
 export const normalizeEnvironmentVariables = (input) => {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -24,10 +45,12 @@ export const normalizeEnvironmentVariables = (input) => {
       production: [],
     };
   }
+  const mapList = (list) =>
+    Array.isArray(list) ? list.map(normalizeEnvVarRow) : [];
   return {
-    development: Array.isArray(input.development) ? input.development : [],
-    staging: Array.isArray(input.staging) ? input.staging : [],
-    production: Array.isArray(input.production) ? input.production : [],
+    development: mapList(input.development),
+    staging: mapList(input.staging),
+    production: mapList(input.production),
   };
 };
 

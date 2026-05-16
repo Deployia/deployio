@@ -20,6 +20,7 @@ import {
 import {
   mergeEnvTemplate,
   normalizeEnvironmentVariables,
+  normalizeEnvVarSource,
 } from "@utils/deploymentConstants";
 import EnvironmentVariablesEditor from "./EnvironmentVariablesEditor";
 
@@ -200,7 +201,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             description: env.description || "",
             isSecret: env.isSecret || false,
             required: !!env.required,
-            source: env.source || "env-example",
+            source: normalizeEnvVarSource(env.source),
           }));
           updated.environmentVariables = {
             development: normalized.map((entry) => ({ ...entry })),

@@ -29,4 +29,24 @@ function normalizeEnvVarValue(key, value) {
   return v;
 }
 
-module.exports = { normalizeEnvVarValue };
+const VALID_ENV_VAR_SOURCES = new Set(["env-example", "user", "system"]);
+
+/**
+ * Coerce env var `source` to a value allowed by Project.deployment.environment.*.source.
+ */
+function normalizeEnvVarSource(source) {
+  if (!source || source === "env-file") {
+    return "env-example";
+  }
+  if (VALID_ENV_VAR_SOURCES.has(source)) {
+    return source;
+  }
+  // Analyzer may pass a repo path (e.g. backend/.env.example)
+  return "env-example";
+}
+
+module.exports = {
+  normalizeEnvVarValue,
+  normalizeEnvVarSource,
+  VALID_ENV_VAR_SOURCES,
+};
