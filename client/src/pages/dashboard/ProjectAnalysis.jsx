@@ -8,10 +8,36 @@ const InfoCard = ({ title, children }) => (
   </div>
 );
 
+const formatDisplayValue = (value) => {
+  if (value == null || value === "") return "N/A";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => formatDisplayValue(item)).join(", ");
+  }
+  return JSON.stringify(value);
+};
+
+const getDockerfileDisplay = (dockerfile) => {
+  if (!dockerfile) return "No Dockerfile stored on this project yet.";
+  if (typeof dockerfile === "string") return dockerfile;
+  if (typeof dockerfile === "object") {
+    const content = dockerfile.content;
+    if (typeof content === "string" && content.trim()) return content;
+    const path = dockerfile.path || "Dockerfile";
+    const valid = dockerfile.isValid ? "valid" : "missing or invalid";
+    return `# Path: ${path} (${valid})\n# No Dockerfile content stored on this project.`;
+  }
+  return String(dockerfile);
+};
+
 const KV = ({ label, value }) => (
   <div className="flex items-start justify-between gap-3 py-1.5 border-b border-neutral-800/70 last:border-b-0">
     <span className="text-xs text-gray-400">{label}</span>
-    <span className="text-sm text-white text-right break-words">{value || "N/A"}</span>
+    <span className="text-sm text-white text-right break-words">
+      {formatDisplayValue(value)}
+    </span>
   </div>
 );
 
@@ -177,8 +203,17 @@ const ProjectAnalysis = ({ project: projectProp }) => {
           <FaCode className="w-4 h-4 text-orange-300" />
           Config Files
         </h3>
-        <pre className="text-xs text-gray-200 whitespace-pre-wrap break-words mb-3">
-          {project?.deployment?.dockerfile || "No Dockerfile stored on this project yet."}
+        {project?.deployment?.dockerfile?.path && (
+          <p className="text-xs text-gray-400 mb-2">
+            Path:{" "}
+            <code className="text-orange-200">{project.deployment.dockerfile.path}</code>
+            {project.deployment.dockerfile.isValid === false && (
+              <span className="ml-2 text-amber-400">(not validated)</span>
+            )}
+          </p>
+        )}
+        <pre className="text-xs text-gray-200 whitespace-pre-wrap break-words mb-3 font-mono bg-neutral-950/60 p-3 rounded-lg border border-neutral-800/50 max-h-96 overflow-auto">
+          {getDockerfileDisplay(project?.deployment?.dockerfile)}
         </pre>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <InfoCard title="Build Config">
