@@ -48,7 +48,7 @@ class DeploymentService {
           },
         },
       ],
-    }).select("name slug owner repository branch collaborators statistics");
+    }).select("name slug owner repository branch collaborators statistics status deployment");
   }
 
   _canTransition(currentStatus, nextStatus) {
