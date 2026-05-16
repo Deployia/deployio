@@ -80,14 +80,27 @@ class ProjectCreationService {
       logger.debug(`Could not fetch Dockerfile at ${selectedPath}: ${error.message}`);
     }
 
-    const envPath = this._envExamplePathForDockerfile(selectedPath);
-    try {
-      files.envExample = await this._fetchRawFile(owner, repo, branch, envPath);
-    } catch (error) {
+    const envExamplePath = this._envExamplePathForDockerfile(selectedPath);
+    const envDir =
+      envExamplePath.includes("/") ?
+        envExamplePath.slice(0, envExamplePath.lastIndexOf("/"))
+      : "";
+    const envCandidates = [
+      envExamplePath,
+      ".env.example",
+      envDir ? `${envDir}/.env` : ".env",
+      ".env",
+      envDir ? `${envDir}/.env.local` : ".env.local",
+      ".env.local",
+    ].filter((path, index, list) => path && list.indexOf(path) === index);
+
+    for (const candidate of envCandidates) {
+      if (files.envExample) break;
       try {
-        files.envExample = await this._fetchRawFile(owner, repo, branch, ".env.example");
-      } catch (fallbackError) {
-        logger.debug(`Could not fetch env example: ${fallbackError.message}`);
+        files.envExample = await this._fetchRawFile(owner, repo, branch, candidate);
+        logger.debug(`Loaded env template from ${candidate}`);
+      } catch {
+        // try next candidate
       }
     }
 

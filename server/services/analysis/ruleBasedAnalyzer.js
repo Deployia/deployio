@@ -11,6 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const logger = require("../../config/logger");
+const { parseEnvFile } = require("../../utils/parseEnvFile");
 
 class RuleBasedAnalyzer {
   /**
@@ -86,7 +87,7 @@ class RuleBasedAnalyzer {
       );
       const mapEnvTemplate = (env) => ({
         key: env.key,
-        value: "",
+        value: env.default ?? "",
         isSecret: !!env.isSecret,
         required: true,
         source: "env-example",
@@ -519,36 +520,18 @@ class RuleBasedAnalyzer {
    * @private
    */
   async _detectEnvVarsFromContent(envExampleContent) {
-    const envVars = [];
+    if (!envExampleContent) return [];
 
-    if (envExampleContent) {
-      try {
-        const lines = envExampleContent.split("\n");
-        lines.forEach((line) => {
-          const trimmed = line.trim();
-          if (trimmed && !trimmed.startsWith("#")) {
-            const [key] = trimmed.split("=");
-            if (key) {
-              envVars.push({
-                key: key.trim(),
-                default: undefined,
-                isSecret:
-                  key.includes("SECRET") ||
-                  key.includes("KEY") ||
-                  key.includes("PASSWORD"),
-              });
-            }
-          }
-        });
-        logger.info(
-          `Detected ${envVars.length} environment variables from .env.example`,
-        );
-      } catch (error) {
-        logger.warn("Error reading .env.example:", error.message);
-      }
+    try {
+      const envVars = parseEnvFile(envExampleContent);
+      logger.info(
+        `Detected ${envVars.length} environment variables from env file`,
+      );
+      return envVars;
+    } catch (error) {
+      logger.warn("Error parsing env file:", error.message);
+      return [];
     }
-
-    return envVars;
   }
   /**
    * Analyze repository for deployability and detect stack type.

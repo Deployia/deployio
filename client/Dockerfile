@@ -32,27 +32,11 @@ COPY . .
 RUN npm run build
 
 # ---------- RUNTIME STAGE ----------
-FROM node:20-alpine3.19 AS runtime
+FROM nginx:1.27-alpine AS runtime
 
-WORKDIR /app
-
-# Create non-root user
-RUN addgroup -g 1001 -S deployio && \
-    adduser -S deployio -u 1001
-
-# Install only serve (production server)
-RUN apk add --no-cache && \
-    npm install -g serve@14 && \
-    npm cache clean --force
-
-# Copy built frontend files from build stage
-COPY --from=build /app/dist ./dist
-
-# Set permissions and drop to non-root user
-RUN chown -R deployio:deployio /app
-USER deployio
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
-# Serve frontend from dist folder
-CMD ["serve", "-s", "dist", "-l", "80"]
+CMD ["nginx", "-g", "daemon off;"]

@@ -7,8 +7,6 @@ import {
   FaTerminal,
   FaPlay,
   FaEnvira,
-  FaPlus,
-  FaTrash,
   FaBrain,
   FaCheckCircle,
   FaHeartbeat,
@@ -18,7 +16,11 @@ import {
   completeStep,
   analyzeRepository,
 } from "@redux/slices/projectCreationSlice";
-import { normalizeEnvironmentVariables } from "@utils/deploymentConstants";
+import {
+  mergeEnvTemplate,
+  normalizeEnvironmentVariables,
+} from "@utils/deploymentConstants";
+import EnvironmentVariablesEditor from "./EnvironmentVariablesEditor";
 
 const SmartProjectForm = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
@@ -99,7 +101,11 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
       dockerfilePreview: stepData.dockerfile || stepData.dockerfilePreview || "",
 
       environmentVariables: normalizeEnvironmentVariables(
-        stepData.environmentVariables,
+        stepData.environmentVariables ||
+          mergeEnvTemplate(
+            results.envTemplate ||
+              stepData.analysis?.results?.envTemplate,
+          ),
       ),
     };
   };
@@ -180,10 +186,12 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
           deploymentConfiguration.environment_variables ||
           [];
 
-        if (envVars.length) {
+        if (results.envTemplate) {
+          updated.environmentVariables = mergeEnvTemplate(results.envTemplate);
+        } else if (envVars.length) {
           const normalized = envVars.map((env) => ({
             key: env.key,
-            value: env.value || "",
+            value: env.value ?? env.default ?? "",
             description: env.description || "",
             isSecret: env.isSecret || false,
             required: !!env.required,
@@ -228,43 +236,6 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
     });
   };
 
-  const addEnvironmentVariable = (environment) => {
-    setFormData((prev) => ({
-      ...prev,
-      environmentVariables: {
-        ...prev.environmentVariables,
-        [environment]: [
-          ...prev.environmentVariables[environment],
-          { key: "", value: "", description: "", isSecret: false, required: false },
-        ],
-      },
-    }));
-  };
-
-  const updateEnvironmentVariable = (environment, index, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      environmentVariables: {
-        ...prev.environmentVariables,
-        [environment]: prev.environmentVariables[environment].map((env, i) =>
-          i === index ? { ...env, [field]: value } : env,
-        ),
-      },
-    }));
-  };
-
-  const removeEnvironmentVariable = (environment, index) => {
-    setFormData((prev) => ({
-      ...prev,
-      environmentVariables: {
-        ...prev.environmentVariables,
-        [environment]: prev.environmentVariables[environment].filter(
-          (_, i) => i !== index,
-        ),
-      },
-    }));
-  };
-
   const handleDockerfilePathChange = async (newPath) => {
     setFormData((prev) => ({ ...prev, dockerfilePath: newPath }));
 
@@ -306,105 +277,6 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
     }
   };
 
-  const renderEnvironmentSection = (environment, title) => {
-    const vars = formData.environmentVariables[environment] || [];
-    return (
-      <motion.div
-        key={environment}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-neutral-800/20 rounded-lg p-3 sm:p-4 border border-neutral-700/50"
-      >
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center justify-between mb-3"
-        >
-          <h4 className="text-sm font-semibold text-white capitalize">{title}</h4>
-          <button
-            type="button"
-            onClick={() => addEnvironmentVariable(environment)}
-            className="flex items-center space-x-1 text-green-400 hover:text-green-300 text-xs"
-          >
-            <FaPlus className="w-3 h-3" />
-            <span>Add</span>
-          </button>
-        </motion.div>
-        <motion.div layout className="space-y-2">
-          {vars.map((env, index) => (
-            <div key={`${environment}-${index}`} className="grid grid-cols-12 gap-2 items-start">
-              <motion.div layout className="col-span-3">
-                <input
-                  type="text"
-                  value={env.key}
-                  onChange={(e) =>
-                    updateEnvironmentVariable(environment, index, "key", e.target.value)
-                  }
-                  className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white text-sm"
-                  placeholder="KEY"
-                />
-              </motion.div>
-              <motion.div layout className="col-span-4">
-                <input
-                  type={env.isSecret ? "password" : "text"}
-                  value={env.value}
-                  onChange={(e) =>
-                    updateEnvironmentVariable(environment, index, "value", e.target.value)
-                  }
-                  className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white text-sm"
-                  placeholder="value"
-                />
-              </motion.div>
-              <motion.div layout className="col-span-3 flex items-center gap-2">
-                <label className="flex items-center gap-1 text-xs text-neutral-400">
-                  <input
-                    type="checkbox"
-                    checked={env.required || false}
-                    onChange={(e) =>
-                      updateEnvironmentVariable(
-                        environment,
-                        index,
-                        "required",
-                        e.target.checked,
-                      )
-                    }
-                  />
-                  Required
-                </label>
-                <label className="flex items-center gap-1 text-xs text-neutral-400">
-                  <input
-                    type="checkbox"
-                    checked={env.isSecret || false}
-                    onChange={(e) =>
-                      updateEnvironmentVariable(
-                        environment,
-                        index,
-                        "isSecret",
-                        e.target.checked,
-                      )
-                    }
-                  />
-                  Secret
-                </label>
-              </motion.div>
-              <motion.div layout className="col-span-1 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => removeEnvironmentVariable(environment, index)}
-                  className="p-1 text-red-400 hover:text-red-300"
-                >
-                  <FaTrash className="w-3 h-3" />
-                </button>
-              </motion.div>
-            </div>
-          ))}
-          {vars.length === 0 && (
-            <p className="text-neutral-500 text-xs">No variables for {title} yet.</p>
-          )}
-        </motion.div>
-      </motion.div>
-    );
-  };
 
   // Helper to determine if field is relevant for detected stack
   const getRelevantFieldsForStack = (stack) => {
@@ -877,9 +749,13 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             <FaEnvira className="w-5 h-5 text-green-500" />
             <span>Environment Variables</span>
           </h3>
-          {renderEnvironmentSection("development", "Development")}
-          {renderEnvironmentSection("staging", "Staging")}
-          {renderEnvironmentSection("production", "Production")}
+          <EnvironmentVariablesEditor
+            value={formData.environmentVariables}
+            onChange={(environmentVariables) =>
+              setFormData((prev) => ({ ...prev, environmentVariables }))
+            }
+            disabled={loading}
+          />
         </div>
       </div>
 

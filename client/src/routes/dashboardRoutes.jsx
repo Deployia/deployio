@@ -1,5 +1,6 @@
 import { Fragment, lazy } from "react";
 import { Route } from "react-router-dom";
+import { lazyWithRetry } from "@utils/lazyWithRetry";
 
 const ProtectedRoute = lazy(() => import("@components/ProtectedRoute"));
 const DashboardLayout = lazy(
@@ -13,7 +14,7 @@ const ProjectAnalysis = lazy(() => import("@dashboard/ProjectAnalysis"));
 const ProjectDeployments = lazy(() => import("@dashboard/ProjectDeployments"));
 const ProjectAnalytics = lazy(() => import("@dashboard/ProjectAnalytics"));
 const ProjectSettings = lazy(() => import("@dashboard/ProjectSettings"));
-const Deployments = lazy(() => import("@dashboard/Deployments"));
+const Deployments = lazyWithRetry(() => import("@dashboard/Deployments"));
 const Analytics = lazy(() => import("@dashboard/Analytics"));
 const Activity = lazy(() => import("@dashboard/Activity"));
 const CLI = lazy(() => import("@dashboard/CLI"));
