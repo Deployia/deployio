@@ -171,6 +171,8 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             await self._emit_build_log(dep_id, level, message)
 
         branch_name = data.get("branch") or "main"
+        # dockerfile path relative to repo root (e.g. "apps/server/Dockerfile")
+        dockerfile_path = data.get("dockerfilePath") or "Dockerfile"
         if image:
             result = await deployment_service.deploy(
                 deployment_id=deployment_id,
@@ -193,6 +195,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                     deployment_id=deployment_id,
                     status_callback=status_cb,
                     env_vars=env_vars,
+                    dockerfile_path=dockerfile_path,
                 )
             except Exception as e:
                 logger.error(f"Agent build_and_deploy failed: {e}")

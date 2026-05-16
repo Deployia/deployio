@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -38,16 +38,10 @@ import {
   clearProjectSuccess,
   clearProjectDeployments,
 } from "@redux/index";
-
-const DEPLOYMENT_POLL_STATUSES = new Set([
-  "pending",
-  "queued",
-  "cloning",
-  "detecting",
-  "building",
-  "deploying",
-  "stopping",
-]);
+import {
+  DEPLOYMENT_POLL_STATUSES,
+  getProjectStatusBadge,
+} from "../../utils/deploymentConstants";
 
 const ProjectDetails = () => {
   const dispatch = useDispatch();
@@ -100,26 +94,28 @@ const ProjectDetails = () => {
     const activeStatuses = new Set([
       "pending",
       "queued",
+      "cloning",
+      "detecting",
       "building",
       "deploying",
       "running",
       "stopping",
     ]);
+    const getEnv = (d) =>
+      d.config?.environment || d.environment || "";
     const envActive = (projectDeployments || []).filter(
-      (deployment) =>
-        deployment.environment === env &&
-        activeStatuses.has(String(deployment.status || "").toLowerCase()),
+      (d) =>
+        getEnv(d) === env &&
+        activeStatuses.has(String(d.status || "").toLowerCase()),
     ).length;
-    const projectActive = (projectDeployments || []).filter((deployment) =>
-      activeStatuses.has(String(deployment.status || "").toLowerCase()),
+    const projectActive = (projectDeployments || []).filter((d) =>
+      activeStatuses.has(String(d.status || "").toLowerCase()),
     ).length;
     const maxDeployments = subdomainState.capacity?.maxDeployments || 2;
 
-    // Disable an environment if it already has an active deployment,
+    // Disable an environment button if it already has an active deployment,
     // or if the project is already at its overall maximum.
-    if (deploymentForm.environment === env && envActive > 0) {
-      return true;
-    }
+    if (envActive > 0) return true;
 
     return projectActive >= maxDeployments;
   };
@@ -166,21 +162,26 @@ const ProjectDetails = () => {
   }, [id, dispatch]);
 
   // Poll deployments while any row is still progressing (keeps overview + tabs in sync).
+  // Intentionally excludes projectDeployments from deps to avoid interval churn on every poll.
+  // The interval captures the latest `projectDeployments` via closure on each tick via dispatch.
+  const hasInFlightRef = useRef(false);
   useEffect(() => {
-    if (!id) return undefined;
-    const hasInFlight = Array.isArray(projectDeployments)
+    hasInFlightRef.current = Array.isArray(projectDeployments)
       ? projectDeployments.some((d) =>
-          DEPLOYMENT_POLL_STATUSES.has(
-            String(d?.status || "").toLowerCase(),
-          ),
+          DEPLOYMENT_POLL_STATUSES.has(String(d?.status || "").toLowerCase()),
         )
       : false;
-    if (!hasInFlight) return undefined;
+  }, [projectDeployments]);
+
+  useEffect(() => {
+    if (!id) return undefined;
     const timer = setInterval(() => {
-      dispatch(fetchProjectDeployments(id));
+      if (hasInFlightRef.current) {
+        dispatch(fetchProjectDeployments(id));
+      }
     }, 4000);
     return () => clearInterval(timer);
-  }, [id, dispatch, projectDeployments]);
+  }, [id, dispatch]);
 
   // Update edit form when currentProject changes
   useEffect(() => {
@@ -439,28 +440,7 @@ const ProjectDetails = () => {
     return "Unknown";
   };
 
-  const getStatusBadge = (status) => {
-    const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
-    switch (status) {
-      case "success":
-      case "running":
-      case "active":
-        return `${baseClasses} bg-green-500/20 text-green-400 border border-green-500/30`;
-      case "failed":
-      case "error":
-        return `${baseClasses} bg-red-500/20 text-red-400 border border-red-500/30`;
-      case "pending":
-      case "building":
-        return `${baseClasses} bg-yellow-500/20 text-yellow-400 border border-yellow-500/30`;
-      case "inactive":
-      case "stopped":
-        return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
-      case "archived":
-        return `${baseClasses} bg-orange-500/20 text-orange-300 border border-orange-500/30`;
-      default:
-        return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30`;
-    }
-  };
+  const getStatusBadge = getProjectStatusBadge;
 
   const ACTIVE_DEPLOYMENT_STATUSES = new Set([
     "pending",
@@ -792,7 +772,6 @@ const ProjectDetails = () => {
           <ProjectOverview
             project={currentProject}
             deployments={projectDeployments}
-            analytics={projectAnalytics}
             isArchived={isArchived}
             onOpenDeployModal={handleOpenDeployModal}
             onNavigateDeployments={() =>
@@ -850,6 +829,27 @@ const ProjectDetails = () => {
                 <FaTimes className="w-5 h-5" />
               </button>
             </div>
+
+            {currentProject?.deployment?.dockerfile?.path && (
+              <div className="mb-4 rounded-xl border border-neutral-800/70 bg-neutral-900/50 px-4 py-3 flex items-center gap-3">
+                <FaDocker className="w-4 h-4 text-blue-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-400">Dockerfile</p>
+                  <p className="text-sm text-white font-mono truncate">
+                    {currentProject.deployment.dockerfile.path}
+                  </p>
+                </div>
+                {(() => {
+                  const envVars = currentProject.deployment?.environment?.[deploymentForm.environment];
+                  const count = Array.isArray(envVars) ? envVars.length : 0;
+                  return count > 0 ? (
+                    <span className="ml-auto shrink-0 text-xs text-gray-400">
+                      {count} env var{count !== 1 ? "s" : ""} ({deploymentForm.environment})
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2 mb-5">
               <button

@@ -186,6 +186,8 @@ class DeploymentOrchestrator {
         environment: deploymentEnvironment,
         // instruct agent to build if no image is available
         buildIfMissing: !dockerImage,
+        // dockerfile path selected by the user (relative to repo root)
+        dockerfilePath: project.deployment?.dockerfile?.path || "Dockerfile",
       };
 
       logger.info("Sending deployment:trigger to agent", {

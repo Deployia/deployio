@@ -32,16 +32,11 @@ import {
   updateDeploymentStatus,
 } from "../../redux/slices/deploymentSlice";
 import useDeploymentStream from "../../hooks/useDeploymentStream";
-
-const DEPLOYMENT_POLL_STATUSES = new Set([
-  "pending",
-  "queued",
-  "cloning",
-  "detecting",
-  "building",
-  "deploying",
-  "stopping",
-]);
+import {
+  DEPLOYMENT_POLL_STATUSES,
+  PIPELINE_STAGE_ORDER,
+  getDeploymentStatusBadge,
+} from "../../utils/deploymentConstants";
 
 const ProjectDeployments = () => {
   const { onOpenDeployModal, project, isArchived } = useOutletContext() || {};
@@ -71,7 +66,7 @@ const ProjectDeployments = () => {
   const prevShowPanelRef = useRef(false);
   const dispatch = useDispatch();
   const logScrollContainerRef = useRef(null);
-  const stageOrder = ["queued", "cloning", "detecting", "building", "deploying", "running"];
+  const stageOrder = PIPELINE_STAGE_ORDER;
 
   const filteredDeployments = Array.isArray(projectDeployments)
     ? filter === "all"
@@ -105,7 +100,7 @@ const ProjectDeployments = () => {
     () => selectedDeployment?.deploymentId || selectedDeploymentId,
     [selectedDeployment?.deploymentId, selectedDeploymentId],
   );
-  const { connected, liveLogs, liveStatus } = useDeploymentStream(
+  const { connected, liveLogs, liveStatus, liveMetrics } = useDeploymentStream(
     selectedDeploymentRuntimeId,
   );
   const selectedProbe =
@@ -317,30 +312,7 @@ const ProjectDeployments = () => {
     dispatch(clearLogs());
   }, [dispatch]);
 
-  const getStatusBadge = (status) => {
-    const baseClasses =
-      "inline-flex items-center justify-center min-w-[112px] px-3 py-1 rounded-full text-xs font-medium";
-    switch (status) {
-      case "success":
-      case "running":
-        return `${baseClasses} bg-green-500/20 text-green-400 border border-green-500/30`;
-      case "failed":
-      case "error":
-        return `${baseClasses} bg-red-500/20 text-red-400 border border-red-500/30`;
-      case "pending":
-      case "queued":
-        return `${baseClasses} bg-yellow-500/20 text-yellow-400 border border-yellow-500/30`;
-      case "cloning":
-      case "detecting":
-      case "building":
-      case "deploying":
-        return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30 animate-pulse`;
-      case "stopped":
-        return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
-      default:
-        return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30`;
-    }
-  };
+  const getStatusBadge = getDeploymentStatusBadge;
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -427,9 +399,6 @@ const ProjectDeployments = () => {
   const normalizedStatus = String(
     liveStatus?.status || selectedDeployment?.status || "",
   ).toLowerCase();
-  const inProgressStatuses = new Set([
-    ...DEPLOYMENT_POLL_STATUSES,
-  ]);
   const terminalOrStableStatus = new Set([
     "running",
     "stopped",
@@ -837,38 +806,100 @@ const ProjectDeployments = () => {
                 <div>
                   <h4 className="text-sm font-medium text-white mb-2">Pipeline</h4>
                   <div className="space-y-2">
-                    {stageOrder.map((stage) => {
-                      const index = stageOrder.indexOf(stage);
+                    {(() => {
                       const currentStage = String(effectivePipelineStage || "").toLowerCase();
                       const stageIndex = stageOrder.indexOf(currentStage);
-                      const isDone = stageIndex > index || currentStage === "running";
-                      const isActive = stage === currentStage;
-                      const failed = currentStage === "failed";
-                      return (
-                        <div
-                          key={stage}
-                          className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2">
-                            {failed && isActive ? (
-                              <FaTimesCircle className="w-4 h-4 text-red-400" />
-                            ) : isDone ? (
-                              <FaCheckCircle className="w-4 h-4 text-green-400" />
-                            ) : isActive ? (
-                              <FaSpinner className="w-4 h-4 text-blue-400 animate-spin" />
-                            ) : (
-                              <FaClock className="w-4 h-4 text-gray-500" />
-                            )}
-                            <span className="text-white capitalize">{stage}</span>
+                      const isTerminalFailure = currentStage === "failed" || currentStage === "error";
+                      const isCancelled = currentStage === "cancelled";
+                      // For terminal failure we mark every stage that ran as done and
+                      // the last known active stage as failed.
+                      const lastActiveIdx = isTerminalFailure
+                        ? (stageIndex >= 0 ? stageIndex : stageOrder.indexOf(
+                            String(deriveStageFromLogs || "").toLowerCase()
+                          ))
+                        : -1;
+
+                      return stageOrder.map((stage, index) => {
+                        const isDone =
+                          currentStage === "running"
+                            ? true
+                            : isTerminalFailure
+                            ? index < (lastActiveIdx >= 0 ? lastActiveIdx : stageOrder.length)
+                            : stageIndex > index;
+                        const isFailedStage =
+                          isTerminalFailure &&
+                          (lastActiveIdx >= 0
+                            ? index === lastActiveIdx
+                            : index === stageOrder.length - 2);
+                        const isActive = !isTerminalFailure && !isCancelled && stage === currentStage;
+
+                        return (
+                          <div
+                            key={stage}
+                            className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2">
+                              {isFailedStage ? (
+                                <FaTimesCircle className="w-4 h-4 text-red-400" />
+                              ) : isDone ? (
+                                <FaCheckCircle className="w-4 h-4 text-green-400" />
+                              ) : isActive ? (
+                                <FaSpinner className="w-4 h-4 text-blue-400 animate-spin" />
+                              ) : (
+                                <FaClock className="w-4 h-4 text-gray-500" />
+                              )}
+                              <span className="text-white capitalize">{stage}</span>
+                            </div>
+                            <span className={`text-xs ${isFailedStage ? "text-red-400" : "text-gray-400"}`}>
+                              {isFailedStage ? "failed" : isDone ? "done" : isActive ? "running" : "pending"}
+                            </span>
                           </div>
-                          <span className="text-xs text-gray-400">
-                            {isDone ? "done" : isActive ? "running" : "pending"}
-                          </span>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
+
+                {liveMetrics && (String(liveStatus?.status || selectedDeployment?.status) === "running") && (
+                  <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
+                    <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Runtime Metrics</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {liveMetrics.cpu_percent != null && (
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-400">CPU</span>
+                            <span className="text-white">{Number(liveMetrics.cpu_percent).toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(100, liveMetrics.cpu_percent)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {liveMetrics.memory_percent != null && (
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-400">Memory</span>
+                            <span className="text-white">{Number(liveMetrics.memory_percent).toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-green-500 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(100, liveMetrics.memory_percent)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {liveMetrics.uptime_seconds != null && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Uptime: {Math.floor(liveMetrics.uptime_seconds / 3600)}h {Math.floor((liveMetrics.uptime_seconds % 3600) / 60)}m
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <div className="flex items-center justify-between mb-2">

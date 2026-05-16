@@ -40,7 +40,7 @@ SERVICE_CONFIG = {
         "allowed_ips": [],  # No IP restriction for AI service
         "rate_limit": 500,
         "require_token": True,
-        "allowed_endpoints": ["/agent/v1/deploy", "/agent/v1/status"],
+        "allowed_endpoints": ["/agent/v1/deploy", "/agent/v1/deploy/"],
     },
 }
 

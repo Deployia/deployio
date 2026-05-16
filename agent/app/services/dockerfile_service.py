@@ -297,9 +297,15 @@ CMD ["nginx", "-g", "daemon off;"]
         logger.info("Created empty public/ for Next.js build context at %s", public)
 
     @staticmethod
-    async def check_existing_dockerfile(repo_path: str) -> Dict:
+    async def check_existing_dockerfile(
+        repo_path: str, subpath: str = "Dockerfile"
+    ) -> Dict:
         """
         Check if a usable Dockerfile exists in the repository (FROM + CMD/ENTRYPOINT).
+
+        ``subpath`` is the path relative to repo root (default ``Dockerfile``).
+        Pass the user-selected dockerfile path (e.g. ``apps/server/Dockerfile``)
+        to check that specific file instead of always looking at the root.
 
         BuildService prefers this path before generating templates.
 
@@ -311,7 +317,7 @@ CMD ["nginx", "-g", "daemon off;"]
         }
         """
         repo_path = Path(repo_path)
-        dockerfile_path = repo_path / "Dockerfile"
+        dockerfile_path = repo_path / subpath
 
         if not dockerfile_path.exists():
             return {"exists": False, "valid": False, "content": None, "path": None}

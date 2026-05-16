@@ -99,8 +99,9 @@ async def list_all_deployments():
     }
 
 
-@router.post("/stop", response_model=DeployResponse, deprecated=True)
+@router.post("/stop", response_model=DeployResponse, deprecated=True, include_in_schema=False)
 async def stop_deployment_legacy(req: StopRequest):
+    """Redirects to /deploy/{deployment_id}/stop. Kept for backwards compatibility only."""
     result = await build_service.stop_deployment(req.deployment_id)
     return DeployResponse(
         status=result.get("status", "unknown"),

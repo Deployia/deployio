@@ -248,8 +248,11 @@ class DeploymentService {
         throw new Error("Cannot deploy an archived project. Unarchive it first.");
       }
 
-      if (!project.deployment?.dockerfile?.isValid && !project.deployment?.dockerfile?.content) {
-        throw new Error("Project does not have a valid Dockerfile configured");
+      const dockerfile = project.deployment?.dockerfile;
+      if (!dockerfile?.path && !dockerfile?.content && !dockerfile?.isValid) {
+        throw new Error(
+          "No Dockerfile configured for this project. Add a Dockerfile path in project settings.",
+        );
       }
 
       const environment = deploymentData.environment || "staging";

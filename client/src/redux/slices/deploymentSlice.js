@@ -566,27 +566,17 @@ const deploymentSlice = createSlice({
         state.loading.cancel = false;
         state.success.cancel = true;
         const deployment = extractDeployment(action.payload);
-        if (!deployment?._id) return;
+        if (!deployment) return;
+        const matchDeployment = (d) =>
+          (deployment._id && String(d._id) === String(deployment._id)) ||
+          (deployment.deploymentId &&
+            String(d.deploymentId) === String(deployment.deploymentId));
 
-        // Update deployment status in all arrays (cancelled deployment)
-        const index = state.deployments.findIndex(
-          (d) => d._id === deployment._id,
-        );
-        if (index !== -1) {
-          state.deployments[index] = deployment;
-        }
-
-        const projectIndex = state.projectDeployments.findIndex(
-          (d) => d._id === deployment._id,
-        );
-        if (projectIndex !== -1) {
-          state.projectDeployments[projectIndex] = deployment;
-        }
-
-        if (
-          state.currentDeployment &&
-          state.currentDeployment._id === deployment._id
-        ) {
+        [state.deployments, state.projectDeployments].forEach((arr) => {
+          const idx = arr.findIndex(matchDeployment);
+          if (idx !== -1) arr[idx] = deployment;
+        });
+        if (state.currentDeployment && matchDeployment(state.currentDeployment)) {
           state.currentDeployment = deployment;
         }
       })
@@ -594,7 +584,9 @@ const deploymentSlice = createSlice({
         state.loading.cancel = false;
         state.error.cancel = action.payload;
         state.success.cancel = false;
-      }); // Stop deployment
+      });
+
+    // Stop deployment
     builder
       .addCase(stopDeployment.pending, (state) => {
         state.loading.stop = true;
@@ -605,25 +597,17 @@ const deploymentSlice = createSlice({
         state.loading.stop = false;
         state.success.stop = true;
         const updatedDeployment = extractDeployment(action.payload);
-        if (!updatedDeployment?._id) return;
+        if (!updatedDeployment) return;
+        const matchDeployment = (d) =>
+          (updatedDeployment._id && String(d._id) === String(updatedDeployment._id)) ||
+          (updatedDeployment.deploymentId &&
+            String(d.deploymentId) === String(updatedDeployment.deploymentId));
 
-        // Update deployment status in all relevant arrays
-        [state.deployments, state.projectDeployments].forEach(
-          (deploymentArray) => {
-            const index = deploymentArray.findIndex(
-              (d) => d._id === updatedDeployment._id,
-            );
-            if (index !== -1) {
-              deploymentArray[index] = updatedDeployment;
-            }
-          },
-        );
-
-        // Update current deployment
-        if (
-          state.currentDeployment &&
-          state.currentDeployment._id === updatedDeployment._id
-        ) {
+        [state.deployments, state.projectDeployments].forEach((arr) => {
+          const idx = arr.findIndex(matchDeployment);
+          if (idx !== -1) arr[idx] = updatedDeployment;
+        });
+        if (state.currentDeployment && matchDeployment(state.currentDeployment)) {
           state.currentDeployment = updatedDeployment;
         }
       })
@@ -643,25 +627,17 @@ const deploymentSlice = createSlice({
         state.loading.restart = false;
         state.success.restart = true;
         const updatedDeployment = extractDeployment(action.payload);
-        if (!updatedDeployment?._id) return;
+        if (!updatedDeployment) return;
+        const matchDeployment = (d) =>
+          (updatedDeployment._id && String(d._id) === String(updatedDeployment._id)) ||
+          (updatedDeployment.deploymentId &&
+            String(d.deploymentId) === String(updatedDeployment.deploymentId));
 
-        // Update deployment status in all relevant arrays
-        [state.deployments, state.projectDeployments].forEach(
-          (deploymentArray) => {
-            const index = deploymentArray.findIndex(
-              (d) => d._id === updatedDeployment._id,
-            );
-            if (index !== -1) {
-              deploymentArray[index] = updatedDeployment;
-            }
-          },
-        );
-
-        // Update current deployment
-        if (
-          state.currentDeployment &&
-          state.currentDeployment._id === updatedDeployment._id
-        ) {
+        [state.deployments, state.projectDeployments].forEach((arr) => {
+          const idx = arr.findIndex(matchDeployment);
+          if (idx !== -1) arr[idx] = updatedDeployment;
+        });
+        if (state.currentDeployment && matchDeployment(state.currentDeployment)) {
           state.currentDeployment = updatedDeployment;
         }
       })
