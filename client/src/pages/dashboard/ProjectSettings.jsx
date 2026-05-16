@@ -212,7 +212,7 @@ const ProjectSettings = () => {
       {!isOwner && (
         <motion.div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
           You are a collaborator on this project. Project settings are read-only.
-        </div>
+        </motion.div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
