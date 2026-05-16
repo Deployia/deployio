@@ -282,15 +282,16 @@ class DeploymentService:
             }
 
             if settings.enable_container_healthcheck:
-                # Optional. Some app images fail generic checks and get
-                # filtered out by Traefik as unhealthy.
+                # Optional runtime probe (wget or python for slim Python images).
                 run_kwargs["healthcheck"] = {
                     "Test": [
                         "CMD-SHELL",
                         (
                             f"wget -qO- http://127.0.0.1:{runtime_port}/health "
-                            f"|| wget -qO- http://127.0.0.1:{runtime_port}/api/health "
-                            f"|| wget -qO- http://127.0.0.1:{runtime_port}/ "
+                            f"2>/dev/null || wget -qO- http://127.0.0.1:{runtime_port}/api/health "
+                            f"2>/dev/null || wget -qO- http://127.0.0.1:{runtime_port}/ "
+                            f"2>/dev/null || python -c \"import urllib.request; "
+                            f"urllib.request.urlopen('http://127.0.0.1:{runtime_port}/')\" "
                             "|| exit 1"
                         ),
                     ],
@@ -299,6 +300,11 @@ class DeploymentService:
                     "Retries": 3,
                     "StartPeriod": 15_000_000_000,
                 }
+            else:
+                # Disable Dockerfile HEALTHCHECK. Broken image checks (e.g. wget on
+                # python:slim) mark the container unhealthy and Traefik excludes it,
+                # so requests fall through to the landing-page catch-all router.
+                run_kwargs["healthcheck"] = {"Test": ["NONE"]}
 
             # Run the container
             await _log("info", "🚀 Starting container...")
