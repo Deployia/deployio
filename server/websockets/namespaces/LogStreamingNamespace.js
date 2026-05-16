@@ -954,6 +954,14 @@ class LogStreamingNamespace {
           .select("runtime.containerId status")
           .lean();
         const st = String(deployment?.status || "").toLowerCase();
+        const inBuildPipeline = [
+          "pending",
+          "queued",
+          "cloning",
+          "detecting",
+          "building",
+          "deploying",
+        ].includes(st);
         const terminalWithoutRuntime = [
           "failed",
           "stopped",
@@ -962,6 +970,9 @@ class LogStreamingNamespace {
           "deleted",
         ].includes(st);
         const hasContainer = Boolean(deployment?.runtime?.containerId);
+        if (inBuildPipeline && !hasContainer) {
+          return;
+        }
         if (terminalWithoutRuntime && !hasContainer) {
           const handle = this.deploymentRealtimePollers.get(pollerKey);
           if (handle) {

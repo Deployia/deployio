@@ -326,6 +326,26 @@ class DeploymentOrchestrator {
 
       const previousStatus = existing.status;
 
+      const buildPipelineStatuses = new Set([
+        "pending",
+        "queued",
+        "cloning",
+        "detecting",
+        "building",
+        "deploying",
+      ]);
+      if (
+        buildPipelineStatuses.has(previousStatus) &&
+        status === "stopped" &&
+        !existing.runtime?.containerId
+      ) {
+        logger.debug("Ignoring spurious stopped status during build pipeline", {
+          deploymentId,
+          previousStatus,
+        });
+        return;
+      }
+
       const deployment = await Deployment.findOneAndUpdate(
         { deploymentId },
         { $set: setFields, ...(pushFields ? { $push: pushFields } : {}) },

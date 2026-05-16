@@ -204,13 +204,16 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         final_status = result.get("status", "unknown")
         if final_status == "error":
             final_status = "failed"
-        await self._emit_status_update(
-            deployment_id,
-            final_status,
-            result.get("error", f"Deployment {final_status}"),
-            container_id=result.get("container_id"),
-            url=result.get("url"),
-        )
+        # Pipeline callbacks already emit terminal "running"; only re-emit failures
+        # to avoid duplicate success notifications and DB races.
+        if final_status != "running":
+            await self._emit_status_update(
+                deployment_id,
+                final_status,
+                result.get("error", f"Deployment {final_status}"),
+                container_id=result.get("container_id"),
+                url=result.get("url"),
+            )
 
     async def _handle_deploy_stop(self, data: Dict[str, Any]):
         deployment_id = data.get("deploymentId")
@@ -248,6 +251,9 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
 
         result = await deployment_service.get_status(deployment_id, container_id=container_id)
         raw_status = result.get("status", "unknown")
+        # No container yet during clone/build — do not report as "stopped".
+        if raw_status in ("not_found", "unknown"):
+            return
         mapped = _normalize_runtime_status(raw_status)
         await self._emit_status_update(
             deployment_id,
