@@ -4,6 +4,7 @@ const Project = require("@models/Project");
 const logger = require("@config/logger");
 const deploymentOrchestrator = require("./deploymentOrchestrator");
 const subdomainManager = require("./subdomainManager");
+const { buildDeploymentLookup } = require("../../utils/deploymentLookup");
 
 const ACTIVE_DEPLOYMENT_STATUSES = [
   "pending",
@@ -65,7 +66,12 @@ class DeploymentService {
   }
 
   async _findAccessibleDeployment(deploymentId, userId) {
-    const deployment = await Deployment.findById(deploymentId)
+    const lookup = buildDeploymentLookup(deploymentId);
+    if (!lookup) {
+      throw new Error("Deployment not found");
+    }
+
+    const deployment = await Deployment.findOne(lookup)
       .populate("project", "owner collaborators")
       .populate("deployedBy", "name email");
 
@@ -399,8 +405,10 @@ class DeploymentService {
       // Trigger re-deployment via orchestrator
       try {
         const deploymentOrchestrator = require("./deploymentOrchestrator");
-        const deployment =
-          await Deployment.findById(deploymentId).populate("project");
+        const lookup = buildDeploymentLookup(deploymentId);
+        const deployment = lookup
+          ? await Deployment.findOne(lookup).populate("project")
+          : null;
         if (deployment && deployment.project) {
           await deploymentOrchestrator.triggerDeploy(
             deployment,

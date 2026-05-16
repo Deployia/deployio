@@ -150,10 +150,14 @@ class DeploymentOrchestrator {
         ? project.deployment.environment[deploymentEnvironment]
         : [];
 
+      const { normalizeEnvVarValue } = require("../../utils/envVarNormalize");
       const mergedEnvVars = [...projectEnvVars, ...deploymentEnvVars].reduce(
         (acc, envVar) => {
           if (!envVar?.key) return acc;
-          acc[envVar.key] = envVar.value ?? "";
+          acc[envVar.key] = normalizeEnvVarValue(
+            envVar.key,
+            envVar.value ?? "",
+          );
           return acc;
         },
         {},

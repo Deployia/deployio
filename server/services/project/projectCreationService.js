@@ -272,12 +272,13 @@ class ProjectCreationService {
     };
 
     const envInput = config.environmentVariables || {};
+    const { normalizeEnvVarValue } = require("../../utils/envVarNormalize");
     const mapEnv = (list = []) =>
       list
         .filter((env) => env?.key)
         .map((env) => ({
           key: env.key,
-          value: env.value || "",
+          value: normalizeEnvVarValue(env.key, env.value || ""),
           isSecret: !!env.isSecret,
           required: !!env.required,
           source: env.source || "user",

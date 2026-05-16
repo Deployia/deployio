@@ -46,8 +46,15 @@ const validateStatusUpdate = [
     .withMessage("Invalid status value"),
 ];
 
-const validateObjectId = [
-  param("id").isMongoId().withMessage("Invalid deployment ID"),
+const { isDeploymentIdentifier } = require("../../../../utils/deploymentLookup");
+
+const validateDeploymentId = [
+  param("id")
+    .custom((value) => {
+      if (isDeploymentIdentifier(value)) return true;
+      throw new Error("Invalid deployment ID");
+    })
+    .withMessage("Invalid deployment ID"),
 ];
 
 // Routes
@@ -62,7 +69,7 @@ router.get("/", deploymentController.getAllDeployments);
  * @desc Get deployment by ID
  * @route GET /api/v1/deployments/:id
  */
-router.get("/:id", validateObjectId, deploymentController.getDeploymentById);
+router.get("/:id", validateDeploymentId, deploymentController.getDeploymentById);
 
 /**
  * @desc Update deployment status
@@ -70,7 +77,7 @@ router.get("/:id", validateObjectId, deploymentController.getDeploymentById);
  */
 router.patch(
   "/:id/status",
-  validateObjectId,
+  validateDeploymentId,
   validateStatusUpdate,
   deploymentController.updateDeploymentStatus,
 );
@@ -81,7 +88,7 @@ router.patch(
  */
 router.post(
   "/:id/restart",
-  validateObjectId,
+  validateDeploymentId,
   deploymentController.restartDeployment,
 );
 
@@ -91,7 +98,7 @@ router.post(
  */
 router.post(
   "/:id/cancel",
-  validateObjectId,
+  validateDeploymentId,
   deploymentController.cancelDeployment,
 );
 
@@ -99,13 +106,13 @@ router.post(
  * @desc Stop deployment
  * @route POST /api/v1/deployments/:id/stop
  */
-router.post("/:id/stop", validateObjectId, deploymentController.stopDeployment);
+router.post("/:id/stop", validateDeploymentId, deploymentController.stopDeployment);
 
 /**
  * @desc Delete deployment
  * @route DELETE /api/v1/deployments/:id
  */
-router.delete("/:id", validateObjectId, deploymentController.deleteDeployment);
+router.delete("/:id", validateDeploymentId, deploymentController.deleteDeployment);
 
 /**
  * @desc Get deployment logs
@@ -113,7 +120,7 @@ router.delete("/:id", validateObjectId, deploymentController.deleteDeployment);
  */
 router.get(
   "/:id/logs",
-  validateObjectId,
+  validateDeploymentId,
   [
     query("level").optional().isIn(["info", "warn", "error", "debug"]),
     query("source").optional().isIn(["build", "deploy", "runtime"]),
@@ -123,6 +130,6 @@ router.get(
   deploymentController.getDeploymentLogs,
 );
 
-router.get("/:id/probe", validateObjectId, deploymentController.probeDeployment);
+router.get("/:id/probe", validateDeploymentId, deploymentController.probeDeployment);
 
 module.exports = router;
