@@ -1,208 +1,194 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useSyncExternalStore } from "react";
 import webSocketService from "../services/websocketService";
 
+/** Module-level singleton so App + NotificationBell share one socket and listener bus */
+const globalListeners = new Map();
+let socketRef = null;
+let connectionPromise = null;
+let subscriberCount = 0;
+let connectionState = {
+  isConnected: false,
+  isLoading: false,
+  error: null,
+};
+
+const connectionSubscribers = new Set();
+
+function notifyConnectionSubscribers() {
+  connectionSubscribers.forEach((cb) => cb());
+}
+
+function emitToListeners(event, data) {
+  const listeners = globalListeners.get(event);
+  if (listeners) {
+    listeners.forEach((callback) => {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error(`Error in notification listener for ${event}:`, error);
+      }
+    });
+  }
+}
+
+function attachSocketHandlers(socket) {
+  socket.off("connect");
+  socket.off("disconnect");
+  socket.off("notification");
+  socket.off("new_notification");
+  socket.off("unread_count");
+  socket.off("notification_marked_read");
+  socket.off("all_notifications_marked_read");
+  socket.off("error");
+
+  socket.on("connect", () => {
+    connectionState = { ...connectionState, isConnected: true, error: null };
+    notifyConnectionSubscribers();
+    socket.emit("subscribe_to_notifications");
+    socket.emit("get_unread_count");
+  });
+
+  socket.on("disconnect", () => {
+    connectionState = { ...connectionState, isConnected: false };
+    notifyConnectionSubscribers();
+  });
+
+  const handleIncoming = (notification) => {
+    emitToListeners("new_notification", notification);
+  };
+
+  socket.on("notification", handleIncoming);
+  socket.on("new_notification", handleIncoming);
+
+  socket.on("unread_count", (payload) => {
+    const count =
+      typeof payload === "number" ? payload : payload?.count ?? 0;
+    emitToListeners("unread_count_changed", { count });
+  });
+
+  socket.on("notification_marked_read", (data) => {
+    emitToListeners("notification_read", data);
+  });
+
+  socket.on("all_notifications_marked_read", (data) => {
+    emitToListeners("all_notifications_read", data);
+  });
+
+  socket.on("error", (error) => {
+    connectionState = {
+      ...connectionState,
+      error: error?.message || "Connection error",
+    };
+    notifyConnectionSubscribers();
+    emitToListeners("error", error);
+  });
+}
+
+async function ensureConnected() {
+  if (socketRef?.connected) {
+    return socketRef;
+  }
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
+  connectionState = { ...connectionState, isLoading: true, error: null };
+  notifyConnectionSubscribers();
+
+  connectionPromise = (async () => {
+    try {
+      const socket = await webSocketService.connect("/notifications");
+      socketRef = socket;
+      attachSocketHandlers(socket);
+      connectionState = {
+        isConnected: socket.connected,
+        isLoading: false,
+        error: null,
+      };
+      notifyConnectionSubscribers();
+      return socket;
+    } catch (error) {
+      connectionState = {
+        isConnected: false,
+        isLoading: false,
+        error: error.message,
+      };
+      notifyConnectionSubscribers();
+      throw error;
+    } finally {
+      connectionPromise = null;
+    }
+  })();
+
+  return connectionPromise;
+}
+
+function subscribeToConnection(callback) {
+  connectionSubscribers.add(callback);
+  return () => connectionSubscribers.delete(callback);
+}
+
+function getConnectionSnapshot() {
+  return connectionState;
+}
+
 /**
- * React hook for WebSocket notifications
- * Provides real-time notification functionality with the new architecture
+ * React hook for WebSocket notifications (singleton connection + listener bus)
  */
 function useNotifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const conn = useSyncExternalStore(
+    subscribeToConnection,
+    getConnectionSnapshot,
+    getConnectionSnapshot
+  );
 
-  const socketRef = useRef(null);
-  const listenersRef = useRef(new Map());
+  useEffect(() => {
+    subscriberCount += 1;
+    ensureConnected().catch(() => {});
 
-  const emitToListeners = useCallback((event, data) => {
-    const listeners = listenersRef.current.get(event);
-    if (listeners) {
-      listeners.forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`Error in notification listener for ${event}:`, error);
+    return () => {
+      subscriberCount -= 1;
+      if (subscriberCount <= 0) {
+        subscriberCount = 0;
+        if (socketRef) {
+          webSocketService.disconnect("/notifications");
+          socketRef = null;
         }
-      });
-    }
+        connectionState = {
+          isConnected: false,
+          isLoading: false,
+          error: null,
+        };
+        notifyConnectionSubscribers();
+      }
+    };
   }, []);
 
   const addListener = useCallback((event, callback) => {
-    if (!listenersRef.current.has(event)) {
-      listenersRef.current.set(event, new Set());
+    if (!globalListeners.has(event)) {
+      globalListeners.set(event, new Set());
     }
-    listenersRef.current.get(event).add(callback);
+    globalListeners.get(event).add(callback);
+    return () => globalListeners.get(event)?.delete(callback);
   }, []);
 
   const removeListener = useCallback((event, callback) => {
-    const listeners = listenersRef.current.get(event);
-    if (listeners) {
-      listeners.delete(callback);
-    }
+    globalListeners.get(event)?.delete(callback);
   }, []);
-  // Initialize WebSocket connection
-  useEffect(() => {
-    let mounted = true;
-    const currentListeners = listenersRef.current;
 
-    const initializeConnection = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Connect to notifications namespace
-        const socket = await webSocketService.connect("/notifications");
-
-        if (!mounted) return;
-
-        socketRef.current = socket;
-        setIsConnected(socket.connected);
-
-        // Set up event handlers
-        socket.on("connect", () => {
-          if (mounted) {
-            setIsConnected(true);
-            setError(null);
-            console.log("Connected to notifications");
-
-            // Request initial data
-            socket.emit("subscribe_to_notifications");
-            socket.emit("get_unread_count");
-          }
-        });
-
-        socket.on("disconnect", (reason) => {
-          if (mounted) {
-            setIsConnected(false);
-            console.log("Disconnected from notifications:", reason);
-          }
-        });
-
-        socket.on("notification", (notification) => {
-          if (mounted) {
-            setNotifications((prev) => [notification, ...prev]);
-            if (!notification.isTest && !notification.isWelcome) {
-              setUnreadCount((prev) => prev + 1);
-            }
-            emitToListeners("new_notification", notification);
-
-            // Show browser notification if permission granted
-            if (Notification.permission === "granted" && !notification.isTest) {
-              new Notification(notification.title || "DeployIO Notification", {
-                body: notification.message,
-                icon: "/favicon.ico",
-                tag: notification.id,
-              });
-            }
-          }
-        });
-
-        socket.on("new_notification", (notification) => {
-          if (mounted) {
-            setNotifications((prev) => [notification, ...prev]);
-            if (!notification.isTest && !notification.isWelcome) {
-              setUnreadCount((prev) => prev + 1);
-            }
-            emitToListeners("new_notification", notification);
-
-            // Show browser notification if permission granted
-            if (Notification.permission === "granted" && !notification.isTest) {
-              new Notification(notification.title || "DeployIO Notification", {
-                body: notification.message,
-                icon: "/favicon.ico",
-                tag: notification.id,
-              });
-            }
-          }
-        });
-
-        socket.on("unread_count", (payload) => {
-          if (mounted) {
-            const count =
-              typeof payload === "number" ? payload : payload?.count ?? 0;
-            setUnreadCount(count);
-            emitToListeners("unread_count_changed", { count });
-          }
-        });
-
-        socket.on("notification_marked_read", (data) => {
-          if (mounted) {
-            setNotifications((prev) =>
-              prev.map((notif) =>
-                notif._id === data.notificationId
-                  ? { ...notif, status: "read", readAt: data.readAt }
-                  : notif
-              )
-            );
-            setUnreadCount((prev) => Math.max(0, prev - 1));
-            emitToListeners("notification_read", data);
-          }
-        });
-
-        socket.on("all_notifications_marked_read", (data) => {
-          if (mounted) {
-            setNotifications((prev) =>
-              prev.map((notif) => ({
-                ...notif,
-                status: "read",
-                readAt: new Date(),
-              }))
-            );
-            setUnreadCount(0);
-            emitToListeners("all_notifications_read", data);
-          }
-        });
-
-        socket.on("subscribed_to_notifications", (data) => {
-          console.log("Subscribed to notifications:", data);
-        });
-
-        socket.on("error", (error) => {
-          if (mounted) {
-            console.error("Notification WebSocket error:", error);
-            setError(error.message || "Connection error");
-            emitToListeners("error", error);
-          }
-        });
-
-        setIsLoading(false);
-      } catch (error) {
-        if (mounted) {
-          console.error("Failed to initialize notifications:", error);
-          setError(error.message);
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initializeConnection();
-
-    return () => {
-      mounted = false;
-      if (socketRef.current) {
-        webSocketService.disconnect("/notifications");
-        socketRef.current = null;
-      }
-      currentListeners.clear();
-    };
-  }, [emitToListeners]);
-
-  // Mark notification as read
   const markAsRead = useCallback((notificationId) => {
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit("mark_read", { notificationId });
+    if (socketRef?.connected) {
+      socketRef.emit("mark_read", { notificationId });
     }
   }, []);
 
-  // Mark all notifications as read
   const markAllAsRead = useCallback(() => {
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit("mark_all_read");
+    if (socketRef?.connected) {
+      socketRef.emit("mark_all_read");
     }
   }, []);
 
-  // Request notification permission
   const requestPermission = useCallback(async () => {
     if ("Notification" in window && Notification.permission === "default") {
       const permission = await Notification.requestPermission();
@@ -211,31 +197,24 @@ function useNotifications() {
     return Notification.permission === "granted";
   }, []);
 
-  // Clear error
   const clearError = useCallback(() => {
-    setError(null);
+    connectionState = { ...connectionState, error: null };
+    notifyConnectionSubscribers();
   }, []);
 
   return {
-    // State
-    notifications,
-    unreadCount,
-    isConnected,
-    isLoading,
-    error,
-
-    // Actions
+    notifications: [],
+    unreadCount: 0,
+    isConnected: conn.isConnected,
+    isLoading: conn.isLoading,
+    error: conn.error,
     markAsRead,
     markAllAsRead,
     requestPermission,
     clearError,
-
-    // Event listeners
     addListener,
     removeListener,
-
-    // Utilities
-    hasPermission: Notification?.permission === "granted",
+    hasPermission: typeof Notification !== "undefined" && Notification?.permission === "granted",
   };
 }
 

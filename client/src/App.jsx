@@ -8,9 +8,6 @@ import Layout from "@components/Layout";
 import Modal from "@components/Modal";
 import ScrollToTop from "@components/ScrollToTop";
 
-// Hooks
-import useNotifications from "@hooks/useNotifications";
-
 // Lazy loaded components for performance optimization
 import Home from "@pages/marketing/Home";
 import NotFound from "@pages/NotFound";
@@ -40,9 +37,6 @@ const CookiePolicy = lazy(() => import("@legal/CookiePolicy"));
 function App() {
   const { loading } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
-
-  // Initialize notification service using the new hook
-  useNotifications();
 
   // Initialize authentication state on app load
   useEffect(() => {

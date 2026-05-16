@@ -1,6 +1,9 @@
 const notificationService = require("./notificationService");
 const logger = require("../../config/logger");
 const { getFrontendUrl, projectDashboardUrl } = require("./notificationUrls");
+const {
+  buildDeploymentNotificationContext,
+} = require("./notificationContext");
 
 function projectAnalysisUrl(projectId) {
   if (projectId) {
@@ -31,15 +34,14 @@ class NotificationHelpers {
         title: `Deployment Started`,
         message: `Your deployment for ${projectName} has started successfully.`,
         priority: "normal",
-        context: {
-          project: { name: projectName, _id: projectId },
-          deployment: {
-            _id: deploymentId,
-            environmentName: environment,
-            url: deploymentData.url,
-            logsUrl: deploymentData.logsUrl,
-          },
-        },
+        context: buildDeploymentNotificationContext({
+          projectId,
+          deploymentId,
+          projectName,
+          environment,
+          url: deploymentData.url,
+          logsUrl: deploymentData.logsUrl,
+        }),
         action: deploymentData.url
           ? {
               label: "View Deployment",
@@ -74,16 +76,15 @@ class NotificationHelpers {
         title: `Deployment Successful!`,
         message: `Your deployment for ${projectName} has completed successfully.`,
         priority: "normal",
-        context: {
-          project: { name: projectName, _id: projectId },
-          deployment: {
-            _id: deploymentId,
-            environmentName: environment,
-            url: deploymentData.url,
-            duration,
-            logsUrl: deploymentData.logsUrl,
-          },
-        },
+        context: buildDeploymentNotificationContext({
+          projectId,
+          deploymentId,
+          projectName,
+          environment,
+          url: deploymentData.url,
+          logsUrl: deploymentData.logsUrl,
+          duration,
+        }),
         action: deploymentData.url
           ? {
               label: "View Live Application",
@@ -123,15 +124,14 @@ class NotificationHelpers {
         title: `Deployment Failed`,
         message: `Your deployment for ${projectName} has failed. Please check the logs for details.`,
         priority: "high",
-        context: {
-          project: { name: projectName, _id: projectId },
-          deployment: {
-            _id: deploymentId,
-            environmentName: environment,
-            logsUrl: deploymentData.logsUrl,
-          },
+        context: buildDeploymentNotificationContext({
+          projectId,
+          deploymentId,
+          projectName,
+          environment,
+          logsUrl: deploymentData.logsUrl,
           error: deploymentError,
-        },
+        }),
         action: deploymentData.logsUrl
           ? {
               label: "View Logs",
@@ -166,15 +166,14 @@ class NotificationHelpers {
         title: `Deployment Stopped`,
         message: `Your deployment for ${projectName} has been stopped.`,
         priority: "normal",
-        context: {
-          project: { name: projectName, _id: projectId },
-          deployment: {
-            _id: deploymentId,
-            environmentName: environment,
-            logsUrl: deploymentData.logsUrl,
-          },
+        context: buildDeploymentNotificationContext({
+          projectId,
+          deploymentId,
+          projectName,
+          environment,
+          logsUrl: deploymentData.logsUrl,
           reason: reason || "Manual stop",
-        },
+        }),
         action: deploymentData.projectUrl
           ? {
               label: "Go to Project",
@@ -213,7 +212,11 @@ class NotificationHelpers {
         message: `Analysis for ${projectName} has completed successfully.`,
         priority: "normal",
         context: {
-          project: { name: projectName, _id: projectId },
+          project: projectId || undefined,
+          data: {
+            projectName,
+            projectId: projectId ? String(projectId) : undefined,
+          },
           analysis: analysisResults,
         },
         action: {
@@ -248,7 +251,11 @@ class NotificationHelpers {
         message: `Analysis for ${projectName} has failed. Please check the configuration and try again.`,
         priority: "normal",
         context: {
-          project: { name: projectName, _id: projectId },
+          project: projectId || undefined,
+          data: {
+            projectName,
+            projectId: projectId ? String(projectId) : undefined,
+          },
           error: analysisError,
         },
         action: {
@@ -285,7 +292,11 @@ class NotificationHelpers {
         message: `${projectName} has been created successfully. You can deploy it when you're ready.`,
         priority: "normal",
         context: {
-          project: { name: projectName, _id: projectId },
+          project: projectId,
+          data: {
+            projectName,
+            projectId: projectId ? String(projectId) : undefined,
+          },
         },
         action: {
           label: "View Project",

@@ -10,6 +10,14 @@ const { projectDashboardUrl } = require("../notificationUrls");
  * @param {Object} action - Notification action
  */
 function flattenNotificationContext(variables, context = {}, action = null) {
+  if (context?.data && typeof context.data === "object") {
+    Object.assign(variables, context.data);
+  }
+
+  if (context?.reason && !variables.reason) {
+    variables.reason = context.reason;
+  }
+
   const project = context.project;
   const deployment = context.deployment;
 
@@ -31,12 +39,14 @@ function flattenNotificationContext(variables, context = {}, action = null) {
     variables.environment =
       variables.environment ||
       deployment.environmentName ||
-      deployment.environment;
+      deployment.environment ||
+      deployment.config?.environment;
 
     variables.deploymentUrl =
       variables.deploymentUrl ||
       deployment.url ||
-      deployment.fullUrl;
+      deployment.fullUrl ||
+      deployment.networking?.fullUrl;
 
     variables.duration = variables.duration || deployment.duration;
 
@@ -89,7 +99,8 @@ class EmailChannel {
       const subject = this.getEmailSubject(
         notification.type,
         notification.title,
-        notification.context
+        notification.context,
+        notification.action
       );
 
       const rendered = this.templates.render(templateName, templateVariables);
@@ -296,9 +307,9 @@ class EmailChannel {
    * @param {Object} context - Notification context
    * @returns {string} Email subject
    */
-  getEmailSubject(type, title, context = {}) {
+  getEmailSubject(type, title, context = {}, action = null) {
     const flat = {};
-    flattenNotificationContext(flat, context);
+    flattenNotificationContext(flat, context, action);
     const projectLabel = flat.projectName || "Project";
 
     // The subject will be handled by our notification template system

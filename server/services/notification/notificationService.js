@@ -163,9 +163,10 @@ class NotificationService {
    */
   async sendNotification(notificationId) {
     try {
-      const notification = await Notification.findById(notificationId).populate(
-        "user"
-      );
+      const notification = await Notification.findById(notificationId)
+        .populate("user")
+        .populate("context.project", "name slug")
+        .populate("context.deployment", "status config.environment networking.fullUrl");
       if (!notification) {
         throw new Error("Notification not found");
       }

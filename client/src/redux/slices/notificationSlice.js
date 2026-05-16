@@ -261,7 +261,18 @@ const notificationSlice = createSlice({
 
         // Handle pagination - append or replace based on page
         if (action.meta.arg?.page === 1) {
-          // Preserve WebSocket-only notifications (test, welcome, etc.)
+          const apiIds = new Set(
+            notifications.map((n) => String(n._id || n.id)).filter(Boolean)
+          );
+
+          // Keep real-time items not yet returned by the API (avoids race on fetch)
+          const pendingRealtime = state.notifications.filter((n) => {
+            const id = n._id || n.id;
+            if (!id) return false;
+            if (apiIds.has(String(id))) return false;
+            return !n.isTest && !n.isWelcome;
+          });
+
           const webSocketOnlyNotifications = state.notifications.filter(
             (notification) =>
               notification.isTest ||
@@ -269,7 +280,6 @@ const notificationSlice = createSlice({
               notification.source === "connection_confirmation"
           );
 
-          // Merge API notifications with WebSocket-only notifications
           const apiNotifications = notifications.filter(
             (apiNotification) =>
               !webSocketOnlyNotifications.some((wsNotification) => {
@@ -279,10 +289,20 @@ const notificationSlice = createSlice({
               })
           );
 
-          state.notifications = [
+          const merged = [
+            ...pendingRealtime,
             ...webSocketOnlyNotifications,
             ...apiNotifications,
           ];
+
+          const seen = new Set();
+          state.notifications = merged.filter((n) => {
+            const id = String(n._id || n.id || "");
+            if (!id) return true;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
         } else {
           // Append for pagination
           state.notifications.push(...notifications);

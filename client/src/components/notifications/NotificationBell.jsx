@@ -39,12 +39,6 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
     syncNotifications();
   }, [isAuthenticated, syncNotifications]);
 
-  // Re-sync when WebSocket connects (authoritative count + list)
-  useEffect(() => {
-    if (!isAuthenticated || !wsConnected) return;
-    syncNotifications();
-  }, [isAuthenticated, wsConnected, syncNotifications]);
-
   // Light polling fallback to keep badge accurate
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -63,6 +57,8 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
     const handleNewNotification = (notification) => {
       dispatch(addNotification(notification));
       dispatch(fetchUnreadCount());
+      // Merge API list without dropping the realtime item (handled in slice)
+      dispatch(fetchNotifications({ page: 1, limit: 20 }));
     };
 
     const handleCountUpdate = (data) => {
