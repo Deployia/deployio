@@ -485,13 +485,26 @@ class DeploymentService {
       return deployment;
     }
 
-    if (deployment.status === "running") {
+    const deploymentId = deployment.deploymentId;
+    const priorStatus = deployment.status;
+    const isRunningLike = priorStatus === "running" || priorStatus === "stopping";
+
+    if (isRunningLike) {
       await deployment.updateStatus("stopping", { reason, stoppingAt: new Date() });
+    }
+
+    if (
+      deploymentId &&
+      (ACTIVE_DEPLOYMENT_STATUSES.includes(priorStatus) || priorStatus === "stopping")
+    ) {
       try {
-        await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+        await deploymentOrchestrator.stopDeploy(deploymentId);
       } catch (orchErr) {
         logger.warn("System stop failed (non-blocking):", orchErr.message);
       }
+    }
+
+    if (isRunningLike) {
       await deployment.updateStatus("stopped", { reason, stoppedAt: new Date() });
       return deployment;
     }

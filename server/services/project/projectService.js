@@ -1,6 +1,6 @@
 const Project = require("@models/Project");
 const Deployment = require("@models/Deployment");
-const { deployment } = require("@services");
+const deploymentService = require("../deployment/deploymentService");
 const logger = require("@config/logger");
 const subdomainManager = require("@services/deployment/subdomainManager");
 
@@ -19,7 +19,7 @@ class ProjectService {
 
     for (const deploymentRecord of deployments) {
       if (ACTIVE_DEPLOYMENT_STATUSES.includes(deploymentRecord.status)) {
-        await deployment.stopDeploymentBySystem(deploymentRecord, reason);
+        await deploymentService.stopDeploymentBySystem(deploymentRecord, reason);
       }
       if (deploymentRecord.status !== "deleted") {
         await deploymentRecord.updateStatus("deleted", {
