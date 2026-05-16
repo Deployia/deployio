@@ -10,28 +10,31 @@ const PREVIEW_POLL_MS = 10_000;
 const MINI_VIEWPORT_WIDTH = 1280;
 const MINI_VIEWPORT_HEIGHT = 720;
 
+const DEFAULT_SANDBOX =
+  "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox";
+
 /**
  * Live app preview iframe. Refreshes periodically and on status changes so
  * previews recover after Traefik switches from the landing-page fallback.
  *
- * `variant="mini"` renders a fixed desktop viewport scaled down inside the
- * container so the site layout is not squashed by a responsive iframe.
+ * - `fill` — iframe fills the parent (best for detail panels).
+ * - `mini` — desktop viewport scaled down with a clipping wrapper (card thumbnails).
  */
 const DeploymentPreviewIframe = ({
   deployment,
   liveStatus = null,
   title = "deployment-preview",
   className = "w-full h-full border-0",
-  sandbox = "allow-same-origin allow-scripts allow-forms",
+  sandbox = DEFAULT_SANDBOX,
   pointerEventsNone = false,
-  variant = "mini",
+  variant = "fill",
   onError,
 }) => {
   const baseUrl = getDeploymentUrl(deployment);
   const effectiveStatus = liveStatus?.status || deployment?.status;
   const [refreshTick, setRefreshTick] = useState(0);
   const containerRef = useRef(null);
-  const [miniScale, setMiniScale] = useState(0.28);
+  const [miniScale, setMiniScale] = useState(0.25);
 
   const isLive = isLiveForPreview(effectiveStatus);
 
@@ -64,7 +67,7 @@ const DeploymentPreviewIframe = ({
         h / MINI_VIEWPORT_HEIGHT,
         1,
       );
-      setMiniScale(Math.max(0.12, scale));
+      setMiniScale(Math.max(0.15, scale));
     };
 
     updateScale();
@@ -81,43 +84,54 @@ const DeploymentPreviewIframe = ({
 
   if (!isLive || !previewUrl) return null;
 
+  const pointerClass = pointerEventsNone ? " pointer-events-none" : "";
+  const iframeCommon = {
+    key: previewUrl,
+    title,
+    src: previewUrl,
+    sandbox,
+    loading: "eager",
+    referrerPolicy: "no-referrer-when-downgrade",
+    onError,
+  };
+
   if (variant === "mini") {
+    const scaledWidth = MINI_VIEWPORT_WIDTH * miniScale;
+    const scaledHeight = MINI_VIEWPORT_HEIGHT * miniScale;
+
     return (
       <div
         ref={containerRef}
-        className="relative w-full h-full overflow-hidden bg-neutral-950"
+        className="relative w-full h-full min-h-[8rem] overflow-hidden bg-neutral-950 flex items-center justify-center"
       >
-        <iframe
-          key={previewUrl}
-          title={title}
-          src={previewUrl}
-          sandbox={sandbox}
-          width={MINI_VIEWPORT_WIDTH}
-          height={MINI_VIEWPORT_HEIGHT}
-          loading="lazy"
-          onError={onError}
-          className={`absolute top-0 left-0 border-0 origin-top-left${
-            pointerEventsNone ? " pointer-events-none" : ""
-          }`}
+        <div
+          className="overflow-hidden"
           style={{
-            width: MINI_VIEWPORT_WIDTH,
-            height: MINI_VIEWPORT_HEIGHT,
-            transform: `scale(${miniScale})`,
+            width: `${scaledWidth}px`,
+            height: `${scaledHeight}px`,
+            maxWidth: "100%",
+            maxHeight: "100%",
           }}
-        />
+        >
+          <iframe
+            {...iframeCommon}
+            className={`block border-0 origin-top-left${pointerClass}`}
+            style={{
+              width: MINI_VIEWPORT_WIDTH,
+              height: MINI_VIEWPORT_HEIGHT,
+              transform: `scale(${miniScale})`,
+              transformOrigin: "0 0",
+            }}
+          />
+        </div>
       </div>
     );
   }
 
   return (
     <iframe
-      key={previewUrl}
-      title={title}
-      src={previewUrl}
-      sandbox={sandbox}
-      className={`${className}${pointerEventsNone ? " pointer-events-none" : ""}`}
-      loading="lazy"
-      onError={onError}
+      {...iframeCommon}
+      className={`${className}${pointerClass}`}
     />
   );
 };

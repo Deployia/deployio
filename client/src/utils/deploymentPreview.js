@@ -1,6 +1,25 @@
 /** Base deployment URL (no cache-busting). */
-export const getDeploymentUrl = (deployment) =>
-  deployment?.url || deployment?.networking?.fullUrl || null;
+export const getDeploymentUrl = (deployment) => {
+  const direct =
+    deployment?.url ||
+    deployment?.networking?.fullUrl ||
+    deployment?.fullUrl ||
+    null;
+  if (direct) return direct;
+
+  const subdomain =
+    deployment?.subdomain || deployment?.config?.subdomain || deployment?.networking?.subdomain;
+  if (!subdomain) return null;
+
+  const baseDomain =
+    import.meta.env.VITE_DEPLOYMENT_BASE_DOMAIN ||
+    import.meta.env.VITE_APP_DOMAIN ||
+    null;
+  if (!baseDomain) return null;
+
+  const host = String(baseDomain).replace(/^\.+/, "");
+  return `https://${subdomain}.${host}`;
+};
 
 export const isLiveForPreview = (status) =>
   status === "running" || status === "success";

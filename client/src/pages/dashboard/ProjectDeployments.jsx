@@ -749,6 +749,8 @@ const ProjectDeployments = () => {
                         <div className="h-40 rounded overflow-hidden bg-black/40">
                           <DeploymentPreviewIframe
                             deployment={deployment}
+                            variant="mini"
+                            pointerEventsNone
                             title={`card-preview-${deployment._id || deployment.deploymentId || deployment.id}`}
                           />
                         </div>
@@ -1100,10 +1102,12 @@ const ProjectDeployments = () => {
                             : JSON.stringify(selectedProbe?.probe?.preview?.body || {}, null, 2)}
                         </pre>
                       ) : !iframeFailed ? (
-                        <div className="h-48 rounded-lg overflow-hidden border border-neutral-800">
+                        <div className="h-64 sm:h-72 rounded-lg overflow-hidden border border-neutral-800 bg-black/40">
                           <DeploymentPreviewIframe
                             deployment={selectedDeployment}
                             liveStatus={liveStatus}
+                            variant="fill"
+                            className="w-full h-full min-h-[16rem] border-0"
                             title="deployment-preview-inline"
                             onError={() => setIframeFailed(true)}
                           />
