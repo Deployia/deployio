@@ -1,8 +1,19 @@
-// Admin Module Controllers - New Modular Architecture
-// Organizes admin-related controllers according to BACKEND_ARCHITECTURE_PLAN.md
-
-const adminController = require("./adminController");
+const dashboardController = require("./dashboardController");
+const usersController = require("./usersController");
+const projectsController = require("./projectsController");
+const deploymentsController = require("./deploymentsController");
+const subdomainsController = require("./subdomainsController");
+const activityController = require("./activityController");
+const notificationsController = require("./notificationsController");
 
 module.exports = {
-  admin: adminController,
+  admin: {
+    ...dashboardController,
+    ...usersController,
+    ...projectsController,
+    ...deploymentsController,
+    ...subdomainsController,
+    ...activityController,
+    ...notificationsController,
+  },
 };

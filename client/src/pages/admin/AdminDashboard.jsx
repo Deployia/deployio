@@ -1,264 +1,120 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  FiUsers,
-  FiFileText,
-  FiBook,
-  FiDatabase,
-  FiTrendingUp,
-  FiActivity,
-  FiServer,
-  FiShield,
-} from "react-icons/fi";
+import { FaUsers, FaProjectDiagram, FaServer, FaRocket, FaGlobe } from "react-icons/fa";
+import adminService from "@/services/adminService";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminStatGrid from "@/components/admin/AdminStatGrid";
+import AdminOverviewCharts from "@/components/admin/charts/AdminOverviewCharts";
+import AdminErrorBanner from "@/components/admin/AdminErrorBanner";
+import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
+import { adminTokens } from "@/constants/adminDesignTokens";
+import { formatDate } from "@/utils/adminFormatters";
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState({
-    users: 0,
-    projects: 0,
-    blogs: 0,
-    deployments: 0,
-    activeDeployments: 0,
-    totalStorage: "0 MB",
-  });
-
-  const [activities, setActivities] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch admin dashboard data
-    fetchDashboardData();
+    (async () => {
+      try {
+        const res = await adminService.getDashboardStats();
+        if (res.success) setData(res.data);
+        else setError(res.message || "Failed to load dashboard");
+      } catch (err) {
+        setError(err.response?.data?.message || "Failed to load dashboard");
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      // For now, we'll use mock data. Later you can replace with actual API calls
-      setTimeout(() => {
-        setStats({
-          users: 142,
-          projects: 58,
-          blogs: 23,
-          deployments: 187,
-          activeDeployments: 12,
-          totalStorage: "2.4 GB",
-        });
-
-        setActivities([
-          {
-            id: 1,
-            type: "user",
-            message: "New user registered: john.doe@example.com",
-            timestamp: "2 minutes ago",
-            icon: FiUsers,
-            color: "text-green-600",
-          },
-          {
-            id: 2,
-            type: "deployment",
-            message: "Deployment completed for Project Alpha",
-            timestamp: "5 minutes ago",
-            icon: FiServer,
-            color: "text-blue-600",
-          },
-          {
-            id: 3,
-            type: "blog",
-            message: "New blog post published: 'Advanced CI/CD Strategies'",
-            timestamp: "1 hour ago",
-            icon: FiBook,
-            color: "text-purple-600",
-          },
-          {
-            id: 4,
-            type: "security",
-            message: "Security scan completed for all projects",
-            timestamp: "2 hours ago",
-            icon: FiShield,
-            color: "text-orange-600",
-          },
-        ]);
-
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
-      setLoading(false);
-    }
-  };
-
-  const statCards = [
-    {
-      title: "Total Users",
-      value: stats.users,
-      icon: FiUsers,
-      color: "bg-blue-500",
-      change: "+12%",
-      changeType: "positive",
-    },
-    {
-      title: "Projects",
-      value: stats.projects,
-      icon: FiFileText,
-      color: "bg-green-500",
-      change: "+8%",
-      changeType: "positive",
-    },
-    {
-      title: "Blog Posts",
-      value: stats.blogs,
-      icon: FiBook,
-      color: "bg-purple-500",
-      change: "+15%",
-      changeType: "positive",
-    },
-    {
-      title: "Total Deployments",
-      value: stats.deployments,
-      icon: FiDatabase,
-      color: "bg-orange-500",
-      change: "+23%",
-      changeType: "positive",
-    },
-    {
-      title: "Active Deployments",
-      value: stats.activeDeployments,
-      icon: FiActivity,
-      color: "bg-red-500",
-      change: "-2%",
-      changeType: "negative",
-    },
-    {
-      title: "Storage Used",
-      value: stats.totalStorage,
-      icon: FiServer,
-      color: "bg-indigo-500",
-      change: "+5%",
-      changeType: "positive",
-    },
+  const quickLinks = [
+    { label: "Users", path: "/admin/users" },
+    { label: "Projects", path: "/admin/projects" },
+    { label: "Deployments", path: "/admin/deployments" },
+    { label: "Subdomains", path: "/admin/subdomains" },
+    { label: "Activity", path: "/admin/activity" },
+    { label: "Health", path: "/health" },
   ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className={adminTokens.pageRoot}>
+        <AdminPageHeader title="Overview" subtitle="Loading platform statistics..." />
+        <LoadingGrid columns={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          <LoadingChart height="h-64" />
+          <LoadingChart height="h-64" />
+        </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className={adminTokens.pageRoot}>
+        <AdminPageHeader title="Overview" subtitle="Platform statistics" />
+        <AdminErrorBanner message={error} />
+      </div>
+    );
+  }
+
+  const overview = data?.overview || {};
+  const charts = data?.charts || {
+    userSignupsTrend: data?.userSignupsTrend,
+    deploymentsTrend: data?.deploymentsTrend,
+    deploymentStatusBreakdown: data?.deploymentStatusBreakdown,
+    roleDistribution: data?.roleDistribution,
+  };
+
+  const stats = [
+    { label: "Total Users", value: overview.totalUsers ?? 0, icon: FaUsers, iconBg: "bg-blue-500/20", iconColor: "text-blue-400", href: "/admin/users" },
+    { label: "Projects", value: overview.totalProjects ?? 0, icon: FaProjectDiagram, iconBg: "bg-green-500/20", iconColor: "text-green-400", href: "/admin/projects" },
+    { label: "Deployments", value: overview.totalDeployments ?? 0, icon: FaServer, iconBg: "bg-purple-500/20", iconColor: "text-purple-400", href: "/admin/deployments" },
+    { label: "Active Deployments", value: overview.activeDeployments ?? 0, icon: FaRocket, iconBg: "bg-emerald-500/20", iconColor: "text-emerald-400", footnote: `${overview.failedDeploymentsLast7d ?? 0} failed in last 7 days`, footnoteColor: "text-red-400", href: "/admin/deployments" },
+  ];
+
   return (
-    <div className="space-y-6">
-      {" "}
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>{" "}
-        <p className="text-gray-400 mt-2">
-          Overview of your platform&apos;s performance and activity
-        </p>
-      </div>
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {statCards.map((stat, index) => (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6 hover:bg-neutral-800/70 transition-all duration-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                {" "}
-                <p className="text-sm font-medium text-gray-400">
-                  {stat.title}
-                </p>
-                <p className="text-3xl font-bold text-white mt-2">
-                  {stat.value}
-                </p>
-                <div className="flex items-center mt-2">
-                  <span
-                    className={`text-sm font-medium ${
-                      stat.changeType === "positive"
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }`}
-                  >
-                    {stat.change}
-                  </span>
-                  <span className="text-sm text-gray-500 ml-1">
-                    vs last month
-                  </span>
-                </div>
-              </div>
-              <div className={`${stat.color} p-3 rounded-lg shadow-lg`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      {/* Activity Feed & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {" "}
-        {/* Recent Activity */}
-        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg">
-          <div className="p-6 border-b border-neutral-700">
-            <h2 className="text-lg font-semibold text-white">
-              Recent Activity
-            </h2>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {activities.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3">
-                  <div
-                    className={`${activity.color} p-2 rounded-lg bg-opacity-20 border border-current border-opacity-30`}
-                  >
-                    <activity.icon className="w-4 h-4" />
+    <div className={adminTokens.pageRoot}>
+      <AdminPageHeader title="Overview" subtitle="Platform health and operational metrics" />
+      <AdminStatGrid stats={stats} columns={4} />
+      <AdminOverviewCharts charts={charts} />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={`xl:col-span-2 ${adminTokens.glassCard} ${adminTokens.glassCardPadding}`}>
+          <h2 className={`${adminTokens.sectionTitle} mb-4`}>Recent activity</h2>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {(data?.recentActivity || []).length === 0 ? (
+              <p className="text-gray-500 text-sm body">No recent activity</p>
+            ) : (
+              data.recentActivity.map((item) => (
+                <div key={item._id} className={`flex justify-between gap-2 p-3 ${adminTokens.nestedRow}`}>
+                  <div>
+                    <p className="text-gray-200 text-sm">{item.action}</p>
+                    <p className="text-gray-500 text-xs body">{item.category} · {item.severity}</p>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white">{activity.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {activity.timestamp}
-                    </p>
-                  </div>
+                  <span className="text-gray-500 text-xs whitespace-nowrap body">{formatDate(item.createdAt)}</span>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </div>
-        </div>
-        {/* Quick Actions */}
-        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg">
-          <div className="p-6 border-b border-neutral-700">
-            <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
-          </div>{" "}
-          <div className="p-6">
-            <div className="grid grid-cols-2 gap-4">
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200 group">
-                <FiUsers className="w-8 h-8 text-gray-400 group-hover:text-blue-400 mb-2" />
-                <span className="text-sm font-medium text-gray-300 group-hover:text-blue-300">
-                  Manage Users
-                </span>
-              </button>
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-green-500 hover:bg-green-500/10 transition-all duration-200 group">
-                <FiBook className="w-8 h-8 text-gray-400 group-hover:text-green-400 mb-2" />
-                <span className="text-sm font-medium text-gray-300 group-hover:text-green-300">
-                  Create Blog
-                </span>
-              </button>
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-purple-500 hover:bg-purple-500/10 transition-all duration-200 group">
-                <FiDatabase className="w-8 h-8 text-gray-400 group-hover:text-purple-400 mb-2" />
-                <span className="text-sm font-medium text-gray-300 group-hover:text-purple-300">
-                  View Deployments
-                </span>
-              </button>
-              <button className="flex flex-col items-center p-4 border-2 border-dashed border-neutral-600 rounded-lg hover:border-orange-500 hover:bg-orange-500/10 transition-all duration-200 group">
-                <FiTrendingUp className="w-8 h-8 text-gray-400 group-hover:text-orange-400 mb-2" />
-                <span className="text-sm font-medium text-gray-300 group-hover:text-orange-300">
-                  Analytics
-                </span>
-              </button>
-            </div>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`${adminTokens.glassCard} ${adminTokens.glassCardPadding}`}>
+          <h2 className={`${adminTokens.sectionTitle} mb-4`}>Quick actions</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {quickLinks.map((link) => (
+              <Link key={link.path} to={link.path} className="px-4 py-3 rounded-lg border border-dashed border-neutral-700/50 text-gray-300 hover:border-blue-500/50 hover:text-blue-400 transition-colors text-sm text-center body">{link.label}</Link>
+            ))}
           </div>
-        </div>
+          <div className={`mt-6 p-4 ${adminTokens.nestedRow}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <FaGlobe className="w-4 h-4 text-cyan-400" />
+              <span className="text-sm text-white font-medium">Subdomains</span>
+            </div>
+            <p className="text-xs text-gray-400 body">{overview.subdomainsActive ?? 0} active · {overview.subdomainsOnHold ?? 0} on hold</p>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

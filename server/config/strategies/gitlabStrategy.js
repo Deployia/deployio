@@ -9,6 +9,7 @@ const gitlabIntegrationStrategy = new GitLabStrategy(
     clientSecret: process.env.GITLAB_CLIENT_SECRET,
     callbackURL: `${process.env.BASE_URL}/api/v1/git/connect/gitlab/callback`,
     scope: GITLAB_CONNECT_SCOPES,
+    scopeSeparator: " ", // GitLab requires space-separated scopes (library default is comma → invalid_scope)
     passReqToCallback: true, // Enable req parameter to access state
   },
   async (req, accessToken, refreshToken, profile, done) => {

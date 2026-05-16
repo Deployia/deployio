@@ -1,25 +1,31 @@
-// Admin Management Routes - /api/v1/admin/admin/*
-// Core admin operations using existing adminController
+// Admin Management Routes - /api/v1/admin/*
 
 const express = require("express");
 const { admin } = require("@controllers");
 const router = express.Router();
 
-// IMPLEMENTED ROUTES
 router.get("/dashboard-stats", admin.admin.getDashboardStats);
+
 router.get("/users", admin.admin.getAllUsers);
 router.put("/users/:userId/role", admin.admin.updateUserRole);
-router.get("/blogs", admin.admin.getAllBlogs);
-router.delete("/blogs/:blogId", admin.admin.deleteBlog);
-router.get("/projects", admin.admin.getAllProjects);
-router.get("/system-logs", admin.admin.getSystemLogs);
 
-// PLANNED ROUTES - TO BE IMPLEMENTED
-// router.get("/stats", admin.admin.getSystemStats);
-// router.get("/deployments", admin.admin.getAllDeployments);
-// router.post("/maintenance", admin.admin.enableMaintenance);
-// router.delete("/maintenance", admin.admin.disableMaintenance);
-// router.post("/backup", admin.admin.createSystemBackup);
-// router.get("/health", admin.admin.getSystemHealth);
+router.get("/projects", admin.admin.getAllProjects);
+router.get("/projects/:projectId", admin.admin.getProjectById);
+router.patch("/projects/:projectId/archive", admin.admin.archiveProject);
+router.delete("/projects/:projectId", admin.admin.deleteProject);
+
+router.get("/deployments", admin.admin.getAllDeployments);
+router.get("/deployments/:deploymentId", admin.admin.getDeploymentById);
+router.post("/deployments/:deploymentId/cancel", admin.admin.cancelDeployment);
+router.post("/deployments/:deploymentId/stop", admin.admin.stopDeployment);
+
+router.get("/subdomains", admin.admin.getAllSubdomains);
+router.get("/subdomains/platform-reserved", admin.admin.getPlatformReserved);
+router.post("/subdomains/:reservationId/release", admin.admin.releaseSubdomain);
+
+router.get("/activity", admin.admin.getActivity);
+
+router.get("/notifications", admin.admin.getNotifications);
+router.post("/notifications/send", admin.admin.sendNotification);
 
 module.exports = router;

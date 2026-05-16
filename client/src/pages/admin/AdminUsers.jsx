@@ -1,308 +1,90 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import {
-  FiSearch,
-  FiFilter,
-  FiMoreVertical,
-  FiEdit,
-  FiTrash2,
-  FiShield,
-  FiUser,
-  FiMail,
-  FiCalendar,
-  FiPlus,
-} from "react-icons/fi";
+import { useState, useEffect, useCallback } from "react";
+import adminService from "@/services/adminService";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminFilters from "@/components/admin/AdminFilters";
+import AdminDataTable from "@/components/admin/AdminDataTable";
+import RoleSelect from "@/components/admin/RoleSelect";
+import { formatUserName, formatDate, StatusBadge } from "@/utils/adminFormatters";
+import { adminTokens } from "@/constants/adminDesignTokens";
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
     try {
-      // Mock data for now - replace with actual API call
-      setTimeout(() => {
-        setUsers([
-          {
-            id: 1,
-            name: "John Doe",
-            email: "john.doe@example.com",
-            role: "user",
-            status: "active",
-            createdAt: "2024-01-15",
-            lastLogin: "2024-06-17",
-            projects: 5,
-          },
-          {
-            id: 2,
-            name: "Jane Smith",
-            email: "jane.smith@example.com",
-            role: "admin",
-            status: "active",
-            createdAt: "2024-01-10",
-            lastLogin: "2024-06-16",
-            projects: 12,
-          },
-          {
-            id: 3,
-            name: "Vasu Deep",
-            email: "vasudeepu2815@gmail.com",
-            role: "admin",
-            status: "active",
-            createdAt: "2024-01-01",
-            lastLogin: "2024-06-17",
-            projects: 25,
-          },
-          {
-            id: 4,
-            name: "Bob Wilson",
-            email: "bob.wilson@example.com",
-            role: "user",
-            status: "inactive",
-            createdAt: "2024-02-20",
-            lastLogin: "2024-06-10",
-            projects: 2,
-          },
-        ]);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
+      const res = await adminService.getUsers({
+        page, limit: 10,
+        search: search || undefined,
+        role: roleFilter === "all" ? undefined : roleFilter,
+      });
+      if (res.success) {
+        setUsers(res.data.users);
+        setPagination(res.data.pagination);
+      }
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+    } finally {
       setLoading(false);
     }
+  }, [page, search, roleFilter]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchUsers, search ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [fetchUsers, search]);
+
+  const handleRoleChange = async (userId, role) => {
+    const res = await adminService.updateUserRole(userId, role);
+    if (res.success) fetchUsers();
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === "all" || user.role === filterRole;
-    return matchesSearch && matchesRole;
-  });
-  const getRoleColor = (role) => {
-    switch (role) {
-      case "admin":
-        return "bg-red-500/20 text-red-400 border border-red-500/30";
-      case "user":
-        return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
-      default:
-        return "bg-gray-500/20 text-gray-400 border border-gray-500/30";
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500/20 text-green-400 border border-green-500/30";
-      case "inactive":
-        return "bg-gray-500/20 text-gray-400 border border-gray-500/30";
-      default:
-        return "bg-gray-500/20 text-gray-400 border border-gray-500/30";
-    }
-  };
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const columns = [
+    {
+      key: "user",
+      label: "User",
+      render: (row) => (
+        <div>
+          <p className="text-white font-medium">{formatUserName(row)}</p>
+          <p className="text-gray-500 text-xs">{row.email}</p>
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      label: "Role",
+      render: (row) => (
+        <RoleSelect userId={row._id} currentRole={row.role} onRoleChange={handleRoleChange} />
+      ),
+    },
+    { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status || "active"} /> },
+    { key: "createdAt", label: "Joined", render: (row) => formatDate(row.createdAt) },
+    { key: "lastLogin", label: "Last login", render: (row) => formatDate(row.lastLogin) },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">User Management</h1>
-          <p className="text-gray-400 mt-2">
-            Manage platform users and their permissions
-          </p>
-        </div>
-        <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-          <FiPlus className="w-4 h-4" />
-          <span>Add User</span>
-        </button>
-      </div>
-      {/* Filters */}
-      <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <FiFilter className="text-gray-400 w-5 h-5" />
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-              className="px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Roles</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      {/* Users Table */}
-      <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg overflow-hidden">
-        {" "}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-neutral-700/50 border-b border-neutral-600">
-              <tr>
-                <th className="text-left py-3 px-6 font-medium text-white">
-                  User
-                </th>
-                <th className="text-left py-3 px-6 font-medium text-white">
-                  Role
-                </th>
-                <th className="text-left py-3 px-6 font-medium text-white">
-                  Status
-                </th>
-                <th className="text-left py-3 px-6 font-medium text-white">
-                  Projects
-                </th>
-                <th className="text-left py-3 px-6 font-medium text-white">
-                  Last Login
-                </th>
-                <th className="text-left py-3 px-6 font-medium text-white">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-600">
-              {filteredUsers.map((user, index) => (
-                <motion.tr
-                  key={user.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="hover:bg-neutral-700/30"
-                >
-                  {" "}
-                  <td className="py-4 px-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                        <FiUser className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-white">{user.name}</p>
-                        <p className="text-sm text-gray-400">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(
-                        user.role
-                      )}`}
-                    >
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                        user.status
-                      )}`}
-                    >
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="text-white">{user.projects}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center space-x-1 text-sm text-gray-400">
-                      <FiCalendar className="w-4 h-4" />
-                      <span>{user.lastLogin}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center space-x-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors">
-                        <FiEdit className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/20 rounded-lg transition-colors">
-                        <FiShield className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors">
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-gray-300 hover:bg-neutral-600/50 rounded-lg transition-colors">
-                        <FiMoreVertical className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>{" "}
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
-          <div className="flex items-center space-x-3">
-            <FiUser className="w-8 h-8 text-blue-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">{users.length}</p>
-              <p className="text-sm text-gray-400">Total Users</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
-          <div className="flex items-center space-x-3">
-            <FiShield className="w-8 h-8 text-red-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">
-                {users.filter((u) => u.role === "admin").length}
-              </p>
-              <p className="text-sm text-gray-400">Admins</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
-          <div className="flex items-center space-x-3">
-            <FiMail className="w-8 h-8 text-green-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">
-                {users.filter((u) => u.status === "active").length}
-              </p>
-              <p className="text-sm text-gray-400">Active Users</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-neutral-800/50 backdrop-blur border border-neutral-700 rounded-lg shadow-lg p-6">
-          <div className="flex items-center space-x-3">
-            <FiCalendar className="w-8 h-8 text-purple-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">
-                {
-                  users.filter(
-                    (u) =>
-                      new Date(u.createdAt) >
-                      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-                  ).length
-                }
-              </p>
-              <p className="text-sm text-gray-400">New This Month</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className={adminTokens.pageRoot}>
+      <AdminPageHeader title="Users" subtitle="Manage platform accounts and roles" />
+      <AdminFilters
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder="Search by name or email..."
+        filters={[{
+          key: "role", value: roleFilter,
+          onChange: (v) => { setRoleFilter(v); setPage(1); },
+          options: [
+            { value: "all", label: "All roles" },
+            { value: "user", label: "User" },
+            { value: "admin", label: "Admin" },
+          ],
+        }]}
+      />
+      <AdminDataTable columns={columns} rows={users} loading={loading} pagination={pagination} onPageChange={setPage} rowKey="_id" />
     </div>
   );
 };

@@ -3,19 +3,22 @@ import { useSelector, useDispatch } from "react-redux";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  FiUsers,
-  FiFileText,
-  FiBook,
-  FiSettings,
-  FiBarChart,
-  FiDatabase,
-  FiShield,
-  FiMenu,
-  FiX,
-  FiLogOut,
-  FiActivity,
-} from "react-icons/fi";
+  FaUsers,
+  FaProjectDiagram,
+  FaServer,
+  FaGlobe,
+  FaHistory,
+  FaBell,
+  FaChartBar,
+  FaBars,
+  FaTimes,
+  FaSignOutAlt,
+  FaHeartbeat,
+  FaArrowLeft,
+  FaShieldAlt,
+} from "react-icons/fa";
 import { logout } from "@redux/slices/authSlice";
+import { adminTokens } from "@/constants/adminDesignTokens";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,29 +30,30 @@ const AdminLayout = () => {
     dispatch(logout());
     navigate("/");
   };
+
   const sidebarItems = [
-    { icon: FiBarChart, label: "Dashboard", path: "/admin" },
-    { icon: FiUsers, label: "Users", path: "/admin/users" },
-    { icon: FiFileText, label: "Projects", path: "/admin/projects" },
-    { icon: FiBook, label: "Blogs", path: "/admin/blogs" },
-    { icon: FiDatabase, label: "Deployments", path: "/admin/deployments" },
-    { icon: FiShield, label: "Security", path: "/admin/security" },
-    { icon: FiActivity, label: "Health Monitor", path: "/health" },
-    { icon: FiSettings, label: "Settings", path: "/admin/settings" },
+    { icon: FaChartBar, label: "Overview", path: "/admin" },
+    { icon: FaUsers, label: "Users", path: "/admin/users" },
+    { icon: FaProjectDiagram, label: "Projects", path: "/admin/projects" },
+    { icon: FaServer, label: "Deployments", path: "/admin/deployments" },
+    { icon: FaGlobe, label: "Subdomains", path: "/admin/subdomains" },
+    { icon: FaHistory, label: "Activity", path: "/admin/activity" },
+    { icon: FaBell, label: "Notifications", path: "/admin/notifications" },
+    { icon: FaHeartbeat, label: "Health Monitor", path: "/health" },
   ];
+
   return (
-    <div className="h-screen bg-gradient-to-b from-black to-neutral-900 text-white flex overflow-hidden">
-      {/* Mobile sidebar overlay */}
+    <div className="h-screen bg-black text-white flex overflow-hidden">
       {sidebarOpen && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-40 bg-black bg-opacity-75 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/75 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      {/* Sidebar */}
+
       <motion.div
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -58,9 +62,7 @@ const AdminLayout = () => {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:flex lg:flex-col lg:w-64`}
       >
-        <div className="flex flex-col h-full">
-          {" "}
-          {/* Logo Header */}
+        <motion.div className="flex flex-col h-full">
           <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -70,53 +72,30 @@ const AdminLayout = () => {
             <div className="flex items-center justify-between">
               <Link to="/" className="flex items-center gap-3 group">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <img
-                    src="/favicon.png"
-                    alt="Deployio Logo"
-                    className="w-8 h-8"
-                  />
+                  <img src="/favicon.png" alt="Deployio Logo" className="w-8 h-8" />
                 </div>
                 <span className="text-2xl font-bold text-white heading group-hover:text-blue-400 transition-colors duration-200">
                   Deployio
                 </span>
               </Link>
               <motion.button
+                type="button"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setSidebarOpen(false)}
                 className="lg:hidden text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-neutral-800/50"
               >
-                <FiX className="w-5 h-5" />
+                <FaTimes className="w-5 h-5" />
               </motion.button>
             </div>
-          </motion.div>{" "}
-          {/* Navigation */}
+          </motion.div>
+
           <motion.nav
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.4 }}
             className="flex-1 p-6 space-y-3 overflow-auto"
-            style={{
-              scrollbarWidth: "thin",
-              scrollbarColor: "rgba(115, 115, 115, 0.5) rgba(23, 23, 23, 0.3)",
-            }}
           >
-            <style>{`
-              nav::-webkit-scrollbar {
-                width: 8px;
-              }
-              nav::-webkit-scrollbar-track {
-                background: rgba(23, 23, 23, 0.3);
-                border-radius: 4px;
-              }
-              nav::-webkit-scrollbar-thumb {
-                background: rgba(115, 115, 115, 0.5);
-                border-radius: 4px;
-              }
-              nav::-webkit-scrollbar-thumb:hover {
-                background: rgba(115, 115, 115, 0.7);
-              }
-            `}</style>
             {sidebarItems.map((item, index) => (
               <motion.div
                 key={item.path}
@@ -128,10 +107,10 @@ const AdminLayout = () => {
                   to={item.path}
                   end={item.path === "/admin"}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 body font-medium text-sm border border-transparent ${
+                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 body font-medium text-sm border ${
                       isActive
                         ? "bg-neutral-800/50 border-neutral-700/50 text-white"
-                        : "text-gray-300 hover:text-white hover:bg-neutral-800/50 hover:border-neutral-700/50"
+                        : "border-transparent text-gray-300 hover:text-white hover:bg-neutral-800/50 hover:border-neutral-700/50"
                     }`
                   }
                   onClick={() => setSidebarOpen(false)}
@@ -141,8 +120,8 @@ const AdminLayout = () => {
                 </NavLink>
               </motion.div>
             ))}
-          </motion.nav>{" "}
-          {/* User Profile & Logout - Matching Mobile Sidebar Style */}
+          </motion.nav>
+
           <motion.div
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -150,12 +129,10 @@ const AdminLayout = () => {
             className="p-4 border-t border-neutral-800/50 bg-neutral-900/50 flex-shrink-0"
           >
             <div className="flex items-center gap-3">
-              {/* Profile Avatar and Info */}
               <Link
                 to="/dashboard/profile"
                 className="flex items-center gap-3 flex-1 p-2 rounded-lg hover:bg-neutral-800/50 transition-all duration-200 group"
               >
-                {" "}
                 <motion.img
                   whileHover={{ scale: 1.05 }}
                   src={
@@ -164,8 +141,8 @@ const AdminLayout = () => {
                       user?.firstName && user?.lastName
                         ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
                         : user?.username
-                        ? user.username.slice(0, 2).toUpperCase()
-                        : "AD"
+                          ? user.username.slice(0, 2).toUpperCase()
+                          : "AD",
                     )}&background=4F46E5&color=ffffff&size=60`
                   }
                   alt="Profile"
@@ -177,81 +154,64 @@ const AdminLayout = () => {
                       ? `${user.firstName} ${user.lastName}`
                       : user?.username || "Administrator"}
                   </h3>
-                  <p className="text-gray-400 text-xs truncate group-hover:text-gray-300 transition-colors">
+                  <p className="text-gray-400 text-xs truncate">
                     {user?.email || "admin@deployio.com"}
                   </p>
                 </div>
               </Link>
-
-              {/* Logout Icon Button */}
               <motion.button
+                type="button"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={handleLogout}
-                className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 transition-all duration-200"
+                className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-all duration-200"
                 title="Logout"
               >
-                <FiLogOut className="w-4 h-4" />
+                <FaSignOutAlt className="w-4 h-4" />
               </motion.button>
             </div>
           </motion.div>
-        </div>
-      </motion.div>{" "}
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Mobile menu button */}
-        <motion.div
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="lg:hidden flex items-center p-4 bg-neutral-900/70 backdrop-blur-lg border-b border-neutral-800/30"
-        >
+        </motion.div>
+      </motion.div>
+
+      <motion.div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <motion.div className="lg:hidden flex items-center p-4 bg-neutral-900/70 backdrop-blur-lg border-b border-neutral-800/30">
           <motion.button
+            type="button"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setSidebarOpen(true)}
             className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-neutral-800/50"
           >
-            <FiMenu className="w-5 h-5" />
+            <FaBars className="w-5 h-5" />
           </motion.button>
-          <span className="ml-3 text-lg font-semibold text-white heading">
-            Admin Panel
-          </span>
+          <span className="ml-3 text-lg font-semibold text-white heading">Admin Panel</span>
         </motion.div>
 
-        {/* Page content with custom scrollbar */}
-        <main
-          className="flex-1 overflow-auto"
-          style={{
-            scrollbarWidth: "thin",
-            scrollbarColor: "rgba(115, 115, 115, 0.5) rgba(23, 23, 23, 0.3)",
-          }}
-        >
-          <style>{`
-            main::-webkit-scrollbar {
-              width: 8px;
-            }
-            main::-webkit-scrollbar-track {
-              background: rgba(23, 23, 23, 0.3);
-              border-radius: 4px;
-            }
-            main::-webkit-scrollbar-thumb {
-              background: rgba(115, 115, 115, 0.5);
-              border-radius: 4px;
-            }
-            main::-webkit-scrollbar-thumb:hover {
-              background: rgba(115, 115, 115, 0.7);
-            }
-          `}</style>
+        <main className="flex-1 overflow-auto">
           <motion.div
-            className="p-6"
+            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.4 }}
           >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-2">
+                <FaShieldAlt className="w-4 h-4 text-blue-400" />
+                <span className={adminTokens.adminBadge}>Platform admin</span>
+              </div>
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors body"
+              >
+                <FaArrowLeft className="w-3 h-3" />
+                Back to Dashboard
+              </Link>
+            </div>
             <Outlet />
           </motion.div>
         </main>
-      </div>
+      </motion.div>
     </div>
   );
 };
