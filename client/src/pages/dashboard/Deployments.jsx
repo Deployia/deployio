@@ -32,12 +32,11 @@ import {
   clearDeploymentError,
   clearDeploymentSuccess,
 } from "@redux/index";
-
-const getDeploymentUrl = (deployment) =>
-  deployment?.url || deployment?.networking?.fullUrl || null;
-
-const isLiveForPreview = (status) =>
-  status === "running" || status === "success";
+import DeploymentPreviewIframe from "@components/deployments/DeploymentPreviewIframe";
+import {
+  getDeploymentUrl,
+  isLiveForPreview,
+} from "../../utils/deploymentPreview";
 
 const DeploymentLivePreview = ({ deployment, size = "card" }) => {
   const previewUrl = getDeploymentUrl(deployment);
@@ -64,12 +63,11 @@ const DeploymentLivePreview = ({ deployment, size = "card" }) => {
         <div
           className={`${heightClass} rounded-lg overflow-hidden bg-black/50 border border-neutral-800/80 flex-1 min-h-[12rem]`}
         >
-          <iframe
+          <DeploymentPreviewIframe
+            deployment={deployment}
             title={`preview-${deployment.deploymentId || deployment.id || deployment._id}`}
-            src={previewUrl}
-            sandbox="allow-same-origin allow-scripts allow-forms"
-            className="w-full h-full border-0 pointer-events-none"
-            loading="lazy"
+            className="w-full h-full border-0"
+            pointerEventsNone
           />
         </div>
         <p className="text-[10px] text-gray-500 px-1 pt-2 truncate" title={previewUrl}>

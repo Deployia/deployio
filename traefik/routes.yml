@@ -16,8 +16,8 @@ http:
         - landing-api-strip-prefix
       priority: 200
 
-    # Landing page fallback for undefined subdomains
-    # Matches any subdomain like *.deployio.tech with lowest priority
+    # Landing page fallback for subdomains with no deployment router yet.
+    # Deployment containers register Host(`sub.domain`) routers at priority 10+.
     landing:
       rule: "HostRegexp(`[a-z0-9-]+.deployio.tech`)"
       entrypoints:

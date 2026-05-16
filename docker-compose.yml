@@ -149,6 +149,7 @@ services:
     image: nginx:alpine
     volumes:
       - ./landing-page:/usr/share/nginx/html:ro
+      - ./landing-page/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - deployio_network
     labels:

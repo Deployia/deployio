@@ -40,6 +40,8 @@ import {
   getDeploymentStatusBadge,
   isDeploymentActionAllowed,
 } from "../../utils/deploymentConstants";
+import DeploymentPreviewIframe from "../../components/deployments/DeploymentPreviewIframe";
+import { getDeploymentUrl, isLiveForPreview } from "../../utils/deploymentPreview";
 
 const ProjectDeployments = () => {
   const { onOpenDeployModal, project, isArchived } = useOutletContext() || {};
@@ -715,17 +717,14 @@ const ProjectDeployments = () => {
                     </div>
                   </div>
                 </div>
-                {(deployment.status === "running" || deployment.status === "success") &&
-                  (deployment.url || deployment.networking?.fullUrl) && (
+                {isLiveForPreview(deployment.status) && getDeploymentUrl(deployment) && (
                     <div className="w-full xl:w-[360px] xl:ml-auto">
                       <div className="w-full rounded-lg border border-neutral-800 bg-neutral-950/70 p-2">
                         <div className="text-xs text-gray-400 px-1 pb-2">Live Preview</div>
                         <div className="h-40 rounded overflow-hidden bg-black/40">
-                          <iframe
+                          <DeploymentPreviewIframe
+                            deployment={deployment}
                             title={`card-preview-${deployment._id || deployment.deploymentId || deployment.id}`}
-                            src={deployment.url || deployment.networking?.fullUrl}
-                            sandbox="allow-same-origin allow-scripts allow-forms"
-                            className="w-full h-full border-0"
                           />
                         </div>
                       </div>
@@ -1054,11 +1053,10 @@ const ProjectDeployments = () => {
                         </pre>
                       ) : !iframeFailed ? (
                         <div className="h-48 rounded-lg overflow-hidden border border-neutral-800">
-                          <iframe
+                          <DeploymentPreviewIframe
+                            deployment={selectedDeployment}
+                            liveStatus={liveStatus}
                             title="deployment-preview-inline"
-                            src={selectedDeployment.url || selectedDeployment.networking?.fullUrl}
-                            sandbox="allow-same-origin allow-scripts allow-forms"
-                            className="w-full h-full border-0"
                             onError={() => setIframeFailed(true)}
                           />
                         </div>

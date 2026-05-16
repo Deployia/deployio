@@ -113,7 +113,7 @@ class DeploymentService:
     ) -> Dict[str, str]:
         """
         Generate Traefik Docker labels for automatic routing.
-        Priority 5 to beat the landing page catch-all (priority 1).
+        Priority 10 to beat the landing page catch-all (priority 1).
         """
         router_name = deployment_id.replace("_", "-")
         domain = f"{subdomain}.{self.base_domain}"
@@ -123,7 +123,7 @@ class DeploymentService:
             # Root traefik is behind nginx TLS; route on internal web entrypoint.
             f"traefik.http.routers.{router_name}.rule": f"Host(`{domain}`)",
             f"traefik.http.routers.{router_name}.entrypoints": "web",
-            f"traefik.http.routers.{router_name}.priority": "5",
+            f"traefik.http.routers.{router_name}.priority": "10",
             "traefik.docker.network": self.docker_network,
             # Service (load balancer)
             f"traefik.http.services.{router_name}.loadbalancer.server.port": str(
