@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -18,6 +18,7 @@ import {
   FaSearch,
   FaTrash,
   FaTimes,
+  FaExternalLinkAlt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid } from "@components/LoadingSpinner";
@@ -31,6 +32,53 @@ import {
   clearDeploymentError,
   clearDeploymentSuccess,
 } from "@redux/index";
+
+const getDeploymentUrl = (deployment) =>
+  deployment?.url || deployment?.networking?.fullUrl || null;
+
+const isLiveForPreview = (status) =>
+  status === "running" || status === "success";
+
+const DeploymentLivePreview = ({ deployment, size = "card" }) => {
+  const previewUrl = getDeploymentUrl(deployment);
+  if (!isLiveForPreview(deployment?.status) || !previewUrl) return null;
+
+  const heightClass = size === "card" ? "h-48 sm:h-52" : "h-40";
+  const widthClass = size === "card" ? "w-full lg:w-[360px]" : "w-full";
+
+  return (
+    <div className={`${widthClass} lg:flex-shrink-0`}>
+      <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-2 h-full flex flex-col">
+        <div className="flex items-center justify-between gap-2 px-1 pb-2">
+          <span className="text-xs text-gray-400">Live app</span>
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
+          >
+            <FaExternalLinkAlt className="w-3 h-3" />
+            Open
+          </a>
+        </div>
+        <div
+          className={`${heightClass} rounded-lg overflow-hidden bg-black/50 border border-neutral-800/80 flex-1 min-h-[12rem]`}
+        >
+          <iframe
+            title={`preview-${deployment.deploymentId || deployment.id || deployment._id}`}
+            src={previewUrl}
+            sandbox="allow-same-origin allow-scripts allow-forms"
+            className="w-full h-full border-0 pointer-events-none"
+            loading="lazy"
+          />
+        </div>
+        <p className="text-[10px] text-gray-500 px-1 pt-2 truncate" title={previewUrl}>
+          {previewUrl.replace(/^https?:\/\//, "")}
+        </p>
+      </div>
+    </div>
+  );
+};
 
 const Deployments = () => {
   const dispatch = useDispatch();
@@ -93,7 +141,19 @@ const Deployments = () => {
             .includes(searchTerm.toLowerCase());
         return matchesFilter && matchesSearch;
       })
-    : []; // Handle deployment actions
+    : [];
+
+  const liveAppsCount = useMemo(
+    () =>
+      Array.isArray(deployments)
+        ? deployments.filter(
+            (d) => isLiveForPreview(d.status) && getDeploymentUrl(d),
+          ).length
+        : 0,
+    [deployments],
+  );
+
+  // Handle deployment actions
   const handleStop = (deploymentId) => {
     dispatch(stopDeployment(deploymentId));
   };
@@ -267,6 +327,12 @@ const Deployments = () => {
         </h1>
         <p className="text-gray-400 body">
           Track and manage all your deployment activities.
+          {liveAppsCount > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+              {liveAppsCount} app{liveAppsCount !== 1 ? "s" : ""} live
+            </span>
+          )}
         </p>
       </motion.div>
       {/* Filters and Search - Mobile Responsive */}
@@ -323,6 +389,8 @@ const Deployments = () => {
               transition={{ delay: 0.3 + index * 0.1 }}
               className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-4 sm:p-6 hover:border-neutral-700/50 transition-all duration-200"
             >
+              <div className="flex flex-col lg:flex-row lg:items-stretch gap-4 lg:gap-6">
+              <div className="min-w-0 flex-1">
               {/* Deployment Header - Mobile Responsive */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -402,16 +470,17 @@ const Deployments = () => {
                   </span>
                 </div>
               </div>
-              {/* Deployment URL - Mobile Responsive */}
-              {deployment.url && (
+              {/* Deployment URL - shown when no live preview */}
+              {getDeploymentUrl(deployment) &&
+                !isLiveForPreview(deployment.status) && (
                 <div className="mb-4 p-3 bg-neutral-800/50 rounded-lg">
                   <a
-                    href={deployment.url}
+                    href={getDeploymentUrl(deployment)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:text-blue-300 text-sm font-mono break-all"
                   >
-                    {deployment.url}
+                    {getDeploymentUrl(deployment)}
                   </a>
                 </div>
               )}
@@ -428,6 +497,20 @@ const Deployments = () => {
                   <FaEye className="w-3 h-3" />
                   <span>Open Project Deployment</span>
                 </button>
+                {getDeploymentUrl(deployment) && (
+                  <a
+                    href={getDeploymentUrl(deployment)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
+                  >
+                    <FaExternalLinkAlt className="w-3 h-3" />
+                    <span>Visit app</span>
+                  </a>
+                )}
+              </div>
+              </div>
+              <DeploymentLivePreview deployment={deployment} size="card" />
               </div>
             </motion.div>
           ))
