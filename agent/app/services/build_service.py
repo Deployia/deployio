@@ -243,6 +243,29 @@ class BuildService:
             # Backward compatibility for older two-argument callbacks.
             logs_callback(message, level)
 
+    @staticmethod
+    def _resolve_docker_build_paths(
+        repo_path: Path, dockerfile_path: Path
+    ) -> tuple[str, Path]:
+        """
+        Resolve docker build -f and context directory.
+
+        Service Dockerfiles under a subdirectory (e.g. Python_services/Dockerfile)
+        typically use COPY paths relative to that folder. Use the Dockerfile's
+        parent as build context instead of the repository root.
+        """
+        repo_path = repo_path.resolve()
+        dockerfile_path = dockerfile_path.resolve()
+        dockerfile_dir = dockerfile_path.parent
+
+        if dockerfile_dir != repo_path:
+            logger.info(
+                "Using Dockerfile directory as build context: %s", dockerfile_dir
+            )
+            return str(dockerfile_path), dockerfile_dir
+
+        return str(dockerfile_path), repo_path
+
     async def build_and_deploy(
         self,
         git_url: str,
@@ -317,10 +340,12 @@ class BuildService:
             # Prefer the user-selected dockerfile path when provided by the platform.
             # Fall back to auto-detection only when no path is specified.
             resolved_dockerfile: Optional[Path] = None
+            platform_specified_dockerfile = False
             if dockerfile_path:
                 candidate = repo_path / dockerfile_path
                 if candidate.exists():
                     resolved_dockerfile = candidate
+                    platform_specified_dockerfile = True
                     logger.info(
                         "Using platform-specified Dockerfile at %s", resolved_dockerfile
                     )
@@ -371,17 +396,24 @@ class BuildService:
             if not dockerfile_path_obj.exists():
                 raise Exception(f"Dockerfile not found at {dockerfile_path_obj}")
 
+            dockerfile_arg, build_context = self._resolve_docker_build_paths(
+                repo_path, dockerfile_path_obj
+            )
             build_command = [
                 "docker",
                 "build",
                 "-t",
                 f"deployio/{deployment_id}:latest",
                 "-f",
-                str(dockerfile_path_obj),  # Use absolute path
-                str(repo_path),
+                dockerfile_arg,
+                str(build_context),
             ]
 
-            logger.info(f"Running build command: {' '.join(build_command)}")
+            logger.info(
+                "Running build command: %s (context=%s)",
+                " ".join(build_command),
+                build_context,
+            )
 
             # Run build with streaming logs
             result = await asyncio.to_thread(
@@ -393,6 +425,12 @@ class BuildService:
             )
 
             if not result["success"]:
+                if using_repo_dockerfile and platform_specified_dockerfile:
+                    raise Exception(
+                        f"Docker build failed for platform Dockerfile {dockerfile_path_obj}: "
+                        f"{result.get('error', 'unknown error')}"
+                    )
+
                 if using_repo_dockerfile:
                     logger.warning(
                         "Build failed with repository Dockerfile for %s, retrying with generated profile",
@@ -419,14 +457,17 @@ class BuildService:
                         )
                     if str(stack_type).upper() == "NEXT":
                         DockerfileService.ensure_next_public_dir(repo_path)
+                    retry_dockerfile, retry_context = self._resolve_docker_build_paths(
+                        repo_path, dockerfile_path_obj
+                    )
                     build_command = [
                         "docker",
                         "build",
                         "-t",
                         f"deployio/{deployment_id}:latest",
                         "-f",
-                        str(dockerfile_path_obj),
-                        str(repo_path),
+                        retry_dockerfile,
+                        str(retry_context),
                     ]
                     result = await asyncio.to_thread(
                         self._run_build_with_logs,
