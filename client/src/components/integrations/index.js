@@ -4,6 +4,7 @@ export { default as ConnectedProvidersSummary } from "./ConnectedProvidersSummar
 export { default as IntegrationsGrid } from "./IntegrationsGrid";
 export { default as ProviderCard } from "./ProviderCard";
 export { default as ConnectModal } from "./ConnectModal";
+export { default as DisconnectProviderModal } from "./DisconnectProviderModal";
 export { default as RepositorySection } from "./RepositorySection";
 export { default as RepositoryCard } from "./RepositoryCard";
 export { default as ProviderContentSection } from "./ProviderContentSection";

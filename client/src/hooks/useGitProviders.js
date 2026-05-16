@@ -75,17 +75,8 @@ export const useGitProviders = () => {
 
   const disconnectProviderHandler = useCallback(
     async (provider) => {
-      if (
-        window.confirm(`Are you sure you want to disconnect ${provider.name}?`)
-      ) {
-        try {
-          await dispatch(disconnectProvider(provider.id)).unwrap();
-          console.log(`Successfully disconnected from ${provider.name}`);
-          fetchConnections();
-        } catch (error) {
-          console.error("Disconnection failed:", error);
-        }
-      }
+      await dispatch(disconnectProvider(provider.id)).unwrap();
+      fetchConnections();
     },
     [dispatch, fetchConnections],
   );

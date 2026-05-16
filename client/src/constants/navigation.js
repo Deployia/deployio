@@ -164,7 +164,7 @@ export const toolsItems = [
     label: "Monitoring",
     href: "/dashboard/monitoring",
     icon: FaChartLine,
-    description: "System monitoring",
+    description: "Deployment health & status",
   },
   {
     label: "CLI Generator",

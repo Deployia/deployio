@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 import {
   FaTools,
   FaCode,
@@ -16,10 +17,13 @@ import { LoadingGrid } from "@components/LoadingSpinner";
 import {
   CategoryTabs,
   ConnectedProvidersSummary,
+  DisconnectProviderModal,
   IntegrationsGrid,
 } from "@components/integrations";
+import { useModal } from "@context/ModalContext";
 import { useGitProviders } from "@hooks/useGitProviders";
 import {
+  disconnectProvider,
   fetchAvailableProviders,
   fetchConnectedProviders,
   fetchDetailedConnectionStatus,
@@ -29,16 +33,58 @@ import { getProviderIcon } from "@utils/providerUtils";
 const Integrations = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { openModal, closeModal } = useModal();
+  const providersGridRef = useRef(null);
   const {
     connections,
-    repositories,
     ui,
     loading,
     connectedProviders,
+    connectionsError,
     setActiveCategory,
     initiateConnection,
-    disconnectProvider: handleDisconnectProvider,
+    fetchConnections,
+    fetchDetailedConnections,
   } = useGitProviders();
+
+  const handleDisconnectRequest = useCallback(
+    (provider) => {
+      openModal(
+        <DisconnectProviderModal
+          providerName={provider.name}
+          onCancel={closeModal}
+          onConfirm={async () => {
+            try {
+              await dispatch(disconnectProvider(provider.id)).unwrap();
+              await Promise.all([
+                fetchConnections(),
+                fetchDetailedConnections(),
+              ]);
+              closeModal();
+              toast.success(`Disconnected from ${provider.name}`);
+            } catch (error) {
+              toast.error(
+                typeof error === "string"
+                  ? error
+                  : `Failed to disconnect ${provider.name}`,
+              );
+            }
+          }}
+        />,
+      );
+    },
+    [
+      closeModal,
+      dispatch,
+      fetchConnections,
+      fetchDetailedConnections,
+      openModal,
+    ],
+  );
+
+  const handleManageProviders = useCallback(() => {
+    providersGridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   // Handle OAuth callback with enhanced error handling
   useEffect(() => {
@@ -58,22 +104,10 @@ const Integrations = () => {
       const displayName = providerDisplayNames[connected] || connected;
 
       if (status === "success") {
-        console.log(`Successfully connected to ${displayName}!`);
-
-        // Refresh provider data to show new connection
+        toast.success(`Successfully connected to ${displayName}!`);
         dispatch(fetchConnectedProviders());
         dispatch(fetchDetailedConnectionStatus());
-
-        // Optional: Trigger repository fetch for newly connected provider
-        if (
-          connected === "github" ||
-          connected === "gitlab" ||
-          connected === "azuredevops"
-        ) {
-          // Future: dispatch(fetchRepositories(connected));
-        }
       } else if (status === "error") {
-        // Enhanced error message mapping
         const errorMessages = {
           missing_state: "Security validation failed. Please try again.",
           auth_failed: "Authentication failed. Please check your credentials.",
@@ -90,14 +124,7 @@ const Integrations = () => {
               ? decodeURIComponent(error)
               : "Connection failed due to an unknown error";
 
-        console.error(`Failed to connect to ${displayName}: ${errorMessage}`);
-
-        // Log error for debugging
-        console.error(`OAuth connection failed for ${connected}:`, {
-          error,
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent,
-        });
+        toast.error(`Failed to connect to ${displayName}: ${errorMessage}`);
       }
 
       // Clean up URL parameters after handling
@@ -518,21 +545,18 @@ const Integrations = () => {
         {/* Connected Providers Summary */}
         {connectedProviders.length > 0 && (
           <motion.div variants={itemVariants}>
-            <ConnectedProvidersSummary
-              connectedProviders={connectedProviders}
-              connections={connections}
-              repositories={repositories}
-            />
+            <ConnectedProvidersSummary onManageClick={handleManageProviders} />
           </motion.div>
         )}
 
         {/* Integrations Grid - Always Show */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} ref={providersGridRef} id="integrations-providers">
           <IntegrationsGrid
             providers={filteredProviders}
             connections={connections}
+            error={connectionsError}
             onConnect={initiateConnection}
-            onDisconnect={handleDisconnectProvider}
+            onDisconnect={handleDisconnectRequest}
             refreshingProvider={ui.refreshingProvider}
           />
         </motion.div>

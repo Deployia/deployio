@@ -1,224 +1,415 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaChartLine,
-  FaMemory,
-  FaHdd,
-  FaWifi,
-  FaExclamationTriangle,
   FaCheckCircle,
-  FaTimesCircle,
+  FaExclamationTriangle,
   FaClock,
-  FaEye,
+  FaRocket,
+  FaProjectDiagram,
   FaBell,
-  FaCog,
-  FaDownload,
   FaSyncAlt,
-  FaMicrochip,
+  FaSpinner,
+  FaArrowRight,
   FaServer,
-  FaDatabase,
-  FaGlobe,
-  FaShieldAlt,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import { LoadingGrid } from "@components/LoadingSpinner";
+import {
+  fetchUserAnalytics,
+  fetchProjects,
+  fetchDeployments,
+  fetchNotifications,
+} from "@redux/index";
+
+const BUILD_STALE_MS = 30 * 60 * 1000;
+const LOW_UPTIME_THRESHOLD = 95;
+
+const getDeploymentStatus = (deployment) =>
+  deployment?.status || deployment?.deployment?.status || "unknown";
+
+const getDeploymentProjectId = (deployment) => {
+  const project = deployment?.project;
+  if (project?._id) return String(project._id);
+  if (project) return String(project);
+  if (deployment?.projectId) return String(deployment.projectId);
+  return null;
+};
+
+const getDeploymentProjectName = (deployment) =>
+  deployment?.project?.name || deployment?.projectName || "Unknown project";
+
+const formatRelativeTime = (dateString) => {
+  if (!dateString) return "—";
+  const date = new Date(dateString);
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+};
 
 const Monitoring = () => {
-  const [timeRange, setTimeRange] = useState("1h");
-  const [selectedService, setSelectedService] = useState("all");
-  const [realTimeData, setRealTimeData] = useState({});
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [timeRange, setTimeRange] = useState("7d");
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock real-time data
+  const { userAnalytics, loading: analyticsLoading } = useSelector(
+    (state) => state.analytics,
+  );
+  const { projects, loading: projectsLoading } = useSelector(
+    (state) => state.projects,
+  );
+  const { deployments, loading: deploymentsLoading } = useSelector(
+    (state) => state.deployments,
+  );
+  const { notifications, loading: notificationsLoading } = useSelector(
+    (state) => state.notifications,
+  );
+
+  const loadData = useCallback(async () => {
+    await Promise.all([
+      dispatch(fetchUserAnalytics(timeRange)),
+      dispatch(fetchProjects()),
+      dispatch(fetchDeployments()),
+      dispatch(fetchNotifications({ page: 1, limit: 10 })),
+    ]);
+  }, [dispatch, timeRange]);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRealTimeData({
-        cpu: Math.floor(Math.random() * 100),
-        memory: Math.floor(Math.random() * 100),
-        disk: Math.floor(Math.random() * 100),
-        network: Math.floor(Math.random() * 1000),
-        responseTime: Math.floor(100 + Math.random() * 500),
-        uptime: 99.9,
-        requests: Math.floor(1000 + Math.random() * 5000),
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const overview = userAnalytics?.data?.overview || userAnalytics?.overview;
+  const analyticsData = userAnalytics?.data || userAnalytics;
+
+  const statusBreakdown = useMemo(() => {
+    const counts = {
+      running: 0,
+      inProgress: 0,
+      failed: 0,
+      stopped: 0,
+      other: 0,
+    };
+
+    (deployments || []).forEach((deployment) => {
+      const status = getDeploymentStatus(deployment);
+      if (status === "running" || status === "success" || status === "active") {
+        counts.running += 1;
+      } else if (
+        ["building", "deploying", "pending", "queued"].includes(status)
+      ) {
+        counts.inProgress += 1;
+      } else if (status === "failed" || status === "error") {
+        counts.failed += 1;
+      } else if (
+        ["stopped", "cancelled", "canceled", "archived"].includes(status)
+      ) {
+        counts.stopped += 1;
+      } else {
+        counts.other += 1;
+      }
+    });
+
+    return counts;
+  }, [deployments]);
+
+  const totalDeployments = deployments?.length || 0;
+
+  const attentionItems = useMemo(() => {
+    const items = [];
+    const now = Date.now();
+
+    (deployments || []).forEach((deployment) => {
+      const status = getDeploymentStatus(deployment);
+      const projectId = getDeploymentProjectId(deployment);
+      const projectName = getDeploymentProjectName(deployment);
+      const deploymentId =
+        deployment._id || deployment.id || deployment.deploymentId;
+      const label =
+        deployment.subdomain ||
+        deployment.config?.subdomain ||
+        deploymentId ||
+        "deployment";
+
+      if (status === "failed" || status === "error") {
+        items.push({
+          id: `failed-${deploymentId}`,
+          severity: "critical",
+          title: `${projectName} — deployment failed`,
+          detail: label,
+          timestamp: deployment.updatedAt || deployment.createdAt,
+          href: projectId
+            ? `/dashboard/projects/${projectId}/deployments`
+            : "/dashboard/deployments",
+        });
+        return;
+      }
+
+      if (["building", "deploying", "pending", "queued"].includes(status)) {
+        const startedAt =
+          deployment.buildStartedAt ||
+          deployment.deployStartedAt ||
+          deployment.createdAt;
+        if (startedAt && now - new Date(startedAt).getTime() > BUILD_STALE_MS) {
+          items.push({
+            id: `stale-${deploymentId}`,
+            severity: "warning",
+            title: `${projectName} — build taking longer than expected`,
+            detail: `${label} (${status})`,
+            timestamp: startedAt,
+            href: projectId
+              ? `/dashboard/projects/${projectId}/deployments`
+              : "/dashboard/deployments",
+          });
+        }
+        return;
+      }
+
+      if (status === "running") {
+        const errorRate = deployment.metrics?.errors?.rate ?? 0;
+        const uptime = deployment.metrics?.uptime?.percentage;
+        if (errorRate > 0) {
+          items.push({
+            id: `errors-${deploymentId}`,
+            severity: "warning",
+            title: `${projectName} — elevated error rate`,
+            detail: `${label} (${Number(errorRate).toFixed(2)}% errors)`,
+            timestamp: deployment.updatedAt || deployment.createdAt,
+            href: projectId
+              ? `/dashboard/projects/${projectId}/deployments`
+              : "/dashboard/deployments",
+          });
+        } else if (
+          uptime != null &&
+          uptime < LOW_UPTIME_THRESHOLD
+        ) {
+          items.push({
+            id: `uptime-${deploymentId}`,
+            severity: "warning",
+            title: `${projectName} — low uptime`,
+            detail: `${label} (${uptime}% uptime)`,
+            timestamp: deployment.updatedAt || deployment.createdAt,
+            href: projectId
+              ? `/dashboard/projects/${projectId}/deployments`
+              : "/dashboard/deployments",
+          });
+        }
+      }
+    });
+
+    return items
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp || 0).getTime() -
+          new Date(a.timestamp || 0).getTime(),
+      )
+      .slice(0, 8);
+  }, [deployments]);
+
+  const projectHealthRows = useMemo(() => {
+    const latestByProject = new Map();
+
+    (deployments || []).forEach((deployment) => {
+      const projectId = getDeploymentProjectId(deployment);
+      if (!projectId) return;
+
+      const ts = new Date(
+        deployment.updatedAt || deployment.createdAt || 0,
+      ).getTime();
+      const existing = latestByProject.get(projectId);
+      if (!existing || ts > existing.ts) {
+        latestByProject.set(projectId, { deployment, ts });
+      }
+    });
+
+    return (projects || [])
+      .filter((p) => p.status !== "deleted")
+      .map((project) => {
+        const projectId = String(project._id);
+        const latest = latestByProject.get(projectId);
+        const latestDeployment = latest?.deployment;
+        const deploymentStatus = latestDeployment
+          ? getDeploymentStatus(latestDeployment)
+          : null;
+
+        return {
+          id: projectId,
+          name: project.name,
+          projectStatus: project.status,
+          deploymentStatus,
+          lastDeploymentAt:
+            latestDeployment?.updatedAt || latestDeployment?.createdAt,
+          uptime: latestDeployment?.metrics?.uptime?.percentage,
+        };
+      })
+      .sort((a, b) => {
+        const aTime = a.lastDeploymentAt
+          ? new Date(a.lastDeploymentAt).getTime()
+          : 0;
+        const bTime = b.lastDeploymentAt
+          ? new Date(b.lastDeploymentAt).getTime()
+          : 0;
+        return bTime - aTime;
       });
-    }, 3000);
+  }, [projects, deployments]);
 
-    return () => clearInterval(interval);
-  }, []);
+  const alertNotifications = useMemo(() => {
+    const priorityTypes = /deploy|fail|error|alert|warning|build/i;
+    return (notifications || [])
+      .filter(
+        (n) =>
+          priorityTypes.test(n.type || "") ||
+          priorityTypes.test(n.title || "") ||
+          priorityTypes.test(n.message || ""),
+      )
+      .slice(0, 8);
+  }, [notifications]);
 
-  const services = [
-    {
-      id: "web-api",
-      name: "Web API",
-      status: "healthy",
-      uptime: "99.9%",
-      responseTime: "145ms",
-      requests: "2.3k/min",
-      cpu: 45,
-      memory: 62,
-      icon: FaServer,
-      color: "blue",
-    },
-    {
-      id: "database",
-      name: "Database",
-      status: "healthy",
-      uptime: "99.8%",
-      responseTime: "23ms",
-      requests: "890/min",
-      cpu: 32,
-      memory: 78,
-      icon: FaDatabase,
-      color: "green",
-    },
-    {
-      id: "cache",
-      name: "Redis Cache",
-      status: "warning",
-      uptime: "99.5%",
-      responseTime: "12ms",
-      requests: "5.1k/min",
-      cpu: 28,
-      memory: 85,
-      icon: FaShieldAlt,
-      color: "orange",
-    },
-    {
-      id: "cdn",
-      name: "CDN",
-      status: "healthy",
-      uptime: "99.9%",
-      responseTime: "89ms",
-      requests: "12.4k/min",
-      cpu: 15,
-      memory: 34,
-      icon: FaGlobe,
-      color: "purple",
-    },
-  ];
+  const recentNotifications = useMemo(() => {
+    if (alertNotifications.length > 0) return alertNotifications;
+    return (notifications || []).slice(0, 8);
+  }, [alertNotifications, notifications]);
 
-  const mockAlerts = [
-    {
-      id: 1,
-      level: "warning",
-      service: "Redis Cache",
-      message: "Memory usage above 80%",
-      time: "5 minutes ago",
-      resolved: false,
-    },
-    {
-      id: 2,
-      level: "info",
-      service: "Web API",
-      message: "High request volume detected",
-      time: "12 minutes ago",
-      resolved: true,
-    },
-    {
-      id: 3,
-      level: "critical",
-      service: "Database",
-      message: "Connection timeout threshold exceeded",
-      time: "1 hour ago",
-      resolved: true,
-    },
-  ];
-  const metrics = [
-    {
-      name: "CPU Usage",
-      value: realTimeData.cpu || 45,
-      unit: "%",
-      icon: FaMicrochip,
-      color: "blue",
-      trend: "+2.1%",
-      maxValue: 100,
-    },
-    {
-      name: "Memory Usage",
-      value: realTimeData.memory || 62,
-      unit: "%",
-      icon: FaMemory,
-      color: "green",
-      trend: "-1.4%",
-      maxValue: 100,
-    },
-    {
-      name: "Disk Usage",
-      value: realTimeData.disk || 34,
-      unit: "%",
-      icon: FaHdd,
-      color: "purple",
-      trend: "+0.8%",
-      maxValue: 100,
-    },
-    {
-      name: "Network I/O",
-      value: realTimeData.network || 456,
-      unit: "MB/s",
-      icon: FaWifi,
-      color: "orange",
-      trend: "+5.2%",
-      maxValue: 1000,
-    },
-  ];
+  const loading =
+    analyticsLoading?.user ||
+    projectsLoading?.projects ||
+    deploymentsLoading?.fetch ||
+    notificationsLoading?.fetch;
 
-  const responseTimeData = [
-    { time: "00:00", value: 120 },
-    { time: "04:00", value: 145 },
-    { time: "08:00", value: 180 },
-    { time: "12:00", value: 220 },
-    { time: "16:00", value: 190 },
-    { time: "20:00", value: 160 },
-    { time: "24:00", value: 135 },
-  ];
-
-  const getStatusColor = (status) => {
+  const getStatusBadge = (status) => {
+    const base = "px-2 py-1 rounded-full text-xs font-medium";
     switch (status) {
-      case "healthy":
-        return "px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30";
-      case "warning":
-        return "px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full border border-yellow-500/30";
-      case "critical":
-        return "px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full border border-red-500/30";
+      case "running":
+      case "success":
+      case "active":
+        return `${base} bg-green-500/20 text-green-400 border border-green-500/30`;
+      case "building":
+      case "deploying":
+        return `${base} bg-blue-500/20 text-blue-400 border border-blue-500/30`;
+      case "failed":
+      case "error":
+        return `${base} bg-red-500/20 text-red-400 border border-red-500/30`;
+      case "pending":
+      case "queued":
+        return `${base} bg-yellow-500/20 text-yellow-400 border border-yellow-500/30`;
       default:
-        return "px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full border border-gray-500/30";
+        return `${base} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "healthy":
-        return <FaCheckCircle className="text-green-400" />;
-      case "warning":
-        return <FaExclamationTriangle className="text-yellow-400" />;
-      case "critical":
-        return <FaTimesCircle className="text-red-400" />;
+      case "running":
+      case "success":
+      case "active":
+        return <FaCheckCircle className="w-4 h-4 text-green-500" />;
+      case "failed":
+      case "error":
+        return <FaExclamationTriangle className="w-4 h-4 text-red-500" />;
+      case "building":
+      case "deploying":
+        return <FaClock className="w-4 h-4 text-blue-500 animate-spin" />;
       default:
-        return <FaClock className="text-gray-400" />;
+        return <FaClock className="w-4 h-4 text-gray-500" />;
     }
   };
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-      },
-    },
+    hidden: { opacity: 0, y: 16 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
+  const overviewCards = [
+    {
+      label: "Success rate",
+      value: `${overview?.successRate ?? 0}%`,
+      icon: FaCheckCircle,
+      color: "text-green-400",
+      bg: "bg-green-500/20",
+    },
+    {
+      label: "Failed deployments",
+      value: overview?.failedDeployments ?? 0,
+      icon: FaExclamationTriangle,
+      color: "text-red-400",
+      bg: "bg-red-500/20",
+    },
+    {
+      label: "Avg uptime",
+      value: `${overview?.runtime?.avgUptime ?? analyticsData?.overview?.runtime?.avgUptime ?? 0}%`,
+      icon: FaServer,
+      color: "text-blue-400",
+      bg: "bg-blue-500/20",
+    },
+    {
+      label: "Avg error rate",
+      value: `${overview?.runtime?.avgErrorRate ?? analyticsData?.overview?.runtime?.avgErrorRate ?? 0}%`,
+      icon: FaChartLine,
+      color: "text-purple-400",
+      bg: "bg-purple-500/20",
+    },
+  ];
+
+  const statusSegments = [
+    { key: "running", label: "Running", count: statusBreakdown.running, color: "bg-green-500" },
+    {
+      key: "inProgress",
+      label: "In progress",
+      count: statusBreakdown.inProgress,
+      color: "bg-blue-500",
+    },
+    { key: "failed", label: "Failed", count: statusBreakdown.failed, color: "bg-red-500" },
+    {
+      key: "stopped",
+      label: "Stopped",
+      count: statusBreakdown.stopped,
+      color: "bg-gray-500",
+    },
+  ];
+
+  if (loading && !refreshing) {
+    return (
+      <div className="dashboard-page">
+        <SEO page="monitoring" />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h1 className="text-3xl font-bold text-white heading mb-2">
+            Deployment Health
+          </h1>
+          <p className="text-gray-400 body">Loading operational status...</p>
+        </motion.div>
+        <LoadingGrid columns={4} />
+      </div>
+    );
+  }
+
   return (
-    <>
+    <div className="dashboard-page">
       <SEO page="monitoring" />
 
       <motion.div
@@ -227,311 +418,299 @@ const Monitoring = () => {
         animate="visible"
         className="space-y-8"
       >
-        {/* Header */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
         >
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3 heading">
               <FaChartLine className="text-blue-400" />
-              System Monitoring
+              Deployment Health
             </h1>
             <p className="text-gray-400 mt-2 body">
-              Real-time monitoring and performance analytics
+              Operational status across your projects and deployments
             </p>
           </div>
 
-          <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="px-4 py-2 border border-neutral-600 rounded-lg bg-neutral-800 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-neutral-600 rounded-lg bg-neutral-800 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
-              <option value="1h">Last 1 hour</option>
-              <option value="6h">Last 6 hours</option>
-              <option value="24h">Last 24 hours</option>
               <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
             </select>
-
-            <button className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center gap-2">
-              <FaSyncAlt />
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+            >
+              {refreshing ? (
+                <FaSpinner className="animate-spin" />
+              ) : (
+                <FaSyncAlt />
+              )}
               Refresh
             </button>
           </div>
         </motion.div>
 
-        {/* System Metrics Overview */}
         <motion.div
           variants={itemVariants}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
         >
-          {metrics.map((metric, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
+          {overviewCards.map((card) => (
+            <div
+              key={card.label}
+              className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-5"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-2 bg-${metric.color}-500/20 rounded-lg`}>
-                  <metric.icon className={`text-xl text-${metric.color}-400`} />
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`p-2 rounded-lg ${card.bg}`}>
+                  <card.icon className={`w-4 h-4 ${card.color}`} />
                 </div>
-                <span
-                  className={`text-sm ${
-                    metric.trend.startsWith("+")
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {metric.trend}
-                </span>
+                <span className="text-sm text-gray-400">{card.label}</span>
               </div>
-              
-              <div>
-                <p className="text-sm font-medium text-gray-400 mb-1">
-                  {metric.name}
-                </p>
-                <p className="text-2xl font-bold text-white">
-                  {metric.name === "Network I/O"
-                    ? `${metric.value.toFixed(1)}${metric.unit}`
-                    : `${metric.value}${metric.unit}`}
-                </p>
-              </div>
-
-              {/* Real-time indicator */}
-              <div className="mt-4">
-                <div className="w-full bg-neutral-700 rounded-full h-2">
-                  <div
-                    className={`bg-${metric.color}-500 h-2 rounded-full transition-all duration-1000`}
-                    style={{
-                      width: `${Math.min(
-                        (metric.value / metric.maxValue) * 100,
-                        100
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>0</span>
-                  <span>{metric.maxValue}{metric.unit}</span>
-                </div>
-              </div>
-            </motion.div>
+              <p className="text-2xl font-bold text-white">{card.value}</p>
+            </div>
           ))}
         </motion.div>
 
-        {/* Services Status */}
         <motion.div
           variants={itemVariants}
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 hover:border-neutral-700/50 transition-all duration-200"
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <FaServer className="w-4 h-4 text-green-400" />
-              </div>
-              Services Status
-            </h3>
-            <select
-              value={selectedService}
-              onChange={(e) => setSelectedService(e.target.value)}
-              className="px-3 py-1 border border-neutral-700 rounded bg-neutral-800/50 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-            >
-              <option value="all">All Services</option>
-              {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2 heading">
+            <FaRocket className="text-blue-400" />
+            Deployment status
+            <span className="text-sm font-normal text-gray-500">
+              ({totalDeployments} total)
+            </span>
+          </h2>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {services.map((service) => (
-              <div
-                key={service.id}
-                className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(service.status)}
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white">
-                        {service.name}
-                      </h4>
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
-                          service.status
-                        )}`}
-                      >
-                        {service.status}
-                      </span>
-                    </div>
-                  </div>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <FaEye />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500">Uptime:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                      {service.uptime}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Response:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                      {service.responseTime}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Requests:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                      {service.requests}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">CPU:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                      {service.cpu}%
-                    </span>
-                  </div>
-                </div>{" "}
-                {/* Resource usage bars */}
-                <div className="mt-3 space-y-2">
-                  <div>
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>CPU</span>
-                      <span>{service.cpu}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                      <div
-                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-1000"
-                        style={{ width: `${Math.min(service.cpu, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Memory</span>
-                      <span>{service.memory}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                      <div
-                        className="bg-green-600 h-1.5 rounded-full transition-all duration-1000"
-                        style={{ width: `${Math.min(service.memory, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
+          {totalDeployments === 0 ? (
+            <p className="text-gray-400 text-sm body">
+              No deployments yet. Create a project and deploy to see status here.
+            </p>
+          ) : (
+            <>
+              <div className="flex h-3 rounded-full overflow-hidden bg-neutral-800 mb-4">
+                {statusSegments.map((segment) =>
+                  segment.count > 0 ? (
+                    <div
+                      key={segment.key}
+                      className={`${segment.color} transition-all`}
+                      style={{
+                        width: `${(segment.count / totalDeployments) * 100}%`,
+                      }}
+                      title={`${segment.label}: ${segment.count}`}
+                    />
+                  ) : null,
+                )}
               </div>
-            ))}
-          </div>
+              <div className="flex flex-wrap gap-3">
+                {statusSegments.map((segment) => (
+                  <div
+                    key={segment.key}
+                    className="flex items-center gap-2 text-sm text-gray-300"
+                  >
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${segment.color}`}
+                    />
+                    <span>
+                      {segment.label}:{" "}
+                      <span className="text-white font-medium">
+                        {segment.count}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+                {statusBreakdown.other > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-gray-300">
+                    <span className="w-2.5 h-2.5 rounded-full bg-neutral-500" />
+                    <span>
+                      Other:{" "}
+                      <span className="text-white font-medium">
+                        {statusBreakdown.other}
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </motion.div>
 
-        {/* Charts and Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Response Time Chart */}
           <motion.div
             variants={itemVariants}
-            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Response Time Trends
-              </h3>
-              <FaDownload className="text-gray-400 cursor-pointer hover:text-gray-600" />
-            </div>
-
-            <div className="h-64 flex items-end justify-between space-x-2">
-              {responseTimeData.map((item, index) => (
-                <div key={index} className="flex flex-col items-center flex-1">
-                  <div
-                    className="w-full bg-blue-600 rounded-t-md transition-all duration-300 hover:bg-blue-700"
-                    style={{ height: `${(item.value / 250) * 100}%` }}
-                  />
-                  <span className="text-xs text-gray-500 mt-2">
-                    {item.time}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-              <span>Average: 165ms</span>
-              <span>Peak: 220ms</span>
-            </div>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2 heading">
+              <FaExclamationTriangle className="text-yellow-400" />
+              Needs attention
+            </h2>
+            {attentionItems.length === 0 ? (
+              <div className="flex items-center gap-3 text-green-400 text-sm">
+                <FaCheckCircle />
+                <span>All deployments look healthy</span>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {attentionItems.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(item.href)}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors hover:border-neutral-600 ${
+                        item.severity === "critical"
+                          ? "border-red-500/30 bg-red-500/10"
+                          : "border-yellow-500/30 bg-yellow-500/10"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-white">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {item.detail}
+                          </p>
+                        </div>
+                        <FaArrowRight className="w-3 h-3 text-gray-500 flex-shrink-0 mt-1" />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {formatRelativeTime(item.timestamp)}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </motion.div>
 
-          {/* Alerts */}
           <motion.div
             variants={itemVariants}
-            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+            className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Recent Alerts
-              </h3>
-              <button className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1">
-                <FaCog />
-                Configure
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {mockAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className={`p-3 rounded-lg border ${
-                    alert.level === "critical"
-                      ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
-                      : alert.level === "warning"
-                      ? "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20"
-                      : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        {alert.level === "critical" ? (
-                          <FaTimesCircle className="text-red-600" />
-                        ) : alert.level === "warning" ? (
-                          <FaExclamationTriangle className="text-yellow-600" />
-                        ) : (
-                          <FaCheckCircle className="text-blue-600" />
-                        )}
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {alert.service}
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2 heading">
+              <FaBell className="text-purple-400" />
+              Recent alerts
+            </h2>
+            {recentNotifications.length === 0 ? (
+              <p className="text-gray-400 text-sm body">No recent notifications.</p>
+            ) : (
+              <ul className="space-y-3">
+                {recentNotifications.map((notification) => {
+                  const id = notification._id || notification.id;
+                  return (
+                    <li
+                      key={id}
+                      className="p-3 rounded-lg border border-neutral-700/50 bg-neutral-800/30"
+                    >
+                      <p className="text-sm font-medium text-white">
+                        {notification.title || notification.type || "Notification"}
+                      </p>
+                      {notification.message && (
+                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                          {notification.message}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-xs text-gray-500">
+                          {formatRelativeTime(
+                            notification.createdAt || notification.timestamp,
+                          )}
                         </span>
-                        {alert.resolved && (
-                          <span className="px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded">
-                            Resolved
-                          </span>
+                        {notification.action?.url && (
+                          <a
+                            href={notification.action.url}
+                            className="text-xs text-blue-400 hover:text-blue-300"
+                          >
+                            View
+                          </a>
                         )}
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
-                        {alert.message}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">{alert.time}</p>
-                    </div>
-                    <button className="p-1 text-gray-400 hover:text-gray-600">
-                      <FaBell />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button className="w-full mt-4 py-2 text-center text-blue-600 hover:text-blue-700 text-sm border-t border-gray-200 dark:border-gray-700 pt-4">
-              View All Alerts
-            </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </motion.div>
         </div>
+
+        <motion.div
+          variants={itemVariants}
+          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 overflow-x-auto"
+        >
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2 heading">
+            <FaProjectDiagram className="text-green-400" />
+            Project health
+          </h2>
+
+          {projectHealthRows.length === 0 ? (
+            <p className="text-gray-400 text-sm body">
+              No projects yet.{" "}
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/projects/create")}
+                className="text-blue-400 hover:text-blue-300"
+              >
+                Create a project
+              </button>
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b border-neutral-800">
+                  <th className="pb-3 font-medium">Project</th>
+                  <th className="pb-3 font-medium">Latest deployment</th>
+                  <th className="pb-3 font-medium">Last activity</th>
+                  <th className="pb-3 font-medium">Uptime</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectHealthRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => navigate(`/dashboard/projects/${row.id}`)}
+                    className="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
+                  >
+                    <td className="py-3 pr-4">
+                      <span className="text-white font-medium">{row.name}</span>
+                      {row.projectStatus && row.projectStatus !== "active" && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          ({row.projectStatus})
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {row.deploymentStatus ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          {getStatusIcon(row.deploymentStatus)}
+                          <span className={getStatusBadge(row.deploymentStatus)}>
+                            {row.deploymentStatus}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">No deployments</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4 text-gray-400">
+                      {formatRelativeTime(row.lastDeploymentAt)}
+                    </td>
+                    <td className="py-3 text-gray-300">
+                      {row.uptime != null ? `${row.uptime}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </motion.div>
       </motion.div>
-    </>
+    </div>
   );
 };
 

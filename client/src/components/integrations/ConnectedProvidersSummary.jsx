@@ -85,8 +85,24 @@ const ConnectedProvidersSummary = ({ onManageClick }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {/* Connected Providers */}
         <div
-          className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4 lg:p-6 hover:border-neutral-700/50 transition-colors cursor-pointer group"
+          className={`bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-3 sm:p-4 lg:p-6 transition-colors ${
+            onManageClick
+              ? "hover:border-neutral-700/50 cursor-pointer group"
+              : ""
+          }`}
           onClick={onManageClick}
+          role={onManageClick ? "button" : undefined}
+          tabIndex={onManageClick ? 0 : undefined}
+          onKeyDown={
+            onManageClick
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onManageClick();
+                  }
+                }
+              : undefined
+          }
         >
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">
