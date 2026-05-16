@@ -3,16 +3,43 @@ const router = express.Router();
 const { body } = require("express-validator");
 const projectCreationController = require("@controllers/project/projectCreationController");
 const { protect } = require("@middleware/authMiddleware");
+const { normalizeProviderApi } = require("@utils/repositoryUrlParser");
 
 // Apply authentication to all routes
 router.use(protect);
 
+const SUPPORTED_CREATION_PROVIDERS = ["github", "gitlab", "azuredevops"];
+
 const analyzeRepositoryValidation = [
-  body("repositoryUrl").isURL().withMessage("Valid repository URL is required"),
+  body("repositoryUrl")
+    .notEmpty()
+    .withMessage("Repository URL is required")
+    .custom((value) => {
+      const url = String(value || "").trim();
+      if (/^https?:\/\//i.test(url)) {
+        try {
+          // eslint-disable-next-line no-new
+          new URL(url);
+          return true;
+        } catch {
+          throw new Error("Valid repository URL is required");
+        }
+      }
+      if (/^git@[^:]+:.+/.test(url)) {
+        return true;
+      }
+      throw new Error("Valid repository URL is required");
+    }),
   body("branch").optional().isString().withMessage("Branch must be a string"),
   body("provider")
-    .isIn(["github"])
-    .withMessage("Invalid provider"),
+    .optional()
+    .custom((value) => {
+      const apiProvider = normalizeProviderApi(value || "github");
+      if (!SUPPORTED_CREATION_PROVIDERS.includes(apiProvider)) {
+        throw new Error("Invalid provider");
+      }
+      return true;
+    }),
   body("dockerfilePath")
     .optional()
     .isString()

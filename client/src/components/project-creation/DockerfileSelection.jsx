@@ -17,6 +17,7 @@ import {
   updateStep,
   resetAnalysisForNewRepo,
 } from "@redux/slices/projectCreationSlice";
+import { buildRepositoryDiscoveryPayload } from "@/utils/repositoryDiscoveryPayload";
 
 const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
   const dispatch = useDispatch();
@@ -28,35 +29,12 @@ const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
     stepData.projectName || "",
   );
 
-  const buildRepositoryPayload = () => {
-    let repositoryUrl;
-    const repo = stepData.selectedRepository;
-    if (repo?.htmlUrl) {
-      repositoryUrl = repo.htmlUrl;
-    } else if (repo?.cloneUrl) {
-      repositoryUrl = repo.cloneUrl;
-    } else if (repo?.fullName && stepData.selectedProvider === "gitlab") {
-      repositoryUrl = `https://gitlab.com/${repo.fullName}`;
-    } else if (
-      stepData.selectedProvider === "azure-devops" &&
-      (repo?.fullName || (repo?.organization && repo?.project))
-    ) {
-      const orgProject =
-        repo.fullName?.split("/").slice(0, 2).join("/") ||
-        `${repo.organization}/${repo.project}`;
-      repositoryUrl = `https://dev.azure.com/${orgProject}/_git/${repo.name}`;
-    } else {
-      const owner =
-        typeof repo?.owner === "object" ? repo.owner.login : repo?.owner;
-      repositoryUrl = `https://github.com/${owner}/${repo?.name}`;
-    }
-
-    return {
-      repositoryUrl,
-      branch: stepData.selectedBranch?.name || stepData.selectedBranch,
-      provider: stepData.selectedProvider || "github",
-    };
-  };
+  const buildRepositoryPayload = () =>
+    buildRepositoryDiscoveryPayload({
+      repository: stepData.selectedRepository,
+      branch: stepData.selectedBranch,
+      provider: stepData.selectedProvider,
+    });
 
   useEffect(() => {
     if (
@@ -68,7 +46,12 @@ const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
       return;
     }
 
-    dispatch(discoverDockerfiles(buildRepositoryPayload()));
+    const payload = buildRepositoryPayload();
+    if (!payload?.repositoryUrl) {
+      return;
+    }
+
+    dispatch(discoverDockerfiles(payload));
   }, [
     dispatch,
     stepData.selectedRepository,

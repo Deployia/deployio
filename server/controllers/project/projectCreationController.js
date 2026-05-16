@@ -2,6 +2,20 @@ const projectCreationService = require("../../services/project/projectCreationSe
 const NotificationHelpers = require("../../services/notification/notificationHelpers");
 const { validationResult } = require("express-validator");
 const logger = require("@config/logger");
+const { normalizeProviderApi } = require("../../utils/repositoryUrlParser");
+
+function normalizeRepositoryUrlForApi(repositoryUrl) {
+  const url = String(repositoryUrl || "").trim();
+  const githubSsh = url.match(/^git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/i);
+  if (githubSsh) {
+    return `https://github.com/${githubSsh[1]}/${githubSsh[2]}`;
+  }
+  const gitlabSsh = url.match(/^git@gitlab\.com:(.+?)(?:\.git)?$/i);
+  if (gitlabSsh) {
+    return `https://gitlab.com/${gitlabSsh[1]}`;
+  }
+  return url;
+}
 
 class ProjectCreationController {
   // Complete project creation with full client payload
@@ -58,9 +72,9 @@ class ProjectCreationController {
       const { repositoryUrl, branch, provider } = req.body;
       const result = await projectCreationService.discoverDockerfiles(
         {
-          repositoryUrl,
+          repositoryUrl: normalizeRepositoryUrlForApi(repositoryUrl),
           branch,
-          provider,
+          provider: normalizeProviderApi(provider || "github"),
         },
         req.user.id,
       );
@@ -97,9 +111,9 @@ class ProjectCreationController {
 
       const result = await projectCreationService.analyzeRepositoryStandalone(
         {
-          repositoryUrl,
+          repositoryUrl: normalizeRepositoryUrlForApi(repositoryUrl),
           branch,
-          provider,
+          provider: normalizeProviderApi(provider || "github"),
           dockerfilePath,
         },
         userId,

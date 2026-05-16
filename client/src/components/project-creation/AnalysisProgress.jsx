@@ -21,11 +21,31 @@ import {
   updateStep,
   setStepData,
 } from "@redux/slices/projectCreationSlice";
+import { buildRepositoryDiscoveryPayload } from "@/utils/repositoryDiscoveryPayload";
 
 const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
   const dispatch = useDispatch();
   const [analysisLogs, setAnalysisLogs] = useState([]);
   const didAutoAdvanceRef = useRef(false);
+
+  const buildRepositoryData = () => {
+    const base = buildRepositoryDiscoveryPayload({
+      repository: stepData.selectedRepository,
+      branch: stepData.selectedBranch,
+      provider: stepData.selectedProvider,
+    });
+    if (!base) {
+      return null;
+    }
+
+    return {
+      ...base,
+      dockerfilePath:
+        stepData.selectedDockerfile?.path ||
+        stepData.dockerfilePath ||
+        "Dockerfile",
+    };
+  };
 
   // Start analysis when component mounts
   useEffect(() => {
@@ -35,30 +55,10 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
       stepData.selectedBranch &&
       (stepData.selectedDockerfile?.path || stepData.dockerfilePath)
     ) {
-      // Extract repository URL from selectedRepository
-      let repositoryUrl;
-      if (stepData.selectedRepository.htmlUrl) {
-        repositoryUrl = stepData.selectedRepository.htmlUrl;
-      } else if (stepData.selectedRepository.cloneUrl) {
-        repositoryUrl = stepData.selectedRepository.cloneUrl;
-      } else {
-        // Construct URL from owner and name
-        const owner =
-          typeof stepData.selectedRepository.owner === "object"
-            ? stepData.selectedRepository.owner.login
-            : stepData.selectedRepository.owner;
-        repositoryUrl = `https://github.com/${owner}/${stepData.selectedRepository.name}`;
+      const repositoryData = buildRepositoryData();
+      if (!repositoryData?.repositoryUrl) {
+        return;
       }
-
-      const repositoryData = {
-        repositoryUrl,
-        branch: stepData.selectedBranch?.name || stepData.selectedBranch,
-        provider: stepData.selectedProvider || "github",
-        dockerfilePath:
-          stepData.selectedDockerfile?.path ||
-          stepData.dockerfilePath ||
-          "Dockerfile",
-      };
 
       dispatch(analyzeRepository(repositoryData));
     }
@@ -180,31 +180,6 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
 
     return undefined;
   }, [dispatch, onNext, stepData.analysisResults, stepData.analysisStatus]);
-
-  const buildRepositoryData = () => {
-    let repositoryUrl;
-    if (stepData.selectedRepository.htmlUrl) {
-      repositoryUrl = stepData.selectedRepository.htmlUrl;
-    } else if (stepData.selectedRepository.cloneUrl) {
-      repositoryUrl = stepData.selectedRepository.cloneUrl;
-    } else {
-      const owner =
-        typeof stepData.selectedRepository.owner === "object"
-          ? stepData.selectedRepository.owner.login
-          : stepData.selectedRepository.owner;
-      repositoryUrl = `https://github.com/${owner}/${stepData.selectedRepository.name}`;
-    }
-
-    return {
-      repositoryUrl,
-      branch: stepData.selectedBranch?.name || stepData.selectedBranch,
-      provider: stepData.selectedProvider || "github",
-      dockerfilePath:
-        stepData.selectedDockerfile?.path ||
-        stepData.dockerfilePath ||
-        "Dockerfile",
-    };
-  };
 
   const handleContinue = ({ allowManual = false } = {}) => {
     if (stepData.analysisStatus === "completed") {

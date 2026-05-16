@@ -25,12 +25,10 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   const { connectedProviders, fetchConnections } = useGitProviders();
   const selectedProvider = stepData.selectedProvider || null;
 
-  // Keep the wizard aligned with the shared Git provider state.
   useEffect(() => {
     fetchConnections();
   }, [fetchConnections]);
 
-  // Provider configurations
   const providers = [
     {
       id: "github",
@@ -95,8 +93,9 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
       (p) => normalizeProviderId(p.provider) === providerId,
     );
     if (!providerData) return "disconnected";
-    if (providerData.connected && providerData.hasRepoAccess)
+    if (providerData.connected && providerData.hasRepoAccess) {
       return "connected";
+    }
     if (providerData.connected) return "limited";
     return "disconnected";
   };
@@ -105,30 +104,32 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
     switch (status) {
       case "connected":
         return (
-          <div className="flex items-center space-x-2 text-green-400">
+          <motion.div
+            layout
+            className="flex items-center justify-center space-x-2 text-green-400"
+          >
             <FaCheckCircle className="w-4 h-4" />
             <span className="text-sm font-medium">Connected</span>
-          </div>
+          </motion.div>
         );
       case "limited":
         return (
-          <div className="flex items-center space-x-2 text-yellow-400">
+          <div className="flex items-center justify-center space-x-2 text-yellow-400">
             <FaExclamationTriangle className="w-4 h-4" />
             <span className="text-sm font-medium">Limited Access</span>
           </div>
         );
       default:
         return (
-          <div className="flex items-center space-x-2 text-neutral-400">
+          <motion.div
+            layout
+            className="flex items-center justify-center space-x-2 text-neutral-400"
+          >
             <FaPlug className="w-4 h-4" />
-            <span className="text-sm font-medium">Not Connected</span>
-          </div>
+            <span className="text-sm font-medium">Not connected</span>
+          </motion.div>
         );
     }
-  };
-
-  const handleConnect = () => {
-    handleGoToIntegrations();
   };
 
   const handleContinue = () => {
@@ -136,50 +137,73 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
     const status = getProviderStatus(selectedProvider);
     if (status !== "connected") return;
 
-    if (stepData.selectedProvider !== selectedProvider) {
-      dispatch(setSelectedProvider(selectedProvider));
-    }
     dispatch(completeStep(1));
     onNext();
+  };
+
+  const handlePrimaryAction = () => {
+    if (!selectedProvider) return;
+
+    const status = getProviderStatus(selectedProvider);
+    if (status === "connected") {
+      handleContinue();
+      return;
+    }
+
+    handleGoToIntegrations();
   };
 
   const selectedProviderMeta = providers.find((p) => p.id === selectedProvider);
   const selectedProviderStatus = selectedProvider
     ? getProviderStatus(selectedProvider)
     : null;
-  const canContinue =
-    selectedProvider && selectedProviderStatus === "connected" && !loading;
+
+  const primaryActionLabel = (() => {
+    if (!selectedProviderMeta) {
+      return "Select a provider";
+    }
+    if (selectedProviderStatus === "connected") {
+      return `Continue with ${selectedProviderMeta.name}`;
+    }
+    if (selectedProviderStatus === "limited") {
+      return `Update ${selectedProviderMeta.name} permissions`;
+    }
+    return `Connect ${selectedProviderMeta.name} in Integrations`;
+  })();
+
+  const primaryActionEnabled =
+    Boolean(selectedProvider) &&
+    !loading &&
+    (selectedProviderStatus === "connected" ||
+      selectedProviderStatus === "disconnected" ||
+      selectedProviderStatus === "limited");
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6">
-      {/* Header */}
-      <div className="text-center mb-6 sm:mb-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4"
-        >
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-            <FaGithub className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
-          </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
-            Choose Your Git Provider
-          </h2>
-          <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto px-2">
-            Select the Git provider where your project repository is hosted.
-            We&apos;ll use this to analyze your code and configure deployment
-            settings.
-          </p>
-        </motion.div>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center mb-6 sm:mb-8"
+      >
+        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+          <FaGithub className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+          Choose Your Git Provider
+        </h2>
+        <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto px-2">
+          Pick where your repository lives. Connected providers can continue to
+          repository selection; others will open Integrations to connect.
+        </p>
+      </motion.div>
 
-      {/* Provider Cards */}
       <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
         {providers.map((provider, index) => {
           const status = getProviderStatus(provider.id);
           const isSelected = selectedProvider === provider.id;
           const Icon = provider.icon;
           const isAvailable = provider.available !== false;
+          const isConnected = status === "connected";
 
           return (
             <motion.div
@@ -204,14 +228,12 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
               `}
               onClick={() => isAvailable && handleProviderSelect(provider.id)}
             >
-              {/* Coming Soon Badge */}
               {!isAvailable && (
                 <div className="absolute top-3 right-3 sm:top-4 sm:right-4 px-2 sm:px-3 py-1 bg-amber-500/80 text-white text-xs sm:text-sm font-medium rounded">
                   Coming Soon
                 </div>
               )}
 
-              {/* Selection Indicator */}
               {isSelected && isAvailable && (
                 <motion.div
                   initial={{ scale: 0 }}
@@ -222,16 +244,14 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
                 </motion.div>
               )}
 
-              {/* Provider Icon */}
               <div className="flex items-center justify-center mb-3 sm:mb-4">
-                <div
+                <motion.div
                   className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg ${provider.bgColor} flex items-center justify-center`}
                 >
                   <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${provider.color}`} />
-                </div>
+                </motion.div>
               </div>
 
-              {/* Provider Info */}
               <div className="text-center mb-3 sm:mb-4">
                 <h3 className="text-base sm:text-lg font-semibold text-white mb-2">
                   {provider.name}
@@ -240,14 +260,12 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
                   {provider.description}
                 </p>
 
-                {/* Connection Status */}
                 {isAvailable && (
                   <div className="mb-3 sm:mb-4">
                     {renderProviderStatus(status)}
                   </div>
                 )}
 
-                {/* Features */}
                 <div className="space-y-1 sm:space-y-2">
                   {provider.features.map((feature, idx) => (
                     <div
@@ -259,38 +277,19 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
                     </div>
                   ))}
                 </div>
+
+                {isAvailable && isSelected && !isConnected && (
+                  <p className="mt-4 text-xs text-neutral-400">
+                    Connect this provider in Integrations, then return here to
+                    browse repositories.
+                  </p>
+                )}
               </div>
-
-              {/* Connect Button */}
-              {isAvailable && status === "disconnected" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleConnect(provider.id);
-                  }}
-                  className="w-full py-2 px-3 sm:px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm sm:text-base font-medium transition-colors"
-                >
-                  Connect in Integrations
-                </button>
-              )}
-
-              {isAvailable && status === "limited" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleConnect(provider.id);
-                  }}
-                  className="w-full py-2 px-3 sm:px-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm sm:text-base font-medium transition-colors"
-                >
-                  Manage in Integrations
-                </button>
-              )}
             </motion.div>
           );
         })}
       </div>
 
-      {/* Help Text */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -312,17 +311,18 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
         </div>
       </motion.div>
 
-      {/* Action Buttons */}
       <div className="mt-6 sm:mt-8 text-center">
         <button
           type="button"
-          onClick={handleContinue}
-          disabled={!canContinue}
+          onClick={handlePrimaryAction}
+          disabled={!primaryActionEnabled}
           className={`
-            w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base
+            w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center gap-2 text-sm sm:text-base
             ${
-              canContinue
-                ? "bg-blue-600 hover:bg-blue-700 text-white"
+              primaryActionEnabled
+                ? selectedProviderStatus === "connected"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-600"
                 : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
             }
           `}
@@ -332,24 +332,21 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
               <FaSpinner className="w-4 h-4 animate-spin" />
               <span>Loading...</span>
             </>
-          ) : selectedProviderMeta ? (
-            <span>Continue with {selectedProviderMeta.name}</span>
           ) : (
-            <span>Select a connected provider</span>
+            <>
+              {selectedProviderStatus !== "connected" && selectedProvider && (
+                <FaExternalLinkAlt className="w-4 h-4" />
+              )}
+              <span>{primaryActionLabel}</span>
+            </>
           )}
         </button>
 
-        {selectedProvider && selectedProviderStatus !== "connected" && (
-          <button
-            type="button"
-            onClick={handleGoToIntegrations}
-            className="mt-3 w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-600"
-          >
-            <FaExternalLinkAlt className="w-4 h-4" />
-            <span>
-              Connect {selectedProviderMeta?.name || "provider"} in Integrations
-            </span>
-          </button>
+        {selectedProvider && selectedProviderStatus === "connected" && (
+          <p className="mt-3 text-xs sm:text-sm text-neutral-500">
+            {selectedProviderMeta?.name} is connected. You can browse its
+            repositories on the next step.
+          </p>
         )}
       </div>
     </div>

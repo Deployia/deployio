@@ -264,21 +264,23 @@ const RepositoryBrowser = ({ stepData, onNext, onPrevious, loading }) => {
             <h3 className="text-lg font-medium text-neutral-300 mb-2">
               No repositories found
             </h3>
-            <p className="text-neutral-500 mb-4">
+            <p className="text-neutral-500 mb-4 max-w-md mx-auto">
               {repoState.error
                 ? repoState.error
                 : "Try adjusting your search or filter criteria."}
             </p>
-            {onPrevious && (
-              <button
-                type="button"
-                onClick={onPrevious}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-400 hover:text-blue-300"
-              >
-                <FaArrowLeft className="w-4 h-4" />
-                Use a different provider
-              </button>
-            )}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              {onPrevious && (
+                <button
+                  type="button"
+                  onClick={onPrevious}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg"
+                >
+                  <FaArrowLeft className="w-4 h-4" />
+                  Change provider
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           repositoryList.map((repo, index) => {

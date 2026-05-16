@@ -13,8 +13,10 @@ export const discoverDockerfiles = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const repositoryData = payload?.repositoryData || payload;
-      const response =
-        await projectCreationService.discoverDockerfiles(repositoryData);
+      const response = await projectCreationService.discoverDockerfiles({
+        ...repositoryData,
+        provider: toApiProviderId(repositoryData?.provider),
+      });
       return response;
     } catch (error) {
       return rejectWithValue(
