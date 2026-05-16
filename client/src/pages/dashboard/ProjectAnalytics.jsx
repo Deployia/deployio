@@ -174,7 +174,16 @@ const ProjectAnalytics = () => {
     URL.revokeObjectURL(href);
   };
 
-  const projectStats = project?.statistics || {};
+  const projectStats = {
+    ...(project?.statistics || {}),
+    totalDeployments:
+      project?.statistics?.totalDeployments ?? project?.deploymentCount ?? 0,
+    successfulDeployments:
+      project?.statistics?.successfulDeployments ??
+      project?.successfulDeployments ??
+      0,
+    uptime: project?.statistics?.uptime ?? 100,
+  };
 
   return (
     <div className="space-y-6">

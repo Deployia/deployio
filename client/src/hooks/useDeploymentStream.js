@@ -38,7 +38,13 @@ function normalizeLogEntry(entry, fallbackTs) {
   };
 }
 
-export default function useDeploymentStream(deploymentId) {
+/**
+ * @param {string} deploymentId
+ * @param {{ buildOnly?: boolean }} [options]
+ *   buildOnly — subscribe for pipeline status + build logs only (no container metrics/runtime tail).
+ */
+export default function useDeploymentStream(deploymentId, options = {}) {
+  const { buildOnly = false } = options;
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [liveLogs, setLiveLogs] = useState([]);
@@ -58,7 +64,10 @@ export default function useDeploymentStream(deploymentId) {
       socketRef.current = socket;
       setConnected(socket.connected);
 
-      socket.emit("deployment:subscribe", { deploymentId, realtime: true });
+      socket.emit("deployment:subscribe", {
+        deploymentId,
+        realtime: !buildOnly,
+      });
       socket.on("connect", () => setConnected(true));
       socket.on("disconnect", () => setConnected(false));
 
@@ -76,9 +85,11 @@ export default function useDeploymentStream(deploymentId) {
         setLiveLogs((prev) => [...prev.slice(-299), normalizeLogEntry(entry, new Date().toISOString())]);
       });
       socket.on("deployment:runtime_log_update", (entry) => {
+        if (buildOnly) return;
         setLiveLogs((prev) => [...prev.slice(-299), normalizeLogEntry(entry, new Date().toISOString())]);
       });
       socket.on("deployment:metrics_update", (event) => {
+        if (buildOnly) return;
         setLiveMetrics(event.metrics || null);
       });
       socket.on("deployment:status_update", (event) => {
@@ -100,7 +111,7 @@ export default function useDeploymentStream(deploymentId) {
         socketRef.current.off("deployment:status_update");
       }
     };
-  }, [deploymentId]);
+  }, [deploymentId, buildOnly]);
 
   return { connected, liveLogs, liveMetrics, liveStatus };
 }

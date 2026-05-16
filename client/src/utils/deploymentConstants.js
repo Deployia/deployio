@@ -196,3 +196,31 @@ export const PIPELINE_STAGE_ORDER = [
   "deploying",
   "running",
 ];
+
+/** In-flight build pipeline (no container runtime yet). */
+export const BUILD_PIPELINE_STATUSES = new Set([
+  "pending",
+  "queued",
+  "cloning",
+  "detecting",
+  "building",
+  "deploying",
+]);
+
+const PIPELINE_STAGE_SET = new Set(PIPELINE_STAGE_ORDER);
+
+/** Map API status to a pipeline stage label (pending → queued for the stepper). */
+export const resolvePipelineStage = (status) => {
+  const s = String(status || "").toLowerCase();
+  if (s === "pending") return "queued";
+  if (s === "success") return "running";
+  return s;
+};
+
+export const isDeploymentBuildPhase = (status) =>
+  BUILD_PIPELINE_STATUSES.has(String(status || "").toLowerCase());
+
+export const isPipelineStageStatus = (status) => {
+  const resolved = resolvePipelineStage(status);
+  return PIPELINE_STAGE_SET.has(resolved);
+};

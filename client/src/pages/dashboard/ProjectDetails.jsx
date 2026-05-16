@@ -421,6 +421,14 @@ const ProjectDetails = () => {
       return project.technology.primary;
     }
 
+    if (project?.stack?.detected?.primary) {
+      return project.stack.detected.primary;
+    }
+
+    if (project?.analysis?.stack) {
+      return project.analysis.stack;
+    }
+
     // Check stackAnalysis
     if (project?.stackAnalysis?.primary?.name) {
       return project.stackAnalysis.primary.name;
@@ -1175,8 +1183,8 @@ const ProjectOverview = ({
               </span>
             </div>
             <span className="text-lg sm:text-2xl font-bold text-white">
-              {project.statistics?.totalDeployments ||
-                project.deploymentCount ||
+              {project.statistics?.totalDeployments ??
+                project.deploymentCount ??
                 0}
             </span>
           </div>
@@ -1199,11 +1207,16 @@ const ProjectOverview = ({
               </span>
             </div>
             <span className="text-lg sm:text-2xl font-bold text-white">
-              {project.statistics?.successfulDeployments &&
-              project.statistics?.totalDeployments
+              {(project.statistics?.totalDeployments ??
+                project.deploymentCount ??
+                0) > 0
                 ? Math.round(
-                    (project.statistics.successfulDeployments /
-                      project.statistics.totalDeployments) *
+                    ((project.statistics?.successfulDeployments ??
+                      project.successfulDeployments ??
+                      0) /
+                      (project.statistics?.totalDeployments ??
+                        project.deploymentCount ??
+                        1)) *
                       100,
                   )
                 : 0}
@@ -1236,7 +1249,8 @@ const ProjectOverview = ({
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        deployment.status === "success"
+                        deployment.status === "success" ||
+                        deployment.status === "running"
                           ? "bg-green-400"
                           : deployment.status === "failed"
                             ? "bg-red-400"
@@ -1244,8 +1258,10 @@ const ProjectOverview = ({
                       }`}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-white font-medium text-sm sm:text-base">
-                        {deployment?.environment || "unknown"}
+                      <p className="text-white font-medium text-sm sm:text-base capitalize">
+                        {deployment?.environment ||
+                          deployment?.config?.environment ||
+                          "staging"}
                       </p>
                       <p className="text-gray-400 text-xs sm:text-sm truncate">
                         {new Date(deployment.createdAt).toLocaleString()}
@@ -1253,8 +1269,9 @@ const ProjectOverview = ({
                     </div>
                   </div>
                   <span
-                    className={`px-2 py-1 rounded text-xs flex-shrink-0 ${
-                      deployment.status === "success"
+                    className={`px-2 py-1 rounded text-xs flex-shrink-0 capitalize ${
+                      deployment.status === "success" ||
+                      deployment.status === "running"
                         ? "bg-green-500/20 text-green-400"
                         : deployment.status === "failed"
                           ? "bg-red-500/20 text-red-400"

@@ -39,6 +39,9 @@ import {
   getDeploymentEnvironmentLabel,
   getDeploymentStatusBadge,
   isDeploymentActionAllowed,
+  isDeploymentBuildPhase,
+  isPipelineStageStatus,
+  resolvePipelineStage,
 } from "../../utils/deploymentConstants";
 import DeploymentPreviewIframe from "../../components/deployments/DeploymentPreviewIframe";
 import { getDeploymentUrl, isLiveForPreview } from "../../utils/deploymentPreview";
@@ -136,8 +139,12 @@ const ProjectDeployments = () => {
     () => selectedDeployment?.deploymentId || selectedDeploymentId,
     [selectedDeployment?.deploymentId, selectedDeploymentId],
   );
+  const streamBuildOnly = isDeploymentBuildPhase(
+    selectedDeployment?.status,
+  );
   const { connected, liveLogs, liveStatus, liveMetrics } = useDeploymentStream(
-    selectedDeploymentRuntimeId,
+    showPanel ? selectedDeploymentRuntimeId : null,
+    { buildOnly: streamBuildOnly },
   );
   const selectedProbe =
     deploymentProbe?.deploymentId === selectedDeploymentRuntimeId ||
@@ -416,13 +423,31 @@ const ProjectDeployments = () => {
     return null;
   }, [deploymentLogs, formatLogs, liveLogs]);
 
+  const normalizedStatus = String(
+    liveStatus?.status || selectedDeployment?.status || "",
+  ).toLowerCase();
+  const isBuildPhase = isDeploymentBuildPhase(normalizedStatus);
+  const isRuntimeLive = normalizedStatus === "running";
+
+  const streamLiveLogs = useMemo(() => {
+    if (!isBuildPhase) return liveLogs;
+    return liveLogs.filter((log) => log.source !== "runtime");
+  }, [isBuildPhase, liveLogs]);
+
   const mergedPanelLogs = useMemo(() => {
-    const rows = [...formatLogs(deploymentLogs), ...liveLogs];
+    const persisted = formatLogs(deploymentLogs);
+    const persistedFiltered = isBuildPhase
+      ? persisted.filter(
+          (log) =>
+            !log.source || log.source === "build" || log.source === "deploy",
+        )
+      : persisted;
+    const rows = [...persistedFiltered, ...streamLiveLogs];
     return rows.sort(
       (a, b) =>
         new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime(),
     );
-  }, [deploymentLogs, liveLogs, formatLogs]);
+  }, [deploymentLogs, streamLiveLogs, formatLogs, isBuildPhase]);
 
   useEffect(() => {
     const wasOpen = prevShowPanelRef.current;
@@ -446,9 +471,6 @@ const ProjectDeployments = () => {
     }
   }, [showPanel, mergedPanelLogs]);
 
-  const normalizedStatus = String(
-    liveStatus?.status || selectedDeployment?.status || "",
-  ).toLowerCase();
   const terminalOrStableStatus = new Set([
     "running",
     "stopped",
@@ -457,9 +479,12 @@ const ProjectDeployments = () => {
     "cancelled",
     "deleted",
   ]);
-  const effectivePipelineStage = terminalOrStableStatus.has(normalizedStatus)
-    ? normalizedStatus
-    : deriveStageFromLogs || normalizedStatus || "queued";
+  const effectivePipelineStage = useMemo(() => {
+    const resolved = resolvePipelineStage(normalizedStatus);
+    if (terminalOrStableStatus.has(resolved)) return resolved;
+    if (isPipelineStageStatus(normalizedStatus)) return resolved;
+    return deriveStageFromLogs || resolved || "queued";
+  }, [normalizedStatus, deriveStageFromLogs]);
 
   useEffect(() => {
     if (!location.state?.openLatestDeploymentPanel) return;
@@ -870,7 +895,13 @@ const ProjectDeployments = () => {
                   </div>
                   <div className="bg-neutral-900/60 rounded-lg p-2">
                     <span className="text-gray-400">Health: </span>
-                    <span className="text-white">{selectedDeployment.healthStatus || "unknown"}</span>
+                    <span className="text-white">
+                      {isBuildPhase
+                        ? "—"
+                        : selectedDeployment.healthStatus === "unknown" && isRuntimeLive
+                          ? "healthy"
+                          : selectedDeployment.healthStatus || "—"}
+                    </span>
                   </div>
                   <div className="bg-neutral-900/60 rounded-lg p-2">
                     <span className="text-gray-400">Branch: </span>
@@ -895,7 +926,9 @@ const ProjectDeployments = () => {
                   <h4 className="text-sm font-medium text-white mb-2">Pipeline</h4>
                   <div className="space-y-2">
                     {(() => {
-                      const currentStage = String(effectivePipelineStage || "").toLowerCase();
+                      const currentStage = resolvePipelineStage(
+                        effectivePipelineStage || "",
+                      );
                       const stageIndex = stageOrder.indexOf(currentStage);
                       const isTerminalFailure = currentStage === "failed" || currentStage === "error";
                       const isCancelled = currentStage === "cancelled";
@@ -948,7 +981,7 @@ const ProjectDeployments = () => {
                   </div>
                 </div>
 
-                {liveMetrics && (String(liveStatus?.status || selectedDeployment?.status) === "running") && (
+                {isRuntimeLive && liveMetrics && !liveMetrics.unavailable && (
                   <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
                     <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Runtime Metrics</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -991,11 +1024,22 @@ const ProjectDeployments = () => {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-medium text-white">Activity</h4>
+                    <h4 className="text-sm font-medium text-white">
+                      {isBuildPhase ? "Build logs" : "Activity"}
+                    </h4>
                     <span className="text-xs text-gray-500">
-                      {connected ? "Live · connected" : "Live · disconnected"}
+                      {connected
+                        ? isBuildPhase
+                          ? "Build stream · connected"
+                          : "Live · connected"
+                        : "Disconnected"}
                     </span>
                   </div>
+                  {isBuildPhase ? (
+                    <p className="text-xs text-gray-500 mb-2">
+                      Runtime metrics and container logs are on Analytics after deploy finishes.
+                    </p>
+                  ) : null}
                   <div
                     ref={logScrollContainerRef}
                     className="bg-black/70 border border-neutral-800 rounded-lg p-3 font-mono text-xs min-h-[280px] max-h-[48vh] overflow-y-auto overflow-x-hidden"
@@ -1004,7 +1048,11 @@ const ProjectDeployments = () => {
                       <div className="text-blue-300 text-xs mb-2">Loading saved logs…</div>
                     )}
                     {!mergedPanelLogs.length && !logsLoading ? (
-                      <div className="text-gray-500">No activity yet. Streamed build and runtime lines appear here.</div>
+                      <div className="text-gray-500">
+                        {isBuildPhase
+                          ? "Build output will stream here while the image is built."
+                          : "No activity yet."}
+                      </div>
                     ) : null}
                     {mergedPanelLogs.map((log, idx) => {
                       const raw = log?.message;
@@ -1029,7 +1077,7 @@ const ProjectDeployments = () => {
                   </div>
                 </div>
 
-                {selectedDeployment?.status === "running" &&
+                {isRuntimeLive &&
                   (selectedDeployment.url || selectedDeployment.networking?.fullUrl) && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">

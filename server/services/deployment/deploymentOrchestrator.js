@@ -302,6 +302,10 @@ class DeploymentOrchestrator {
       if (url) {
         setFields["networking.fullUrl"] = url;
       }
+      if (status === "running") {
+        setFields["runtime.health.status"] = "healthy";
+        setFields["runtime.health.lastCheck"] = new Date();
+      }
 
       // If failed, record error
       if (status === "failed" && message) {

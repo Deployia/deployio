@@ -66,7 +66,7 @@ const DeploymentLivePreview = ({ deployment, size = "card" }) => {
           <DeploymentPreviewIframe
             deployment={deployment}
             title={`preview-${deployment.deploymentId || deployment.id || deployment._id}`}
-            className="w-full h-full border-0"
+            variant="mini"
             pointerEventsNone
           />
         </div>

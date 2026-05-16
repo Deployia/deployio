@@ -86,8 +86,15 @@ class ProjectService {
           const deploymentCount = await Deployment.countDocuments({
             project: project._id,
           });
+          const successfulDeployments = await Deployment.countDocuments({
+            project: project._id,
+            status: "running",
+          });
 
-          return this.transformProject(project, { deploymentCount });
+          return this.transformProject(project, {
+            deploymentCount,
+            successfulDeployments,
+          });
         }),
       );
 
@@ -295,6 +302,15 @@ class ProjectService {
   }
 
   transformProject(project, additionalData = {}) {
+    const totalDeployments =
+      additionalData.deploymentCount ??
+      project.statistics?.totalDeployments ??
+      0;
+    const successfulDeployments =
+      additionalData.successfulDeployments ??
+      project.statistics?.successfulDeployments ??
+      0;
+
     return {
       id: project._id,
       name: project.name,
@@ -311,6 +327,7 @@ class ProjectService {
         backend: project.stack?.detected?.backend?.framework,
         database: project.stack?.detected?.database?.type,
       },
+      stack: project.stack,
       analysis: {
         confidence: project.analysis?.confidence || 0,
         approach: project.analysis?.approach || "basic",
@@ -324,15 +341,14 @@ class ProjectService {
       status: project.status,
       archivedAt: project.archivedAt,
       visibility: project.visibility,
-      statistics: project.statistics,
-      deploymentCount:
-        additionalData.deploymentCount ||
-        project.statistics?.totalDeployments ||
-        0,
-      successfulDeployments:
-        additionalData.successfulDeployments ||
-        project.statistics?.successfulDeployments ||
-        0,
+      statistics: {
+        ...(project.statistics || {}),
+        totalDeployments,
+        successfulDeployments,
+        uptime: project.statistics?.uptime ?? 100,
+      },
+      deploymentCount: totalDeployments,
+      successfulDeployments,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
       lastAccessed: project.lastAccessed,
