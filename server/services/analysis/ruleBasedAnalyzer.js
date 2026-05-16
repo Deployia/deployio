@@ -84,21 +84,17 @@ class RuleBasedAnalyzer {
       const envVars = await this._detectEnvVarsFromContent(
         fileContents.envExample,
       );
+      const mapEnvTemplate = (env) => ({
+        key: env.key,
+        value: "",
+        isSecret: !!env.isSecret,
+        required: true,
+        source: "env-example",
+      });
       const envTemplate = {
-        staging: envVars.map((env) => ({
-          key: env.key,
-          value: "",
-          isSecret: !!env.isSecret,
-          required: true,
-          source: "env-example",
-        })),
-        production: envVars.map((env) => ({
-          key: env.key,
-          value: "",
-          isSecret: !!env.isSecret,
-          required: true,
-          source: "env-example",
-        })),
+        development: envVars.map(mapEnvTemplate),
+        staging: envVars.map(mapEnvTemplate),
+        production: envVars.map(mapEnvTemplate),
       };
 
       logger.info(

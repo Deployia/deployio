@@ -318,8 +318,8 @@ class SubdomainManager {
       activeDeployments: activeDeployments.length,
       activeDeploymentsInEnvironment: activeDeploymentsInEnvironment.length,
       activeReservations: activeReservations.length,
-      maxDeployments: 2,
-      remainingDeployments: Math.max(0, 2 - activeDeployments.length),
+      maxDeployments: 3,
+      remainingDeployments: Math.max(0, 3 - activeDeployments.length),
     };
   }
 

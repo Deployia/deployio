@@ -135,6 +135,7 @@ class ProjectCreationService {
     const deployable = analysisResult.deployable && hasValidDockerfile;
 
     const envTemplate = analysisResult.envTemplate || {
+      development: [],
       staging: [],
       production: [],
     };
@@ -285,7 +286,7 @@ class ProjectCreationService {
         }));
 
     const deploymentEnvVars = {
-      development: [],
+      development: mapEnv(envInput.development),
       staging: mapEnv(envInput.staging),
       production: mapEnv(envInput.production),
     };
@@ -352,7 +353,7 @@ class ProjectCreationService {
         environment: deploymentEnvVars,
         policy: {
           singleDockerfilePerProject: true,
-          maxActiveDeployments: 2,
+          maxActiveDeployments: 3,
         },
       },
     };

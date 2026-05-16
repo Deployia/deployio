@@ -26,7 +26,9 @@ import {
   updateProject,
 } from "@redux/index";
 
-const ENVIRONMENTS = ["production", "staging", "development"];
+import { DEPLOYMENT_ENVIRONMENT_KEYS } from "@utils/deploymentConstants";
+
+const ENVIRONMENTS = DEPLOYMENT_ENVIRONMENT_KEYS;
 
 const ProjectSettings = () => {
   const dispatch = useDispatch();

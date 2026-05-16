@@ -35,7 +35,10 @@ import useDeploymentStream from "../../hooks/useDeploymentStream";
 import {
   DEPLOYMENT_POLL_STATUSES,
   PIPELINE_STAGE_ORDER,
+  getDeploymentEnvironmentBadge,
+  getDeploymentEnvironmentLabel,
   getDeploymentStatusBadge,
+  isDeploymentActionAllowed,
 } from "../../utils/deploymentConstants";
 
 const ProjectDeployments = () => {
@@ -59,6 +62,8 @@ const ProjectDeployments = () => {
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showPanel, setShowPanel] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [envFilter, setEnvFilter] = useState("all");
+  const [actionError, setActionError] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
   const [iframeFailed, setIframeFailed] = useState(false);
   const lastPanelOpenIntentRef = useRef(null);
@@ -68,11 +73,40 @@ const ProjectDeployments = () => {
   const logScrollContainerRef = useRef(null);
   const stageOrder = PIPELINE_STAGE_ORDER;
 
-  const filteredDeployments = Array.isArray(projectDeployments)
-    ? filter === "all"
-      ? projectDeployments
-      : projectDeployments.filter((d) => d.status === filter)
-    : [];
+  const IN_FLIGHT_FILTER_STATUSES = new Set([
+    "pending",
+    "queued",
+    "cloning",
+    "detecting",
+    "building",
+    "deploying",
+  ]);
+
+  const filteredDeployments = useMemo(() => {
+    if (!Array.isArray(projectDeployments)) return [];
+    return projectDeployments.filter((d) => {
+      const status = String(d.status || "").toLowerCase();
+      const environment =
+        d.environment || d.config?.environment || "staging";
+
+      if (envFilter !== "all" && environment !== envFilter) {
+        return false;
+      }
+
+      if (filter === "all") return true;
+      if (filter === "in_progress") return IN_FLIGHT_FILTER_STATUSES.has(status);
+      if (filter === "success") return status === "success" || status === "running";
+      return status === filter;
+    });
+  }, [projectDeployments, filter, envFilter]);
+
+  const getDeploymentEnv = (deployment) =>
+    deployment?.environment || deployment?.config?.environment || "staging";
+
+  const isActionBusy = (deployment) => {
+    const id = deployment?._id || deployment?.id || deployment?.deploymentId;
+    return id ? !!actionLoading[id] : false;
+  };
 
   const openDeploymentDetail = useCallback((deployment) => {
     if (!deployment) return;
@@ -138,13 +172,19 @@ const ProjectDeployments = () => {
     busyActionIdsRef.current.add(String(id));
     setActionLoading((prev) => ({ ...prev, [id]: key }));
     try {
+      setActionError(null);
       await actionFn(id).unwrap();
       if (project?._id || project?.id) {
         const r = await dispatch(fetchProjectDeployments(project._id || project.id));
         return { deployments: r.payload?.deployments ?? null, actionId: id };
       }
       return { deployments: null, actionId: id };
-    } catch {
+    } catch (err) {
+      const message =
+        err?.message ||
+        err?.error ||
+        (typeof err === "string" ? err : "Action failed. Please try again.");
+      setActionError(message);
       return null;
     } finally {
       busyActionIdsRef.current.delete(String(id));
@@ -204,6 +244,12 @@ const ProjectDeployments = () => {
 
   const handleDelete = useCallback(
     async (deployment) => {
+      const env = getDeploymentEnv(deployment);
+      const confirmed = window.confirm(
+        `Permanently delete this ${env} deployment? The container will be removed and this record cannot be recovered.`,
+      );
+      if (!confirmed) return;
+
       const res = await withActionLoading(
         deployment,
         (id) => dispatch(deleteDeployment(id)),
@@ -328,8 +374,10 @@ const ProjectDeployments = () => {
       case "detecting":
       case "building":
       case "deploying":
-        return <FaSync className="w-3 h-3 text-yellow-400 animate-spin" />;
+      case "stopping":
+        return <FaSync className="w-3 h-3 text-orange-400 animate-spin" />;
       case "stopped":
+      case "cancelled":
         return <FaStop className="w-3 h-3 text-gray-400" />;
       default:
         return <FaClock className="w-3 h-3 text-blue-400" />;
@@ -501,16 +549,45 @@ const ProjectDeployments = () => {
             onChange={(e) => setFilter(e.target.value)}
             className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm w-full sm:w-48"
           >
-            <option value="all">All Deployments</option>
+            <option value="all">All statuses</option>
+            <option value="in_progress">In progress</option>
+            <option value="running">Running</option>
             <option value="success">Successful</option>
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
             <option value="queued">Queued</option>
-            <option value="running">Running</option>
+            <option value="building">Building</option>
+            <option value="deploying">Deploying</option>
+            <option value="stopping">Stopping</option>
             <option value="stopped">Stopped</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select
+            value={envFilter}
+            onChange={(e) => setEnvFilter(e.target.value)}
+            className="px-3 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white focus:border-blue-500/50 focus:outline-none text-sm w-full sm:w-40"
+          >
+            <option value="all">All environments</option>
+            <option value="development">Development</option>
+            <option value="staging">Staging</option>
+            <option value="production">Production</option>
           </select>
         </div>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-start justify-between gap-3">
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-red-300 hover:text-white shrink-0"
+            aria-label="Dismiss error"
+          >
+            <FaTimes className="w-4 h-4" />
+          </button>
+          </div>
+        )}
 
       {/* Deployments List */}
       <div className="space-y-4">
@@ -535,16 +612,16 @@ const ProjectDeployments = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                       {(() => {
-                        const environment =
-                          deployment?.config?.environment ||
-                          deployment?.environment ||
-                          "staging";
+                        const environment = getDeploymentEnv(deployment);
 
                         return (
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                            <h3 className="text-white font-semibold text-sm sm:text-base">
+                            <h3 className="text-white font-semibold text-sm sm:text-base capitalize">
                               {environment}
                             </h3>
+                            <span className={getDeploymentEnvironmentBadge(environment)}>
+                              {getDeploymentEnvironmentLabel(environment)}
+                            </span>
                             <span className={getStatusBadge(deployment.status)}>
                               {getStatusIcon(deployment.status)}
                               <span className="ml-1">{deployment.status}</span>
@@ -590,42 +667,50 @@ const ProjectDeployments = () => {
                             <span className="hidden sm:inline">Visit</span>
                           </a>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleRestart(deployment)}
-                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
-                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
-                        >
-                          <FaSync className="w-3 h-3" />
-                          <span className="hidden sm:inline">Restart</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleStop(deployment)}
-                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
-                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
-                        >
-                          <FaStop className="w-3 h-3" />
-                          <span className="hidden sm:inline">Stop</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCancel(deployment)}
-                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
-                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 hover:bg-gray-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
-                        >
-                          <FaBan className="w-3 h-3" />
-                          <span className="hidden sm:inline">Cancel</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(deployment)}
-                          disabled={actionLoading[deployment._id || deployment.id || deployment.deploymentId]}
-                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-red-900/40 border border-red-500/30 rounded-lg text-red-200 hover:bg-red-900/60 transition-colors text-xs sm:text-sm disabled:opacity-60"
-                        >
-                          <FaTrash className="w-3 h-3" />
-                          <span className="hidden sm:inline">Delete</span>
-                        </button>
+                        {isDeploymentActionAllowed(deployment, "restart") && (
+                          <button
+                            type="button"
+                            onClick={() => handleRestart(deployment)}
+                            disabled={isActionBusy(deployment)}
+                            className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 hover:bg-yellow-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                          >
+                            <FaSync className="w-3 h-3" />
+                            <span className="hidden sm:inline">Restart</span>
+                          </button>
+                        )}
+                        {isDeploymentActionAllowed(deployment, "stop") && (
+                          <button
+                            type="button"
+                            onClick={() => handleStop(deployment)}
+                            disabled={isActionBusy(deployment)}
+                            className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                          >
+                            <FaStop className="w-3 h-3" />
+                            <span className="hidden sm:inline">Stop</span>
+                          </button>
+                        )}
+                        {isDeploymentActionAllowed(deployment, "cancel") && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancel(deployment)}
+                            disabled={isActionBusy(deployment)}
+                            className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 hover:bg-gray-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                          >
+                            <FaBan className="w-3 h-3" />
+                            <span className="hidden sm:inline">Cancel</span>
+                          </button>
+                        )}
+                        {isDeploymentActionAllowed(deployment, "delete") && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(deployment)}
+                            disabled={isActionBusy(deployment)}
+                            className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-red-900/40 border border-red-500/30 rounded-lg text-red-200 hover:bg-red-900/60 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                          >
+                            <FaTrash className="w-3 h-3" />
+                            <span className="hidden sm:inline">Delete</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -716,42 +801,46 @@ const ProjectDeployments = () => {
             </div>
 
             <div className="px-5 py-3 border-b border-neutral-800 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handleRestart(selectedDeployment)}
-                disabled={
-                  !!actionLoading[
-                    selectedDeployment._id || selectedDeployment.id || selectedDeployment.deploymentId
-                  ]
-                }
-                className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 text-xs disabled:opacity-50"
-              >
-                <FaSync className="w-3 h-3" /> Restart
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStop(selectedDeployment)}
-                disabled={
-                  !!actionLoading[
-                    selectedDeployment._id || selectedDeployment.id || selectedDeployment.deploymentId
-                  ]
-                }
-                className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-xs disabled:opacity-50"
-              >
-                <FaStop className="w-3 h-3" /> Stop
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCancel(selectedDeployment)}
-                disabled={
-                  !!actionLoading[
-                    selectedDeployment._id || selectedDeployment.id || selectedDeployment.deploymentId
-                  ]
-                }
-                className="flex items-center gap-1 px-3 py-1.5 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 text-xs disabled:opacity-50"
-              >
-                <FaBan className="w-3 h-3" /> Cancel
-              </button>
+              {isDeploymentActionAllowed(selectedDeployment, "restart") && (
+                <button
+                  type="button"
+                  onClick={() => handleRestart(selectedDeployment)}
+                  disabled={isActionBusy(selectedDeployment)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 text-xs disabled:opacity-50"
+                >
+                  <FaSync className="w-3 h-3" /> Restart
+                </button>
+              )}
+              {isDeploymentActionAllowed(selectedDeployment, "stop") && (
+                <button
+                  type="button"
+                  onClick={() => handleStop(selectedDeployment)}
+                  disabled={isActionBusy(selectedDeployment)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-xs disabled:opacity-50"
+                >
+                  <FaStop className="w-3 h-3" /> Stop
+                </button>
+              )}
+              {isDeploymentActionAllowed(selectedDeployment, "cancel") && (
+                <button
+                  type="button"
+                  onClick={() => handleCancel(selectedDeployment)}
+                  disabled={isActionBusy(selectedDeployment)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-500/20 border border-gray-500/30 rounded-lg text-gray-200 text-xs disabled:opacity-50"
+                >
+                  <FaBan className="w-3 h-3" /> Cancel
+                </button>
+              )}
+              {isDeploymentActionAllowed(selectedDeployment, "delete") && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(selectedDeployment)}
+                  disabled={isActionBusy(selectedDeployment)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-red-900/40 border border-red-500/30 rounded-lg text-red-200 text-xs disabled:opacity-50"
+                >
+                  <FaTrash className="w-3 h-3" /> Delete
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleDownloadLogs}

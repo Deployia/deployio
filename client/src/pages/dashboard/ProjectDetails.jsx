@@ -111,7 +111,7 @@ const ProjectDetails = () => {
     const projectActive = (projectDeployments || []).filter((d) =>
       activeStatuses.has(String(d.status || "").toLowerCase()),
     ).length;
-    const maxDeployments = subdomainState.capacity?.maxDeployments || 2;
+    const maxDeployments = subdomainState.capacity?.maxDeployments || 3;
 
     // Disable an environment button if it already has an active deployment,
     // or if the project is already at its overall maximum.
@@ -857,7 +857,22 @@ const ProjectDetails = () => {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2 mb-5">
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3 mb-5">
+              <button
+                type="button"
+                onClick={() => handleDeploymentEnvironmentChange("development")}
+                disabled={isEnvCapacityReached("development")}
+                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                  deploymentForm.environment === "development"
+                    ? "border-amber-500/50 bg-amber-500/10 text-amber-200"
+                    : "border-neutral-800 bg-neutral-900/70 text-gray-300 hover:border-neutral-700"
+                }`}
+              >
+                <div className="font-medium">Development</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Local iteration and quick experiments.
+                </div>
+              </button>
               <button
                 type="button"
                 onClick={() => handleDeploymentEnvironmentChange("staging")}

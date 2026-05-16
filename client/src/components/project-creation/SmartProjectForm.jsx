@@ -18,6 +18,7 @@ import {
   completeStep,
   analyzeRepository,
 } from "@redux/slices/projectCreationSlice";
+import { normalizeEnvironmentVariables } from "@utils/deploymentConstants";
 
 const SmartProjectForm = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
@@ -97,12 +98,9 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
       dockerfiles: stepData.dockerfiles || [],
       dockerfilePreview: stepData.dockerfile || stepData.dockerfilePreview || "",
 
-      environmentVariables: stepData.environmentVariables?.staging
-        ? stepData.environmentVariables
-        : {
-            staging: [],
-            production: [],
-          },
+      environmentVariables: normalizeEnvironmentVariables(
+        stepData.environmentVariables,
+      ),
     };
   };
 
@@ -192,7 +190,8 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             source: env.source || "env-example",
           }));
           updated.environmentVariables = {
-            staging: normalized,
+            development: normalized.map((entry) => ({ ...entry })),
+            staging: normalized.map((entry) => ({ ...entry })),
             production: normalized.map((entry) => ({ ...entry })),
           };
         }
@@ -878,6 +877,7 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
             <FaEnvira className="w-5 h-5 text-green-500" />
             <span>Environment Variables</span>
           </h3>
+          {renderEnvironmentSection("development", "Development")}
           {renderEnvironmentSection("staging", "Staging")}
           {renderEnvironmentSection("production", "Production")}
         </div>

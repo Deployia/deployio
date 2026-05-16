@@ -529,17 +529,17 @@ const projectSchema = new mongoose.Schema(
         },
         maxActiveDeployments: {
           type: Number,
-          default: 2,
+          default: 3,
         },
       },
     },
 
-    // Track active deployment count (max 2 per project)
+    // Track active deployment count (max 3 per project — one per environment)
     activeDeploymentCount: {
       type: Number,
       default: 0,
       min: 0,
-      max: 2,
+      max: 3,
     },
 
     // Project Status & Analytics

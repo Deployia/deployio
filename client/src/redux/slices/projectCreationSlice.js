@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api, { invalidateAllCacheEntriesForUrl } from "@utils/api";
 import projectCreationService from "@services/projectCreationService";
+import {
+  EMPTY_ENVIRONMENT_VARIABLES,
+  mergeEnvTemplate,
+  normalizeEnvironmentVariables,
+} from "@utils/deploymentConstants";
 
 export const analyzeRepository = createAsyncThunk(
   "projectCreation/analyzeRepository",
@@ -110,10 +115,9 @@ export const createProjectFromState = createAsyncThunk(
           projectDescription: state.stepData.projectDescription,
           build: state.stepData.build || {},
           runtime: state.stepData.runtime || {},
-          environmentVariables: state.stepData.environmentVariables || {
-            staging: [],
-            production: [],
-          },
+          environmentVariables: normalizeEnvironmentVariables(
+            state.stepData.environmentVariables,
+          ),
         },
         review: state.stepData.finalConfiguration || {},
         dockerfile: state.stepData.dockerfile || null,
@@ -236,10 +240,7 @@ const initialState = {
     projectName: "",
     projectDescription: "",
     deploymentSettings: {},
-    environmentVariables: {
-      staging: [],
-      production: [],
-    },
+    environmentVariables: { ...EMPTY_ENVIRONMENT_VARIABLES },
     dockerfilePath: "Dockerfile",
     dockerfiles: [],
     dockerfilePreview: "",
@@ -371,7 +372,13 @@ const projectCreationSlice = createSlice({
     // Project configuration
     setProjectConfiguration: (state, action) => {
       const data = action.payload;
-      state.stepData = { ...state.stepData, ...data };
+      const merged = { ...state.stepData, ...data };
+      if (data.environmentVariables !== undefined) {
+        merged.environmentVariables = normalizeEnvironmentVariables(
+          data.environmentVariables,
+        );
+      }
+      state.stepData = merged;
     },
 
     // Reset wizard
@@ -461,11 +468,9 @@ const projectCreationSlice = createSlice({
           state.stepData.analysisResults?.dockerfile?.source ||
           "repository";
         if (action.payload?.analysis?.results?.envTemplate) {
-          const template = action.payload.analysis.results.envTemplate;
-          state.stepData.environmentVariables = {
-            staging: template.staging || [],
-            production: template.production || [],
-          };
+          state.stepData.environmentVariables = mergeEnvTemplate(
+            action.payload.analysis.results.envTemplate,
+          );
         }
       })
       .addCase(analyzeRepository.rejected, (state, action) => {

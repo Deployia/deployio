@@ -319,11 +319,15 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
         {/* Environment Variables */}
         {(() => {
           const envVars = stepData.environmentVariables;
+          const development = envVars?.development || [];
           const staging = envVars?.staging || [];
           const production = envVars?.production || [];
           const legacyList = Array.isArray(envVars) ? envVars : [];
           const hasEnv =
-            staging.length > 0 || production.length > 0 || legacyList.length > 0;
+            development.length > 0 ||
+            staging.length > 0 ||
+            production.length > 0 ||
+            legacyList.length > 0;
 
           const renderList = (title, list) =>
             list.length > 0 && (
@@ -373,8 +377,9 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
                   <span>Edit</span>
                 </button>
               </div>
-              {staging.length || production.length ? (
+              {development.length || staging.length || production.length ? (
                 <>
+                  {renderList("Development", development)}
                   {renderList("Staging", staging)}
                   {renderList("Production", production)}
                 </>

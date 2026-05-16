@@ -9,6 +9,8 @@ const { buildDeploymentLookup } = require("../../utils/deploymentLookup");
 const ACTIVE_DEPLOYMENT_STATUSES = [
   "pending",
   "queued",
+  "cloning",
+  "detecting",
   "building",
   "deploying",
   "running",
@@ -268,8 +270,8 @@ class DeploymentService {
         status: { $in: ACTIVE_DEPLOYMENT_STATUSES },
       });
 
-      if (activeDeployments >= 2) {
-        throw new Error("This project already has 2 active deployments");
+      if (activeDeployments >= 3) {
+        throw new Error("This project already has 3 active deployments");
       }
 
       const environmentDeployment = await Deployment.countDocuments({
@@ -435,16 +437,21 @@ class DeploymentService {
   async cancelDeployment(deploymentId, userId) {
     try {
       const deployment = await this._findAccessibleDeployment(deploymentId, userId);
-      if (["cancelled", "deleted"].includes(deployment.status)) {
-        return this.transformDeployment(deployment.toObject());
+
+      if (
+        deployment.status === "cancelled" ||
+        deployment.status === "deleted" ||
+        TERMINAL_DEPLOYMENT_STATUSES.includes(deployment.status)
+      ) {
+        throw new Error(
+          `Cannot cancel a deployment in ${deployment.status} state`,
+        );
       }
 
-      if (TERMINAL_DEPLOYMENT_STATUSES.includes(deployment.status)) {
-        await deployment.updateStatus("cancelled", {
-          cancelled: true,
-          cancelledAt: new Date(),
-        });
-        return this.transformDeployment(deployment.toObject());
+      if (!ACTIVE_DEPLOYMENT_STATUSES.includes(deployment.status)) {
+        throw new Error(
+          `Cannot cancel a deployment in ${deployment.status} state`,
+        );
       }
 
       try {
@@ -534,22 +541,28 @@ class DeploymentService {
   async deleteDeployment(deploymentId, userId) {
     try {
       const deployment = await this._findAccessibleDeployment(deploymentId, userId);
-      if (deployment.status === "deleted") {
-        return { success: true, message: "Deployment already deleted" };
-      }
+      const deletableStatuses = ["stopped", "failed", "cancelled"];
 
-      if (!TERMINAL_DEPLOYMENT_STATUSES.includes(deployment.status)) {
+      if (
+        ACTIVE_DEPLOYMENT_STATUSES.includes(deployment.status) ||
+        deployment.status === "stopping"
+      ) {
         await this.stopDeploymentBySystem(deployment, "deployment-delete");
+        await deployment.reload();
       }
 
-      await deployment.updateStatus("deleted", {
-        deletedAt: new Date(),
-        deleteReason: "user-requested",
-      });
+      if (!deletableStatuses.includes(deployment.status)) {
+        throw new Error(
+          `Cannot delete a deployment in ${deployment.status} state. Stop or cancel it first.`,
+        );
+      }
+
       await subdomainManager.releaseDeploymentReservation({
         deploymentId: deployment._id,
         reason: "deployment-deleted",
       });
+
+      await Deployment.findByIdAndDelete(deployment._id);
 
       return { success: true, message: "Deployment deleted successfully" };
     } catch (error) {

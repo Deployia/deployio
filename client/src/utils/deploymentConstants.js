@@ -2,6 +2,47 @@
  * Shared deployment constants and helpers used across ProjectDetails and ProjectDeployments.
  */
 
+/** Canonical deploy targets (dev / staging / production). */
+export const DEPLOYMENT_ENVIRONMENT_KEYS = [
+  "development",
+  "staging",
+  "production",
+];
+
+export const EMPTY_ENVIRONMENT_VARIABLES = {
+  development: [],
+  staging: [],
+  production: [],
+};
+
+/** Normalize env-var maps from API, legacy shapes, or partial objects. */
+export const normalizeEnvironmentVariables = (input) => {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {
+      development: [],
+      staging: [],
+      production: [],
+    };
+  }
+  return {
+    development: Array.isArray(input.development) ? input.development : [],
+    staging: Array.isArray(input.staging) ? input.staging : [],
+    production: Array.isArray(input.production) ? input.production : [],
+  };
+};
+
+/** Merge analyzer env template into the three-target shape. */
+export const mergeEnvTemplate = (template) => {
+  const base = normalizeEnvironmentVariables(template);
+  const copyList = (list) =>
+    Array.isArray(list) ? list.map((entry) => ({ ...entry })) : [];
+  return {
+    development: copyList(base.development),
+    staging: copyList(base.staging),
+    production: copyList(base.production),
+  };
+};
+
 export const DEPLOYMENT_POLL_STATUSES = new Set([
   "pending",
   "queued",
@@ -92,6 +133,58 @@ export const getProjectStatusBadge = (status) => {
     default:
       return `${base} bg-blue-500/20 text-blue-400 border border-blue-500/30`;
   }
+};
+
+const IN_FLIGHT_DEPLOYMENT_STATUSES = new Set([
+  "pending",
+  "queued",
+  "cloning",
+  "detecting",
+  "building",
+  "deploying",
+]);
+
+/** Whether a lifecycle action is valid for the current deployment status. */
+export const isDeploymentActionAllowed = (deployment, action) => {
+  const status = String(deployment?.status || "").toLowerCase();
+  switch (action) {
+    case "cancel":
+      return IN_FLIGHT_DEPLOYMENT_STATUSES.has(status) || status === "running";
+    case "stop":
+      return status === "running";
+    case "restart":
+      return ["stopped", "failed", "cancelled"].includes(status);
+    case "delete":
+      return ["stopped", "failed", "cancelled"].includes(status);
+    default:
+      return false;
+  }
+};
+
+/**
+ * Compact environment badge (DEV / STG / PROD).
+ */
+export const getDeploymentEnvironmentBadge = (environment) => {
+  const env = String(environment || "staging").toLowerCase();
+  const base =
+    "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border";
+  switch (env) {
+    case "development":
+      return `${base} bg-amber-500/15 text-amber-300 border-amber-500/30`;
+    case "production":
+      return `${base} bg-green-500/15 text-green-300 border-green-500/30`;
+    case "staging":
+    default:
+      return `${base} bg-blue-500/15 text-blue-300 border-blue-500/30`;
+  }
+};
+
+export const getDeploymentEnvironmentLabel = (environment) => {
+  const env = String(environment || "staging").toLowerCase();
+  if (env === "development") return "DEV";
+  if (env === "production") return "PROD";
+  if (env === "staging") return "STG";
+  return env.slice(0, 3).toUpperCase();
 };
 
 /** Ordered pipeline stage names — must match statuses emitted by the agent. */
