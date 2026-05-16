@@ -110,10 +110,15 @@ export const createProjectFromState = createAsyncThunk(
           projectDescription: state.stepData.projectDescription,
           build: state.stepData.build || {},
           runtime: state.stepData.runtime || {},
-          environmentVariables: state.stepData.environmentVariables || [],
+          environmentVariables: state.stepData.environmentVariables || {
+            staging: [],
+            production: [],
+          },
         },
         review: state.stepData.finalConfiguration || {},
         dockerfile: state.stepData.dockerfile || null,
+        dockerfilePath: state.stepData.dockerfilePath || "Dockerfile",
+        dockerfileSource: state.stepData.dockerfileSource || "repository",
       };
 
       const response =
@@ -123,7 +128,6 @@ export const createProjectFromState = createAsyncThunk(
       return {
         projectId: project?._id || project?.id || response?.projectId,
         project,
-        session: null,
       };
     } catch (error) {
       return rejectWithValue(
@@ -230,7 +234,13 @@ const initialState = {
     projectName: "",
     projectDescription: "",
     deploymentSettings: {},
-    environmentVariables: [],
+    environmentVariables: {
+      staging: [],
+      production: [],
+    },
+    dockerfilePath: "Dockerfile",
+    dockerfiles: [],
+    dockerfilePreview: "",
     buildCommands: [],
     startCommand: "",
 
@@ -390,12 +400,9 @@ const projectCreationSlice = createSlice({
           action.payload?.results ||
           action.payload ||
           {};
-        const sessionData = action.payload?.session?.stepData || {};
-
         state.stepData.analysisId =
           analysisData.analysisId ||
           action.payload?.analysisId ||
-          sessionData.analysis?.analysisId ||
           null;
         state.stepData.analysisStatus =
           analysisData.status || action.payload?.status || "completed";
@@ -408,7 +415,6 @@ const projectCreationSlice = createSlice({
         state.stepData.analysisResults =
           analysisData.results ||
           analysisData ||
-          sessionData.analysis?.results ||
           null;
         state.stepData.aiConfidence =
           analysisData.confidence ??
@@ -418,8 +424,29 @@ const projectCreationSlice = createSlice({
 
         if (action.payload?.dockerfile?.content) {
           state.stepData.dockerfile = action.payload.dockerfile.content;
-        } else if (sessionData.dockerfile) {
-          state.stepData.dockerfile = sessionData.dockerfile;
+        }
+        state.stepData.dockerfilePath =
+          action.payload?.dockerfile?.path ||
+          action.payload?.analysis?.results?.dockerfile?.path ||
+          "Dockerfile";
+        state.stepData.dockerfiles =
+          action.payload?.analysis?.results?.dockerfiles ||
+          state.stepData.analysisResults?.dockerfiles ||
+          [];
+        state.stepData.dockerfilePreview =
+          action.payload?.dockerfile?.content ||
+          state.stepData.analysisResults?.dockerfile?.content ||
+          "";
+        state.stepData.dockerfileSource =
+          action.payload?.dockerfile?.source ||
+          state.stepData.analysisResults?.dockerfile?.source ||
+          "repository";
+        if (action.payload?.analysis?.results?.envTemplate) {
+          const template = action.payload.analysis.results.envTemplate;
+          state.stepData.environmentVariables = {
+            staging: template.staging || [],
+            production: template.production || [],
+          };
         }
       })
       .addCase(analyzeRepository.rejected, (state, action) => {

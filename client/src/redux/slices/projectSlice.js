@@ -87,9 +87,11 @@ export const fetchProjectById = createAsyncThunk(
       }
       return response.data.data || response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch project",
-      );
+      return rejectWithValue({
+        message:
+          error.response?.data?.message || "Failed to fetch project",
+        status: error.response?.status || 0,
+      });
     }
   },
 );
@@ -303,7 +305,12 @@ const projectSlice = createSlice({
       .addCase(fetchProjectById.rejected, (state, action) => {
         state.loading.currentProject = false;
         state.loading.fetchingById = false;
-        state.error.currentProject = action.payload;
+        const payload = action.payload;
+        state.error.currentProject =
+          typeof payload === "string" ? payload : payload?.message || null;
+        if (payload?.status === 404) {
+          state.currentProject = null;
+        }
       })
 
       // Create Project
@@ -376,11 +383,13 @@ const projectSlice = createSlice({
         state.loading.deleting = false;
         state.success.delete = true;
 
-        // Remove from projects array
-        state.projects = state.projects.filter((p) => p._id !== action.payload);
+        const deletedId = String(action.payload);
 
-        // Clear current project if it was deleted
-        if (state.currentProject?._id === action.payload) {
+        state.projects = state.projects.filter(
+          (p) => String(getProjectIdentity(p)) !== deletedId,
+        );
+
+        if (String(getProjectIdentity(state.currentProject)) === deletedId) {
           state.currentProject = null;
         }
       })

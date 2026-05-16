@@ -41,10 +41,13 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
   // Fetch repositories from connected git provider
   useEffect(() => {
     if (provider) {
-      // Fetch repositories from the connected provider
-      fetchProviderRepositories(provider, localFilters.page || 1);
+      fetchProviderRepositories(provider, localFilters.page || 1, {
+        search: localFilters.search || "",
+        type: localFilters.type || "all",
+        sort: localFilters.sort || "updated",
+      });
     }
-  }, [provider, localFilters.page, fetchProviderRepositories]);
+  }, [provider, localFilters.page, localFilters.search, localFilters.type, localFilters.sort, fetchProviderRepositories]);
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...localFilters, [key]: value };
@@ -337,20 +340,25 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
       </div>
 
       {/* Pagination */}
-      {stepData.pagination.total > stepData.pagination.limit && (
+      {repoState.pagination?.totalPages > 1 && (
         <div className="mt-8 flex items-center justify-center space-x-4">
           <button
-            disabled={stepData.pagination.page === 1}
+            disabled={(repoState.pagination?.page || 1) === 1}
+            onClick={() =>
+              handleFilterChange("page", Math.max((repoState.pagination?.page || 1) - 1, 1))
+            }
             className="px-4 py-2 bg-neutral-800 text-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition-colors"
           >
             Previous
           </button>
           <span className="text-neutral-400">
-            Page {stepData.pagination.page} of{" "}
-            {Math.ceil(stepData.pagination.total / stepData.pagination.limit)}
+            Page {repoState.pagination?.page || 1} of {repoState.pagination?.totalPages || 1}
           </span>
           <button
-            disabled={!stepData.pagination.hasNext}
+            disabled={!repoState.pagination?.hasMore}
+            onClick={() =>
+              handleFilterChange("page", (repoState.pagination?.page || 1) + 1)
+            }
             className="px-4 py-2 bg-neutral-800 text-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition-colors"
           >
             Next

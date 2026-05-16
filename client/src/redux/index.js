@@ -72,6 +72,7 @@ export {
   clearCurrentDeployment,
   clearLogs,
   clearMetrics,
+  clearProjectDeployments,
   updateDeploymentStatus,
 } from "./slices/deploymentSlice";
 

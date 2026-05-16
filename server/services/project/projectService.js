@@ -14,55 +14,26 @@ const ACTIVE_DEPLOYMENT_STATUSES = [
 ];
 
 class ProjectService {
-  _scheduleProjectCleanup(projectId) {
-    setImmediate(async () => {
-      await this._runProjectCleanup(projectId);
-    });
-  }
+  async _stopAllProjectDeployments(projectId, reason = "project-lifecycle") {
+    const deployments = await Deployment.find({ project: projectId });
 
-  async _runProjectCleanup(projectId) {
-    const project = await Project.findById(projectId);
-    if (!project) return;
-
-    try {
-      project.deletion.cleanupStatus = "in_progress";
-      project.deletion.cleanupStartedAt = new Date();
-      project.deletion.cleanupError = null;
-      await project.save();
-
-      const deployments = await Deployment.find({ project: projectId });
-      for (const deploymentRecord of deployments) {
-        if (ACTIVE_DEPLOYMENT_STATUSES.includes(deploymentRecord.status)) {
-          await deployment.stopDeploymentBySystem(
-            deploymentRecord,
-            "project-cleanup",
-          );
-        }
-        if (deploymentRecord.status !== "deleted") {
-          await deploymentRecord.updateStatus("deleted", {
-            deletedAt: new Date(),
-            deleteReason: "project-cleanup",
-          });
-        }
-        await subdomainManager.releaseDeploymentReservation({
-          deploymentId: deploymentRecord._id,
-          reason: "project-cleanup",
+    for (const deploymentRecord of deployments) {
+      if (ACTIVE_DEPLOYMENT_STATUSES.includes(deploymentRecord.status)) {
+        await deployment.stopDeploymentBySystem(deploymentRecord, reason);
+      }
+      if (deploymentRecord.status !== "deleted") {
+        await deploymentRecord.updateStatus("deleted", {
+          deletedAt: new Date(),
+          deleteReason: reason,
         });
       }
-
-      project.deletion.cleanupStatus = "completed";
-      project.deletion.cleanupCompletedAt = new Date();
-      project.deletion.hardDeleteEligibleAt = new Date(
-        Date.now() + 12 * 60 * 60 * 1000,
-      );
-      await project.save();
-    } catch (error) {
-      logger.error("Error in project cleanup:", error);
-      project.deletion.cleanupStatus = "failed";
-      project.deletion.cleanupCompletedAt = new Date();
-      project.deletion.cleanupError = error.message;
-      await project.save();
+      await subdomainManager.releaseDeploymentReservation({
+        deploymentId: deploymentRecord._id,
+        reason,
+      });
     }
+
+    return deployments.length;
   }
 
   /**
@@ -80,10 +51,8 @@ class ProjectService {
         sortOrder = "desc",
       } = options;
 
-      // Build query
       const query = { owner: userId };
 
-      // Add filters
       if (status) {
         query.status = status;
       }
@@ -99,7 +68,6 @@ class ProjectService {
         ];
       }
 
-      // Execute query with pagination
       const skip = (page - 1) * limit;
       const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
@@ -113,7 +81,6 @@ class ProjectService {
         Project.countDocuments(query),
       ]);
 
-      // Enrich projects with deployment counts and transform data
       const enrichedProjects = await Promise.all(
         projects.map(async (project) => {
           const deploymentCount = await Deployment.countDocuments({
@@ -121,14 +88,14 @@ class ProjectService {
           });
 
           return this.transformProject(project, { deploymentCount });
-        })
+        }),
       );
 
       return {
         projects: enrichedProjects,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
           totalPages: Math.ceil(totalCount / limit),
           total: totalCount,
         },
@@ -139,9 +106,6 @@ class ProjectService {
     }
   }
 
-  /**
-   * Get project by ID with deployment info
-   */
   async getProjectById(projectId, userId) {
     try {
       const project = await Project.findOne({
@@ -153,7 +117,6 @@ class ProjectService {
         throw new Error("Project not found or access denied");
       }
 
-      // Get recent deployments for this project
       const recentDeployments = await Deployment.find({
         project: projectId,
       })
@@ -162,7 +125,6 @@ class ProjectService {
         .populate("deployedBy", "name email")
         .lean();
 
-      // Get deployment statistics
       const deploymentCount = await Deployment.countDocuments({
         project: projectId,
       });
@@ -172,10 +134,16 @@ class ProjectService {
         status: "running",
       });
 
+      const activeDeployments = await Deployment.countDocuments({
+        project: projectId,
+        status: { $in: ACTIVE_DEPLOYMENT_STATUSES },
+      });
+
       return {
         project: this.transformProject(project, {
           deploymentCount,
           successfulDeployments,
+          activeDeployments,
         }),
         recentDeployments: recentDeployments.map(this.transformDeployment),
       };
@@ -185,9 +153,6 @@ class ProjectService {
     }
   }
 
-  /**
-   * Update project
-   */
   async updateProject(projectId, userId, updateData) {
     try {
       const project = await Project.findOne({
@@ -199,13 +164,22 @@ class ProjectService {
         throw new Error("Project not found or access denied");
       }
 
-      // Update allowed fields
+      if (project.status === "archived" && updateData.status !== "active") {
+        const allowedWhileArchived = ["status"];
+        const keys = Object.keys(updateData);
+        if (keys.some((k) => !allowedWhileArchived.includes(k))) {
+          throw new Error("Archived projects are read-only. Unarchive to edit.");
+        }
+      }
+
+      const previousStatus = project.status;
       const allowedUpdates = [
         "name",
         "description",
         "visibility",
         "settings",
         "deployment",
+        "status",
       ];
 
       Object.keys(updateData).forEach((key) => {
@@ -214,7 +188,16 @@ class ProjectService {
         }
       });
 
-      await project.save();
+      if (updateData.status === "archived" && previousStatus !== "archived") {
+        project.archivedAt = new Date();
+        await project.save();
+        await this._stopAllProjectDeployments(projectId, "project-archived");
+      } else if (updateData.status === "active" && previousStatus === "archived") {
+        project.archivedAt = null;
+        await project.save();
+      } else {
+        await project.save();
+      }
 
       return this.transformProject(project.toObject());
     } catch (error) {
@@ -224,7 +207,7 @@ class ProjectService {
   }
 
   /**
-   * Delete project
+   * Hard-delete project and all related deployment records after stopping containers.
    */
   async deleteProject(projectId, userId) {
     try {
@@ -237,27 +220,15 @@ class ProjectService {
         throw new Error("Project not found or access denied");
       }
 
-      if (project.deletion?.cleanupStatus === "queued") {
-        return {
-          success: true,
-          message: "Project deletion already requested",
-        };
-      }
+      await this._stopAllProjectDeployments(projectId, "project-deleted");
+      await Deployment.deleteMany({ project: projectId });
+      await Project.deleteOne({ _id: projectId });
 
-      // Soft delete - mark as archived + queue cleanup
-      project.status = "archived";
-      project.archivedAt = new Date();
-      project.deletion.requestedAt = new Date();
-      project.deletion.requestedBy = userId;
-      project.deletion.cleanupStatus = "queued";
-      project.deletion.cleanupCompletedAt = null;
-      project.deletion.cleanupError = null;
-      await project.save();
-      this._scheduleProjectCleanup(project._id);
+      logger.info("Project hard-deleted", { projectId, userId });
 
       return {
         success: true,
-        message: "Project archived and cleanup requested",
+        message: "Project and related records deleted",
       };
     } catch (error) {
       logger.error("Error in deleteProject:", error);
@@ -265,12 +236,8 @@ class ProjectService {
     }
   }
 
-  /**
-   * Get project deployments with pagination
-   */
   async getProjectDeployments(projectId, userId, options = {}) {
     try {
-      // Verify project ownership
       const project = await Project.findOne({
         _id: projectId,
         owner: userId,
@@ -289,7 +256,6 @@ class ProjectService {
         sortOrder = "desc",
       } = options;
 
-      // Build query
       const query = { project: projectId };
 
       if (status) {
@@ -300,7 +266,6 @@ class ProjectService {
         query["config.environment"] = environment;
       }
 
-      // Execute query with pagination
       const skip = (page - 1) * limit;
       const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
@@ -317,8 +282,8 @@ class ProjectService {
       return {
         deployments: deployments.map(this.transformDeployment),
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
           totalPages: Math.ceil(totalCount / limit),
           total: totalCount,
         },
@@ -329,9 +294,6 @@ class ProjectService {
     }
   }
 
-  /**
-   * Transform project for API response
-   */
   transformProject(project, additionalData = {}) {
     return {
       id: project._id,
@@ -339,36 +301,29 @@ class ProjectService {
       slug: project.slug,
       description: project.description,
       owner: project.owner,
-      collaborators: project.collaborators,
-
-      // Repository information
       repository: project.repository,
-
-      // Technology stack (frontend expects this structure)
       technology: {
-        primary: project.stack?.detected?.primary || "other",
+        primary:
+          project.stack?.detected?.primary ||
+          project.analysis?.technologyStack?.framework ||
+          "other",
         frontend: project.stack?.detected?.frontend?.framework,
         backend: project.stack?.detected?.backend?.framework,
         database: project.stack?.detected?.database?.type,
       },
-
-      // AI Analysis (transformed for frontend)
-      aiAnalysis: {
+      analysis: {
         confidence: project.analysis?.confidence || 0,
         approach: project.analysis?.approach || "basic",
-        insights: project.analysis?.insights,
+        stack: project.analysis?.detectedConfig?.stack || project.stack?.detected?.primary,
+        detectedConfig: project.analysis?.detectedConfig,
         technologyStack: project.analysis?.technologyStack,
+        insights: project.analysis?.insights,
+        lastAnalyzed: project.analysis?.lastAnalyzed,
       },
-
-      // Deployment configuration
       deployment: project.deployment,
-
-      // Status and visibility
       status: project.status,
-      deletion: project.deletion,
+      archivedAt: project.archivedAt,
       visibility: project.visibility,
-
-      // Statistics (frontend expects deploymentCount)
       statistics: project.statistics,
       deploymentCount:
         additionalData.deploymentCount ||
@@ -378,40 +333,32 @@ class ProjectService {
         additionalData.successfulDeployments ||
         project.statistics?.successfulDeployments ||
         0,
-
-      // Settings
-      settings: project.settings,
-
-      // Timestamps
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
       lastAccessed: project.lastAccessed,
-
-      // Additional computed fields
       isActive: project.status === "active",
-      hasActiveDeployments: (additionalData.deploymentCount || 0) > 0,
+      isArchived: project.status === "archived",
+      hasActiveDeployments: (additionalData.activeDeployments || 0) > 0,
+      activeDeploymentCount: additionalData.activeDeployments || 0,
     };
   }
 
-  /**
-   * Transform deployment for API response
-   */
-  transformDeployment(deployment) {
+  transformDeployment(deploymentDoc) {
     return {
-      id: deployment._id,
-      deploymentId: deployment.deploymentId,
-      project: deployment.project,
-      deployedBy: deployment.deployedBy,
-      status: deployment.status,
-      environment: deployment.config?.environment,
-      branch: deployment.config?.branch,
-      commit: deployment.config?.commit,
-      url: deployment.networking?.fullUrl,
-      subdomain: deployment.config?.subdomain,
-      buildDuration: deployment.build?.duration,
-      healthStatus: deployment.runtime?.health?.status,
-      createdAt: deployment.createdAt,
-      updatedAt: deployment.updatedAt,
+      id: deploymentDoc._id,
+      deploymentId: deploymentDoc.deploymentId,
+      project: deploymentDoc.project,
+      deployedBy: deploymentDoc.deployedBy,
+      status: deploymentDoc.status,
+      environment: deploymentDoc.config?.environment,
+      branch: deploymentDoc.config?.branch,
+      commit: deploymentDoc.config?.commit,
+      url: deploymentDoc.networking?.fullUrl,
+      subdomain: deploymentDoc.config?.subdomain,
+      buildDuration: deploymentDoc.build?.duration,
+      healthStatus: deploymentDoc.runtime?.health?.status,
+      createdAt: deploymentDoc.createdAt,
+      updatedAt: deploymentDoc.updatedAt,
     };
   }
 }

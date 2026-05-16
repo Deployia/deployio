@@ -19,6 +19,8 @@ import {
   FaExternalLinkAlt,
   FaEye,
   FaArchive,
+  FaExclamationTriangle,
+  FaDocker,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
 import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
@@ -33,6 +35,7 @@ import {
   clearDeploymentError,
   clearProjectError,
   clearProjectSuccess,
+  clearProjectDeployments,
 } from "@redux/index";
 
 const DEPLOYMENT_POLL_STATUSES = new Set([
@@ -70,6 +73,7 @@ const ProjectDetails = () => {
     description: "",
   });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [deploymentForm, setDeploymentForm] = useState({
@@ -92,15 +96,23 @@ const ProjectDetails = () => {
         subdomainState.capacity.maxDeployments);
 
   const isEnvCapacityReached = (env) => {
-    if (
-      !subdomainState.capacity ||
-      typeof subdomainState.capacity.maxDeployments !== "number"
-    )
-      return false;
-
-    const envActive =
-      subdomainState.capacity.activeDeploymentsInEnvironment || 0;
-    const projectActive = subdomainState.capacity.activeDeployments || 0;
+    const activeStatuses = new Set([
+      "pending",
+      "queued",
+      "building",
+      "deploying",
+      "running",
+      "stopping",
+    ]);
+    const envActive = (projectDeployments || []).filter(
+      (deployment) =>
+        deployment.environment === env &&
+        activeStatuses.has(String(deployment.status || "").toLowerCase()),
+    ).length;
+    const projectActive = (projectDeployments || []).filter((deployment) =>
+      activeStatuses.has(String(deployment.status || "").toLowerCase()),
+    ).length;
+    const maxDeployments = subdomainState.capacity?.maxDeployments || 2;
 
     // Disable an environment if it already has an active deployment,
     // or if the project is already at its overall maximum.
@@ -108,7 +120,7 @@ const ProjectDetails = () => {
       return true;
     }
 
-    return projectActive >= subdomainState.capacity.maxDeployments;
+    return projectActive >= maxDeployments;
   };
 
   const refreshDeploymentData = (projectId) => {
@@ -223,23 +235,43 @@ const ProjectDetails = () => {
     setShowArchiveModal(true);
   };
 
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmName("");
+    dispatch(clearProjectError({ field: "delete" }));
+  };
+
   // Confirm handlers
   const handleConfirmDelete = async () => {
+    if (
+      !currentProject?.name ||
+      deleteConfirmName.trim() !== currentProject.name.trim()
+    ) {
+      return;
+    }
+
     try {
       await dispatch(deleteProject(id)).unwrap();
-      setShowDeleteModal(false);
-      navigate("/dashboard/projects");
+      dispatch(clearProjectDeployments());
+      closeDeleteModal();
+      navigate("/dashboard/projects", { replace: true });
     } catch {
       // error surfaced by redux slice
     }
   };
 
-  const handleConfirmArchive = () => {
-    dispatch(toggleArchiveProject(id));
-    setShowArchiveModal(false);
+  const handleConfirmArchive = async () => {
+    try {
+      await dispatch(toggleArchiveProject(id)).unwrap();
+      setShowArchiveModal(false);
+      refreshDeploymentData(id);
+    } catch {
+      // error surfaced by redux slice
+    }
   };
 
   const handleOpenDeployModal = () => {
+    if (isArchived) return;
     dispatch(clearDeploymentError({ field: "create" }));
     setDeploymentForm({
       environment: "staging",
@@ -421,10 +453,30 @@ const ProjectDetails = () => {
       case "inactive":
       case "stopped":
         return `${baseClasses} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
+      case "archived":
+        return `${baseClasses} bg-orange-500/20 text-orange-300 border border-orange-500/30`;
       default:
         return `${baseClasses} bg-blue-500/20 text-blue-400 border border-blue-500/30`;
     }
   };
+
+  const ACTIVE_DEPLOYMENT_STATUSES = new Set([
+    "pending",
+    "queued",
+    "cloning",
+    "detecting",
+    "building",
+    "deploying",
+    "running",
+    "stopping",
+  ]);
+
+  const countActiveDeployments = (deployments) =>
+    (deployments || []).filter((deployment) =>
+      ACTIVE_DEPLOYMENT_STATUSES.has(
+        String(deployment?.status || "").toLowerCase(),
+      ),
+    ).length;
 
   const getFrameworkIcon = (framework) => {
     if (!framework) return <FaCode className="w-4 h-4 text-gray-400" />;
@@ -490,7 +542,12 @@ const ProjectDetails = () => {
     );
   }
 
-  if (!currentProject) {
+  const projectNotFound =
+    hasLoadedProjectOnce &&
+    !loading.currentProject &&
+    !currentProject;
+
+  if (projectNotFound) {
     return (
       <div className="text-center py-16">
         <FaProjectDiagram className="w-16 h-16 mx-auto mb-4 opacity-50 text-gray-400" />
@@ -498,7 +555,7 @@ const ProjectDetails = () => {
           Project Not Found
         </h3>
         <p className="text-gray-400 mb-4">
-          The project you&apos;re looking for doesn&apos;t exist.
+          This project may have been deleted or you do not have access to it.
         </p>
         <button
           onClick={() => navigate("/dashboard/projects")}
@@ -509,6 +566,23 @@ const ProjectDetails = () => {
       </div>
     );
   }
+
+  if (!currentProject) {
+    return null;
+  }
+
+  const isArchived =
+    currentProject.status === "archived" || currentProject.isArchived;
+  const activeDeploymentCount =
+    countActiveDeployments(projectDeployments) ||
+    currentProject.activeDeploymentCount ||
+    0;
+  const canDelete =
+    deleteConfirmName.trim() === (currentProject.name || "").trim();
+  const projectErrorMessage =
+    typeof error.currentProject === "string"
+      ? error.currentProject
+      : error.currentProject?.message || null;
 
   const tabs = [
     { id: "overview", label: "Overview", icon: FaEye },
@@ -521,6 +595,23 @@ const ProjectDetails = () => {
   return (
     <>
       <SEO page="project-details" title={currentProject.name} />
+
+      {isArchived && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 flex items-start gap-3"
+        >
+          <FaExclamationTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-orange-200">Project archived</p>
+            <p className="text-xs text-orange-200/80 mt-1">
+              Deployments are stopped and configuration is read-only. Unarchive to
+              deploy or edit again.
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Header - Mobile Responsive */}
       <motion.div
@@ -568,9 +659,9 @@ const ProjectDetails = () => {
                   </h1>
                   <button
                     onClick={() => setIsEditing(true)}
-                    disabled={currentProject.status === "archived"}
+                    disabled={isArchived}
                     className={`p-2 transition-colors self-start ${
-                      currentProject.status === "archived"
+                      isArchived
                         ? "text-gray-600 cursor-not-allowed"
                         : "text-gray-400 hover:text-white"
                     }`}
@@ -586,19 +677,17 @@ const ProjectDetails = () => {
                 </span>
                 <span
                   className={getStatusBadge(
-                    currentProject.status || "inactive",
+                    isArchived ? "archived" : currentProject.status || "active",
                   )}
                 >
-                  {currentProject.hasActiveDeployments
-                    ? "Active"
-                    : currentProject.status || "Not Deployed"}
+                  {isArchived ? "Archived" : "Active"}
                 </span>
-                {currentProject.deletion?.cleanupStatus &&
-                  currentProject.deletion.cleanupStatus !== "none" && (
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                      Cleanup: {currentProject.deletion.cleanupStatus}
-                    </span>
-                  )}
+                {activeDeploymentCount > 0 && (
+                  <span className={getStatusBadge("running")}>
+                    {activeDeploymentCount} deployment
+                    {activeDeploymentCount === 1 ? "" : "s"} running
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -606,10 +695,10 @@ const ProjectDetails = () => {
           {/* Action Buttons - Mobile Responsive */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <button
-              disabled={currentProject.status === "archived"}
+              disabled={isArchived}
               onClick={handleOpenDeployModal}
               className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm transition-colors ${
-                currentProject.status === "archived"
+                isArchived
                   ? "bg-gray-500/20 border border-gray-500/30 text-gray-500 cursor-not-allowed"
                   : "bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30"
               }`}
@@ -623,12 +712,13 @@ const ProjectDetails = () => {
             >
               <FaArchive className="w-4 h-4" />
               <span className="sm:inline">
-                {currentProject.status === "archived" ? "Unarchive" : "Archive"}
+                {isArchived ? "Unarchive" : "Archive"}
               </span>
             </button>
             <button
               onClick={handleDeleteProject}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+              disabled={loading.deleting}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaTrash className="w-4 h-4" />
               <span className="sm:inline">Delete</span>
@@ -647,11 +737,9 @@ const ProjectDetails = () => {
                   description: e.target.value,
                 })
               }
-              disabled={currentProject.status === "archived"}
+              disabled={isArchived}
               className={`w-full p-3 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-gray-300 resize-none focus:border-blue-500/50 focus:outline-none ${
-                currentProject.status === "archived"
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
+                isArchived ? "opacity-50 cursor-not-allowed" : ""
               }`}
               rows="3"
               placeholder="Project description..."
@@ -703,6 +791,7 @@ const ProjectDetails = () => {
             project={currentProject}
             deployments={projectDeployments}
             analytics={projectAnalytics}
+            isArchived={isArchived}
             onOpenDeployModal={handleOpenDeployModal}
             onNavigateDeployments={() =>
               navigate(`/dashboard/projects/${id}/deployments`)
@@ -714,7 +803,8 @@ const ProjectDetails = () => {
               project: currentProject,
               deployments: projectDeployments,
               analytics: projectAnalytics,
-              onOpenDeployModal: handleOpenDeployModal,
+              isArchived,
+              onOpenDeployModal: isArchived ? undefined : handleOpenDeployModal,
             }}
           />
         )}
@@ -921,40 +1011,65 @@ const ProjectDetails = () => {
         </motion.div>
       )}
 
-      {error.currentProject && (
+      {(projectErrorMessage || error.update || error.delete) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400"
+          className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 max-w-sm"
         >
-          {error.currentProject}
+          {projectErrorMessage || error.update || error.delete}
         </motion.div>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" />
-          <div className="bg-neutral-900/90 border border-neutral-800/50 rounded-lg p-6 z-10 w-[90%] sm:w-96">
-            <h3 className="text-lg font-semibold text-white mb-2">
-              Confirm Delete
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70" onClick={closeDeleteModal} />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-red-500/30 bg-neutral-950/95 p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              <FaTrash className="w-4 h-4 text-red-400" />
+              Delete project permanently
             </h3>
-            <p className="text-gray-400 mb-4">
-              Are you sure you want to delete this project? This action cannot
-              be undone.
+            <p className="text-gray-400 text-sm mb-3">
+              This will stop all running containers, remove deployment records,
+              and permanently delete the project from DeployIO. This cannot be undone.
             </p>
+            {activeDeploymentCount > 0 && (
+              <p className="text-amber-300 text-xs mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                {activeDeploymentCount} active deployment
+                {activeDeploymentCount === 1 ? "" : "s"} will be stopped first.
+              </p>
+            )}
+            <label className="block text-sm text-gray-300 mb-2">
+              Type <span className="font-mono text-white">{currentProject.name}</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder={currentProject.name}
+              className="w-full mb-4 px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              autoFocus
+            />
+            {error.delete && (
+              <p className="text-red-400 text-sm mb-3">{error.delete}</p>
+            )}
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 bg-neutral-800 text-gray-300 rounded"
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={loading.deleting}
+                className="px-4 py-2 bg-neutral-800 text-gray-300 rounded-lg hover:bg-neutral-700 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded"
+                disabled={!canDelete || loading.deleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete
+                {loading.deleting ? "Deleting..." : "Delete permanently"}
               </button>
             </div>
           </div>
@@ -963,42 +1078,49 @@ const ProjectDetails = () => {
 
       {/* Archive Confirmation Modal */}
       {showArchiveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" />
-          <div className="bg-neutral-900/90 border border-neutral-800/50 rounded-lg p-6 z-10 w-[90%] sm:w-96">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => !loading.archiving && setShowArchiveModal(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-neutral-800/70 bg-neutral-950/95 p-6 shadow-2xl">
             <h3 className="text-lg font-semibold text-white mb-2">
-              {currentProject?.status === "archived"
-                ? "Unarchive Project"
-                : "Archive Project"}
+              {isArchived ? "Unarchive Project" : "Archive Project"}
             </h3>
-            <p className="text-gray-400 mb-4">
-              {currentProject?.status === "archived"
-                ? "Unarchive this project and restore editing capabilities?"
-                : "Archive this project? It will be hidden from active projects, all deployments will be stopped, and editing will be disabled."}
+            <p className="text-gray-400 text-sm mb-4">
+              {isArchived
+                ? "Restore this project to active status so you can deploy and edit configuration again."
+                : "Archive stops all deployments and makes the project read-only. You can unarchive it later."}
             </p>
             <div className="flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setShowArchiveModal(false)}
-                className="px-4 py-2 bg-neutral-800 text-gray-300 rounded"
+                disabled={loading.archiving}
+                className="px-4 py-2 bg-neutral-800 text-gray-300 rounded-lg hover:bg-neutral-700 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmArchive}
-                className={`px-4 py-2 text-white rounded ${
-                  currentProject?.status === "archived"
+                disabled={loading.archiving}
+                className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isArchived
                     ? "bg-green-600 hover:bg-green-700"
                     : "bg-yellow-600 hover:bg-yellow-700"
                 }`}
               >
-                {currentProject?.status === "archived"
-                  ? "Unarchive"
-                  : "Archive"}
+                {loading.archiving
+                  ? isArchived
+                    ? "Unarchiving..."
+                    : "Archiving..."
+                  : isArchived
+                    ? "Unarchive"
+                    : "Archive"}
               </button>
             </div>
           </div>
         </div>
       )}
+
     </>
   );
 };
@@ -1008,6 +1130,7 @@ const ProjectOverview = ({
   project,
   deployments,
   _analytics,
+  isArchived = false,
   onOpenDeployModal,
   onNavigateDeployments,
 }) => {
@@ -1149,9 +1272,14 @@ const ProjectOverview = ({
               </p>
             </div>
             {project.repository?.url && (
-              <button className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors flex-shrink-0">
+              <a
+                href={project.repository.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors flex-shrink-0"
+              >
                 <FaExternalLinkAlt className="w-3 h-3" />
-              </button>
+              </a>
             )}
           </div>
         </div>
@@ -1168,7 +1296,12 @@ const ProjectOverview = ({
             <button
               type="button"
               onClick={onOpenDeployModal}
-              className="w-full flex items-center gap-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm"
+              disabled={isArchived || !onOpenDeployModal}
+              className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm transition-colors ${
+                isArchived || !onOpenDeployModal
+                  ? "bg-gray-500/20 border border-gray-500/30 text-gray-500 cursor-not-allowed"
+                  : "bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30"
+              }`}
             >
               <FaPlay className="w-4 h-4" />
               New Deployment
@@ -1190,17 +1323,29 @@ const ProjectOverview = ({
             Status
           </h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-sm">Environment</span>
-              <span className="text-white text-sm">
-                {/* {project.deployment?.environment || "development"} */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-gray-400 text-sm">Lifecycle</span>
+              <span className="text-white text-sm capitalize">
+                {isArchived ? "Archived" : project.status || "Active"}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-sm">Health</span>
-              <span className="text-green-400 text-sm">Healthy</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-gray-400 text-sm">Branch</span>
+              <span className="text-white text-sm font-mono truncate max-w-[140px]">
+                {project.repository?.defaultBranch ||
+                  project.repository?.branch ||
+                  "main"}
+              </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-gray-400 text-sm flex items-center gap-1">
+                <FaDocker className="w-3 h-3" /> Dockerfile
+              </span>
+              <span className="text-white text-xs font-mono truncate max-w-[140px]">
+                {project.deployment?.dockerfile?.path || "Dockerfile"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
               <span className="text-gray-400 text-sm">Last Deploy</span>
               <span className="text-white text-sm">
                 {project.deployment?.lastDeploy
@@ -1208,7 +1353,7 @@ const ProjectOverview = ({
                   : "Never"}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-gray-400 text-sm">Created</span>
               <span className="text-white text-sm">
                 {new Date(project.createdAt).toLocaleDateString()}

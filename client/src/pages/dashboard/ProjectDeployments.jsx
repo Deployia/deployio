@@ -44,7 +44,8 @@ const DEPLOYMENT_POLL_STATUSES = new Set([
 ]);
 
 const ProjectDeployments = () => {
-  const { onOpenDeployModal, project } = useOutletContext() || {};
+  const { onOpenDeployModal, project, isArchived } = useOutletContext() || {};
+  const canDeploy = Boolean(onOpenDeployModal) && !isArchived;
   const location = useLocation();
   const navigate = useNavigate();
   const projectDeployments = useSelector(
@@ -515,8 +516,13 @@ const ProjectDeployments = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
-            onClick={onOpenDeployModal}
-            className="px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors text-sm w-full sm:w-auto"
+            onClick={canDeploy ? onOpenDeployModal : undefined}
+            disabled={!canDeploy}
+            className={`px-3 py-2 border rounded-lg text-sm w-full sm:w-auto transition-colors ${
+              canDeploy
+                ? "bg-green-500/20 border-green-500/30 text-green-400 hover:bg-green-500/30"
+                : "bg-gray-500/20 border-gray-500/30 text-gray-500 cursor-not-allowed"
+            }`}
           >
             <FaPlus className="w-4 h-4 mr-2 inline" />
             Create Deployment
@@ -687,11 +693,16 @@ const ProjectDeployments = () => {
             </p>
             {filter === "all" && (
               <button
-                onClick={onOpenDeployModal}
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm sm:text-base"
+                onClick={canDeploy ? onOpenDeployModal : undefined}
+                disabled={!canDeploy}
+                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  canDeploy
+                    ? "bg-blue-500 hover:bg-blue-600 text-white"
+                    : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                }`}
               >
                 <FaPlus className="w-4 h-4 mr-2 inline" />
-                Create First Deployment
+                {isArchived ? "Unarchive to deploy" : "Create First Deployment"}
               </button>
             )}
           </div>

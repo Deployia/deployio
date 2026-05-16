@@ -19,6 +19,7 @@ import {
 import {
   clearProjectError,
   clearProjectSuccess,
+  clearProjectDeployments,
   deleteProject,
   toggleArchiveProject,
   updateProject,
@@ -132,9 +133,20 @@ const ProjectSettings = () => {
   };
 
   const handleDeleteProject = async () => {
-    if (!window.confirm("Delete this project permanently?")) return;
-    await dispatch(deleteProject(id));
-    navigate("/dashboard/projects");
+    const projectName = currentProject?.name || "";
+    const typed = window.prompt(
+      `Type "${projectName}" to permanently delete this project. All deployments will be stopped and removed.`,
+      "",
+    );
+    if (typed !== projectName) return;
+
+    try {
+      await dispatch(deleteProject(id)).unwrap();
+      dispatch(clearProjectDeployments());
+      navigate("/dashboard/projects", { replace: true });
+    } catch {
+      // surfaced via redux
+    }
   };
 
   const sections = [

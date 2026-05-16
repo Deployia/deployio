@@ -105,10 +105,10 @@ export const useGitProviders = () => {
 
   // Repository Operations
   const fetchProviderRepositories = useCallback(
-    async (providerId, page = 1) => {
+    async (providerId, page = 1, options = {}) => {
       try {
         await dispatch(
-          fetchRepositories({ provider: providerId, page }),
+          fetchRepositories({ provider: providerId, page, ...options }),
         ).unwrap();
       } catch (error) {
         console.error("Failed to fetch repositories:", error);

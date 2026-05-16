@@ -244,6 +244,14 @@ class DeploymentService {
         throw new Error("Project not found or access denied");
       }
 
+      if (project.status === "archived") {
+        throw new Error("Cannot deploy an archived project. Unarchive it first.");
+      }
+
+      if (!project.deployment?.dockerfile?.isValid && !project.deployment?.dockerfile?.content) {
+        throw new Error("Project does not have a valid Dockerfile configured");
+      }
+
       const environment = deploymentData.environment || "staging";
 
       const activeDeployments = await Deployment.countDocuments({

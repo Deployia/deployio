@@ -23,6 +23,10 @@ const validateProjectUpdate = [
     .optional()
     .isIn(["private", "public"])
     .withMessage("Visibility must be either private or public"),
+  body("status")
+    .optional()
+    .isIn(["active", "archived"])
+    .withMessage("Status must be active or archived"),
   body("settings.autoDeployment.enabled")
     .optional()
     .isBoolean()
@@ -48,17 +52,7 @@ const validateQueryParams = [
     .withMessage("Limit must be between 1 and 100"),
   query("status")
     .optional()
-    .isIn([
-      "draft",
-      "analyzing",
-      "configured",
-      "building",
-      "deploying",
-      "active",
-      "archived",
-      "deleted",
-      "failed",
-    ])
+    .isIn(["active", "archived"])
     .withMessage("Invalid status value"),
   query("technology")
     .optional()

@@ -365,6 +365,13 @@ const deploymentSlice = createSlice({
       state.logs = [];
     },
 
+    clearProjectDeployments: (state) => {
+      state.projectDeployments = [];
+      state.currentDeployment = null;
+      state.logs = [];
+      state.probe = null;
+    },
+
     // Clear metrics
     clearMetrics: (state) => {
       state.metrics = null;
@@ -720,6 +727,7 @@ export const {
   clearCurrentDeployment,
   clearLogs,
   clearMetrics,
+  clearProjectDeployments,
   updateDeploymentStatus,
 } = deploymentSlice.actions;
 

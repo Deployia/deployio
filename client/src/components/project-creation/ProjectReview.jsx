@@ -292,9 +292,68 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
           </div>
         </motion.div>
 
+        {/* Dockerfile */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="bg-neutral-800/30 rounded-lg p-3 sm:p-6"
+        >
+          <motion.div layout className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+              <FaTerminal className="w-5 h-5 text-blue-500" />
+              <span>Dockerfile</span>
+            </h3>
+            <button
+              onClick={() => handleEdit(5)}
+              className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-sm"
+            >
+              <FaEdit className="w-3 h-3" />
+              <span>Edit</span>
+            </button>
+          </motion.div>
+          <p className="text-sm text-neutral-400">Path</p>
+          <code className="text-white text-sm">{stepData.dockerfilePath || "Dockerfile"}</code>
+        </motion.div>
+
         {/* Environment Variables */}
-        {stepData.environmentVariables &&
-          stepData.environmentVariables.length > 0 && (
+        {(() => {
+          const envVars = stepData.environmentVariables;
+          const staging = envVars?.staging || [];
+          const production = envVars?.production || [];
+          const legacyList = Array.isArray(envVars) ? envVars : [];
+          const hasEnv =
+            staging.length > 0 || production.length > 0 || legacyList.length > 0;
+
+          const renderList = (title, list) =>
+            list.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-neutral-300 mb-2">{title}</h4>
+                <div className="space-y-2">
+                  {list.map((env, index) => (
+                    <div
+                      key={`${title}-${index}`}
+                      className="flex items-center justify-between p-2 bg-neutral-900/30 rounded text-sm"
+                    >
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <code className="text-sm text-blue-400">{env.key}</code>
+                        <span className="text-neutral-500">=</span>
+                        <code className="text-sm text-green-400 truncate">
+                          {env.isSecret ? "***" : env.value || "(not set)"}
+                        </code>
+                        {env.required && (
+                          <span className="text-xs text-amber-400">required</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+
+          if (!hasEnv) return null;
+
+          return (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -314,30 +373,17 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
                   <span>Edit</span>
                 </button>
               </div>
-
-              <div className="space-y-2">
-                {stepData.environmentVariables.map((env, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 bg-neutral-900/30 rounded text-sm"
-                  >
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <code className="text-sm text-blue-400">{env.key}</code>
-                      <span className="text-neutral-500">=</span>
-                      <code className="text-sm text-green-400 truncate">
-                        {env.isSecret ? "***" : env.value || "(not set)"}
-                      </code>
-                    </div>
-                    {env.description && (
-                      <span className="text-xs text-neutral-400 ml-2 hidden sm:inline">
-                        {env.description}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {staging.length || production.length ? (
+                <>
+                  {renderList("Staging", staging)}
+                  {renderList("Production", production)}
+                </>
+              ) : (
+                renderList("All", legacyList)
+              )}
             </motion.div>
-          )}
+          );
+        })()}
       </div>
 
       {/* Error Display */}

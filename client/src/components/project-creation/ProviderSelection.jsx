@@ -98,7 +98,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   };
 
   const getProviderStatus = (providerId) => {
-    const providerData = stepData.connectedProviders?.[providerId];
+    const providerData = connectedProviders.find((p) => p.provider === providerId);
     if (!providerData) return "disconnected";
     if (providerData.connected && providerData.hasRepoAccess)
       return "connected";

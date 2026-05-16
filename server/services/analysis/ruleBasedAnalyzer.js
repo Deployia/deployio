@@ -84,6 +84,22 @@ class RuleBasedAnalyzer {
       const envVars = await this._detectEnvVarsFromContent(
         fileContents.envExample,
       );
+      const envTemplate = {
+        staging: envVars.map((env) => ({
+          key: env.key,
+          value: "",
+          isSecret: !!env.isSecret,
+          required: true,
+          source: "env-example",
+        })),
+        production: envVars.map((env) => ({
+          key: env.key,
+          value: "",
+          isSecret: !!env.isSecret,
+          required: true,
+          source: "env-example",
+        })),
+      };
 
       logger.info(
         `✅ Stack detected: ${stackDetection.stack}, deployable: true`,
@@ -117,6 +133,7 @@ class RuleBasedAnalyzer {
           envVars,
         ),
         insights: this._generateInsights(stackDetection, fileContents),
+        envTemplate,
       };
 
       return analysisResult;

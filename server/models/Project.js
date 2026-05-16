@@ -77,6 +77,10 @@ const projectSchema = new mongoose.Schema(
         type: String,
         default: "main",
       },
+      defaultBranch: {
+        type: String,
+        default: "main",
+      },
       isPrivate: {
         type: Boolean,
         default: false,
@@ -349,6 +353,15 @@ const projectSchema = new mongoose.Schema(
               type: Boolean,
               default: false,
             },
+            required: {
+              type: Boolean,
+              default: false,
+            },
+            source: {
+              type: String,
+              enum: ["env-example", "user", "system"],
+              default: "user",
+            },
           },
         ],
         production: [
@@ -361,6 +374,15 @@ const projectSchema = new mongoose.Schema(
             isSecret: {
               type: Boolean,
               default: false,
+            },
+            required: {
+              type: Boolean,
+              default: false,
+            },
+            source: {
+              type: String,
+              enum: ["env-example", "user", "system"],
+              default: "user",
             },
           },
         ],
@@ -471,8 +493,23 @@ const projectSchema = new mongoose.Schema(
 
       // Generated/User-provided Dockerfile for deployment
       dockerfile: {
-        type: String,
-        description: "Full Dockerfile content (generated or from repo)",
+        content: {
+          type: String,
+          description: "Full Dockerfile content (generated or from repo)",
+        },
+        path: {
+          type: String,
+          default: "Dockerfile",
+        },
+        source: {
+          type: String,
+          enum: ["repository", "generated", "manual"],
+          default: "repository",
+        },
+        isValid: {
+          type: Boolean,
+          default: false,
+        },
       },
 
       // Build configuration from analysis
@@ -483,6 +520,16 @@ const projectSchema = new mongoose.Schema(
         port: {
           type: Number,
           default: 3000,
+        },
+      },
+      policy: {
+        singleDockerfilePerProject: {
+          type: Boolean,
+          default: true,
+        },
+        maxActiveDeployments: {
+          type: Number,
+          default: 2,
         },
       },
     },
@@ -498,19 +545,10 @@ const projectSchema = new mongoose.Schema(
     // Project Status & Analytics
     status: {
       type: String,
-      enum: [
-        "draft",
-        "analyzing",
-        "configured",
-        "building",
-        "deploying",
-        "active",
-        "archived",
-        "deleted",
-        "failed",
-      ],
-      default: "draft",
+      enum: ["active", "archived"],
+      default: "active",
     },
+    archivedAt: Date,
     visibility: {
       type: String,
       enum: ["private", "public"],
@@ -587,23 +625,6 @@ const projectSchema = new mongoose.Schema(
 
     // Timestamps & Metadata
     lastAccessed: Date,
-    archivedAt: Date,
-    deletion: {
-      requestedAt: Date,
-      requestedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-      cleanupStatus: {
-        type: String,
-        enum: ["none", "queued", "in_progress", "completed", "failed"],
-        default: "none",
-      },
-      cleanupStartedAt: Date,
-      cleanupCompletedAt: Date,
-      cleanupError: String,
-      hardDeleteEligibleAt: Date,
-    },
   },
   {
     timestamps: true,

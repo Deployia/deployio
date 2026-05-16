@@ -172,7 +172,7 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
   }, [dispatch, onNext, stepData.analysisResults, stepData.analysisStatus]);
 
   const handleContinue = () => {
-    if (stepData.analysisStatus === "completed") {
+    if (stepData.analysisStatus === "completed" || stepData.analysisStatus === "failed") {
       dispatch(completeStep(4));
       onNext();
     }
@@ -436,6 +436,30 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
               <div className="text-sm text-green-300">Default Port</div>
             </div>
           </div>
+
+          {stepData.analysisResults.deployable === false && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-200 text-sm"
+            >
+              No valid Dockerfile detected. You can continue to configure manually or add a Dockerfile to the repository.
+            </motion.div>
+          )}
+
+          {(stepData.dockerfilePath || stepData.analysisResults.dockerfile?.path) && (
+            <div className="mt-4 text-sm text-green-300">
+              Dockerfile:{" "}
+              <code className="text-white">
+                {stepData.dockerfilePath || stepData.analysisResults.dockerfile?.path}
+              </code>
+              {stepData.dockerfiles?.length > 1 && (
+                <span className="text-neutral-400 ml-2">
+                  ({stepData.dockerfiles.length} found in repo)
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Build Config Display */}
           {stepData.analysisResults.detectedConfig && (
