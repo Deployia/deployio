@@ -117,10 +117,12 @@ function useNotifications() {
           }
         });
 
-        socket.on("unread_count", ({ count }) => {
+        socket.on("unread_count", (payload) => {
           if (mounted) {
+            const count =
+              typeof payload === "number" ? payload : payload?.count ?? 0;
             setUnreadCount(count);
-            emitToListeners("unread_count_changed", count);
+            emitToListeners("unread_count_changed", { count });
           }
         });
 

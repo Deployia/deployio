@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FaBell } from "react-icons/fa";
 import { motion } from "framer-motion";
 import {
+  fetchNotifications,
   fetchUnreadCount,
   selectUnreadCount,
   selectNotificationLoading,
@@ -17,54 +18,58 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
   const bellRef = useRef(null);
   const hoverTimeoutRef = useRef(null);
 
-  // Redux state
+  const { isAuthenticated } = useSelector((state) => state.auth);
   const unreadCount = useSelector(selectUnreadCount);
   const loading = useSelector(selectNotificationLoading);
 
-  // WebSocket notifications hook
   const {
     isConnected: wsConnected,
     addListener,
     removeListener,
   } = useNotifications();
 
-  // Fetch unread count on mount and periodically (fallback when WebSocket isn't available)
-  useEffect(() => {
+  const syncNotifications = useCallback(() => {
     dispatch(fetchUnreadCount());
+    dispatch(fetchNotifications({ page: 1, limit: 20 }));
+  }, [dispatch]);
 
-    // Only poll if WebSocket is not connected
-    if (!wsConnected) {
-      const interval = setInterval(() => {
-        dispatch(fetchUnreadCount());
-      }, 30000);
+  // Sync from API on login and mount
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    syncNotifications();
+  }, [isAuthenticated, syncNotifications]);
 
-      return () => clearInterval(interval);
-    }
-  }, [dispatch, wsConnected]);
+  // Re-sync when WebSocket connects (authoritative count + list)
+  useEffect(() => {
+    if (!isAuthenticated || !wsConnected) return;
+    syncNotifications();
+  }, [isAuthenticated, wsConnected, syncNotifications]);
 
-  // Set up WebSocket listeners for real-time updates
+  // Light polling fallback to keep badge accurate
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      dispatch(fetchUnreadCount());
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [dispatch, isAuthenticated]);
+
+  // Real-time WebSocket updates
   useEffect(() => {
     if (!wsConnected) return;
 
-    // Listen for new notifications
     const handleNewNotification = (notification) => {
-      console.log("NotificationBell received notification:", notification);
       dispatch(addNotification(notification));
-
-      // Show browser notification if permission is granted
-      if (Notification.permission === "granted") {
-        new Notification(notification.title, {
-          body: notification.message,
-          icon: "/favicon.png",
-          tag: notification._id,
-        });
-      }
+      dispatch(fetchUnreadCount());
     };
 
-    // Listen for unread count updates
     const handleCountUpdate = (data) => {
-      console.log("NotificationBell received count update:", data);
-      dispatch(updateNotificationCount(data.count));
+      const count = typeof data === "number" ? data : data?.count;
+      if (typeof count === "number") {
+        dispatch(updateNotificationCount(count));
+      }
     };
 
     addListener("new_notification", handleNewNotification);
@@ -76,7 +81,6 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
     };
   }, [dispatch, wsConnected, addListener, removeListener]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     const currentTimeout = hoverTimeoutRef.current;
     return () => {
@@ -97,8 +101,9 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
       onClose();
     }
   };
+
   return (
-    <div className="relative" ref={bellRef}>
+    <motion.div className="relative" ref={bellRef}>
       <motion.button
         onClick={handleToggle}
         className={`relative inline-flex items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 font-medium text-sm border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -110,10 +115,8 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
         whileTap={!loading.unreadCount ? { scale: 0.98 } : {}}
         disabled={loading.unreadCount}
       >
-        {/* Bell Icon */}
         <FaBell className="w-5 h-5" />
 
-        {/* Unread count badge */}
         {unreadCount > 0 && (
           <motion.span
             initial={{ scale: 0 }}
@@ -125,21 +128,19 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
           </motion.span>
         )}
 
-        {/* Loading spinner overlay */}
         {loading.unreadCount && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <motion.div className="absolute inset-0 flex items-center justify-center">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
               className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full"
             />
-          </div>
+          </motion.div>
         )}
       </motion.button>
 
-      {/* Notification Center Dropdown */}
       <NotificationCenter isOpen={isOpen} onClose={handleClose} />
-    </div>
+    </motion.div>
   );
 };
 

@@ -1,6 +1,72 @@
 const emailService = require("../../external/emailService");
 const logger = require("../../../config/logger");
 const NotificationTemplates = require("../templates/notificationTemplates");
+const { projectDashboardUrl } = require("../notificationUrls");
+
+/**
+ * Flatten nested notification context (project/deployment objects) for email templates.
+ * @param {Object} variables - Mutable template variables object
+ * @param {Object} context - Notification context
+ * @param {Object} action - Notification action
+ */
+function flattenNotificationContext(variables, context = {}, action = null) {
+  const project = context.project;
+  const deployment = context.deployment;
+
+  if (project) {
+    const projectName =
+      typeof project === "string"
+        ? project
+        : project.name || project.projectName;
+    if (projectName) variables.projectName = projectName;
+
+    const projectId = project._id || project.id;
+    if (projectId) {
+      variables.projectId = String(projectId);
+      variables.dashboardUrl = projectDashboardUrl(projectId);
+    }
+  }
+
+  if (deployment) {
+    variables.environment =
+      variables.environment ||
+      deployment.environmentName ||
+      deployment.environment;
+
+    variables.deploymentUrl =
+      variables.deploymentUrl ||
+      deployment.url ||
+      deployment.fullUrl;
+
+    variables.duration = variables.duration || deployment.duration;
+
+    const deploymentId = deployment._id || deployment.id;
+    if (deploymentId) {
+      variables.deploymentId = String(deploymentId);
+    }
+
+    if (deployment.logsUrl) {
+      variables.logsUrl = deployment.logsUrl;
+    }
+  }
+
+  if (context.error && !variables.reason) {
+    variables.reason = context.error;
+  }
+
+  if (action?.url) {
+    variables.actionUrl = action.url;
+    if (!variables.deploymentUrl && action.type === "button") {
+      variables.deploymentUrl = action.url;
+    }
+  }
+
+  if (variables.projectId && !variables.logsUrl) {
+    variables.logsUrl = `${projectDashboardUrl(variables.projectId)}/deployments`;
+  }
+
+  variables.userName = variables.userName || variables.username;
+}
 
 class EmailChannel {
   constructor() {
@@ -162,9 +228,11 @@ class EmailChannel {
       Object.assign(baseVariables, context);
     }
 
+    // Flatten nested project/deployment context for deployment & project emails
+    flattenNotificationContext(baseVariables, context, action);
+
     // Add template-specific variable mappings for backward compatibility
     this.addTemplateSpecificVariables(baseVariables, type, notification);
-
 
     return baseVariables;
   }
@@ -212,19 +280,7 @@ class EmailChannel {
       case "deployment.success":
       case "deployment.failed":
       case "deployment.stopped":
-        // Ensure deployment variables are available
-        if (context && context.projectName) {
-          variables.projectName = context.projectName;
-        }
-        if (context && context.environment) {
-          variables.environment = context.environment;
-        }
-        if (context && context.duration) {
-          variables.duration = context.duration;
-        }
-        if (context && context.reason) {
-          variables.reason = context.reason;
-        }
+        flattenNotificationContext(variables, context, action);
         break;
 
       default:
@@ -241,6 +297,10 @@ class EmailChannel {
    * @returns {string} Email subject
    */
   getEmailSubject(type, title, context = {}) {
+    const flat = {};
+    flattenNotificationContext(flat, context);
+    const projectLabel = flat.projectName || "Project";
+
     // The subject will be handled by our notification template system
     // This is a fallback in case the template doesn't provide a subject
     const subjectMap = {
@@ -253,18 +313,10 @@ class EmailChannel {
         context.securityAction || "Account Activity"
       }`,
       "auth.login_attempt": "New login to your DeployIO account",
-      "deployment.started": `Deployment Started - ${
-        context.projectName || "Project"
-      }`,
-      "deployment.success": `Deployment Successful - ${
-        context.projectName || "Project"
-      }`,
-      "deployment.failed": `Deployment Failed - ${
-        context.projectName || "Project"
-      }`,
-      "deployment.stopped": `Deployment Stopped - ${
-        context.projectName || "Project"
-      }`,
+      "deployment.started": `Deployment Started - ${projectLabel}`,
+      "deployment.success": `Deployment Successful - ${projectLabel}`,
+      "deployment.failed": `Deployment Failed - ${projectLabel}`,
+      "deployment.stopped": `Deployment Stopped - ${projectLabel}`,
       "system.test": "DeployIO System Test",
       "general.welcome": "Welcome to DeployIO!",
     };

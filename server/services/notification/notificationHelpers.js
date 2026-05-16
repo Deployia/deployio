@@ -37,6 +37,7 @@ class NotificationHelpers {
             _id: deploymentId,
             environmentName: environment,
             url: deploymentData.url,
+            logsUrl: deploymentData.logsUrl,
           },
         },
         action: deploymentData.url
@@ -80,6 +81,7 @@ class NotificationHelpers {
             environmentName: environment,
             url: deploymentData.url,
             duration,
+            logsUrl: deploymentData.logsUrl,
           },
         },
         action: deploymentData.url
@@ -169,6 +171,7 @@ class NotificationHelpers {
           deployment: {
             _id: deploymentId,
             environmentName: environment,
+            logsUrl: deploymentData.logsUrl,
           },
           reason: reason || "Manual stop",
         },

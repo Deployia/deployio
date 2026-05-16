@@ -14,6 +14,7 @@ import {
 } from "react-icons/fa";
 import {
   fetchNotifications,
+  fetchUnreadCount,
   markNotificationRead,
   markAllNotificationsRead,
   selectNotifications,
@@ -37,9 +38,10 @@ const NotificationCenter = ({ isOpen, onClose }) => {
 
   const [filter, setFilter] = useState("all"); // 'all', 'unread', 'read'
 
-  // Load notifications when component mounts or opens
+  // Refresh notifications when dropdown opens
   useEffect(() => {
     if (isOpen) {
+      dispatch(fetchUnreadCount());
       dispatch(fetchNotifications({ page: 1, limit: 20 }));
     }
   }, [dispatch, isOpen]);

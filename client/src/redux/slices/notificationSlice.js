@@ -200,6 +200,14 @@ const notificationSlice = createSlice({
     // Add new notification (WebSocket real-time)
     addNotification: (state, action) => {
       const newNotification = action.payload;
+      const newId = newNotification._id || newNotification.id;
+
+      if (
+        newId &&
+        state.notifications.some((n) => (n._id || n.id) === newId)
+      ) {
+        return;
+      }
 
       // Ensure test notifications have proper defaults
       if (newNotification.isTest || newNotification.isWelcome) {
@@ -264,9 +272,11 @@ const notificationSlice = createSlice({
           // Merge API notifications with WebSocket-only notifications
           const apiNotifications = notifications.filter(
             (apiNotification) =>
-              !webSocketOnlyNotifications.some(
-                (wsNotification) => wsNotification.id === apiNotification.id
-              )
+              !webSocketOnlyNotifications.some((wsNotification) => {
+                const wsId = wsNotification._id || wsNotification.id;
+                const apiId = apiNotification._id || apiNotification.id;
+                return wsId && apiId && wsId === apiId;
+              })
           );
 
           state.notifications = [
