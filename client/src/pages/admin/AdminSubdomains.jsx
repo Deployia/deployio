@@ -96,7 +96,7 @@ const AdminSubdomains = () => {
       {platformReserved.length > 0 && (
         <div className={`mb-6 ${adminTokens.glassCard} ${adminTokens.glassCardPadding}`}>
           <p className="text-sm text-gray-400 mb-2 body">Platform reserved ({baseDomain})</p>
-          <div className="flex flex-wrap gap-2">]
+          <div className="flex flex-wrap gap-2">
             {platformReserved.map((s) => (
               <span key={s} className="px-2 py-1 text-xs rounded-full bg-neutral-800/50 border border-neutral-700/50 text-gray-300">{s}</span>
             ))}

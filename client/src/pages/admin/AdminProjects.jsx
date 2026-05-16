@@ -75,7 +75,7 @@ const AdminProjects = () => {
       key: "actions",
       label: "Actions",
       render: (row) => (
-        <div className="flex gap-2">]
+        <div className="flex gap-2">
           {row.status !== "archived" && (
             <button type="button" title="Archive" onClick={() => setConfirm({ type: "archive", id: row._id, name: row.name })} className="p-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/30">
               <FaArchive className="w-4 h-4" />

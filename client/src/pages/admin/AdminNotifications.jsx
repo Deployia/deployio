@@ -78,7 +78,7 @@ const AdminNotifications = () => {
         {feedback && (
           <p className={`text-sm body ${feedback.type === "success" ? "text-green-400 bg-green-500/20 border border-green-500/30 rounded-lg p-3" : "text-red-300 bg-red-500/20 border border-red-500/30 rounded-lg p-3"}`}>{feedback.text}</p>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">]
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1 body">Title</label>
             <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={adminTokens.input} />
@@ -96,7 +96,7 @@ const AdminNotifications = () => {
           <label className="block text-sm text-gray-400 mb-1 body">Message</label>
           <textarea required rows={3} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className={adminTokens.input} />
         </div>
-        <div className="flex flex-wrap items-center gap-4">]
+        <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-sm text-gray-300 body">
             <input type="checkbox" checked={form.systemWide} onChange={(e) => setForm({ ...form, systemWide: e.target.checked })} />
             Send to all users

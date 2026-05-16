@@ -80,7 +80,7 @@ const AdminDeployments = () => {
       key: "actions",
       label: "Actions",
       render: (row) => (
-        <div className="flex gap-2">]
+        <div className="flex gap-2">
           {CANCELLABLE.includes(row.status) && row.status !== "running" && (
             <button type="button" title="Cancel" onClick={() => setConfirm({ type: "cancel", ...row })} className="p-2 rounded-lg bg-orange-500/20 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30">
               <FaTimesCircle className="w-4 h-4" />
