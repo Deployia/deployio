@@ -21,6 +21,7 @@ import {
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import { useModal } from "@context/ModalContext.jsx";
+import DangerConfirmModal from "@components/common/DangerConfirmModal";
 import {
   fetchDeploymentLogs,
   fetchProjectDeployments,
@@ -281,48 +282,24 @@ const ProjectDeployments = () => {
       const label = deployment.subdomain || deploymentId || "this deployment";
 
       openModal(
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md bg-neutral-900 border border-neutral-700 rounded-xl p-6 shadow-xl"
+        <DangerConfirmModal
+          title="Delete deployment"
+          confirmLabel="Delete permanently"
+          cancelLabel="Cancel"
+          confirmDisabled={isActionBusy(deployment)}
+          onCancel={closeModal}
+          onConfirm={async () => {
+            closeModal();
+            await runDeleteDeployment(deployment);
+          }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Delete deployment</h3>
-            <button
-              type="button"
-              onClick={closeModal}
-              className="text-gray-400 hover:text-white transition-colors"
-              aria-label="Close"
-            >
-              <FaTimes className="w-5 h-5" />
-            </button>
-          </div>
-          <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-            Permanently delete the <span className="font-medium text-white">{env}</span>{" "}
-            deployment <span className="font-mono text-gray-200">{label}</span>? The
+          <p>
+            Permanently delete the{" "}
+            <span className="font-medium text-white">{env}</span> deployment{" "}
+            <span className="font-mono text-neutral-200">{label}</span>? The
             container will be removed and this record cannot be recovered.
           </p>
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={closeModal}
-              className="px-4 py-2 rounded-lg bg-neutral-700 hover:bg-neutral-600 text-white text-sm transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                closeModal();
-                await runDeleteDeployment(deployment);
-              }}
-              disabled={isActionBusy(deployment)}
-              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm transition-colors disabled:opacity-50"
-            >
-              Delete permanently
-            </button>
-          </div>
-        </motion.div>,
+        </DangerConfirmModal>,
       );
     },
     [closeModal, isActionBusy, openModal, runDeleteDeployment],

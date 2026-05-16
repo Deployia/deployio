@@ -128,7 +128,7 @@ function decryptEnvVarList(list = []) {
     .filter((row) => row && row.key)
     .map((row) => ({
       ...row,
-      value: decryptEnvValue(row.value),
+      value: decryptSecret(row.value),
     }));
 }
 
