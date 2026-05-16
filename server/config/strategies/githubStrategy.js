@@ -1,4 +1,5 @@
 const GitHubStrategy = require("passport-github2").Strategy;
+const { GITHUB_CONNECT_SCOPES } = require("../../constants/gitOAuthScopes");
 const User = require("../../models/User");
 const crypto = require("crypto");
 
@@ -136,7 +137,7 @@ const githubIntegrationStrategy = new GitHubStrategy(
     clientID: process.env.GITHUB_CLIENT_ID_INTEGRATION,
     clientSecret: process.env.GITHUB_CLIENT_SECRET_INTEGRATION,
     callbackURL: `${process.env.BASE_URL}/api/v1/git/connect/github/callback`,
-    scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"], // Full scopes
+    scope: GITHUB_CONNECT_SCOPES,
     passReqToCallback: true, // Enable req parameter to access state
   },
   async (req, accessToken, refreshToken, profile, done) => {

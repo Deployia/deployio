@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api, { invalidateAllCacheEntriesForUrl } from "@utils/api";
 import projectCreationService from "@services/projectCreationService";
+import { toApiProviderId } from "@/utils/gitProviderIds";
 import {
   EMPTY_ENVIRONMENT_VARIABLES,
   mergeEnvTemplate,
@@ -28,8 +29,10 @@ export const analyzeRepository = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const repositoryData = payload?.repositoryData || payload;
-      const response =
-        await projectCreationService.analyzeRepository(repositoryData);
+      const response = await projectCreationService.analyzeRepository({
+        ...repositoryData,
+        provider: toApiProviderId(repositoryData?.provider),
+      });
       return response;
     } catch (error) {
       return rejectWithValue(
@@ -89,12 +92,13 @@ export const createProjectFromState = createAsyncThunk(
         ) {
           return `https://github.com/${ownerLogin}/${repo.name}`;
         }
-        if (
-          state.stepData.selectedProvider === "gitlab" &&
-          ownerLogin &&
-          repo.name
-        ) {
-          return `https://gitlab.com/${ownerLogin}/${repo.name}`;
+        if (state.stepData.selectedProvider === "gitlab") {
+          if (repo.fullName) {
+            return `https://gitlab.com/${repo.fullName}`;
+          }
+          if (ownerLogin && repo.name) {
+            return `https://gitlab.com/${ownerLogin}/${repo.name}`;
+          }
         }
         if (
           state.stepData.selectedProvider === "azure-devops" &&
@@ -181,7 +185,7 @@ export const fetchRepositories = createAsyncThunk(
   async ({ provider, options = {} }, { rejectWithValue }) => {
     try {
       const response = await projectCreationService.getRepositories(
-        provider,
+        toApiProviderId(provider),
         options,
       );
       return response;
@@ -195,12 +199,13 @@ export const fetchRepositories = createAsyncThunk(
 
 export const fetchBranches = createAsyncThunk(
   "projectCreation/fetchBranches",
-  async ({ provider, owner, repo }, { rejectWithValue }) => {
+  async ({ provider, owner, repo, fullName }, { rejectWithValue }) => {
     try {
       const response = await projectCreationService.getBranches(
         provider,
         owner,
         repo,
+        { fullName },
       );
       return response;
     } catch (error) {

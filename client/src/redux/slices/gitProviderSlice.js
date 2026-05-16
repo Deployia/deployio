@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import gitProviderService from "@/services/gitProviderService.js";
+import { toApiProviderId, toConnectionProviderId } from "@/utils/gitProviderIds";
 
 // Async Thunks
 export const fetchAvailableProviders = createAsyncThunk(
@@ -142,7 +143,7 @@ const initialState = {
       lastSync: null,
       repositories: { count: 0, private: 0, public: 0 },
     },
-    azure: {
+    azuredevops: {
       connected: false,
       username: null,
       avatar: null,
@@ -177,7 +178,7 @@ const initialState = {
       searchQuery: "",
       lastFetch: null,
     },
-    azure: {
+    azuredevops: {
       loading: false,
       data: [],
       pagination: { page: 1, totalPages: 1, totalCount: 0, hasMore: false },
@@ -190,9 +191,9 @@ const initialState = {
   // Available providers configuration
   availableProviders: [
     { id: "github", name: "GitHub", enabled: true, comingSoon: false },
-    { id: "gitlab", name: "GitLab", enabled: false, comingSoon: true },
+    { id: "gitlab", name: "GitLab", enabled: true, comingSoon: false },
     { id: "bitbucket", name: "Bitbucket", enabled: false, comingSoon: true },
-    { id: "azure", name: "Azure DevOps", enabled: false, comingSoon: true },
+    { id: "azuredevops", name: "Azure DevOps", enabled: false, comingSoon: true },
   ],
 
   // UI state
@@ -328,7 +329,7 @@ const gitProviderSlice = createSlice({
         // Update connection status from the array of connected providers
         if (action.payload.data && Array.isArray(action.payload.data)) {
           action.payload.data.forEach((providerData) => {
-            const provider = providerData.provider;
+            const provider = toConnectionProviderId(providerData.provider);
             if (state.connections[provider]) {
               updateConnectionState(state, provider, {
                 connected: true,
@@ -369,7 +370,7 @@ const gitProviderSlice = createSlice({
         // Update detailed connection information from the array
         if (action.payload.data && Array.isArray(action.payload.data)) {
           action.payload.data.forEach((providerData) => {
-            const provider = providerData.provider;
+            const provider = toConnectionProviderId(providerData.provider);
             if (state.connections[provider]) {
               updateConnectionState(state, provider, {
                 connected: true,

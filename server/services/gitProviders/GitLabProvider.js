@@ -43,7 +43,19 @@ class GitLabProvider extends BaseGitProvider {
     };
 
     const projects = await this.getAllPages(endpoint, { params, maxPages });
-    return projects.map((project) => this.normalizeRepository(project));
+    const repositories = projects.map((project) =>
+      this.normalizeRepository(project),
+    );
+
+    return {
+      repositories,
+      pagination: {
+        page: 1,
+        per_page: repositories.length,
+        total_count: repositories.length,
+        has_more: projects.length >= perPage * maxPages,
+      },
+    };
   }
 
   async getRepository(projectId) {

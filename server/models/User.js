@@ -104,7 +104,13 @@ const userSchema = new mongoose.Schema(
         scopes: [
           {
             type: String,
-            enum: ["user:email", "repo", "workflow", "admin:repo_hook"],
+            enum: [
+              "user:email",
+              "repo",
+              "read:org",
+              "workflow",
+              "admin:repo_hook",
+            ],
           },
         ],
         // Repository access level
@@ -146,7 +152,13 @@ const userSchema = new mongoose.Schema(
         scopes: [
           {
             type: String,
-            enum: ["read_user", "read_repository", "api", "read_registry"],
+            enum: [
+              "read_user",
+              "read_repository",
+              "read_api",
+              "api",
+              "read_registry",
+            ],
           },
         ],
         repoAccess: {

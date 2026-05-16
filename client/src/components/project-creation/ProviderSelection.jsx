@@ -60,7 +60,7 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
       borderColor: "border-orange-500/30 hover:border-orange-500/50",
       description: "Connect to GitLab repositories",
       features: ["Self-hosted support", "CI/CD integration", "Advanced DevOps"],
-      available: false,
+      available: true,
     },
     {
       id: "azure-devops",
@@ -78,6 +78,13 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
       available: false,
     },
   ];
+
+  const normalizeProviderId = (providerId) => {
+    if (providerId === "azureDevOps" || providerId === "azuredevops") {
+      return "azure-devops";
+    }
+    return providerId;
+  };
 
   const handleProviderSelect = (providerId) => {
     dispatch(setSelectedProvider(providerId));
@@ -98,7 +105,9 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
   };
 
   const getProviderStatus = (providerId) => {
-    const providerData = connectedProviders.find((p) => p.provider === providerId);
+    const providerData = connectedProviders.find(
+      (p) => normalizeProviderId(p.provider) === providerId,
+    );
     if (!providerData) return "disconnected";
     if (providerData.connected && providerData.hasRepoAccess)
       return "connected";
@@ -132,10 +141,8 @@ const ProviderSelection = ({ stepData, onNext, loading }) => {
     }
   };
 
-  const handleConnect = (providerId) => {
-    if (providerId === "github") {
-      handleGoToIntegrations();
-    }
+  const handleConnect = () => {
+    handleGoToIntegrations();
   };
 
   return (

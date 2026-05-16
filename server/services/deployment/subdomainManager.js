@@ -77,11 +77,16 @@ class SubdomainManager {
       `${projectSlug}-${envSlug}-service`,
     ];
 
-    return bases.slice(0, limit).map((candidate) => ({
-      subdomain: candidate,
-      url: `https://${candidate}.${this.baseDomain}`,
-      label: `${candidate}.${this.baseDomain}`,
-    }));
+    return bases.slice(0, limit).map((candidate) => this._toSuggestion(candidate));
+  }
+
+  _toSuggestion(subdomain) {
+    const normalized = this._normalizeSegment(subdomain);
+    return {
+      subdomain: normalized,
+      url: `https://${normalized}.${this.baseDomain}`,
+      label: `${normalized}.${this.baseDomain}`,
+    };
   }
 
   _generateRandomSuffix(length = 4) {
@@ -99,11 +104,7 @@ class SubdomainManager {
     const envSlug = this._normalizeSegment(environment || "staging");
     const candidate = `${projectSlug}-${envSlug}-${this._generateRandomSuffix()}`;
 
-    return {
-      subdomain: candidate,
-      url: `https://${candidate}.${this.baseDomain}`,
-      label: `${candidate}.${this.baseDomain}`,
-    };
+    return this._toSuggestion(candidate);
   }
 
   _extractSubdomainFromHostname(hostname) {
@@ -381,13 +382,160 @@ class SubdomainManager {
       },
       environment,
       suggestions,
-      taken: Array.from(taken),
-      platformReserved: this.getPlatformReservedSubdomains(),
       capacity: await this.getProjectDeploymentCapacity(
         projectId,
         environment,
         project,
       ),
+    };
+  }
+
+  async checkAvailability(subdomain, { projectId = null, environment = null } = {}) {
+    const normalized = this._normalizeSegment(subdomain);
+    if (!normalized) {
+      return {
+        subdomain: normalized,
+        baseDomain: this.baseDomain,
+        available: false,
+        status: "invalid",
+        reason: "invalid-subdomain-format",
+      };
+    }
+
+    if (this._isBlockedByFormat(normalized)) {
+      return {
+        subdomain: normalized,
+        baseDomain: this.baseDomain,
+        available: false,
+        status: "invalid",
+        reason: "invalid-subdomain-format",
+      };
+    }
+
+    if (this.isPlatformReservedSubdomain(normalized)) {
+      return {
+        subdomain: normalized,
+        baseDomain: this.baseDomain,
+        available: false,
+        status: "reserved",
+        reason: "platform-reserved-subdomain",
+      };
+    }
+
+    const taken = await this._getTakenSubdomains(environment);
+    if (taken.has(normalized)) {
+      const reason = this.platformReservedSubdomains.has(normalized)
+        ? "platform-reserved-subdomain"
+        : "already-allocated";
+      return {
+        subdomain: normalized,
+        baseDomain: this.baseDomain,
+        available: false,
+        status: reason === "platform-reserved-subdomain" ? "reserved" : "taken",
+        reason,
+        projectId,
+        environment,
+      };
+    }
+
+    return {
+      subdomain: normalized,
+      baseDomain: this.baseDomain,
+      available: true,
+      status: "available",
+      reason: "available",
+      projectId,
+      environment,
+    };
+  }
+
+  async getAlternativesForPreferred(
+    preferred,
+    project,
+    environment = "staging",
+    limit = this.maxSuggestions,
+  ) {
+    const normalized = this._normalizeSegment(preferred);
+    const taken = await this._getTakenSubdomains(environment);
+    const suggestions = [];
+    const seen = new Set();
+
+    const tryAdd = (candidate) => {
+      const slug = this._normalizeSegment(candidate);
+      if (
+        !slug ||
+        this._isBlockedSubdomain(slug) ||
+        taken.has(slug) ||
+        seen.has(slug)
+      ) {
+        return false;
+      }
+      suggestions.push(this._toSuggestion(slug));
+      seen.add(slug);
+      return true;
+    };
+
+    if (normalized) {
+      tryAdd(normalized);
+      [`${normalized}-2`, `${normalized}-app`, `${normalized}-live`].forEach(
+        (candidate) => {
+          if (suggestions.length >= limit) return;
+          tryAdd(candidate);
+        },
+      );
+    }
+
+    for (const candidate of this._buildCandidates(project, environment, limit * 2)) {
+      if (suggestions.length >= limit) break;
+      tryAdd(candidate.subdomain);
+    }
+
+    let attempts = 0;
+    const maxAttempts = limit * 20;
+    while (suggestions.length < limit && attempts < maxAttempts) {
+      const candidate = this._buildRandomCandidate(project, environment);
+      attempts += 1;
+      tryAdd(candidate.subdomain);
+    }
+
+    return suggestions.slice(0, limit);
+  }
+
+  async checkSubdomainWithAlternatives(
+    subdomain,
+    projectId,
+    environment = "staging",
+    limit = this.maxSuggestions,
+  ) {
+    const project = await Project.findById(projectId).select("name slug");
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const availability = await this.checkAvailability(subdomain, {
+      projectId,
+      environment,
+    });
+
+    const alternatives =
+      availability.available === false
+        ? await this.getAlternativesForPreferred(
+            subdomain,
+            project,
+            environment,
+            limit,
+          )
+        : [];
+
+    return {
+      ...availability,
+      url: availability.available
+        ? `https://${availability.subdomain}.${this.baseDomain}`
+        : undefined,
+      label: availability.available
+        ? `${availability.subdomain}.${this.baseDomain}`
+        : undefined,
+      alternatives,
     };
   }
 

@@ -3,6 +3,10 @@
 // ONLY handles Git provider connection/disconnection (OAuth flows)
 
 const express = require("express");
+const {
+  GITHUB_CONNECT_SCOPES,
+  GITLAB_CONNECT_SCOPES,
+} = require("../../../../constants/gitOAuthScopes");
 const { protect } = require("@middleware/authMiddleware");
 const { getRateLimiters } = require("@middleware/rateLimitMiddleware");
 const passport = require("passport");
@@ -33,7 +37,7 @@ router.get(
   (req, res, next) => {
     passport.authenticate("github-integration", {
       session: false, // Disable session usage
-      scope: ["user:email", "repo", "workflow", "admin:repo_hook", "read:org"],
+      scope: GITHUB_CONNECT_SCOPES,
       state: req.oauthState,
     })(req, res, next);
   }
@@ -48,7 +52,7 @@ router.get(
   (req, res, next) => {
     passport.authenticate("gitlab-integration", {
       session: false, // Disable session usage
-      scope: ["read_user", "read_repository", "api"],
+      scope: GITLAB_CONNECT_SCOPES,
       state: req.oauthState,
     })(req, res, next);
   }

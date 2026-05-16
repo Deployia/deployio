@@ -56,11 +56,14 @@ class ProjectCreationController {
       }
 
       const { repositoryUrl, branch, provider } = req.body;
-      const result = await projectCreationService.discoverDockerfiles({
-        repositoryUrl,
-        branch,
-        provider,
-      });
+      const result = await projectCreationService.discoverDockerfiles(
+        {
+          repositoryUrl,
+          branch,
+          provider,
+        },
+        req.user.id,
+      );
 
       res.status(200).json({
         success: true,
@@ -92,15 +95,20 @@ class ProjectCreationController {
       const { repositoryUrl, branch, provider, dockerfilePath } = req.body;
       const userId = req.user.id;
 
-      const result = await projectCreationService.analyzeRepositoryStandalone({
-        repositoryUrl,
-        branch,
-        provider,
-        dockerfilePath,
-      });
+      const result = await projectCreationService.analyzeRepositoryStandalone(
+        {
+          repositoryUrl,
+          branch,
+          provider,
+          dockerfilePath,
+        },
+        userId,
+      );
 
-      const repoMatch = repositoryUrl?.match(/github\.com\/[^/]+\/([^/.]+)/i);
-      const projectName = repoMatch?.[1] || "Repository";
+      const projectName =
+        result?.analysis?.results?.dockerfile?.suggestedName ||
+        repositoryUrl?.split("/").filter(Boolean).pop()?.replace(/\.git$/, "") ||
+        "Repository";
       const analysisStatus = result?.analysis?.status;
       const isComplete = analysisStatus === "completed";
 

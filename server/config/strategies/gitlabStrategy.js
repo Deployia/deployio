@@ -1,5 +1,6 @@
 // GitLab Strategy - Repository Access Only (No Authentication)
 const GitLabStrategy = require("passport-gitlab2").Strategy;
+const { GITLAB_CONNECT_SCOPES } = require("../../constants/gitOAuthScopes");
 
 // GitLab Integration Strategy (repository access only)
 const gitlabIntegrationStrategy = new GitLabStrategy(
@@ -7,7 +8,7 @@ const gitlabIntegrationStrategy = new GitLabStrategy(
     clientID: process.env.GITLAB_CLIENT_ID,
     clientSecret: process.env.GITLAB_CLIENT_SECRET,
     callbackURL: `${process.env.BASE_URL}/api/v1/git/connect/gitlab/callback`,
-    scope: ["read_user", "read_repository", "api"],
+    scope: GITLAB_CONNECT_SCOPES,
     passReqToCallback: true, // Enable req parameter to access state
   },
   async (req, accessToken, refreshToken, profile, done) => {

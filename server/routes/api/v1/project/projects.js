@@ -208,6 +208,23 @@ const validateSubdomainQuery = [
     .withMessage("Environment must be development, staging, or production"),
 ];
 
+const validateSubdomainCheckQuery = [
+  query("environment")
+    .optional()
+    .isIn(["development", "staging", "production"])
+    .withMessage("Environment must be development, staging, or production"),
+  query("subdomain")
+    .trim()
+    .notEmpty()
+    .withMessage("Subdomain is required")
+    .isLength({ min: 1, max: 40 })
+    .withMessage("Subdomain must be between 1 and 40 characters")
+    .matches(/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/)
+    .withMessage(
+      "Subdomain may only contain letters, numbers, and hyphens",
+    ),
+];
+
 /**
  * @desc Create new deployment for project
  * @route POST /api/v1/projects/:id/deployments
@@ -217,6 +234,17 @@ router.post(
   validateObjectId,
   validateDeploymentCreation,
   deploymentController.createDeployment,
+);
+
+/**
+ * @desc Check subdomain availability for project deployments
+ * @route GET /api/v1/projects/:id/deployments/subdomains/check
+ */
+router.get(
+  "/:id/deployments/subdomains/check",
+  validateObjectId,
+  validateSubdomainCheckQuery,
+  deploymentController.checkDeploymentSubdomain,
 );
 
 /**

@@ -1,9 +1,17 @@
 const Project = require("../../models/Project");
+const User = require("../../models/User");
 const ruleBasedAnalyzer = require("../analysis/ruleBasedAnalyzer");
 const logger = require("@config/logger");
 const NotificationHelpers = require("../notification/notificationHelpers");
 const axios = require("axios");
 const path = require("path");
+const GitProviderFactory = require("../gitProviders/ProviderFactory");
+const { normalizeGitProviderKey } = require("../../utils/gitProviderKeys");
+const { getDecryptedAccessToken } = require("../../utils/gitProviderTokens");
+const {
+  parseRepositoryUrl,
+  normalizeProviderApi,
+} = require("../../utils/repositoryUrlParser");
 const {
   dockerfileDirectory,
   suggestProjectName,
@@ -11,14 +19,34 @@ const {
 } = require("../../utils/dockerfileNaming");
 
 class ProjectCreationService {
-  _parseGithubRepo(repositoryUrl) {
-    const repoMatch = repositoryUrl.match(/github\.com\/([^/]+)\/([^/.]+)/i);
-    if (!repoMatch) {
-      throw new Error(
-        "Invalid repository URL. Currently only GitHub URLs are supported.",
-      );
+  async _getProviderApi(userId, provider) {
+    const apiProvider = normalizeProviderApi(provider);
+    if (apiProvider === "github" || !userId) {
+      return null;
     }
-    return { owner: repoMatch[1], repo: repoMatch[2] };
+
+    const canonical = normalizeGitProviderKey(provider);
+    if (!canonical) {
+      return null;
+    }
+
+    const user = await User.findById(userId).select(
+      `+gitProviders.${canonical}.accessToken +gitProviders.${canonical}.refreshToken +gitProviders`,
+    );
+    if (!user?.gitProviders?.[canonical]?.isConnected) {
+      return null;
+    }
+
+    const accessToken = getDecryptedAccessToken(user.gitProviders[canonical]);
+    if (!accessToken) {
+      return null;
+    }
+
+    return GitProviderFactory.createProvider(canonical, accessToken);
+  }
+
+  _parseRepository(repositoryUrl, provider) {
+    return parseRepositoryUrl(repositoryUrl, provider);
   }
 
   _envExamplePathForDockerfile(dockerfilePath) {
@@ -39,23 +67,61 @@ class ProjectCreationService {
     };
   }
 
-  async _fetchRawFile(owner, repo, branch, filePath) {
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-    const response = await axios.get(url, {
-      timeout: 8000,
-      responseType: "text",
-      transformResponse: [(data) => data],
-    });
-    const data = response.data;
-    if (typeof data === "string") return data;
-    if (data == null) return "";
-    return JSON.stringify(data, null, 2);
+  async _fetchRawFile(parsed, branch, filePath, userId) {
+    const apiProvider = normalizeProviderApi(parsed.provider);
+
+    if (apiProvider === "github") {
+      const url = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${branch}/${filePath}`;
+      const response = await axios.get(url, {
+        timeout: 8000,
+        responseType: "text",
+        transformResponse: [(data) => data],
+      });
+      const data = response.data;
+      if (typeof data === "string") return data;
+      if (data == null) return "";
+      return JSON.stringify(data, null, 2);
+    }
+
+    const providerApi = await this._getProviderApi(userId, parsed.provider);
+    if (!providerApi) {
+      throw new Error(
+        `Connect your ${parsed.provider} account in Integrations to read repository files`,
+      );
+    }
+
+    if (apiProvider === "gitlab") {
+      const file = await providerApi.getFileContent(
+        parsed.projectId,
+        filePath,
+        branch,
+      );
+      if (!file) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+      return typeof file === "string" ? file : file.content || "";
+    }
+
+    if (apiProvider === "azuredevops") {
+      const content = await providerApi.getFileContent(
+        parsed.owner,
+        parsed.repo,
+        filePath,
+        branch,
+      );
+      if (content == null) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+      return content;
+    }
+
+    throw new Error(`Unsupported provider: ${parsed.provider}`);
   }
 
-  async _fetchFirstAvailable(owner, repo, branch, candidates) {
+  async _fetchFirstAvailable(parsed, branch, candidates, userId) {
     for (const filePath of candidates) {
       try {
-        const data = await this._fetchRawFile(owner, repo, branch, filePath);
+        const data = await this._fetchRawFile(parsed, branch, filePath, userId);
         return { data, path: filePath };
       } catch {
         // try next
@@ -64,12 +130,38 @@ class ProjectCreationService {
     return { data: null, path: null };
   }
 
-  async _listDockerfilePaths(owner, repo, branch) {
-    try {
-      const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-      const treeResponse = await axios.get(treeUrl, { timeout: 8000 });
-      const tree = treeResponse.data?.tree || [];
-      return tree
+  async _listDockerfilePaths(parsed, branch, userId) {
+    const apiProvider = normalizeProviderApi(parsed.provider);
+
+    if (apiProvider === "github") {
+      try {
+        const treeUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${branch}?recursive=1`;
+        const treeResponse = await axios.get(treeUrl, { timeout: 8000 });
+        const tree = treeResponse.data?.tree || [];
+        return tree
+          .filter(
+            (entry) =>
+              entry.type === "blob" &&
+              /(^|\/)Dockerfile(\.[^/]+)?$/i.test(entry.path),
+          )
+          .map((entry) => entry.path)
+          .slice(0, 30);
+      } catch (error) {
+        logger.debug(`Could not fetch repo tree: ${error.message}`);
+        return [];
+      }
+    }
+
+    const providerApi = await this._getProviderApi(userId, parsed.provider);
+    if (!providerApi) {
+      throw new Error(
+        `Connect your ${parsed.provider} account in Integrations to browse private repositories`,
+      );
+    }
+
+    if (apiProvider === "gitlab") {
+      const tree = await providerApi.getRepositoryTree(parsed.projectId, branch);
+      return (tree.files || [])
         .filter(
           (entry) =>
             entry.type === "blob" &&
@@ -77,13 +169,16 @@ class ProjectCreationService {
         )
         .map((entry) => entry.path)
         .slice(0, 30);
-    } catch (error) {
-      logger.debug(`Could not fetch repo tree: ${error.message}`);
-      return [];
     }
+
+    if (apiProvider === "azuredevops") {
+      return providerApi.listDockerfilePaths(parsed.owner, parsed.repo, branch);
+    }
+
+    return [];
   }
 
-  async _buildDockerfileMetadata(owner, repo, branch, paths, repoName) {
+  async _buildDockerfileMetadata(parsed, branch, paths, repoName, userId) {
     const usedNames = new Set();
     const results = [];
 
@@ -91,7 +186,12 @@ class ProjectCreationService {
       let content = "";
       let isValid = false;
       try {
-        content = await this._fetchRawFile(owner, repo, branch, dockerfilePath);
+        content = await this._fetchRawFile(
+          parsed,
+          branch,
+          dockerfilePath,
+          userId,
+        );
         isValid = isValidDockerfileContent(content);
       } catch (error) {
         logger.debug(`Could not fetch ${dockerfilePath}: ${error.message}`);
@@ -115,25 +215,21 @@ class ProjectCreationService {
     return results;
   }
 
-  async discoverDockerfiles(repositoryData) {
+  async discoverDockerfiles(repositoryData, userId = null) {
     const {
       repositoryUrl,
       branch = "main",
       provider = "github",
     } = repositoryData;
 
-    if (provider !== "github") {
-      throw new Error("Only GitHub is supported for repository discovery");
-    }
-
-    const { owner, repo } = this._parseGithubRepo(repositoryUrl);
-    const paths = await this._listDockerfilePaths(owner, repo, branch);
+    const parsed = this._parseRepository(repositoryUrl, provider);
+    const paths = await this._listDockerfilePaths(parsed, branch, userId);
     const dockerfiles = await this._buildDockerfileMetadata(
-      owner,
-      repo,
+      parsed,
       branch,
       paths,
-      repo,
+      parsed.repo,
+      userId,
     );
 
     const validDockerfiles = dockerfiles.filter((df) => df.isValid);
@@ -152,11 +248,21 @@ class ProjectCreationService {
         : !deployable
           ? "Dockerfiles were found but none are valid for deployment (each needs FROM and CMD or ENTRYPOINT)."
           : null,
-      repository: { owner, name: repo, branch },
+      repository: {
+        owner: parsed.owner,
+        name: parsed.repo,
+        branch,
+        provider: normalizeProviderApi(parsed.provider),
+      },
     };
   }
 
-  async _fetchRepositoryFiles(owner, repo, branch, preferredDockerfilePath) {
+  async _fetchRepositoryFiles(
+    parsed,
+    branch,
+    preferredDockerfilePath,
+    userId,
+  ) {
     const files = {
       packageJson: null,
       requirementsTxt: null,
@@ -167,13 +273,13 @@ class ProjectCreationService {
       dockerfileDetails: [],
     };
 
-    files.dockerfiles = await this._listDockerfilePaths(owner, repo, branch);
+    files.dockerfiles = await this._listDockerfilePaths(parsed, branch, userId);
     files.dockerfileDetails = await this._buildDockerfileMetadata(
-      owner,
-      repo,
+      parsed,
       branch,
       files.dockerfiles,
-      repo,
+      parsed.repo,
+      userId,
     );
 
     const selectedPath =
@@ -185,27 +291,27 @@ class ProjectCreationService {
     const contextPaths = this._contextFilePaths(selectedPath);
 
     const pkg = await this._fetchFirstAvailable(
-      owner,
-      repo,
+      parsed,
       branch,
       contextPaths.packageJson,
+      userId,
     );
     files.packageJson = pkg.data;
 
     const req = await this._fetchFirstAvailable(
-      owner,
-      repo,
+      parsed,
       branch,
       contextPaths.requirementsTxt,
+      userId,
     );
     files.requirementsTxt = req.data;
 
     try {
       files.dockerCompose = await this._fetchRawFile(
-        owner,
-        repo,
+        parsed,
         branch,
         "docker-compose.yml",
+        userId,
       );
     } catch (error) {
       logger.debug(`Could not fetch docker-compose.yml: ${error.message}`);
@@ -213,10 +319,10 @@ class ProjectCreationService {
 
     try {
       files.dockerfile = await this._fetchRawFile(
-        owner,
-        repo,
+        parsed,
         branch,
         selectedPath,
+        userId,
       );
     } catch (error) {
       logger.debug(`Could not fetch Dockerfile at ${selectedPath}: ${error.message}`);
@@ -239,7 +345,12 @@ class ProjectCreationService {
     for (const candidate of envCandidates) {
       if (files.envExample) break;
       try {
-        files.envExample = await this._fetchRawFile(owner, repo, branch, candidate);
+        files.envExample = await this._fetchRawFile(
+          parsed,
+          branch,
+          candidate,
+          userId,
+        );
         files.envExampleSource = candidate;
         logger.debug(`Loaded env template from ${candidate}`);
       } catch {
@@ -255,7 +366,7 @@ class ProjectCreationService {
     return isValidDockerfileContent(content);
   }
 
-  async analyzeRepositoryStandalone(repositoryData) {
+  async analyzeRepositoryStandalone(repositoryData, userId = null) {
     const {
       repositoryUrl,
       branch = "main",
@@ -263,16 +374,12 @@ class ProjectCreationService {
       dockerfilePath,
     } = repositoryData;
 
-    if (provider !== "github") {
-      throw new Error("Only GitHub is supported for repository analysis");
-    }
-
-    const { owner, repo } = this._parseGithubRepo(repositoryUrl);
+    const parsed = this._parseRepository(repositoryUrl, provider);
     const fileContents = await this._fetchRepositoryFiles(
-      owner,
-      repo,
+      parsed,
       branch,
       dockerfilePath,
+      userId,
     );
 
     const analysisResult = await ruleBasedAnalyzer.analyzeRepositoryContent({
@@ -335,7 +442,7 @@ class ProjectCreationService {
         isValid: hasValidDockerfile,
         suggestedName: selectedMeta?.suggestedName,
       },
-      provider,
+      provider: normalizeProviderApi(provider),
     };
   }
 
@@ -348,8 +455,7 @@ class ProjectCreationService {
     const analysis =
       payload.analysis || payload.analysisResults || payload.analysisResult || null;
     const provider = payload.provider || repository?.provider || "github";
-
-    if (provider !== "github") {
+    if (!normalizeGitProviderKey(provider)) {
       throw new Error("Validation failed");
     }
 
@@ -457,16 +563,21 @@ class ProjectCreationService {
       normalizeEnvVarValue,
       normalizeEnvVarSource,
     } = require("../../utils/envVarNormalize");
+    const { normalizeEnvRowForStorage } = require("../../utils/envVarPayload");
     const mapEnv = (list = []) =>
       list
         .filter((env) => env?.key)
-        .map((env) => ({
-          key: env.key,
-          value: normalizeEnvVarValue(env.key, env.value || ""),
-          isSecret: !!env.isSecret,
-          required: !!env.required,
-          source: normalizeEnvVarSource(env.source || "user"),
-        }));
+        .map((env) =>
+          normalizeEnvRowForStorage({
+            key: env.key,
+            value: normalizeEnvVarValue(env.key, env.value || ""),
+            isSecret: true,
+            required: !!env.required,
+            description: env.description || "",
+            source: normalizeEnvVarSource(env.source || "user"),
+          }),
+        )
+        .filter(Boolean);
 
     const deploymentEnvVars = {
       development: mapEnv(envInput.development),

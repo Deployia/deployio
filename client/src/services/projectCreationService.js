@@ -46,9 +46,18 @@ class ProjectCreationService {
     return response.data?.data || response.data;
   }
 
-  async getBranches(provider, owner, repo) {
+  async getBranches(provider, owner, repo, options = {}) {
+    const apiProvider =
+      provider === "azure-devops" || provider === "azure"
+        ? "azuredevops"
+        : provider;
+    const params = new URLSearchParams();
+    if (options.fullName) {
+      params.set("fullName", options.fullName);
+    }
+    const query = params.toString() ? `?${params.toString()}` : "";
     const response = await api.get(
-      `/users/git-providers/${provider}/repositories/${owner}/${repo}/branches`,
+      `/users/git-providers/${apiProvider}/repositories/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches${query}`,
     );
     return response.data?.data || response.data;
   }

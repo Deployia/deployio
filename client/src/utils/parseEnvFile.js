@@ -37,11 +37,8 @@ export function parseEnvFile(content) {
       key,
       value,
       description: "",
-      isSecret:
-        upper.includes("SECRET") ||
-        upper.includes("PASSWORD") ||
-        upper.includes("TOKEN") ||
-        upper.includes("KEY"),
+      isSecret: true,
+      hasValue: Boolean(value),
       required: false,
       source: "env-example",
     });

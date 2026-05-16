@@ -1,14 +1,23 @@
 const GitHubProvider = require("./GitHubProvider");
 const GitLabProvider = require("./GitLabProvider");
-// const AzureDevOpsProvider = require('./AzureDevOpsProvider'); // Will implement later
-// const BitbucketProvider = require('./BitbucketProvider'); // Will implement later
+const AzureDevOpsProvider = require("./AzureDevOpsProvider");
+const {
+  GITHUB_CONNECT_SCOPES,
+  GITLAB_CONNECT_SCOPES,
+} = require("../../constants/gitOAuthScopes");
+const {
+  normalizeGitProviderKey,
+  toApiProviderId,
+} = require("../../utils/gitProviderKeys");
+const { getDecryptedAccessToken } = require("../../utils/gitProviderTokens");
 
 /**
  * Git Provider Factory
  * Creates and manages git provider instances
  */
 class GitProviderFactory {
-  static SUPPORTED_PROVIDERS = ["github", "gitlab"]; // Will add 'azuredevops', 'bitbucket' later
+  static SUPPORTED_PROVIDERS = ["github", "gitlab", "azuredevops"];
+  static CANONICAL_PROVIDERS = ["github", "gitlab", "azureDevOps"];
 
   /**
    * Create a git provider instance
@@ -21,20 +30,17 @@ class GitProviderFactory {
       throw new Error("Provider and access token are required");
     }
 
-    const providerLower = provider.toLowerCase();
+    const apiId = toApiProviderId(provider) || String(provider).toLowerCase();
 
-    switch (providerLower) {
+    switch (apiId) {
       case "github":
         return new GitHubProvider(accessToken);
 
       case "gitlab":
         return new GitLabProvider(accessToken);
 
-      // case 'azuredevops':
-      //   return new AzureDevOpsProvider(accessToken);
-
-      // case 'bitbucket':
-      //   return new BitbucketProvider(accessToken);
+      case "azuredevops":
+        return new AzureDevOpsProvider(accessToken);
 
       default:
         throw new Error(`Unsupported git provider: ${provider}`);
@@ -53,42 +59,48 @@ class GitProviderFactory {
     }
 
     // If preferred provider specified and connected, use it
+    const preferredCanonical = preferredProvider
+      ? normalizeGitProviderKey(preferredProvider)
+      : null;
+
     if (
-      preferredProvider &&
-      user.gitProviders[preferredProvider]?.isConnected
+      preferredCanonical &&
+      user.gitProviders[preferredCanonical]?.isConnected
     ) {
-      const accessToken = user.gitProviders[preferredProvider].accessToken;
+      const accessToken = getDecryptedAccessToken(
+        user.gitProviders[preferredCanonical],
+      );
       if (!accessToken) {
         throw new Error(`No access token found for ${preferredProvider}`);
       }
 
       return {
-        provider: this.createProvider(preferredProvider, accessToken),
-        providerName: preferredProvider,
+        provider: this.createProvider(preferredCanonical, accessToken),
+        providerName: toApiProviderId(preferredCanonical),
       };
     }
 
-    // Find first connected provider (prioritize GitHub)
-    const connectedProviders = this.SUPPORTED_PROVIDERS.filter(
-      (providerName) =>
-        user.gitProviders[providerName]?.isConnected &&
-        user.gitProviders[providerName]?.accessToken
+    const connectedCanonical = this.CANONICAL_PROVIDERS.filter(
+      (canonical) =>
+        user.gitProviders[canonical]?.isConnected &&
+        user.gitProviders[canonical]?.accessToken,
     );
 
-    if (connectedProviders.length === 0) {
+    if (connectedCanonical.length === 0) {
       throw new Error("No connected git providers found");
     }
 
-    // Prioritize GitHub, then others
-    const selectedProvider = connectedProviders.includes("github")
+    const selectedCanonical = connectedCanonical.includes("github")
       ? "github"
-      : connectedProviders[0];
+      : connectedCanonical[0];
 
-    const accessToken = user.gitProviders[selectedProvider].accessToken;
+    const accessToken = getDecryptedAccessToken(
+      user.gitProviders[selectedCanonical],
+    );
 
     return {
-      provider: this.createProvider(selectedProvider, accessToken),
-      providerName: selectedProvider,
+      provider: this.createProvider(selectedCanonical, accessToken),
+      providerName: toApiProviderId(selectedCanonical),
     };
   }
 
@@ -104,22 +116,20 @@ class GitProviderFactory {
 
     const providers = [];
 
-    for (const providerName of this.SUPPORTED_PROVIDERS) {
-      const providerData = user.gitProviders[providerName];
+    for (const canonical of this.CANONICAL_PROVIDERS) {
+      const providerData = user.gitProviders[canonical];
 
       if (providerData?.isConnected && providerData?.accessToken) {
         try {
+          const accessToken = getDecryptedAccessToken(providerData);
           providers.push({
-            provider: this.createProvider(
-              providerName,
-              providerData.accessToken
-            ),
-            providerName,
+            provider: this.createProvider(canonical, accessToken),
+            providerName: toApiProviderId(canonical),
             connectedAt: providerData.connectedAt,
             lastUsed: providerData.lastUsed,
           });
         } catch (error) {
-          console.error(`Error creating provider ${providerName}:`, error);
+          console.error(`Error creating provider ${canonical}:`, error);
         }
       }
     }
@@ -133,7 +143,7 @@ class GitProviderFactory {
    * @returns {boolean}
    */
   static isProviderSupported(provider) {
-    return this.SUPPORTED_PROVIDERS.includes(provider.toLowerCase());
+    return Boolean(normalizeGitProviderKey(provider));
   }
 
   /**
@@ -179,7 +189,7 @@ class GitProviderFactory {
         name: "GitHub",
         baseUrl: "https://github.com",
         apiUrl: "https://api.github.com",
-        scopes: ["user:email", "repo", "workflow", "admin:repo_hook"],
+        scopes: GITHUB_CONNECT_SCOPES,
         webhookEvents: ["push", "pull_request"],
         supportsPrivateRepos: true,
         supportsOrganizations: true,
@@ -189,7 +199,7 @@ class GitProviderFactory {
         name: "GitLab",
         baseUrl: "https://gitlab.com",
         apiUrl: "https://gitlab.com/api/v4",
-        scopes: ["read_user", "read_repository", "api", "read_registry"],
+        scopes: GITLAB_CONNECT_SCOPES,
         webhookEvents: ["push_events", "merge_requests_events"],
         supportsPrivateRepos: true,
         supportsOrganizations: true,

@@ -174,6 +174,46 @@ class DeploymentController {
   }
 
   /**
+   * @desc Check subdomain availability and return alternatives when taken
+   * @route GET /api/v1/projects/:id/deployments/subdomains/check
+   * @access Private
+   */
+  async checkDeploymentSubdomain(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: errors.array(),
+        });
+      }
+
+      const { id: projectId } = req.params;
+      const environment = req.query.environment || "staging";
+      const subdomain = req.query.subdomain;
+
+      const result = await subdomainManager.checkSubdomainWithAlternatives(
+        subdomain,
+        projectId,
+        environment,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Subdomain availability checked",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error in checkDeploymentSubdomain:", error);
+      res.status(error.message.includes("not found") ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to check subdomain availability",
+      });
+    }
+  }
+
+  /**
    * @desc Update deployment status
    * @route PATCH /api/v1/deployments/:id/status
    * @access Private

@@ -144,9 +144,9 @@ const Integrations = () => {
         description: "Integrate with GitLab for CI/CD pipelines",
         icon: getProviderIcon("gitlab"),
         category: "scm",
-        enabled: false,
+        enabled: true,
         popular: false,
-        comingSoon: true,
+        comingSoon: false,
         features: [
           "CI/CD integration",
           "Merge request builds",
@@ -169,7 +169,7 @@ const Integrations = () => {
         timeline: "Q3 2025",
       },
       {
-        id: "azure",
+        id: "azuredevops",
         name: "Azure DevOps",
         description: "Integrate with Azure DevOps for enterprise workflows",
         icon: getProviderIcon("azure"),

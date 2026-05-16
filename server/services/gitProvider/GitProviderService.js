@@ -5,16 +5,60 @@ const User = require("@models/User");
 const GitProviderFactory = require("@services/gitProviders/ProviderFactory");
 const RepositoryDataFetcher = require("./RepositoryDataFetcher");
 const { getRedisClient } = require("@config/redisClient");
+const {
+  normalizeGitProviderKey,
+  toApiProviderId,
+} = require("@utils/gitProviderKeys");
+const {
+  encryptProviderTokenFields,
+  getDecryptedAccessToken,
+  getDecryptedRefreshToken,
+} = require("@utils/gitProviderTokens");
 
 class GitProviderService {
+  static _canonicalProvider(provider) {
+    const canonical = normalizeGitProviderKey(provider);
+    if (!canonical) {
+      throw new Error(`Unsupported git provider: ${provider}`);
+    }
+    return canonical;
+  }
+
+  static _apiProviderId(provider) {
+    return toApiProviderId(this._canonicalProvider(provider));
+  }
+
+  static _tokenSelectFields(canonical) {
+    return `+gitProviders.${canonical}.accessToken +gitProviders.${canonical}.refreshToken +gitProviders`;
+  }
+
+  /** Move legacy azuredevops subdocument to gitProviders.azureDevOps */
+  static _migrateLegacyProviderKeys(user) {
+    if (!user.gitProviders) {
+      return;
+    }
+    const legacy = user.gitProviders.azuredevops;
+    if (legacy && !user.gitProviders.azureDevOps) {
+      user.gitProviders.azureDevOps = legacy;
+      user.gitProviders.azuredevops = undefined;
+      user.markModified("gitProviders");
+    }
+  }
+
+  static _providerData(user, provider) {
+    const canonical = this._canonicalProvider(provider);
+    this._migrateLegacyProviderKeys(user);
+    return user.gitProviders?.[canonical] || null;
+  }
+
   /**
    * Helper method to check if user has valid token for provider
    */
   static _hasValidGitProviderToken(user, provider) {
-    if (!user.gitProviders || !user.gitProviders[provider]) {
+    const providerData = this._providerData(user, provider);
+    if (!providerData) {
       return false;
     }
-    const providerData = user.gitProviders[provider];
     return (
       providerData.isConnected &&
       providerData.accessToken &&
@@ -26,17 +70,14 @@ class GitProviderService {
    * Helper method to get git provider token with playground fallback
    */
   static _getGitProviderToken(user, provider, isPlaygroundRequest = false) {
-    // First try to get user's own token
-    if (
-      user.gitProviders &&
-      user.gitProviders[provider] &&
-      user.gitProviders[provider].accessToken
-    ) {
-      return user.gitProviders[provider].accessToken;
+    const canonical = this._canonicalProvider(provider);
+    const providerData = this._providerData(user, provider);
+    if (providerData?.accessToken) {
+      return getDecryptedAccessToken(providerData);
     }
 
     // Fallback: use environment token for github if available
-    if (provider === "github") {
+    if (canonical === "github") {
       const envToken =
         process.env.GITHUB_TOKEN || process.env.GITHUB_PLAYGROUND_TOKEN;
       if (envToken && envToken !== "your_github_token_here") {
@@ -66,7 +107,7 @@ class GitProviderService {
     }
 
     // Fallback: check if environment token is available for github
-    if (provider === "github") {
+    if (this._canonicalProvider(provider) === "github") {
       const envToken =
         process.env.GITHUB_TOKEN || process.env.GITHUB_PLAYGROUND_TOKEN;
       return !!(envToken && envToken !== "your_github_token_here");
@@ -79,8 +120,9 @@ class GitProviderService {
    * Helper method to update provider last used timestamp
    */
   static _updateProviderLastUsed(user, provider) {
-    if (user.gitProviders && user.gitProviders[provider]) {
-      user.gitProviders[provider].lastUsed = new Date();
+    const canonical = this._canonicalProvider(provider);
+    if (user.gitProviders?.[canonical]) {
+      user.gitProviders[canonical].lastUsed = new Date();
     }
   }
 
@@ -99,7 +141,7 @@ class GitProviderService {
       return connectedProviders.map((providerName) => {
         const providerData = user.gitProviders[providerName];
         return {
-          provider: providerName,
+          provider: toApiProviderId(providerName),
           displayName: GitProviderFactory.getProviderConfig(providerName).name,
           username: providerData.username || providerData.displayName,
           email: providerData.email,
@@ -125,34 +167,31 @@ class GitProviderService {
         throw new Error("User not found");
       }
 
-      // Validate provider
-      if (!GitProviderFactory.getSupportedProviders().includes(provider)) {
+      const canonical = this._canonicalProvider(provider);
+      const apiId = toApiProviderId(canonical);
+
+      if (!GitProviderFactory.getSupportedProviders().includes(apiId)) {
         throw new Error(`Unsupported provider: ${provider}`);
       }
 
-      // Initialize gitProviders object if it doesn't exist
+      this._migrateLegacyProviderKeys(user);
+
       if (!user.gitProviders) {
         user.gitProviders = {};
       }
 
-      // Initialize provider object if it doesn't exist
-      if (!user.gitProviders[provider]) {
-        user.gitProviders[provider] = {};
-      } // Store provider connection data
-      const providerData = user.gitProviders[provider];
+      if (!user.gitProviders[canonical]) {
+        user.gitProviders[canonical] = {};
+      }
+      const providerData = user.gitProviders[canonical];
 
-      console.log(`Storing token data for ${provider}:`, {
-        hasAccessToken: !!tokenData.accessToken,
-        hasRefreshToken: !!tokenData.refreshToken,
-        tokenExpiry: tokenData.tokenExpiry,
-        scopes: tokenData.scopes,
-      });
-
-      // Update token data
-      providerData.accessToken = tokenData.accessToken;
+      if (tokenData.accessToken) {
+        providerData.accessToken = tokenData.accessToken;
+      }
       if (tokenData.refreshToken) {
         providerData.refreshToken = tokenData.refreshToken;
       }
+      encryptProviderTokenFields(providerData);
       if (tokenData.tokenExpiry) {
         providerData.tokenExpiry = tokenData.tokenExpiry;
       }
@@ -181,7 +220,7 @@ class GitProviderService {
 
       return {
         success: true,
-        provider,
+        provider: apiId,
         connectedAt: new Date().toISOString(),
       };
     } catch (error) {
@@ -199,12 +238,17 @@ class GitProviderService {
         throw new Error("User not found");
       }
 
-      if (!user.gitProviders[provider]) {
+      const canonical = this._canonicalProvider(provider);
+      this._migrateLegacyProviderKeys(user);
+
+      if (!user.gitProviders?.[canonical]) {
         throw new Error("Provider not connected");
       }
 
-      // Remove provider data
-      user.gitProviders[provider] = undefined;
+      user.gitProviders[canonical] = undefined;
+      if (canonical === "azureDevOps" && user.gitProviders.azuredevops) {
+        user.gitProviders.azuredevops = undefined;
+      }
       await user.save();
 
       return {
@@ -222,9 +266,9 @@ class GitProviderService {
    */
   static async testConnection(userId, provider) {
     try {
-      // Make sure to select the access tokens since they have select: false in schema
+      const canonical = this._canonicalProvider(provider);
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(canonical),
       );
       if (!user) {
         throw new Error("User not found");
@@ -234,11 +278,9 @@ class GitProviderService {
         throw new Error("No valid token for provider");
       }
 
+      const apiId = this._apiProviderId(provider);
       const token = this._getGitProviderToken(user, provider);
-      const providerInstance = GitProviderFactory.createProvider(
-        provider,
-        token,
-      );
+      const providerInstance = GitProviderFactory.createProvider(apiId, token);
 
       // Test connection by fetching user info
       const userInfo = await providerInstance.getCurrentUser();
@@ -272,7 +314,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(this._canonicalProvider(provider)),
       );
       if (!user) {
         throw new Error("User not found");
@@ -339,7 +381,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(this._canonicalProvider(provider)),
       );
       if (!user) {
         throw new Error("User not found");
@@ -367,15 +409,28 @@ class GitProviderService {
         token,
       );
 
-      // Split full name into owner and repo
-      const [ownerName, repoName] = repoFullName.split("/");
-      if (!ownerName || !repoName) {
-        throw new Error(`Invalid repository full name: ${repoFullName}`);
+      const canonical = this._canonicalProvider(provider);
+      let repository;
+
+      if (canonical === "gitlab") {
+        repository = await providerInstance.getRepository(repoFullName);
+      } else if (canonical === "azureDevOps") {
+        const parts = repoFullName.split("/");
+        if (parts.length < 3) {
+          throw new Error(
+            "Invalid Azure DevOps repository format. Expected 'organization/project/repository'",
+          );
+        }
+        const repoName = parts.pop();
+        const ownerName = parts.join("/");
+        repository = await providerInstance.getRepository(ownerName, repoName);
+      } else {
+        const [ownerName, repoName] = repoFullName.split("/");
+        if (!ownerName || !repoName) {
+          throw new Error(`Invalid repository full name: ${repoFullName}`);
+        }
+        repository = await providerInstance.getRepository(ownerName, repoName);
       }
-      const repository = await providerInstance.getRepository(
-        ownerName,
-        repoName,
-      );
 
       // Only update last used timestamp if user has their own token
       if (this._hasValidGitProviderToken(user, provider)) {
@@ -396,7 +451,7 @@ class GitProviderService {
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(this._canonicalProvider(provider)),
       );
       if (!user) {
         throw new Error("User not found");
@@ -406,19 +461,32 @@ class GitProviderService {
         throw new Error("No valid token for provider");
       }
 
+      const apiId = this._apiProviderId(provider);
       const token = this._getGitProviderToken(user, provider);
-      const providerInstance = GitProviderFactory.createProvider(
-        provider,
-        token,
-      );
+      const providerInstance = GitProviderFactory.createProvider(apiId, token);
 
-      // Split repoFullName into owner and repo
-      const [owner, repo] = repoFullName.split("/");
-      if (!owner || !repo) {
-        throw new Error("Invalid repository format. Expected 'owner/repo'");
+      const canonical = this._canonicalProvider(provider);
+      let branches;
+
+      if (canonical === "gitlab") {
+        branches = await providerInstance.getBranches(repoFullName);
+      } else if (canonical === "azureDevOps") {
+        const parts = repoFullName.split("/");
+        if (parts.length < 3) {
+          throw new Error(
+            "Invalid Azure DevOps repository format. Expected 'organization/project/repository'",
+          );
+        }
+        const repo = parts.pop();
+        const owner = parts.join("/");
+        branches = await providerInstance.getBranches(owner, repo);
+      } else {
+        const [owner, repo] = repoFullName.split("/");
+        if (!owner || !repo) {
+          throw new Error("Invalid repository format. Expected 'owner/repo'");
+        }
+        branches = await providerInstance.getBranches(owner, repo);
       }
-
-      const branches = await providerInstance.getBranches(owner, repo);
 
       // Update last used timestamp
       this._updateProviderLastUsed(user, provider);
@@ -449,7 +517,7 @@ class GitProviderService {
     try {
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(this._canonicalProvider(provider)),
       );
       if (!user) throw new Error("User not found");
       if (!this._hasValidGitProviderToken(user, provider))
@@ -516,40 +584,43 @@ class GitProviderService {
    */
   static async refreshToken(userId, provider) {
     try {
-      // Make sure to select the access tokens since they have select: false in schema
+      const canonical = this._canonicalProvider(provider);
+      const apiId = this._apiProviderId(provider);
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(canonical),
       );
       if (!user) {
         throw new Error("User not found");
       }
 
-      const refreshToken = user.gitProviders[provider]?.refreshToken;
-      if (!refreshToken) {
+      this._migrateLegacyProviderKeys(user);
+      const providerData = user.gitProviders[canonical];
+      const refreshTokenPlain = getDecryptedRefreshToken(providerData);
+      if (!refreshTokenPlain) {
         throw new Error("No refresh token available");
       }
 
       const providerInstance = GitProviderFactory.createProvider(
-        provider,
-        refreshToken,
+        apiId,
+        refreshTokenPlain,
       );
       const newTokens = await providerInstance.refreshToken();
 
-      // Update stored tokens
       if (!user.gitProviders) {
         user.gitProviders = {};
       }
-      if (!user.gitProviders[provider]) {
-        user.gitProviders[provider] = {};
+      if (!user.gitProviders[canonical]) {
+        user.gitProviders[canonical] = {};
       }
 
-      user.gitProviders[provider].accessToken = newTokens.accessToken;
+      user.gitProviders[canonical].accessToken = newTokens.accessToken;
       if (newTokens.refreshToken) {
-        user.gitProviders[provider].refreshToken = newTokens.refreshToken;
+        user.gitProviders[canonical].refreshToken = newTokens.refreshToken;
       }
       if (newTokens.tokenExpiry) {
-        user.gitProviders[provider].tokenExpiry = newTokens.tokenExpiry;
+        user.gitProviders[canonical].tokenExpiry = newTokens.tokenExpiry;
       }
+      encryptProviderTokenFields(user.gitProviders[canonical]);
 
       await user.save();
 
@@ -573,13 +644,14 @@ class GitProviderService {
         throw new Error("User not found");
       }
 
-      const providerData = user.gitProviders[provider];
+      const canonical = this._canonicalProvider(provider);
+      const providerData = user.gitProviders[canonical];
       if (!providerData) {
         return null;
       }
 
       return {
-        provider,
+        provider: this._apiProviderId(provider),
         connectedAt: providerData.connectedAt,
         lastUsed: providerData.lastUsed,
         totalRepositories: providerData.repositoryCount || 0,
@@ -596,9 +668,9 @@ class GitProviderService {
    */
   static async updateProviderInfo(userId, provider) {
     try {
-      // Make sure to select the access tokens since they have select: false in schema
+      const canonical = this._canonicalProvider(provider);
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(canonical),
       );
       if (!user) {
         throw new Error("User not found");
@@ -608,11 +680,9 @@ class GitProviderService {
         throw new Error("No valid token for provider");
       }
 
+      const apiId = this._apiProviderId(provider);
       const token = this._getGitProviderToken(user, provider);
-      const providerInstance = GitProviderFactory.createProvider(
-        provider,
-        token,
-      );
+      const providerInstance = GitProviderFactory.createProvider(apiId, token);
 
       const userInfo = await providerInstance.getCurrentUser();
 
@@ -620,11 +690,11 @@ class GitProviderService {
       if (!user.gitProviders) {
         user.gitProviders = {};
       }
-      if (!user.gitProviders[provider]) {
-        user.gitProviders[provider] = {};
+      if (!user.gitProviders[canonical]) {
+        user.gitProviders[canonical] = {};
       }
 
-      const providerData = user.gitProviders[provider];
+      const providerData = user.gitProviders[canonical];
       if (userInfo.id) providerData.id = userInfo.id;
       if (userInfo.username) providerData.username = userInfo.username;
       if (userInfo.email) providerData.email = userInfo.email;
@@ -664,7 +734,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(this._canonicalProvider(provider)),
       );
       if (!user) {
         throw new Error("User not found");
@@ -674,11 +744,9 @@ class GitProviderService {
         throw new Error("No valid token for provider");
       }
 
+      const apiId = this._apiProviderId(provider);
       const token = this._getGitProviderToken(user, provider);
-      const providerInstance = GitProviderFactory.createProvider(
-        provider,
-        token,
-      );
+      const providerInstance = GitProviderFactory.createProvider(apiId, token);
 
       // Get basic repository info
       const repository = await providerInstance.getRepository(owner, repo);
@@ -852,7 +920,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(this._canonicalProvider(provider)),
       );
       if (!user) {
         throw new Error("User not found");
@@ -919,7 +987,7 @@ class GitProviderService {
 
       // Make sure to select the access tokens since they have select: false in schema
       const user = await User.findById(userId).select(
-        `+gitProviders.${provider}.accessToken +gitProviders.${provider}.refreshToken +gitProviders`,
+        this._tokenSelectFields(this._canonicalProvider(provider)),
       );
       if (!user) {
         throw new Error("User not found");

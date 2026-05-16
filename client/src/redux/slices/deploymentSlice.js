@@ -152,6 +152,34 @@ export const fetchDeploymentSubdomains = createAsyncThunk(
   },
 );
 
+export const checkDeploymentSubdomain = createAsyncThunk(
+  "deployments/checkDeploymentSubdomain",
+  async (
+    { projectId, subdomain, environment = "staging" },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await api.get(
+        `/projects/${projectId}/deployments/subdomains/check`,
+        {
+          params: { subdomain, environment },
+        },
+      );
+
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+
+      return response.data.data || response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          "Failed to check subdomain availability",
+      );
+    }
+  },
+);
+
 export const createDeployment = createAsyncThunk(
   "deployments/createDeployment",
   async ({ projectId, deploymentData }, { rejectWithValue }) => {
@@ -322,8 +350,17 @@ const initialState = {
   subdomains: {
     environment: "staging",
     suggestions: [],
-    taken: [],
     capacity: null,
+    project: null,
+  },
+  subdomainCheck: {
+    subdomain: "",
+    available: null,
+    status: null,
+    reason: null,
+    label: null,
+    url: null,
+    alternatives: [],
   },
   pagination: {
     currentPage: 1,
@@ -348,6 +385,7 @@ const initialState = {
     logs: false,
     metrics: false,
     subdomains: false,
+    subdomainCheck: false,
   },
 
   // Error states
@@ -365,6 +403,7 @@ const initialState = {
     logs: null,
     metrics: null,
     subdomains: null,
+    subdomainCheck: null,
   },
 
   // Success states
@@ -555,7 +594,6 @@ const deploymentSlice = createSlice({
           environment:
             action.payload.environment || state.subdomains.environment,
           suggestions: action.payload.suggestions || [],
-          taken: action.payload.taken || [],
           capacity: action.payload.capacity || null,
           project: action.payload.project || null,
         };
@@ -563,6 +601,28 @@ const deploymentSlice = createSlice({
       .addCase(fetchDeploymentSubdomains.rejected, (state, action) => {
         state.loading.subdomains = false;
         state.error.subdomains = action.payload;
+      });
+
+    builder
+      .addCase(checkDeploymentSubdomain.pending, (state) => {
+        state.loading.subdomainCheck = true;
+        state.error.subdomainCheck = null;
+      })
+      .addCase(checkDeploymentSubdomain.fulfilled, (state, action) => {
+        state.loading.subdomainCheck = false;
+        state.subdomainCheck = {
+          subdomain: action.payload.subdomain || "",
+          available: action.payload.available ?? null,
+          status: action.payload.status || null,
+          reason: action.payload.reason || null,
+          label: action.payload.label || null,
+          url: action.payload.url || null,
+          alternatives: action.payload.alternatives || [],
+        };
+      })
+      .addCase(checkDeploymentSubdomain.rejected, (state, action) => {
+        state.loading.subdomainCheck = false;
+        state.error.subdomainCheck = action.payload;
       });
 
     // Create deployment

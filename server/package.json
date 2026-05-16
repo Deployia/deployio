@@ -9,7 +9,9 @@
     "test": "echo \"Running server tests...\" && echo \"Server tests passed\"",
     "lint": "echo \"Running server lint...\" && echo \"Server lint passed\"",
     "prod": "NODE_ENV=production node server.js",
-    "health": "curl -f http://localhost:3000/api/v1/health"
+    "health": "curl -f http://localhost:3000/api/v1/health",
+    "migrate:secrets": "node scripts/migrateSecretsAtRest.js",
+    "migrate:secrets:execute": "node scripts/migrateSecretsAtRest.js --execute"
   },
   "keywords": [
     "deployio",

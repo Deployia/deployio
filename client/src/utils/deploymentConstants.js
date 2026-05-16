@@ -30,8 +30,14 @@ export const normalizeEnvVarSource = (source) => {
 
 const normalizeEnvVarRow = (row) => {
   if (!row || typeof row !== "object") return row;
+  const hasValue =
+    row.hasValue === true ||
+    (row.hasValue !== false && Boolean(String(row.value ?? "").length));
   return {
     ...row,
+    value: row.value ?? "",
+    isSecret: true,
+    hasValue,
     source: normalizeEnvVarSource(row.source),
   };
 };

@@ -35,23 +35,38 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
   // Fetch branches when component mounts
   useEffect(() => {
     if (stepData.selectedRepository) {
-      // Extract owner and repo name from different possible formats
-      let owner, repo;
+      const provider = stepData.selectedProvider || "github";
+      const selected = stepData.selectedRepository;
+      let owner;
+      let repo = selected.name;
+      let fullName = selected.fullName || null;
 
-      if (
-        stepData.selectedRepository.owner &&
-        typeof stepData.selectedRepository.owner === "object"
-      ) {
-        owner = stepData.selectedRepository.owner.login;
-      } else if (stepData.selectedRepository.owner) {
-        owner = stepData.selectedRepository.owner;
+      if (provider === "gitlab" && fullName) {
+        const parts = fullName.split("/");
+        owner = parts[0];
+        repo = parts.slice(1).join("/") || selected.name;
+        fullName = fullName;
+      } else if (provider === "azure-devops") {
+        if (fullName) {
+          const parts = fullName.split("/");
+          repo = parts.pop();
+          owner = parts.join("/");
+        } else if (selected.organization && selected.project) {
+          owner = `${selected.organization}/${selected.project}`;
+          repo = selected.name;
+          fullName = `${owner}/${repo}`;
+        } else if (typeof selected.owner === "string" && selected.owner.includes("/")) {
+          owner = selected.owner;
+          fullName = `${owner}/${repo}`;
+        }
+      } else if (selected.owner && typeof selected.owner === "object") {
+        owner = selected.owner.login;
+      } else if (selected.owner) {
+        owner = selected.owner;
       }
 
-      repo = stepData.selectedRepository.name;
-
       if (owner && repo) {
-        const provider = stepData.selectedProvider || "github";
-        dispatch(fetchBranches({ provider, owner, repo }));
+        dispatch(fetchBranches({ provider, owner, repo, fullName }));
       }
     }
   }, [dispatch, stepData.selectedRepository, stepData.selectedProvider]);

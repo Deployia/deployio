@@ -2,6 +2,13 @@ const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const crypto = require("crypto");
 const User = require("@models/User");
+const {
+  encryptSecret,
+  decryptSecret,
+  ensureEncrypted,
+} = require("../../utils/secretsVault");
+
+const getTotpSecretPlain = (stored) => decryptSecret(stored);
 const logger = require("@config/logger");
 const AuthActivityLogger = require("./authActivityLogger");
 const AuthNotifications = require("./authNotifications");
@@ -38,8 +45,7 @@ const generate2FASecret = async (userId) => {
     // Generate QR code
     const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
 
-    // Store temporary secret (not enabled yet)
-    user.twoFactorTempSecret = secret.base32;
+    user.twoFactorTempSecret = ensureEncrypted(secret.base32);
     await user.save();
 
     logger.info(`2FA secret generated for user: ${userId}`);
@@ -74,7 +80,7 @@ const enable2FA = async (userId, token) => {
 
     // Verify the provided token
     const verified = speakeasy.totp.verify({
-      secret: user.twoFactorTempSecret,
+      secret: getTotpSecretPlain(user.twoFactorTempSecret),
       encoding: "base32",
       token: token,
       window: 2, // Allow some time drift
@@ -91,6 +97,9 @@ const enable2FA = async (userId, token) => {
     user.twoFactorEnabled = true;
     user.twoFactorSecret = user.twoFactorTempSecret;
     user.twoFactorTempSecret = undefined;
+    if (user.twoFactorSecret && !String(user.twoFactorSecret).startsWith("enc:v1:")) {
+      user.twoFactorSecret = ensureEncrypted(user.twoFactorSecret);
+    }
     user.twoFactorBackupCodes = backupCodes.map((code) => ({
       code: crypto.createHash("sha256").update(code).digest("hex"),
       used: false,
@@ -155,7 +164,7 @@ const disable2FA = async (userId, token) => {
 
     // Verify token (either TOTP or backup code)
     const isValidTotp = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
+      secret: getTotpSecretPlain(user.twoFactorSecret),
       encoding: "base32",
       token: token,
       window: 2,
@@ -226,7 +235,7 @@ const verify2FALogin = async (userId, token, loginInfo = {}) => {
 
     // Verify token (either TOTP or backup code)
     const isValidTotp = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
+      secret: getTotpSecretPlain(user.twoFactorSecret),
       encoding: "base32",
       token: token,
       window: 2,
@@ -238,7 +247,6 @@ const verify2FALogin = async (userId, token, loginInfo = {}) => {
     }
 
     if (!isValidTotp && !isValidBackupCode) {
-      // Log failed 2FA attempt
       try {
         await AuthActivityLogger.logFailed2FA(userId, {
           token: token.substring(0, 2) + "****",
@@ -253,7 +261,14 @@ const verify2FALogin = async (userId, token, loginInfo = {}) => {
       throw new Error("Invalid 2FA token");
     }
 
-    // Log successful 2FA verification
+    if (
+      user.twoFactorSecret &&
+      !String(user.twoFactorSecret).startsWith("enc:v1:")
+    ) {
+      user.twoFactorSecret = ensureEncrypted(user.twoFactorSecret);
+      await user.save();
+    }
+
     try {
       await AuthActivityLogger.logSuccessful2FA(userId, {
         method: isValidBackupCode ? "backup_code" : "totp",

@@ -154,17 +154,15 @@ class DeploymentOrchestrator {
         : [];
 
       const { normalizeEnvVarValue } = require("../../utils/envVarNormalize");
-      const mergedEnvVars = [...projectEnvVars, ...deploymentEnvVars].reduce(
-        (acc, envVar) => {
-          if (!envVar?.key) return acc;
-          acc[envVar.key] = normalizeEnvVarValue(
-            envVar.key,
-            envVar.value ?? "",
-          );
-          return acc;
-        },
-        {},
-      );
+      const { decryptEnvVarList } = require("../../utils/envVarPayload");
+      const mergedEnvVars = [
+        ...decryptEnvVarList(projectEnvVars),
+        ...decryptEnvVarList(deploymentEnvVars),
+      ].reduce((acc, envVar) => {
+        if (!envVar?.key) return acc;
+        acc[envVar.key] = normalizeEnvVarValue(envVar.key, envVar.value ?? "");
+        return acc;
+      }, {});
 
       // Determine container port from deployment config or project defaults
       const containerPort =

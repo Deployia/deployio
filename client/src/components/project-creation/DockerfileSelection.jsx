@@ -35,6 +35,16 @@ const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
       repositoryUrl = repo.htmlUrl;
     } else if (repo?.cloneUrl) {
       repositoryUrl = repo.cloneUrl;
+    } else if (repo?.fullName && stepData.selectedProvider === "gitlab") {
+      repositoryUrl = `https://gitlab.com/${repo.fullName}`;
+    } else if (
+      stepData.selectedProvider === "azure-devops" &&
+      (repo?.fullName || (repo?.organization && repo?.project))
+    ) {
+      const orgProject =
+        repo.fullName?.split("/").slice(0, 2).join("/") ||
+        `${repo.organization}/${repo.project}`;
+      repositoryUrl = `https://dev.azure.com/${orgProject}/_git/${repo.name}`;
     } else {
       const owner =
         typeof repo?.owner === "object" ? repo.owner.login : repo?.owner;

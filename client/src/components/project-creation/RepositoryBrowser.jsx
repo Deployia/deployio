@@ -21,6 +21,7 @@ import {
   completeStep,
 } from "@redux/slices/projectCreationSlice";
 import { useGitProviders } from "@hooks/useGitProviders";
+import { toApiProviderId, toConnectionProviderId } from "@/utils/gitProviderIds";
 
 const RepositoryBrowser = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
@@ -28,7 +29,8 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
   const [localFilters, setLocalFilters] = useState(stepData.repositoryFilters);
   const [showFilters, setShowFilters] = useState(false);
   const provider = stepData.selectedProvider || "github";
-  const repoState = repositories[provider] || {
+  const connectionKey = toConnectionProviderId(toApiProviderId(provider));
+  const repoState = repositories[connectionKey] || {
     loading: false,
     data: [],
     pagination: { page: 1, totalPages: 1, totalCount: 0, hasMore: false },
@@ -41,7 +43,7 @@ const RepositoryBrowser = ({ stepData, onNext, loading }) => {
   // Fetch repositories from connected git provider
   useEffect(() => {
     if (provider) {
-      fetchProviderRepositories(provider, localFilters.page || 1, {
+      fetchProviderRepositories(toApiProviderId(provider), localFilters.page || 1, {
         search: localFilters.search || "",
         type: localFilters.type || "all",
         sort: localFilters.sort || "updated",

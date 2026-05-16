@@ -274,7 +274,7 @@ const getRepository = async (req, res) => {
 const getBranches = async (req, res) => {
   try {
     const { provider, owner, repo } = req.params;
-    const repoFullName = `${owner}/${repo}`;
+    const repoFullName = req.query.fullName || `${owner}/${repo}`;
 
     const branches = await GitProviderService.getBranches(
       req.user._id,

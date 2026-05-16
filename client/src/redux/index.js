@@ -61,6 +61,7 @@ export {
   fetchDeployment,
   fetchProjectDeployments,
   fetchDeploymentSubdomains,
+  checkDeploymentSubdomain,
   createDeployment,
   updateDeploymentStatusAPI,
   cancelDeployment,

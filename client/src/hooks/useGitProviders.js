@@ -50,10 +50,9 @@ export const useGitProviders = () => {
   }, [dispatch]);
 
   const connectProvider = useCallback((provider) => {
-    if (provider.id !== "github") {
-      console.log(
-        `${provider.name} is coming soon and cannot be connected yet`,
-      );
+    const supported = ["github", "gitlab"];
+    if (!supported.includes(provider.id)) {
+      console.log(`${provider.name} is not supported yet`);
       return;
     }
 

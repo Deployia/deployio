@@ -14,6 +14,10 @@ const {
   formatUserDisplayName,
   toObjectIdString,
 } = require("@utils/projectAccess");
+const {
+  mergeEnvironmentMapUpdate,
+  redactEnvironmentMapForApi,
+} = require("@utils/envVarPayload");
 
 const COLLABORATOR_USER_FIELDS =
   "username email firstName lastName profileImage";
@@ -245,9 +249,20 @@ class ProjectService {
         "status",
       ];
 
-      Object.keys(updateData).forEach((key) => {
+      const payload = { ...updateData };
+      if (payload.deployment?.environment) {
+        payload.deployment = {
+          ...payload.deployment,
+          environment: mergeEnvironmentMapUpdate(
+            project.deployment?.environment,
+            payload.deployment.environment,
+          ),
+        };
+      }
+
+      Object.keys(payload).forEach((key) => {
         if (allowedUpdates.includes(key)) {
-          project[key] = updateData[key];
+          project[key] = payload[key];
         }
       });
 
@@ -446,6 +461,15 @@ class ProjectService {
       transformCollaboratorEntry,
     );
 
+    const deployment = project.deployment
+      ? {
+          ...project.deployment,
+          environment: redactEnvironmentMapForApi(
+            project.deployment.environment,
+          ),
+        }
+      : project.deployment;
+
     return {
       id: project._id,
       name: project.name,
@@ -478,7 +502,7 @@ class ProjectService {
         insights: project.analysis?.insights,
         lastAnalyzed: project.analysis?.lastAnalyzed,
       },
-      deployment: project.deployment,
+      deployment,
       status: project.status,
       archivedAt: project.archivedAt,
       visibility: project.visibility,

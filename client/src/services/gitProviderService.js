@@ -24,12 +24,18 @@ class GitProviderService {
 
   // Initiate OAuth connection (redirects to provider)
   initiateConnection(provider) {
-    if (provider !== "github") {
+    const providerRoute =
+      provider === "azure" || provider === "azure-devops"
+        ? "azuredevops"
+        : provider;
+
+    const supported = ["github", "gitlab"];
+    if (!supported.includes(providerRoute)) {
       window.location.href = "/dashboard/integrations";
       return;
     }
 
-    const connectUrl = `${api.defaults.baseURL}/git/connect/${provider}`;
+    const connectUrl = `${api.defaults.baseURL}/git/connect/${providerRoute}`;
     window.location.href = connectUrl;
   }
 

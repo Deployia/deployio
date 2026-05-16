@@ -9,7 +9,6 @@ import {
   FaDatabase,
   FaExclamationTriangle,
   FaGithub,
-  FaPlus,
   FaSave,
   FaShieldAlt,
   FaTimes,
@@ -28,10 +27,8 @@ import {
   removeProjectCollaborator,
 } from "@redux/index";
 import CollaboratorUserSearch from "@components/projects/CollaboratorUserSearch";
-
-import { DEPLOYMENT_ENVIRONMENT_KEYS } from "@utils/deploymentConstants";
-
-const ENVIRONMENTS = DEPLOYMENT_ENVIRONMENT_KEYS;
+import EnvironmentVariablesEditor from "@components/project-creation/EnvironmentVariablesEditor";
+import { normalizeEnvironmentVariables } from "@utils/deploymentConstants";
 
 const ProjectSettings = () => {
   const dispatch = useDispatch();
@@ -42,7 +39,6 @@ const ProjectSettings = () => {
   );
 
   const [activeSection, setActiveSection] = useState("general");
-  const [activeEnv, setActiveEnv] = useState("production");
   const initializedProjectId = useRef(null);
 
   const [generalSettings, setGeneralSettings] = useState({
@@ -59,8 +55,6 @@ const ProjectSettings = () => {
     staging: [],
     development: [],
   });
-  const [newEnvVar, setNewEnvVar] = useState({ key: "", value: "", isSecret: true });
-
   useEffect(() => {
     const projectIdentity = currentProject?._id || currentProject?.id;
     if (!projectIdentity || initializedProjectId.current === projectIdentity) {
@@ -90,12 +84,15 @@ const ProjectSettings = () => {
     });
 
     const source = currentProject.deployment?.environment || {};
-    setEnvByTarget({
-      production: Array.isArray(source.production) ? source.production : [],
-      staging: Array.isArray(source.staging) ? source.staging : [],
-      development: Array.isArray(source.development) ? source.development : [],
-    });
+    setEnvByTarget(normalizeEnvironmentVariables(source));
   }, [currentProject]);
+
+  useEffect(() => {
+    if (!currentProject?.deployment?.environment) return;
+    setEnvByTarget(
+      normalizeEnvironmentVariables(currentProject.deployment.environment),
+    );
+  }, [currentProject?.deployment?.environment, currentProject?.updatedAt]);
 
   useEffect(() => {
     if (success.update) {
@@ -120,20 +117,21 @@ const ProjectSettings = () => {
   const saveProject = (updateData) =>
     dispatch(updateProject({ projectId: id, updateData }));
 
-  const addEnvVar = () => {
-    if (!newEnvVar.key.trim()) return;
-    setEnvByTarget((prev) => ({
-      ...prev,
-      [activeEnv]: [...prev[activeEnv], { ...newEnvVar, key: newEnvVar.key.trim() }],
-    }));
-    setNewEnvVar({ key: "", value: "", isSecret: true });
-  };
-
-  const removeEnvVar = (index) => {
-    setEnvByTarget((prev) => ({
-      ...prev,
-      [activeEnv]: prev[activeEnv].filter((_, i) => i !== index),
-    }));
+  const handleSaveEnvironment = () => {
+    const cleared = normalizeEnvironmentVariables(envByTarget);
+    Object.keys(cleared).forEach((target) => {
+      cleared[target] = cleared[target].map((row) => ({
+        ...row,
+        value: row.value || "",
+        isSecret: true,
+      }));
+    });
+    saveProject({
+      deployment: {
+        ...currentProject?.deployment,
+        environment: cleared,
+      },
+    });
   };
 
   const handleDeleteProject = async () => {
@@ -191,7 +189,12 @@ const ProjectSettings = () => {
     { id: "general", label: "General", icon: FaCog },
     { id: "repository", label: "Repository", icon: FaGithub },
     { id: "collaborators", label: "Collaborators", icon: FaUsers },
-    { id: "environment", label: "Environment", icon: FaDatabase },
+    {
+      id: "environment",
+      label: "Environment",
+      icon: FaDatabase,
+      ownerOnly: true,
+    },
     { id: "notifications", label: "Notifications", icon: FaBell },
     { id: "security", label: "Security", icon: FaShieldAlt },
     { id: "danger", label: "Danger Zone", icon: FaExclamationTriangle, ownerOnly: true },
@@ -355,9 +358,15 @@ const ProjectSettings = () => {
               <h3 className="text-xl font-semibold text-white">Collaborators</h3>
               <p className="text-sm text-gray-400">
                 {isOwner
-                  ? "Invite registered users to collaborate. Collaborators can deploy but cannot change project settings."
-                  : "People with access to this project."}
+                  ? "Invite registered users to collaborate. Collaborators can deploy but cannot change project settings or environment variables."
+                  : "People with access to this project. You can deploy but cannot edit settings."}
               </p>
+
+              {!isOwner && (
+                <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-200">
+                  View-only — contact the project owner to manage collaborators.
+                </div>
+              )}
 
               {isOwner && (
                 <CollaboratorUserSearch
@@ -371,8 +380,35 @@ const ProjectSettings = () => {
               )}
 
               <div className="space-y-2">
+                <div className="flex items-center justify-between bg-neutral-800/60 rounded-lg px-3 py-2 border border-neutral-700/50">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-xs text-gray-300">
+                      {(currentProject?.owner?.name ||
+                        currentProject?.owner?.email ||
+                        "O")[0]?.toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-gray-200 truncate">
+                        {currentProject?.owner?.name ||
+                          currentProject?.owner?.email ||
+                          "Project owner"}
+                      </p>
+                      {currentProject?.owner?.email && (
+                        <p className="text-xs text-gray-500 truncate">
+                          {currentProject.owner.email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-amber-500/15 text-amber-200 border border-amber-500/30">
+                    Owner
+                  </span>
+                </div>
+
                 {collaborators.length === 0 ? (
-                  <p className="text-sm text-gray-500">No collaborators yet.</p>
+                  <p className="text-sm text-gray-500 py-2">
+                    No collaborators yet. Search above to invite someone.
+                  </p>
                 ) : (
                   collaborators.map((entry) => {
                     const user = entry.user || {};
@@ -401,7 +437,11 @@ const ProjectSettings = () => {
                             <p className="text-xs text-gray-500 truncate">{user.email}</p>
                           </div>
                         </div>
-                        {isOwner && userId && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-neutral-700 text-gray-300">
+                            Collaborator
+                          </span>
+                          {isOwner && userId && (
                           <button
                             type="button"
                             onClick={() => handleRemoveCollaborator(userId)}
@@ -409,7 +449,8 @@ const ProjectSettings = () => {
                           >
                             <FaTimes className="w-4 h-4" />
                           </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     );
                   })
@@ -418,91 +459,24 @@ const ProjectSettings = () => {
             </div>
           )}
 
-          {activeSection === "environment" && (
+          {activeSection === "environment" && isOwner && (
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-white">Environment Variables</h3>
-              <div className="flex gap-2">
-                {ENVIRONMENTS.map((env) => (
-                  <button
-                    key={env}
-                    type="button"
-                    onClick={() => setActiveEnv(env)}
-                    className={`px-3 py-1 rounded-lg text-sm ${
-                      activeEnv === env
-                        ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                        : "bg-neutral-800 text-gray-300"
-                    }`}
-                  >
-                    {env}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <input
-                  value={newEnvVar.key}
-                  onChange={(e) =>
-                    setNewEnvVar((prev) => ({ ...prev, key: e.target.value }))
-                  }
-                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
-                  placeholder="KEY"
-                />
-                <input
-                  value={newEnvVar.value}
-                  onChange={(e) =>
-                    setNewEnvVar((prev) => ({ ...prev, value: e.target.value }))
-                  }
-                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
-                  placeholder="VALUE"
-                />
-                <button
-                  type="button"
-                  onClick={addEnvVar}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2"
-                >
-                  <FaPlus className="w-4 h-4" /> Add
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {(envByTarget[activeEnv] || []).map((item, index) => (
-                  <div
-                    key={`${item.key}-${index}`}
-                    className="flex items-center justify-between bg-neutral-800/60 rounded-lg px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-white font-mono text-sm truncate">{item.key}</p>
-                      <p className="text-gray-400 text-xs truncate">
-                        {item.isSecret ? "********" : item.value}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeEnvVar(index)}
-                      className="text-red-300 hover:text-red-200"
-                    >
-                      <FaTimes className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {isOwner && (
-              <button
-                type="button"
-                onClick={() =>
-                  saveProject({
-                    deployment: {
-                      ...currentProject?.deployment,
-                      environment: envByTarget,
-                    },
-                  })
-                }
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
-              >
-                <FaSave className="w-4 h-4" /> Save {activeEnv} Variables
-              </button>
-              )}
+              <h3 className="text-xl font-semibold text-white">
+                Environment Variables
+              </h3>
+              <p className="text-sm text-gray-400">
+                Values are encrypted and never shown again after save. Leave a value
+                blank to keep the existing secret.
+              </p>
+              <EnvironmentVariablesEditor
+                value={envByTarget}
+                onChange={setEnvByTarget}
+                disabled={loading.update}
+                showSaveButton
+                saving={loading.update}
+                saveLabel="Save environment variables"
+                onSave={handleSaveEnvironment}
+              />
             </div>
           )}
 

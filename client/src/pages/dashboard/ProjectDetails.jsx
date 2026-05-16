@@ -32,6 +32,7 @@ import {
   toggleArchiveProject,
   fetchProjectDeployments,
   fetchDeploymentSubdomains,
+  checkDeploymentSubdomain,
   createDeployment,
   clearDeploymentError,
   clearProjectError,
@@ -78,9 +79,23 @@ const ProjectDetails = () => {
   const [hasLoadedProjectOnce, setHasLoadedProjectOnce] = useState(false);
   const [subdomainState, setSubdomainState] = useState({
     suggestions: [],
-    taken: [],
     capacity: null,
   });
+  const [subdomainAvailability, setSubdomainAvailability] = useState({
+    subdomain: "",
+    available: null,
+    status: null,
+    reason: null,
+    label: null,
+    alternatives: [],
+  });
+
+  const SUBDOMAIN_REASON_LABELS = {
+    available: "Available",
+    "invalid-subdomain-format": "Invalid format — use lowercase letters, numbers, and hyphens",
+    "platform-reserved-subdomain": "Reserved for platform use",
+    "already-allocated": "Already taken",
+  };
 
   // Consider capacity reached when remainingDeployments is 0 or less
   const isDeploymentCapacityReached =
@@ -288,8 +303,15 @@ const ProjectDetails = () => {
     });
     setSubdomainState({
       suggestions: [],
-      taken: [],
       capacity: null,
+    });
+    setSubdomainAvailability({
+      subdomain: "",
+      available: null,
+      status: null,
+      reason: null,
+      label: null,
+      alternatives: [],
     });
     refreshDeploymentData(id);
     setShowDeployModal(true);
@@ -303,8 +325,15 @@ const ProjectDetails = () => {
     });
     setSubdomainState({
       suggestions: [],
-      taken: [],
       capacity: null,
+    });
+    setSubdomainAvailability({
+      subdomain: "",
+      available: null,
+      status: null,
+      reason: null,
+      label: null,
+      alternatives: [],
     });
     refreshDeploymentData(id);
   };
@@ -315,14 +344,70 @@ const ProjectDetails = () => {
       environment,
       subdomain: "",
     }));
+    setSubdomainAvailability({
+      subdomain: "",
+      available: null,
+      status: null,
+      reason: null,
+      label: null,
+      alternatives: [],
+    });
   };
 
-  const handleSubdomainSelection = (subdomain) => {
+  const handleSubdomainSelection = (suggestion) => {
+    const slug =
+      typeof suggestion === "string" ? suggestion : suggestion?.subdomain;
+    if (!slug) return;
     setDeploymentForm((previous) => ({
       ...previous,
-      subdomain,
+      subdomain: slug,
+    }));
+    setSubdomainAvailability({
+      subdomain: slug,
+      available: true,
+      status: "available",
+      reason: "available",
+      label:
+        typeof suggestion === "object" && suggestion?.label
+          ? suggestion.label
+          : null,
+      alternatives: [],
+    });
+  };
+
+  const handleSubdomainInputChange = (value) => {
+    const normalized = value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 40);
+    setDeploymentForm((previous) => ({
+      ...previous,
+      subdomain: normalized,
     }));
   };
+
+  const isKnownAvailableSuggestion = (slug) =>
+    (subdomainState.suggestions || []).some((item) => item.subdomain === slug);
+
+  const isSubdomainDeployReady =
+    Boolean(deploymentForm.subdomain) &&
+    (isKnownAvailableSuggestion(deploymentForm.subdomain) ||
+      (subdomainAvailability.subdomain === deploymentForm.subdomain &&
+        subdomainAvailability.available === true));
+
+  const subdomainChipOptions = (() => {
+    const map = new Map();
+    (subdomainState.suggestions || []).forEach((item) => {
+      map.set(item.subdomain, item);
+    });
+    if (subdomainAvailability.available === false) {
+      (subdomainAvailability.alternatives || []).forEach((item) => {
+        map.set(item.subdomain, item);
+      });
+    }
+    return Array.from(map.values());
+  })();
 
   const handleCreateDeployment = async () => {
     if (isEnvCapacityReached(deploymentForm.environment)) return;
@@ -388,18 +473,27 @@ const ProjectDetails = () => {
 
         setSubdomainState({
           suggestions: result.suggestions || [],
-          taken: result.taken || [],
           capacity: result.capacity || null,
         });
 
-        setDeploymentForm((previous) =>
-          previous.subdomain || !result.suggestions?.length
-            ? previous
-            : {
-                ...previous,
-                subdomain: result.suggestions[0].subdomain,
-              },
-        );
+        if (!cancelled && result.suggestions?.length) {
+          const first = result.suggestions[0];
+          setDeploymentForm((previous) =>
+            previous.subdomain
+              ? previous
+              : { ...previous, subdomain: first.subdomain },
+          );
+          if (!cancelled) {
+            setSubdomainAvailability({
+              subdomain: first.subdomain,
+              available: true,
+              status: "available",
+              reason: "available",
+              label: first.label || null,
+              alternatives: [],
+            });
+          }
+        }
       } catch {
         // Deployment slice captures suggestion errors
       }
@@ -410,6 +504,72 @@ const ProjectDetails = () => {
       cancelled = true;
     };
   }, [dispatch, id, showDeployModal, deploymentForm.environment]);
+
+  useEffect(() => {
+    if (!showDeployModal || !id) return undefined;
+    const slug = deploymentForm.subdomain?.trim();
+    if (!slug || slug.length < 2) {
+      setSubdomainAvailability((prev) =>
+        prev.subdomain ? { ...prev, subdomain: "", available: null } : prev,
+      );
+      return undefined;
+    }
+
+    if (isKnownAvailableSuggestion(slug)) {
+      const match = subdomainState.suggestions.find((s) => s.subdomain === slug);
+      setSubdomainAvailability({
+        subdomain: slug,
+        available: true,
+        status: "available",
+        reason: "available",
+        label: match?.label || null,
+        alternatives: [],
+      });
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await dispatch(
+          checkDeploymentSubdomain({
+            projectId: id,
+            subdomain: slug,
+            environment: deploymentForm.environment,
+          }),
+        ).unwrap();
+        if (cancelled) return;
+        setSubdomainAvailability({
+          subdomain: result.subdomain || slug,
+          available: result.available ?? false,
+          status: result.status || null,
+          reason: result.reason || null,
+          label: result.label || null,
+          alternatives: result.alternatives || [],
+        });
+      } catch {
+        if (!cancelled) {
+          setSubdomainAvailability((prev) => ({
+            ...prev,
+            subdomain: slug,
+            available: null,
+          }));
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    dispatch,
+    id,
+    showDeployModal,
+    deploymentForm.subdomain,
+    deploymentForm.environment,
+    subdomainState.suggestions,
+  ]);
 
   // Helper functions
   const detectTechnology = (project) => {
@@ -933,12 +1093,16 @@ const ProjectDetails = () => {
                     Reserved Subdomain
                   </div>
                   <div className="text-xs text-gray-400">
-                    Choose one of the available suggestions.
+                    Enter a subdomain or pick a suggestion. Availability is
+                    checked in real time.
                   </div>
                 </div>
-                {deploymentLoading.subdomains && (
-                  <div className="text-xs text-gray-400">
-                    Loading suggestions...
+                {(deploymentLoading.subdomains ||
+                  deploymentLoading.subdomainCheck) && (
+                  <div className="text-xs text-gray-400 shrink-0">
+                    {deploymentLoading.subdomains
+                      ? "Loading..."
+                      : "Checking..."}
                   </div>
                 )}
               </div>
@@ -964,43 +1128,89 @@ const ProjectDetails = () => {
                 </div>
               )}
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(subdomainState.suggestions || []).map((suggestion) => {
-                  const isSelected =
-                    deploymentForm.subdomain === suggestion.subdomain;
-                  return (
-                    <button
-                      key={suggestion.subdomain}
-                      type="button"
-                      onClick={() =>
-                        handleSubdomainSelection(suggestion.subdomain)
-                      }
-                      disabled={isEnvCapacityReached(
-                        deploymentForm.environment,
-                      )}
-                      className={`rounded-lg border px-3 py-3 text-left transition-colors ${
-                        isSelected
-                          ? "border-blue-500/60 bg-blue-500/10 text-white"
-                          : "border-neutral-800 bg-neutral-950/60 text-gray-300 hover:border-neutral-700"
+              <div className="mb-3">
+                <label className="text-xs text-gray-400 mb-1 block">
+                  Subdomain
+                </label>
+                <input
+                  type="text"
+                  value={deploymentForm.subdomain}
+                  onChange={(e) => handleSubdomainInputChange(e.target.value)}
+                  disabled={isEnvCapacityReached(deploymentForm.environment)}
+                  placeholder="my-app-staging"
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white placeholder:text-gray-500 disabled:opacity-50"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                {deploymentForm.subdomain &&
+                  subdomainAvailability.subdomain ===
+                    deploymentForm.subdomain &&
+                  subdomainAvailability.available !== null && (
+                    <p
+                      className={`mt-2 text-xs ${
+                        subdomainAvailability.available
+                          ? "text-green-400"
+                          : "text-red-300"
                       }`}
                     >
-                      <div className="text-sm font-medium">
-                        {suggestion.subdomain}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {suggestion.reason || "Available for this deployment."}
-                      </div>
-                    </button>
-                  );
-                })}
-
-                {!deploymentLoading.subdomains &&
-                  subdomainState.suggestions.length === 0 && (
-                    <div className="rounded-lg border border-dashed border-neutral-800 px-3 py-4 text-sm text-gray-400 sm:col-span-2">
-                      No suggestions are available yet for this environment.
-                    </div>
+                      {subdomainAvailability.available
+                        ? SUBDOMAIN_REASON_LABELS.available
+                        : SUBDOMAIN_REASON_LABELS[
+                            subdomainAvailability.reason
+                          ] || "Unavailable"}
+                      {subdomainAvailability.available &&
+                        subdomainAvailability.label && (
+                          <span className="text-gray-400">
+                            {" "}
+                            · {subdomainAvailability.label}
+                          </span>
+                        )}
+                    </p>
                   )}
               </div>
+
+              {subdomainChipOptions.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs text-gray-500 mb-2">
+                    {subdomainAvailability.available === false
+                      ? "Try one of these:"
+                      : "Suggestions:"}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {subdomainChipOptions.map((suggestion) => {
+                      const isSelected =
+                        deploymentForm.subdomain === suggestion.subdomain;
+                      return (
+                        <button
+                          key={suggestion.subdomain}
+                          type="button"
+                          onClick={() => handleSubdomainSelection(suggestion)}
+                          disabled={isEnvCapacityReached(
+                            deploymentForm.environment,
+                          )}
+                          className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                            isSelected
+                              ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
+                              : "border-neutral-700 bg-neutral-950/60 text-gray-300 hover:border-neutral-600"
+                          }`}
+                          title={suggestion.label}
+                        >
+                          <span className="font-medium">
+                            {suggestion.subdomain}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {!deploymentLoading.subdomains &&
+                subdomainChipOptions.length === 0 && (
+                  <div className="rounded-lg border border-dashed border-neutral-800 px-3 py-4 text-sm text-gray-400">
+                    No suggestions yet. Type a subdomain to check availability.
+                  </div>
+                )}
 
               {subdomainState.capacity && (
                 <div className="mt-3 text-xs text-gray-400">
@@ -1026,13 +1236,17 @@ const ProjectDetails = () => {
                 onClick={handleCreateDeployment}
                 disabled={
                   deploymentLoading.create ||
-                  !deploymentForm.subdomain ||
-                  isDeploymentCapacityReached
+                  !isSubdomainDeployReady ||
+                  deploymentLoading.subdomainCheck ||
+                  isDeploymentCapacityReached ||
+                  isEnvCapacityReached(deploymentForm.environment)
                 }
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                   deploymentLoading.create ||
-                  !deploymentForm.subdomain ||
-                  isDeploymentCapacityReached
+                  !isSubdomainDeployReady ||
+                  deploymentLoading.subdomainCheck ||
+                  isDeploymentCapacityReached ||
+                  isEnvCapacityReached(deploymentForm.environment)
                     ? "cursor-not-allowed bg-gray-600 text-gray-300"
                     : "bg-green-500 text-white hover:bg-green-600"
                 }`}
