@@ -75,7 +75,11 @@ const CreateProject = () => {
       case 3: // Branch
         return stepData.selectedBranch;
       case 4: // Analysis
-        return stepData.analysisStatus === "completed";
+        return (
+          stepData.analysisStatus === "completed" ||
+          (stepData.analysisStatus === "failed" &&
+            stepData.allowManualConfiguration)
+        );
       case 5: // Configuration
         return true; // Form is always valid
       case 6: // Review

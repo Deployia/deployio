@@ -40,6 +40,7 @@ export {
   setSelectedRepository,
   setRepositoryFilters,
   setSelectedBranch,
+  resetAnalysisForNewRepo,
   setAnalysisSettings,
   updateAnalysisProgress,
   setProjectConfiguration,

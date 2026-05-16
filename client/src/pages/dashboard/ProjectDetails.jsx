@@ -120,11 +120,15 @@ const ProjectDetails = () => {
     return projectActive >= maxDeployments;
   };
 
-  const refreshDeploymentData = (projectId) => {
+  const refreshDeploymentData = (projectId, { bustCache = false } = {}) => {
     if (!projectId) return;
 
-    dispatch(fetchProjectById(projectId));
-    dispatch(fetchProjectDeployments(projectId));
+    const fetchArg = bustCache
+      ? { projectId, _noCache: true }
+      : projectId;
+
+    dispatch(fetchProjectById(fetchArg));
+    dispatch(fetchProjectDeployments(fetchArg));
   };
 
   // Get current tab from URL
@@ -144,6 +148,8 @@ const ProjectDetails = () => {
 
   useEffect(() => {
     if (id) {
+      dispatch(clearProjectDeployments());
+
       const fetchData = async () => {
         try {
           await Promise.all([
@@ -256,7 +262,7 @@ const ProjectDetails = () => {
       await dispatch(deleteProject(id)).unwrap();
       dispatch(clearProjectDeployments());
       closeDeleteModal();
-      await dispatch(fetchProjects()).unwrap().catch(() => {});
+      await dispatch(fetchProjects({ _noCache: true })).unwrap().catch(() => {});
       navigate("/dashboard/projects", { replace: true });
     } catch {
       // error surfaced by redux slice
@@ -332,7 +338,7 @@ const ProjectDetails = () => {
         }),
       ).unwrap();
 
-      await dispatch(fetchProjectDeployments(id)).unwrap().catch(() => {});
+      refreshDeploymentData(id, { bustCache: true });
 
       const created =
         payload?.data?.deployment ||

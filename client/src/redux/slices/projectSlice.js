@@ -1,5 +1,15 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../utils/api";
+import api, { invalidateAllCacheEntriesForUrl } from "../../utils/api";
+
+const invalidateProjectListCache = () => {
+  invalidateAllCacheEntriesForUrl("/projects");
+};
+
+const invalidateProjectDetailCache = (projectId) => {
+  if (!projectId) return;
+  invalidateAllCacheEntriesForUrl(`/projects/${projectId}`);
+  invalidateAllCacheEntriesForUrl(`/projects/${projectId}/deployments`);
+};
 
 const extractProject = (payload) =>
   payload?.project || payload?.data?.project || payload?.data || payload || null;
@@ -63,7 +73,11 @@ export const fetchProjects = createAsyncThunk(
   "projects/fetchProjects",
   async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get("/projects", { params });
+      const { _noCache, ...queryParams } = params;
+      const response = await api.get("/projects", {
+        params: queryParams,
+        _noCache: Boolean(_noCache),
+      });
       // Backend returns { success: true, data: { projects: [...], pagination: {...} } }
       if (response.data.success && response.data.data) {
         return {
@@ -82,9 +96,11 @@ export const fetchProjects = createAsyncThunk(
 
 export const fetchProjectById = createAsyncThunk(
   "projects/fetchProjectById",
-  async (projectId, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/projects/${projectId}`);
+      const projectId = typeof arg === "object" ? arg.projectId : arg;
+      const _noCache = typeof arg === "object" ? Boolean(arg._noCache) : false;
+      const response = await api.get(`/projects/${projectId}`, { _noCache });
       // Backend returns { success: true, data: { project: {...}, recentDeployments: [...] } }
       if (response.data.success && response.data.data) {
         return {
@@ -108,6 +124,7 @@ export const createProject = createAsyncThunk(
   async (projectData, { rejectWithValue }) => {
     try {
       const response = await api.post("/projects", projectData);
+      invalidateProjectListCache();
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
@@ -122,6 +139,8 @@ export const updateProject = createAsyncThunk(
   async ({ projectId, updateData }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/projects/${projectId}`, updateData);
+      invalidateProjectListCache();
+      invalidateProjectDetailCache(projectId);
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
@@ -136,6 +155,9 @@ export const deleteProject = createAsyncThunk(
   async (projectId, { rejectWithValue }) => {
     try {
       await api.delete(`/projects/${projectId}`);
+      invalidateProjectListCache();
+      invalidateProjectDetailCache(projectId);
+      invalidateAllCacheEntriesForUrl("/deployments");
       return projectId;
     } catch (error) {
       return rejectWithValue(
@@ -156,6 +178,8 @@ export const toggleArchiveProject = createAsyncThunk(
       const response = await api.put(`/projects/${projectId}`, {
         status: newStatus,
       });
+      invalidateProjectListCache();
+      invalidateProjectDetailCache(projectId);
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
@@ -171,6 +195,7 @@ export const analyzeRepository = createAsyncThunk(
   async ({ projectId }, { rejectWithValue }) => {
     try {
       const response = await api.post(`/projects/${projectId}/analyze`);
+      invalidateProjectDetailCache(projectId);
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
@@ -192,33 +217,11 @@ export const generateDockerfile = createAsyncThunk(
         startCommand,
         port,
       });
+      invalidateProjectDetailCache(projectId);
       return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to generate Dockerfile",
-      );
-    }
-  },
-);
-
-export const fetchProjectDeployments = createAsyncThunk(
-  "projects/fetchProjectDeployments",
-  async ({ projectId, params = {} }, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/projects/${projectId}/deployments`, {
-        params,
-      });
-      // Backend returns { success: true, data: { deployments: [...], pagination: {...} } }
-      if (response.data.success && response.data.data) {
-        return {
-          deployments: response.data.data.deployments || [],
-          pagination: response.data.data.pagination || {},
-        };
-      }
-      return { deployments: response.data.deployments || [], pagination: {} };
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch project deployments",
       );
     }
   },

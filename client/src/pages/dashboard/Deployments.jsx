@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaRocket,
@@ -83,6 +83,7 @@ const DeploymentLivePreview = ({ deployment, size = "card" }) => {
 const Deployments = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { openModal, closeModal } = useModal();
 
   // Redux state
@@ -92,10 +93,9 @@ const Deployments = () => {
   // Local state
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  // Fetch deployments on component mount
   useEffect(() => {
-    dispatch(fetchDeployments());
-  }, [dispatch]);
+    dispatch(fetchDeployments({ _noCache: true }));
+  }, [dispatch, location.pathname]);
 
   // Clear success/error messages after some time
   useEffect(() => {
@@ -117,9 +117,9 @@ const Deployments = () => {
         3000
       );
     }
-    if (error.deployments) {
+    if (error.fetch) {
       setTimeout(
-        () => dispatch(clearDeploymentError({ field: "deployments" })),
+        () => dispatch(clearDeploymentError({ field: "fetch" })),
         5000
       );
     }
@@ -535,13 +535,13 @@ const Deployments = () => {
         )}
       </motion.div>
       {/* Error Message */}
-      {error.deployments && (
+      {error.fetch && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-center mt-6"
         >
-          {error.deployments}
+          {error.fetch}
         </motion.div>
       )}
       {/* Success Messages */}

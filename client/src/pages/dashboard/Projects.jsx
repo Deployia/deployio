@@ -42,12 +42,11 @@ const Projects = () => {
   const [filter, setFilter] = useState("all");
   // Fetch projects on mount and whenever we land on this route (e.g. after delete)
   useEffect(() => {
-    dispatch(fetchProjects());
+    dispatch(fetchProjects({ _noCache: true }));
   }, [dispatch, location.pathname]);
 
   useEffect(() => {
     if (success.delete) {
-      dispatch(fetchProjects());
       dispatch(clearProjectSuccess({ field: "delete" }));
     }
   }, [success.delete, dispatch]);

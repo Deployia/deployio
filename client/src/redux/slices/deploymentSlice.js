@@ -1,5 +1,52 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import api from "../../utils/api";
+import api, { invalidateAllCacheEntriesForUrl } from "../../utils/api";
+
+const invalidateDeploymentCaches = (projectId) => {
+  invalidateAllCacheEntriesForUrl("/deployments");
+  invalidateAllCacheEntriesForUrl("/projects");
+  if (projectId) {
+    invalidateAllCacheEntriesForUrl(`/projects/${projectId}`);
+    invalidateAllCacheEntriesForUrl(`/projects/${projectId}/deployments`);
+  }
+};
+
+const normalizeDeploymentId = (value) => {
+  if (value == null) return null;
+  if (typeof value === "object" && value.$oid) return String(value.$oid);
+  return String(value);
+};
+
+const getDeploymentIdentity = (deployment) =>
+  normalizeDeploymentId(
+    deployment?._id ?? deployment?.id ?? deployment?.deploymentId,
+  );
+
+const mergeDeploymentsByIdentity = (existing, incoming) => {
+  const list = Array.isArray(incoming) ? incoming : [];
+  if (!list.length) {
+    return Array.isArray(existing) ? existing : [];
+  }
+  if (!Array.isArray(existing) || !existing.length) {
+    return list;
+  }
+
+  const byId = new Map();
+  const upsert = (deployment) => {
+    const identity = getDeploymentIdentity(deployment);
+    if (identity) {
+      byId.set(identity, deployment);
+    }
+  };
+
+  existing.forEach(upsert);
+  list.forEach(upsert);
+
+  return Array.from(byId.values()).sort((a, b) => {
+    const aTime = new Date(a.createdAt || a.updatedAt || 0).getTime();
+    const bTime = new Date(b.createdAt || b.updatedAt || 0).getTime();
+    return bTime - aTime;
+  });
+};
 
 const extractDeployment = (payload) =>
   payload?.data?.deployment ||
@@ -16,8 +63,11 @@ export const fetchDeployments = createAsyncThunk(
   "deployments/fetchDeployments",
   async (params = {}, { rejectWithValue }) => {
     try {
-      // Use the global deployments endpoint
-      const response = await api.get("/deployments", { params });
+      const { _noCache, ...queryParams } = params;
+      const response = await api.get("/deployments", {
+        params: queryParams,
+        _noCache: Boolean(_noCache),
+      });
 
       // Backend returns { success: true, data: { deployments: [...], pagination: {...} } }
       if (response.data.success && response.data.data) {
@@ -51,9 +101,13 @@ export const fetchDeployment = createAsyncThunk(
 
 export const fetchProjectDeployments = createAsyncThunk(
   "deployments/fetchProjectDeployments",
-  async (projectId, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/projects/${projectId}/deployments`);
+      const projectId = typeof arg === "object" ? arg.projectId : arg;
+      const _noCache = typeof arg === "object" ? Boolean(arg._noCache) : false;
+      const response = await api.get(`/projects/${projectId}/deployments`, {
+        _noCache,
+      });
       // Backend returns { success: true, data: { deployments: [...], pagination: {...} } }
       if (response.data.success && response.data.data) {
         return {
@@ -106,6 +160,7 @@ export const createDeployment = createAsyncThunk(
         `/projects/${projectId}/deployments`,
         deploymentData,
       );
+      invalidateDeploymentCaches(projectId);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -122,6 +177,8 @@ export const updateDeploymentStatusAPI = createAsyncThunk(
       const response = await api.patch(`/deployments/${deploymentId}/status`, {
         status,
       });
+      invalidateAllCacheEntriesForUrl("/deployments");
+      invalidateAllCacheEntriesForUrl(`/deployments/${deploymentId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -136,6 +193,9 @@ export const cancelDeployment = createAsyncThunk(
   async (deploymentId, { rejectWithValue }) => {
     try {
       const response = await api.post(`/deployments/${deploymentId}/cancel`);
+      invalidateAllCacheEntriesForUrl("/deployments");
+      invalidateAllCacheEntriesForUrl(`/deployments/${deploymentId}`);
+      invalidateAllCacheEntriesForUrl("/projects");
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -152,6 +212,9 @@ export const stopDeployment = createAsyncThunk(
   async (deploymentId, { rejectWithValue }) => {
     try {
       const response = await api.post(`/deployments/${deploymentId}/stop`);
+      invalidateAllCacheEntriesForUrl("/deployments");
+      invalidateAllCacheEntriesForUrl(`/deployments/${deploymentId}`);
+      invalidateAllCacheEntriesForUrl("/projects");
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -166,6 +229,9 @@ export const restartDeployment = createAsyncThunk(
   async (deploymentId, { rejectWithValue }) => {
     try {
       const response = await api.post(`/deployments/${deploymentId}/restart`);
+      invalidateAllCacheEntriesForUrl("/deployments");
+      invalidateAllCacheEntriesForUrl(`/deployments/${deploymentId}`);
+      invalidateAllCacheEntriesForUrl("/projects");
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -180,6 +246,9 @@ export const deleteDeployment = createAsyncThunk(
   async (deploymentId, { rejectWithValue }) => {
     try {
       const response = await api.delete(`/deployments/${deploymentId}`);
+      invalidateAllCacheEntriesForUrl("/deployments");
+      invalidateAllCacheEntriesForUrl(`/deployments/${deploymentId}`);
+      invalidateAllCacheEntriesForUrl("/projects");
       return { ...response.data, deploymentId };
     } catch (error) {
       return rejectWithValue(
@@ -461,7 +530,10 @@ const deploymentSlice = createSlice({
       })
       .addCase(fetchProjectDeployments.fulfilled, (state, action) => {
         state.loading.fetchProject = false;
-        state.projectDeployments = action.payload.deployments || [];
+        state.projectDeployments = mergeDeploymentsByIdentity(
+          state.projectDeployments,
+          action.payload.deployments || [],
+        );
         if (action.payload.pagination) {
           state.pagination = action.payload.pagination;
         }
@@ -524,28 +596,25 @@ const deploymentSlice = createSlice({
         state.loading.update = false;
         state.success.update = true;
         const updatedDeployment = extractDeployment(action.payload);
-        if (!updatedDeployment?._id) return;
+        const updatedId = getDeploymentIdentity(updatedDeployment);
+        if (!updatedId) return;
 
-        // Update in deployments list
-        const index = state.deployments.findIndex(
-          (d) => d._id === updatedDeployment._id,
-        );
+        const matchesDeployment = (d) =>
+          getDeploymentIdentity(d) === updatedId;
+
+        const index = state.deployments.findIndex(matchesDeployment);
         if (index !== -1) {
           state.deployments[index] = updatedDeployment;
         }
 
-        // Update in project deployments
-        const projectIndex = state.projectDeployments.findIndex(
-          (d) => d._id === updatedDeployment._id,
-        );
+        const projectIndex = state.projectDeployments.findIndex(matchesDeployment);
         if (projectIndex !== -1) {
           state.projectDeployments[projectIndex] = updatedDeployment;
         }
 
-        // Update current deployment if it's the same
         if (
           state.currentDeployment &&
-          state.currentDeployment._id === updatedDeployment._id
+          matchesDeployment(state.currentDeployment)
         ) {
           state.currentDeployment = updatedDeployment;
         }

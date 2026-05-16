@@ -17,6 +17,9 @@ import {
   completeStep,
   startAnalysisPolling,
   stopAnalysisPolling,
+  resetAnalysisForNewRepo,
+  updateStep,
+  setStepData,
 } from "@redux/slices/projectCreationSlice";
 
 const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
@@ -171,12 +174,73 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     return undefined;
   }, [dispatch, onNext, stepData.analysisResults, stepData.analysisStatus]);
 
-  const handleContinue = () => {
-    if (stepData.analysisStatus === "completed" || stepData.analysisStatus === "failed") {
+  const buildRepositoryData = () => {
+    let repositoryUrl;
+    if (stepData.selectedRepository.htmlUrl) {
+      repositoryUrl = stepData.selectedRepository.htmlUrl;
+    } else if (stepData.selectedRepository.cloneUrl) {
+      repositoryUrl = stepData.selectedRepository.cloneUrl;
+    } else {
+      const owner =
+        typeof stepData.selectedRepository.owner === "object"
+          ? stepData.selectedRepository.owner.login
+          : stepData.selectedRepository.owner;
+      repositoryUrl = `https://github.com/${owner}/${stepData.selectedRepository.name}`;
+    }
+
+    return {
+      repositoryUrl,
+      branch: stepData.selectedBranch?.name || stepData.selectedBranch,
+      provider: stepData.selectedProvider || "github",
+    };
+  };
+
+  const handleContinue = ({ allowManual = false } = {}) => {
+    if (stepData.analysisStatus === "completed") {
+      dispatch(completeStep(4));
+      onNext();
+      return;
+    }
+
+    if (stepData.analysisStatus === "failed" && allowManual) {
+      dispatch(
+        setStepData({
+          step: 4,
+          data: { allowManualConfiguration: true },
+        }),
+      );
       dispatch(completeStep(4));
       onNext();
     }
   };
+
+  const handleRetryAnalysis = () => {
+    if (!stepData.selectedRepository || !stepData.selectedBranch) return;
+
+    didAutoAdvanceRef.current = false;
+    dispatch(resetAnalysisForNewRepo());
+    dispatch(analyzeRepository(buildRepositoryData()));
+  };
+
+  const handleBackToRepository = () => {
+    didAutoAdvanceRef.current = false;
+    dispatch(resetAnalysisForNewRepo());
+    dispatch(updateStep({ step: 2 }));
+  };
+
+  const handleBackToBranch = () => {
+    didAutoAdvanceRef.current = false;
+    dispatch(resetAnalysisForNewRepo());
+    dispatch(updateStep({ step: 3 }));
+  };
+
+  const isDockerfileFailure =
+    stepData.analysisStatus === "failed" ||
+    stepData.analysisResults?.deployable === false;
+
+  const failureReason =
+    stepData.analysisResults?.reason ||
+    "A valid Dockerfile is required. Select a Dockerfile path or add one to your repository.";
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -404,6 +468,24 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
         </div>
       )}
 
+      {isDockerfileFailure && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-6 bg-red-500/10 border border-red-500/30 rounded-lg"
+        >
+          <h3 className="text-lg font-semibold text-red-400 mb-3 flex items-center space-x-2">
+            <FaExclamationTriangle className="w-5 h-5" />
+            <span>Repository cannot be deployed yet</span>
+          </h3>
+          <p className="text-red-200/90 text-sm leading-relaxed">{failureReason}</p>
+          <p className="text-neutral-400 text-sm mt-3">
+            Choose a different repository, switch branch, or add a valid Dockerfile to
+            this repository before continuing.
+          </p>
+        </motion.div>
+      )}
+
       {/* Results Preview */}
       {stepData.analysisStatus === "completed" && stepData.analysisResults && (
         <motion.div
@@ -501,18 +583,34 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
             <span>Continue to Configuration</span>
           </button>
         ) : stepData.analysisStatus === "failed" ? (
-          <div className="space-x-4">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              type="button"
+              onClick={handleBackToRepository}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
-              Retry Analysis
+              Choose another repository
             </button>
             <button
-              onClick={handleContinue}
-              className="px-6 py-3 bg-neutral-600 hover:bg-neutral-700 text-white rounded-lg font-medium transition-colors"
+              type="button"
+              onClick={handleBackToBranch}
+              className="px-6 py-3 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg font-medium transition-colors"
             >
-              Configure Manually
+              Try another branch
+            </button>
+            <button
+              type="button"
+              onClick={handleRetryAnalysis}
+              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Retry analysis
+            </button>
+            <button
+              type="button"
+              onClick={() => handleContinue({ allowManual: true })}
+              className="px-6 py-3 bg-neutral-600 hover:bg-neutral-500 text-white rounded-lg font-medium transition-colors"
+            >
+              Configure manually
             </button>
           </div>
         ) : (

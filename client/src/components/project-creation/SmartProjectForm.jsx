@@ -423,7 +423,19 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
   const { showNodeVersion, showOutputDir } =
     getRelevantFieldsForStack(detectedStack);
 
+  const isDeployable = stepData.analysisResults?.deployable !== false;
+  const hasDockerfile = Boolean(
+    (formData.dockerfilePreview || stepData.dockerfile || "").trim(),
+  );
+  const canContinueConfiguration =
+    Boolean(formData.projectName?.trim()) &&
+    Boolean(formData.build.commands.start) &&
+    (isDeployable ||
+      stepData.allowManualConfiguration ||
+      hasDockerfile);
+
   const handleContinue = () => {
+    if (!canContinueConfiguration) return;
     dispatch(
       setProjectConfiguration({
         ...formData,
@@ -875,13 +887,11 @@ const SmartProjectForm = ({ stepData, onNext, loading }) => {
       <div className="mt-6 sm:mt-8 flex items-center justify-center gap-4">
         <button
           onClick={handleContinue}
-          disabled={
-            !formData.projectName || !formData.build.commands.start || loading
-          }
+          disabled={!canContinueConfiguration || loading}
           className={`
             px-6 sm:px-8 py-3 rounded-lg font-medium transition-all inline-flex items-center space-x-2 text-sm sm:text-base
             ${
-              formData.projectName && formData.build.commands.start && !loading
+              canContinueConfiguration && !loading
                 ? "bg-green-600 hover:bg-green-700 text-white"
                 : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
             }

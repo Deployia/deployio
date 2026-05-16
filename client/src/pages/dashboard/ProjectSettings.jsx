@@ -144,7 +144,7 @@ const ProjectSettings = () => {
     try {
       await dispatch(deleteProject(id)).unwrap();
       dispatch(clearProjectDeployments());
-      await dispatch(fetchProjects()).unwrap().catch(() => {});
+      await dispatch(fetchProjects({ _noCache: true })).unwrap().catch(() => {});
       navigate("/dashboard/projects", { replace: true });
     } catch {
       // surfaced via redux

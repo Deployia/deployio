@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "@utils/api";
+import api, { invalidateAllCacheEntriesForUrl } from "@utils/api";
 import projectCreationService from "@services/projectCreationService";
 
 export const analyzeRepository = createAsyncThunk(
@@ -124,6 +124,7 @@ export const createProjectFromState = createAsyncThunk(
       const response =
         await projectCreationService.completeWithPayload(payload);
       const project = response?.project || response?.data?.project;
+      invalidateAllCacheEntriesForUrl("/projects");
 
       return {
         projectId: project?._id || project?.id || response?.projectId,
@@ -229,6 +230,7 @@ const initialState = {
     analysisProgress: 0,
     analysisResults: null,
     aiConfidence: null,
+    allowManualConfiguration: false,
 
     // Step 5: Project Configuration
     projectName: "",
@@ -301,6 +303,7 @@ const projectCreationSlice = createSlice({
       state.stepData.analysisResults = null;
       state.stepData.aiConfidence = null;
       state.stepData.dockerfile = null;
+      state.stepData.allowManualConfiguration = false;
     },
 
     // Repository selection
@@ -314,6 +317,7 @@ const projectCreationSlice = createSlice({
       state.stepData.analysisResults = null;
       state.stepData.aiConfidence = null;
       state.stepData.dockerfile = null;
+      state.stepData.allowManualConfiguration = false;
     },
 
     setRepositoryFilters: (state, action) => {
@@ -331,6 +335,21 @@ const projectCreationSlice = createSlice({
       state.stepData.analysisProgress = 0;
       state.stepData.analysisResults = null;
       state.stepData.aiConfidence = null;
+      state.stepData.allowManualConfiguration = false;
+    },
+
+    resetAnalysisForNewRepo: (state) => {
+      state.stepData.analysisId = null;
+      state.stepData.analysisStatus = "pending";
+      state.stepData.analysisProgress = 0;
+      state.stepData.analysisResults = null;
+      state.stepData.aiConfidence = null;
+      state.stepData.dockerfile = null;
+      state.stepData.dockerfilePath = "Dockerfile";
+      state.stepData.dockerfiles = [];
+      state.stepData.dockerfilePreview = "";
+      state.stepData.dockerfileSource = "repository";
+      state.stepData.allowManualConfiguration = false;
     },
 
     setAnalysisSettings: (state, action) => {
@@ -498,6 +517,7 @@ export const {
   setSelectedRepository,
   setRepositoryFilters,
   setSelectedBranch,
+  resetAnalysisForNewRepo,
   setAnalysisSettings,
   updateAnalysisProgress,
   setProjectConfiguration,

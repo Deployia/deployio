@@ -45,6 +45,8 @@ api.interceptors.request.use((config) => {
     !config.url.includes("/me") && // Consider if /me should be cached or not based on volatility
     !config.url.includes("/sessions") && // Sessions are likely volatile, good to exclude
     !config.url.includes("/activity") && // Activities should be fresh to reflect real-time updates
+    !config.url.includes("/projects") && // Project lists/details change on mutations
+    !config.url.includes("/deployments") && // Deployment lists change frequently
     !config._noCache // Check for the custom _noCache flag
   ) {
     const cacheKey = `${config.method}:${config.url}:${JSON.stringify(
@@ -79,6 +81,8 @@ api.interceptors.response.use(
       !response.config.url.includes("/me") &&
       !response.config.url.includes("/sessions") &&
       !response.config.url.includes("/activity") && // Activities should be fresh to reflect real-time updates
+      !response.config.url.includes("/projects") &&
+      !response.config.url.includes("/deployments") &&
       !response.config._noCache && // Only cache if _noCache is not set
       response.status === 200 &&
       !response.headers["x-cached-response"] // Do not re-cache if it was served from cache by the request interceptor
