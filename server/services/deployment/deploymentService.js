@@ -9,6 +9,11 @@ const {
   notifyDeploymentStarted,
   notifyDeploymentStatusChange,
 } = require("../notification/deploymentNotifications");
+const {
+  buildAccessibleProjectQuery,
+  COLLABORATOR_ROLES,
+  toObjectIdString,
+} = require("@utils/projectAccess");
 
 const ACTIVE_DEPLOYMENT_STATUSES = [
   "pending",
@@ -44,18 +49,19 @@ class DeploymentService {
   async _findAccessibleProject(projectId, userId) {
     return Project.findOne({
       _id: projectId,
-      $or: [
-        { owner: userId },
-        {
-          collaborators: {
-            $elemMatch: {
-              user: userId,
-              role: { $in: ["admin", "editor"] },
-            },
-          },
-        },
-      ],
+      ...buildAccessibleProjectQuery(userId),
     }).select("name slug owner repository branch collaborators statistics status deployment");
+  }
+
+  _userHasDeployCollaboratorAccess(project, userId) {
+    if (!project) return false;
+    const userIdStr = toObjectIdString(userId);
+    if (toObjectIdString(project.owner) === userIdStr) return true;
+    return (project.collaborators || []).some(
+      (collab) =>
+        toObjectIdString(collab.user) === userIdStr &&
+        COLLABORATOR_ROLES.includes(collab.role),
+    );
   }
 
   _canTransition(currentStatus, nextStatus) {
@@ -85,15 +91,7 @@ class DeploymentService {
       throw new Error("Deployment not found");
     }
 
-    const isOwner = deployment.project?.owner?.toString() === userId.toString();
-    const isCollaborator =
-      deployment.project?.collaborators?.some(
-        (collab) =>
-          collab.user?.toString() === userId.toString() &&
-          ["admin", "editor"].includes(collab.role),
-      ) || false;
-
-    if (!isOwner && !isCollaborator) {
+    if (!this._userHasDeployCollaboratorAccess(deployment.project, userId)) {
       throw new Error("Access denied");
     }
 
@@ -117,19 +115,9 @@ class DeploymentService {
       } = options;
 
       // First get user's projects
-      const userProjects = await Project.find({
-        $or: [
-          { owner: userId },
-          {
-            collaborators: {
-              $elemMatch: {
-                user: userId,
-                role: { $in: ["admin", "editor"] },
-              },
-            },
-          },
-        ],
-      }).select("_id");
+      const userProjects = await Project.find(
+        buildAccessibleProjectQuery(userId),
+      ).select("_id");
       const projectIds = userProjects.map((p) => p._id);
 
       // Build query

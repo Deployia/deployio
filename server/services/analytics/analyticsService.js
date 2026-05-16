@@ -1,6 +1,7 @@
 const Project = require("@models/Project");
 const Deployment = require("@models/Deployment");
 const mongoose = require("mongoose");
+const { buildAccessibleProjectQuery } = require("@utils/projectAccess");
 
 class AnalyticsService {
   /**
@@ -545,7 +546,7 @@ class AnalyticsService {
     try {
       // Get all projects for the user
       const projects = await Project.find({
-        owner: new mongoose.Types.ObjectId(userId),
+        ...buildAccessibleProjectQuery(userId),
         status: { $ne: "deleted" },
       })
         .select(

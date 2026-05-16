@@ -24,7 +24,10 @@ import {
   fetchProjects,
   toggleArchiveProject,
   updateProject,
+  addProjectCollaborator,
+  removeProjectCollaborator,
 } from "@redux/index";
+import CollaboratorUserSearch from "@components/projects/CollaboratorUserSearch";
 
 import { DEPLOYMENT_ENVIRONMENT_KEYS } from "@utils/deploymentConstants";
 
@@ -49,8 +52,7 @@ const ProjectSettings = () => {
     autoDeployment: { enabled: false, branch: "main", environments: ["production"] },
   });
   const [repositorySettings, setRepositorySettings] = useState({ url: "", branch: "main" });
-  const [collaborators, setCollaborators] = useState([]);
-  const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
+  const [collaboratorActionError, setCollaboratorActionError] = useState(null);
   const [notifications, setNotifications] = useState({ email: true });
   const [envByTarget, setEnvByTarget] = useState({
     production: [],
@@ -83,7 +85,6 @@ const ProjectSettings = () => {
       url: currentProject.repository?.url || "",
       branch: currentProject.repository?.branch || "main",
     });
-    setCollaborators(currentProject.collaborators || []);
     setNotifications({
       email: currentProject.settings?.notifications?.email ?? true,
     });
@@ -153,24 +154,66 @@ const ProjectSettings = () => {
     }
   };
 
-  const sections = [
+  const isOwner =
+    currentProject?.isOwner ?? currentProject?.membershipRole === "owner";
+  const collaborators = currentProject?.collaborators || [];
+  const existingCollaboratorIds = collaborators
+    .map((entry) => entry.user?.id || entry.user?._id || entry.user)
+    .filter(Boolean);
+
+  const handleAddCollaborator = async (user) => {
+    setCollaboratorActionError(null);
+    try {
+      await dispatch(
+        addProjectCollaborator({ projectId: id, userId: user.id }),
+      ).unwrap();
+    } catch (err) {
+      setCollaboratorActionError(
+        typeof err === "string" ? err : "Failed to add collaborator",
+      );
+    }
+  };
+
+  const handleRemoveCollaborator = async (userId) => {
+    setCollaboratorActionError(null);
+    try {
+      await dispatch(
+        removeProjectCollaborator({ projectId: id, userId }),
+      ).unwrap();
+    } catch (err) {
+      setCollaboratorActionError(
+        typeof err === "string" ? err : "Failed to remove collaborator",
+      );
+    }
+  };
+
+  const allSections = [
     { id: "general", label: "General", icon: FaCog },
     { id: "repository", label: "Repository", icon: FaGithub },
     { id: "collaborators", label: "Collaborators", icon: FaUsers },
     { id: "environment", label: "Environment", icon: FaDatabase },
     { id: "notifications", label: "Notifications", icon: FaBell },
     { id: "security", label: "Security", icon: FaShieldAlt },
-    { id: "danger", label: "Danger Zone", icon: FaExclamationTriangle },
+    { id: "danger", label: "Danger Zone", icon: FaExclamationTriangle, ownerOnly: true },
   ];
+  const sections = allSections.filter((section) => isOwner || !section.ownerOnly);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Project Settings</h2>
         <p className="text-gray-400 mt-1">
-          Configure project behavior, environments, and deployment defaults.
+          {isOwner
+            ? "Configure project behavior, environments, and deployment defaults."
+            : "View-only access. You can deploy and manage deployments, but cannot change project settings."}
         </p>
       </div>
+
+      {!isOwner && (
+        <motion.div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
+          You are a collaborator on this project. Project settings are read-only.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
@@ -205,7 +248,8 @@ const ProjectSettings = () => {
                 onChange={(e) =>
                   setGeneralSettings((prev) => ({ ...prev, name: e.target.value }))
                 }
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                disabled={!isOwner}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white disabled:opacity-60"
                 placeholder="Project name"
               />
               <textarea
@@ -217,7 +261,8 @@ const ProjectSettings = () => {
                   }))
                 }
                 rows={3}
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                disabled={!isOwner}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white disabled:opacity-60"
                 placeholder="Description"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -243,6 +288,7 @@ const ProjectSettings = () => {
                   placeholder="Auto deploy branch"
                 />
               </div>
+              {isOwner && (
               <button
                 type="button"
                 onClick={() =>
@@ -260,6 +306,7 @@ const ProjectSettings = () => {
               >
                 <FaSave className="w-4 h-4" /> Save General Settings
               </button>
+              )}
             </div>
           )}
 
@@ -271,7 +318,8 @@ const ProjectSettings = () => {
                 onChange={(e) =>
                   setRepositorySettings((prev) => ({ ...prev, url: e.target.value }))
                 }
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                disabled={!isOwner}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white disabled:opacity-60"
                 placeholder="Repository URL"
               />
               <input
@@ -279,9 +327,11 @@ const ProjectSettings = () => {
                 onChange={(e) =>
                   setRepositorySettings((prev) => ({ ...prev, branch: e.target.value }))
                 }
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                disabled={!isOwner}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white disabled:opacity-60"
                 placeholder="Branch"
               />
+              {isOwner && (
               <button
                 type="button"
                 onClick={() =>
@@ -296,57 +346,75 @@ const ProjectSettings = () => {
               >
                 <FaSave className="w-4 h-4" /> Save Repository
               </button>
+              )}
             </div>
           )}
 
           {activeSection === "collaborators" && (
             <div className="space-y-4">
               <h3 className="text-xl font-semibold text-white">Collaborators</h3>
-              <div className="flex gap-2">
-                <input
-                  value={newCollaboratorEmail}
-                  onChange={(e) => setNewCollaboratorEmail(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
-                  placeholder="email@example.com"
+              <p className="text-sm text-gray-400">
+                {isOwner
+                  ? "Invite registered users to collaborate. Collaborators can deploy but cannot change project settings."
+                  : "People with access to this project."}
+              </p>
+
+              {isOwner && (
+                <CollaboratorUserSearch
+                  onSelect={handleAddCollaborator}
+                  existingUserIds={existingCollaboratorIds}
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newCollaboratorEmail.trim()) return;
-                    const updated = [
-                      ...collaborators,
-                      { email: newCollaboratorEmail.trim(), role: "viewer" },
-                    ];
-                    setCollaborators(updated);
-                    setNewCollaboratorEmail("");
-                    saveProject({ collaborators: updated });
-                  }}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-lg"
-                >
-                  <FaPlus className="w-4 h-4" />
-                </button>
+              )}
+
+              {collaboratorActionError && (
+                <p className="text-sm text-red-400">{collaboratorActionError}</p>
+              )}
+
+              <div className="space-y-2">
+                {collaborators.length === 0 ? (
+                  <p className="text-sm text-gray-500">No collaborators yet.</p>
+                ) : (
+                  collaborators.map((entry) => {
+                    const user = entry.user || {};
+                    const userId = user.id || user._id;
+                    return (
+                      <div
+                        key={userId || user.email}
+                        className="flex items-center justify-between bg-neutral-800/60 rounded-lg px-3 py-2"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {user.profileImage ? (
+                            <img
+                              src={user.profileImage}
+                              alt=""
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-xs text-gray-400">
+                              {(user.name || user.email || "?")[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-gray-200 truncate">
+                              {user.name || user.email || "User"}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                          </div>
+                        </div>
+                        {isOwner && userId && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCollaborator(userId)}
+                            className="text-red-300 hover:text-red-200"
+                          >
+                            <FaTimes className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              {collaborators.map((collaborator) => (
-                <div
-                  key={collaborator.email}
-                  className="flex items-center justify-between bg-neutral-800/60 rounded-lg px-3 py-2"
-                >
-                  <div className="text-gray-200">{collaborator.email}</div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = collaborators.filter(
-                        (item) => item.email !== collaborator.email,
-                      );
-                      setCollaborators(updated);
-                      saveProject({ collaborators: updated });
-                    }}
-                    className="text-red-300 hover:text-red-200"
-                  >
-                    <FaTimes className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
             </div>
           )}
 
@@ -419,6 +487,7 @@ const ProjectSettings = () => {
                 ))}
               </div>
 
+              {isOwner && (
               <button
                 type="button"
                 onClick={() =>
@@ -433,6 +502,7 @@ const ProjectSettings = () => {
               >
                 <FaSave className="w-4 h-4" /> Save {activeEnv} Variables
               </button>
+              )}
             </div>
           )}
 
@@ -449,6 +519,7 @@ const ProjectSettings = () => {
                 />
                 Email notifications
               </label>
+              {isOwner && (
               <button
                 type="button"
                 onClick={() =>
@@ -463,6 +534,7 @@ const ProjectSettings = () => {
               >
                 <FaSave className="w-4 h-4" /> Save Notifications
               </button>
+              )}
             </div>
           )}
 

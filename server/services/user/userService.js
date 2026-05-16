@@ -3,6 +3,10 @@ const AuditLog = require("@models/AuditLog");
 const crypto = require("crypto");
 const { getRedisClient } = require("@config/redisClient");
 const logger = require("@config/logger");
+const {
+  buildAccessibleProjectQuery,
+  formatUserDisplayName,
+} = require("@utils/projectAccess");
 
 // Cache management utilities
 const invalidateUserCache = async (userId) => {
@@ -393,7 +397,7 @@ const getDashboardStats = async (userId) => {
   const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   // Get user's projects and deployments
-  const projects = await Project.find({ owner: userId }).lean();
+  const projects = await Project.find(buildAccessibleProjectQuery(userId)).lean();
   const projectIds = projects.map((p) => p._id);
   const deployments = await Deployment.find({
     $or: [{ deployedBy: userId }, { project: { $in: projectIds } }],
@@ -471,6 +475,37 @@ const getDashboardStats = async (userId) => {
   };
 };
 
+const searchUsersForCollaborators = async (requesterId, query, options = {}) => {
+  const trimmed = (query || "").trim();
+  if (trimmed.length < 2) {
+    return [];
+  }
+
+  const limit = Math.min(Math.max(parseInt(options.limit, 10) || 8, 1), 10);
+  const pattern = new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+
+  const users = await User.find({
+    _id: { $ne: requesterId },
+    isVerified: true,
+    $or: [
+      { username: pattern },
+      { email: pattern },
+      { firstName: pattern },
+      { lastName: pattern },
+    ],
+  })
+    .select("username email firstName lastName profileImage")
+    .limit(limit)
+    .lean();
+
+  return users.map((user) => ({
+    id: user._id,
+    name: formatUserDisplayName(user),
+    email: user.email,
+    profileImage: user.profileImage || "",
+  }));
+};
+
 module.exports = {
   updateProfile,
   updatePassword,
@@ -483,5 +518,6 @@ module.exports = {
   getUserActivity,
   logUserActivity,
   getDashboardStats,
+  searchUsersForCollaborators,
   invalidateUserCache,
 };

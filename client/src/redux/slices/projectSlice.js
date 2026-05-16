@@ -205,6 +205,59 @@ export const analyzeRepository = createAsyncThunk(
   },
 );
 
+export const searchUsersForCollaborators = createAsyncThunk(
+  "projects/searchUsersForCollaborators",
+  async (query, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/users/search", {
+        params: { q: query, limit: 8 },
+        _noCache: true,
+      });
+      return response.data.data?.users || [];
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to search users",
+      );
+    }
+  },
+);
+
+export const addProjectCollaborator = createAsyncThunk(
+  "projects/addProjectCollaborator",
+  async ({ projectId, userId }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/projects/${projectId}/collaborators`, {
+        userId,
+      });
+      invalidateProjectDetailCache(projectId);
+      invalidateProjectListCache();
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to add collaborator",
+      );
+    }
+  },
+);
+
+export const removeProjectCollaborator = createAsyncThunk(
+  "projects/removeProjectCollaborator",
+  async ({ projectId, userId }, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(
+        `/projects/${projectId}/collaborators/${userId}`,
+      );
+      invalidateProjectDetailCache(projectId);
+      invalidateProjectListCache();
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to remove collaborator",
+      );
+    }
+  },
+);
+
 export const generateDockerfile = createAsyncThunk(
   "projects/generateDockerfile",
   async (
@@ -379,6 +432,41 @@ const projectSlice = createSlice({
         state.loading.updating = false;
         state.error.update = action.payload;
         state.success.update = false;
+      })
+
+      .addCase(addProjectCollaborator.fulfilled, (state, action) => {
+        const project = action.payload?.project;
+        if (!project) return;
+        const projectId = getProjectIdentity(project);
+        if (getProjectIdentity(state.currentProject) === projectId) {
+          state.currentProject = {
+            ...state.currentProject,
+            ...project,
+          };
+        }
+        const index = state.projects.findIndex(
+          (p) => getProjectIdentity(p) === projectId,
+        );
+        if (index !== -1) {
+          state.projects[index] = { ...state.projects[index], ...project };
+        }
+      })
+      .addCase(removeProjectCollaborator.fulfilled, (state, action) => {
+        const project = action.payload?.project;
+        if (!project) return;
+        const projectId = getProjectIdentity(project);
+        if (getProjectIdentity(state.currentProject) === projectId) {
+          state.currentProject = {
+            ...state.currentProject,
+            ...project,
+          };
+        }
+        const index = state.projects.findIndex(
+          (p) => getProjectIdentity(p) === projectId,
+        );
+        if (index !== -1) {
+          state.projects[index] = { ...state.projects[index], ...project };
+        }
       })
 
       // Delete Project

@@ -569,6 +569,8 @@ const ProjectDetails = () => {
 
   const isArchived =
     currentProject.status === "archived" || currentProject.isArchived;
+  const isOwner =
+    currentProject.isOwner ?? currentProject.membershipRole === "owner";
   const activeDeploymentCount =
     countActiveDeployments(projectDeployments) ||
     currentProject.activeDeploymentCount ||
@@ -653,17 +655,19 @@ const ProjectDetails = () => {
                   <h1 className="text-xl sm:text-3xl font-bold text-white heading truncate">
                     {currentProject.name}
                   </h1>
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    disabled={isArchived}
-                    className={`p-2 transition-colors self-start ${
-                      isArchived
-                        ? "text-gray-600 cursor-not-allowed"
-                        : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    <FaEdit className="w-4 h-4" />
-                  </button>
+                  {isOwner && (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      disabled={isArchived}
+                      className={`p-2 transition-colors self-start ${
+                        isArchived
+                          ? "text-gray-600 cursor-not-allowed"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      <FaEdit className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2">
@@ -678,6 +682,11 @@ const ProjectDetails = () => {
                 >
                   {isArchived ? "Archived" : "Active"}
                 </span>
+                {!isOwner && (
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    Collaborator
+                  </span>
+                )}
                 {activeDeploymentCount > 0 && (
                   <span className={getStatusBadge("running")}>
                     {activeDeploymentCount} deployment
@@ -702,23 +711,27 @@ const ProjectDetails = () => {
               <FaRocket className="w-4 h-4" />
               <span className="sm:inline">Deploy</span>
             </button>
-            <button
-              onClick={handleArchiveToggle}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-sm"
-            >
-              <FaArchive className="w-4 h-4" />
-              <span className="sm:inline">
-                {isArchived ? "Unarchive" : "Archive"}
-              </span>
-            </button>
-            <button
-              onClick={handleDeleteProject}
-              disabled={loading.deleting}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FaTrash className="w-4 h-4" />
-              <span className="sm:inline">Delete</span>
-            </button>
+            {isOwner && (
+              <button
+                onClick={handleArchiveToggle}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400 hover:bg-yellow-500/30 transition-colors text-sm"
+              >
+                <FaArchive className="w-4 h-4" />
+                <span className="sm:inline">
+                  {isArchived ? "Unarchive" : "Archive"}
+                </span>
+              </button>
+            )}
+            {isOwner && (
+              <button
+                onClick={handleDeleteProject}
+                disabled={loading.deleting}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaTrash className="w-4 h-4" />
+                <span className="sm:inline">Delete</span>
+              </button>
+            )}
           </div>
         </div>
 

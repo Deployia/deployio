@@ -1,8 +1,22 @@
 const Project = require("@models/Project");
+const User = require("@models/User");
 const Deployment = require("@models/Deployment");
 const deploymentService = require("../deployment/deploymentService");
 const logger = require("@config/logger");
 const subdomainManager = require("@services/deployment/subdomainManager");
+const NotificationHelpers = require("../notification/notificationHelpers");
+const {
+  buildAccessibleProjectQuery,
+  buildOwnedProjectQuery,
+  getMembershipRole,
+  toPublicUser,
+  transformCollaboratorEntry,
+  formatUserDisplayName,
+  toObjectIdString,
+} = require("@utils/projectAccess");
+
+const COLLABORATOR_USER_FIELDS =
+  "username email firstName lastName profileImage";
 
 const ACTIVE_DEPLOYMENT_STATUSES = [
   "pending",
@@ -36,8 +50,47 @@ class ProjectService {
     return deployments.length;
   }
 
+  _projectPopulateQuery() {
+    return [
+      { path: "owner", select: COLLABORATOR_USER_FIELDS },
+      { path: "collaborators.user", select: COLLABORATOR_USER_FIELDS },
+      { path: "collaborators.addedBy", select: COLLABORATOR_USER_FIELDS },
+    ];
+  }
+
+  async _findAccessibleProject(projectId, userId, options = {}) {
+    const { lean = false } = options;
+    let query = Project.findOne({
+      _id: projectId,
+      ...buildAccessibleProjectQuery(userId),
+    });
+
+    for (const populateSpec of this._projectPopulateQuery()) {
+      query = query.populate(populateSpec);
+    }
+
+    if (lean) {
+      query = query.lean();
+    }
+
+    return query;
+  }
+
+  async _findOwnedProject(projectId, userId) {
+    let query = Project.findOne({
+      _id: projectId,
+      ...buildOwnedProjectQuery(userId),
+    });
+
+    for (const populateSpec of this._projectPopulateQuery()) {
+      query = query.populate(populateSpec);
+    }
+
+    return query;
+  }
+
   /**
-   * Get user projects with pagination and filtering
+   * Get user projects with pagination and filtering (owned + collaborated)
    */
   async getUserProjects(userId, options = {}) {
     try {
@@ -51,7 +104,7 @@ class ProjectService {
         sortOrder = "desc",
       } = options;
 
-      const query = { owner: userId };
+      const query = buildAccessibleProjectQuery(userId);
 
       if (status) {
         query.status = status;
@@ -62,10 +115,13 @@ class ProjectService {
       }
 
       if (search) {
-        query.$or = [
-          { name: new RegExp(search, "i") },
-          { description: new RegExp(search, "i") },
-        ];
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { name: new RegExp(search, "i") },
+            { description: new RegExp(search, "i") },
+          ],
+        });
       }
 
       const skip = (page - 1) * limit;
@@ -73,6 +129,8 @@ class ProjectService {
 
       const [projects, totalCount] = await Promise.all([
         Project.find(query)
+          .populate("owner", COLLABORATOR_USER_FIELDS)
+          .populate("collaborators.user", COLLABORATOR_USER_FIELDS)
           .sort(sort)
           .skip(skip)
           .limit(limit)
@@ -94,6 +152,7 @@ class ProjectService {
           return this.transformProject(project, {
             deploymentCount,
             successfulDeployments,
+            viewerUserId: userId,
           });
         }),
       );
@@ -115,10 +174,9 @@ class ProjectService {
 
   async getProjectById(projectId, userId) {
     try {
-      const project = await Project.findOne({
-        _id: projectId,
-        owner: userId,
-      }).lean();
+      const project = await this._findAccessibleProject(projectId, userId, {
+        lean: true,
+      });
 
       if (!project) {
         throw new Error("Project not found or access denied");
@@ -129,7 +187,7 @@ class ProjectService {
       })
         .sort({ createdAt: -1 })
         .limit(5)
-        .populate("deployedBy", "name email")
+        .populate("deployedBy", "username email firstName lastName profileImage")
         .lean();
 
       const deploymentCount = await Deployment.countDocuments({
@@ -151,6 +209,7 @@ class ProjectService {
           deploymentCount,
           successfulDeployments,
           activeDeployments,
+          viewerUserId: userId,
         }),
         recentDeployments: recentDeployments.map(this.transformDeployment),
       };
@@ -162,10 +221,7 @@ class ProjectService {
 
   async updateProject(projectId, userId, updateData) {
     try {
-      const project = await Project.findOne({
-        _id: projectId,
-        owner: userId,
-      });
+      const project = await this._findOwnedProject(projectId, userId);
 
       if (!project) {
         throw new Error("Project not found or access denied");
@@ -206,7 +262,11 @@ class ProjectService {
         await project.save();
       }
 
-      return this.transformProject(project.toObject());
+      const saved = await this._findAccessibleProject(projectId, userId, {
+        lean: true,
+      });
+
+      return this.transformProject(saved, { viewerUserId: userId });
     } catch (error) {
       logger.error("Error in updateProject:", error);
       throw error;
@@ -220,7 +280,7 @@ class ProjectService {
     try {
       const project = await Project.findOne({
         _id: projectId,
-        owner: userId,
+        ...buildOwnedProjectQuery(userId),
       });
 
       if (!project) {
@@ -244,61 +304,127 @@ class ProjectService {
   }
 
   async getProjectDeployments(projectId, userId, options = {}) {
-    try {
-      const project = await Project.findOne({
-        _id: projectId,
-        owner: userId,
-      });
+    return deploymentService.getProjectDeployments(projectId, userId, options);
+  }
 
-      if (!project) {
-        throw new Error("Project not found or access denied");
-      }
+  async listCollaborators(projectId, userId) {
+    const project = await this._findAccessibleProject(projectId, userId, {
+      lean: true,
+    });
 
-      const {
-        page = 1,
-        limit = 10,
-        status,
-        environment,
-        sortBy = "createdAt",
-        sortOrder = "desc",
-      } = options;
-
-      const query = { project: projectId };
-
-      if (status) {
-        query.status = status;
-      }
-
-      if (environment) {
-        query["config.environment"] = environment;
-      }
-
-      const skip = (page - 1) * limit;
-      const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
-
-      const [deployments, totalCount] = await Promise.all([
-        Deployment.find(query)
-          .populate("deployedBy", "name email")
-          .sort(sort)
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        Deployment.countDocuments(query),
-      ]);
-
-      return {
-        deployments: deployments.map(this.transformDeployment),
-        pagination: {
-          page: parseInt(page, 10),
-          limit: parseInt(limit, 10),
-          totalPages: Math.ceil(totalCount / limit),
-          total: totalCount,
-        },
-      };
-    } catch (error) {
-      logger.error("Error in getProjectDeployments:", error);
-      throw error;
+    if (!project) {
+      throw new Error("Project not found or access denied");
     }
+
+    return {
+      collaborators: (project.collaborators || []).map(transformCollaboratorEntry),
+      membershipRole: getMembershipRole(project, userId),
+    };
+  }
+
+  async addCollaborator(projectId, ownerId, targetUserId) {
+    const project = await this._findOwnedProject(projectId, ownerId);
+
+    if (!project) {
+      throw new Error("Project not found or access denied");
+    }
+
+    const ownerIdStr = toObjectIdString(ownerId);
+    const targetUserIdStr = toObjectIdString(targetUserId);
+
+    if (ownerIdStr === targetUserIdStr) {
+      throw new Error("You cannot add yourself as a collaborator");
+    }
+
+    if (toObjectIdString(project.owner) === targetUserIdStr) {
+      throw new Error("Project owner cannot be added as a collaborator");
+    }
+
+    const alreadyAdded = (project.collaborators || []).some(
+      (entry) => toObjectIdString(entry.user) === targetUserIdStr,
+    );
+
+    if (alreadyAdded) {
+      throw new Error("User is already a collaborator on this project");
+    }
+
+    const targetUser = await User.findOne({
+      _id: targetUserId,
+      isVerified: true,
+    }).select(COLLABORATOR_USER_FIELDS);
+
+    if (!targetUser) {
+      throw new Error("User not found. Only verified registered users can be added.");
+    }
+
+    project.collaborators.push({
+      user: targetUser._id,
+      role: "collaborator",
+      addedBy: ownerId,
+      addedAt: new Date(),
+    });
+
+    await project.save();
+
+    try {
+      await NotificationHelpers.projectCollaboratorAdded(targetUserId, {
+        projectName: project.name,
+        projectId: project._id,
+        collaboratorName: formatUserDisplayName(targetUser),
+        collaboratorEmail: targetUser.email,
+        role: "collaborator",
+        invited: true,
+      });
+    } catch (notifyError) {
+      logger.warn("Collaborator added but notification failed", {
+        projectId,
+        targetUserId,
+        error: notifyError.message,
+      });
+    }
+
+    const updated = await this._findAccessibleProject(projectId, ownerId, {
+      lean: true,
+    });
+
+    return {
+      collaborator: transformCollaboratorEntry(
+        updated.collaborators.find(
+          (entry) => toObjectIdString(entry.user) === targetUserIdStr,
+        ),
+      ),
+      project: this.transformProject(updated, { viewerUserId: ownerId }),
+    };
+  }
+
+  async removeCollaborator(projectId, ownerId, targetUserId) {
+    const project = await this._findOwnedProject(projectId, ownerId);
+
+    if (!project) {
+      throw new Error("Project not found or access denied");
+    }
+
+    const targetUserIdStr = toObjectIdString(targetUserId);
+    const initialLength = project.collaborators.length;
+
+    project.collaborators = project.collaborators.filter(
+      (entry) => toObjectIdString(entry.user) !== targetUserIdStr,
+    );
+
+    if (project.collaborators.length === initialLength) {
+      throw new Error("Collaborator not found on this project");
+    }
+
+    await project.save();
+
+    const updated = await this._findAccessibleProject(projectId, ownerId, {
+      lean: true,
+    });
+
+    return {
+      success: true,
+      project: this.transformProject(updated, { viewerUserId: ownerId }),
+    };
   }
 
   transformProject(project, additionalData = {}) {
@@ -311,12 +437,27 @@ class ProjectService {
       project.statistics?.successfulDeployments ??
       0;
 
+    const viewerUserId = additionalData.viewerUserId;
+    const membershipRole = viewerUserId
+      ? getMembershipRole(project, viewerUserId)
+      : null;
+
+    const collaborators = (project.collaborators || []).map(
+      transformCollaboratorEntry,
+    );
+
     return {
       id: project._id,
       name: project.name,
       slug: project.slug,
       description: project.description,
-      owner: project.owner,
+      owner: project.owner?._id
+        ? toPublicUser(project.owner)
+        : project.owner,
+      collaborators,
+      membershipRole,
+      isOwner: membershipRole === "owner",
+      isCollaborator: membershipRole === "collaborator",
       repository: project.repository,
       technology: {
         primary:
@@ -360,11 +501,12 @@ class ProjectService {
   }
 
   transformDeployment(deploymentDoc) {
+    const deployedBy = deploymentDoc.deployedBy;
     return {
       id: deploymentDoc._id,
       deploymentId: deploymentDoc.deploymentId,
       project: deploymentDoc.project,
-      deployedBy: deploymentDoc.deployedBy,
+      deployedBy: deployedBy?._id ? toPublicUser(deployedBy) : deployedBy,
       status: deploymentDoc.status,
       environment: deploymentDoc.config?.environment,
       branch: deploymentDoc.config?.branch,

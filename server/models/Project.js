@@ -42,8 +42,8 @@ const projectSchema = new mongoose.Schema(
         },
         role: {
           type: String,
-          enum: ["viewer", "editor", "admin"],
-          default: "viewer",
+          enum: ["viewer", "collaborator", "editor", "admin"],
+          default: "collaborator",
         },
         addedBy: {
           type: mongoose.Schema.Types.ObjectId,
@@ -695,7 +695,12 @@ projectSchema.methods.canUserAccess = function (
 
   if (!collaborator) return false;
 
-  const roleHierarchy = { viewer: 0, editor: 1, admin: 2 };
+  const roleHierarchy = {
+    viewer: 0,
+    collaborator: 1,
+    editor: 1,
+    admin: 2,
+  };
   return roleHierarchy[collaborator.role] >= roleHierarchy[requiredRole];
 };
 

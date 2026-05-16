@@ -41,6 +41,14 @@ const validateObjectId = [
   param("id").isMongoId().withMessage("Invalid project ID"),
 ];
 
+const validateCollaboratorUserId = [
+  param("userId").isMongoId().withMessage("Invalid user ID"),
+];
+
+const validateAddCollaborator = [
+  body("userId").isMongoId().withMessage("Valid user ID is required"),
+];
+
 const validateQueryParams = [
   query("page")
     .optional()
@@ -102,6 +110,38 @@ router.put(
  * @route DELETE /api/v1/projects/:id
  */
 router.delete("/:id", validateObjectId, projectController.deleteProject);
+
+/**
+ * @desc List project collaborators
+ * @route GET /api/v1/projects/:id/collaborators
+ */
+router.get(
+  "/:id/collaborators",
+  validateObjectId,
+  projectController.listCollaborators,
+);
+
+/**
+ * @desc Add project collaborator
+ * @route POST /api/v1/projects/:id/collaborators
+ */
+router.post(
+  "/:id/collaborators",
+  validateObjectId,
+  validateAddCollaborator,
+  projectController.addCollaborator,
+);
+
+/**
+ * @desc Remove project collaborator
+ * @route DELETE /api/v1/projects/:id/collaborators/:userId
+ */
+router.delete(
+  "/:id/collaborators/:userId",
+  validateObjectId,
+  validateCollaboratorUserId,
+  projectController.removeCollaborator,
+);
 
 /**
  * @desc Get project deployments

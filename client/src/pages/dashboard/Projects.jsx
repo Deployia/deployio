@@ -312,8 +312,14 @@ const Projects = () => {
                     <FaProjectDiagram className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-white font-semibold text-base sm:text-lg truncate">
-                      {project.name}
+                    <h3 className="text-white font-semibold text-base sm:text-lg truncate flex items-center gap-2">
+                      <span className="truncate">{project.name}</span>
+                      {(project.isCollaborator ||
+                        project.membershipRole === "collaborator") && (
+                        <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wide bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          Shared
+                        </span>
+                      )}
                     </h3>
                     <div className="flex items-center gap-2 mt-1">
                       {getFrameworkIcon(detectTechnology(project))}

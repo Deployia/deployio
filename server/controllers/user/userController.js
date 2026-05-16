@@ -1,4 +1,5 @@
 const user = require("@services/user");
+const { validationResult } = require("express-validator");
 const logger = require("@config/logger");
 const {
   getSafeUserData,
@@ -304,6 +305,44 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
+/**
+ * Search registered users for collaborator invites (minimal fields only)
+ */
+const searchUsers = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: errors.array(),
+      });
+    }
+
+    const userId = req.user.id;
+    const q = req.query.q || "";
+    const limit = req.query.limit;
+
+    const users = await user.user.searchUsersForCollaborators(userId, q, {
+      limit,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { users },
+    });
+  } catch (error) {
+    logger.error("Search users error", {
+      error: { message: error.message, stack: error.stack, name: error.name },
+      userId: req.user?.id,
+    });
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to search users",
+    });
+  }
+};
+
 module.exports = {
   updatePassword,
   setInitialPassword,
@@ -313,4 +352,5 @@ module.exports = {
   getUserActivity,
   logUserActivity,
   getDashboardStats,
+  searchUsers,
 };

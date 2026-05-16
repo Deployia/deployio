@@ -328,13 +328,18 @@ class NotificationHelpers {
         collaboratorName,
         collaboratorEmail,
         role,
+        invited,
       } = collaboratorData;
+
+      const message = invited
+        ? `You have been added as a ${role} on ${projectName}.`
+        : `${collaboratorName} has been added as a ${role} to ${projectName}.`;
 
       return await notificationService.createNotification({
         userId,
         type: "project.collaborator_added",
-        title: `New Collaborator Added`,
-        message: `${collaboratorName} has been added as a ${role} to ${projectName}.`,
+        title: invited ? `Added to ${projectName}` : `New Collaborator Added`,
+        message,
         priority: "normal",
         context: {
           project: projectId,

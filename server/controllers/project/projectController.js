@@ -175,6 +175,93 @@ class ProjectController {
       });
     }
   }
+
+  async listCollaborators(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user._id;
+      const result = await projectService.listCollaborators(id, userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Collaborators retrieved successfully",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error in listCollaborators:", error);
+      res.status(error.message.includes("not found") ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to fetch collaborators",
+      });
+    }
+  }
+
+  async addCollaborator(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: errors.array(),
+        });
+      }
+
+      const { id } = req.params;
+      const userId = req.user._id;
+      const { userId: targetUserId } = req.body;
+
+      const result = await projectService.addCollaborator(
+        id,
+        userId,
+        targetUserId,
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Collaborator added successfully",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error in addCollaborator:", error);
+      const status = error.message.includes("not found")
+        ? 404
+        : error.message.includes("already") ||
+            error.message.includes("cannot") ||
+            error.message.includes("Only verified")
+          ? 400
+          : 500;
+      res.status(status).json({
+        success: false,
+        message: error.message || "Failed to add collaborator",
+      });
+    }
+  }
+
+  async removeCollaborator(req, res) {
+    try {
+      const { id, userId: targetUserId } = req.params;
+      const userId = req.user._id;
+
+      const result = await projectService.removeCollaborator(
+        id,
+        userId,
+        targetUserId,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Collaborator removed successfully",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error in removeCollaborator:", error);
+      res.status(error.message.includes("not found") ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to remove collaborator",
+      });
+    }
+  }
 }
 
 module.exports = new ProjectController();
