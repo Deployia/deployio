@@ -4,7 +4,14 @@ import api from "../../utils/api";
 const extractProject = (payload) =>
   payload?.project || payload?.data?.project || payload?.data || payload || null;
 
-const getProjectIdentity = (project) => project?._id || project?.id;
+const normalizeProjectId = (value) => {
+  if (value == null) return null;
+  if (typeof value === "object" && value.$oid) return String(value.$oid);
+  return String(value);
+};
+
+const getProjectIdentity = (project) =>
+  normalizeProjectId(project?._id ?? project?.id);
 
 // Initial state with modular loading/error pattern
 const initialState = {
@@ -383,13 +390,14 @@ const projectSlice = createSlice({
         state.loading.deleting = false;
         state.success.delete = true;
 
-        const deletedId = String(action.payload);
+        const deletedId = normalizeProjectId(action.payload);
+        if (deletedId) {
+          state.projects = state.projects.filter(
+            (p) => getProjectIdentity(p) !== deletedId,
+          );
+        }
 
-        state.projects = state.projects.filter(
-          (p) => String(getProjectIdentity(p)) !== deletedId,
-        );
-
-        if (String(getProjectIdentity(state.currentProject)) === deletedId) {
+        if (getProjectIdentity(state.currentProject) === deletedId) {
           state.currentProject = null;
         }
       })

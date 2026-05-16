@@ -21,6 +21,7 @@ import {
   clearProjectSuccess,
   clearProjectDeployments,
   deleteProject,
+  fetchProjects,
   toggleArchiveProject,
   updateProject,
 } from "@redux/index";
@@ -143,6 +144,7 @@ const ProjectSettings = () => {
     try {
       await dispatch(deleteProject(id)).unwrap();
       dispatch(clearProjectDeployments());
+      await dispatch(fetchProjects()).unwrap().catch(() => {});
       navigate("/dashboard/projects", { replace: true });
     } catch {
       // surfaced via redux

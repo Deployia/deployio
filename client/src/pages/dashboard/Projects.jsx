@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaPlus,
@@ -33,17 +33,24 @@ import {
 
 const Projects = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // Redux state
+  const navigate = useNavigate();
+  const location = useLocation();
   const { projects, loading, error, success } = useSelector(
     (state) => state.projects
   );
   // Local state
   const [filter, setFilter] = useState("all");
-  // Fetch projects on component mount
+  // Fetch projects on mount and whenever we land on this route (e.g. after delete)
   useEffect(() => {
-    // Only fetch if we don't have projects or if the list is empty
     dispatch(fetchProjects());
-  }, [dispatch]);
+  }, [dispatch, location.pathname]);
+
+  useEffect(() => {
+    if (success.delete) {
+      dispatch(fetchProjects());
+      dispatch(clearProjectSuccess({ field: "delete" }));
+    }
+  }, [success.delete, dispatch]);
 
   // Clear success/error messages after some time
   useEffect(() => {

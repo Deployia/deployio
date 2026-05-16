@@ -28,6 +28,7 @@ import {
   fetchProjectById,
   updateProject,
   deleteProject,
+  fetchProjects,
   toggleArchiveProject,
   fetchProjectDeployments,
   fetchDeploymentSubdomains,
@@ -254,6 +255,7 @@ const ProjectDetails = () => {
       await dispatch(deleteProject(id)).unwrap();
       dispatch(clearProjectDeployments());
       closeDeleteModal();
+      await dispatch(fetchProjects()).unwrap().catch(() => {});
       navigate("/dashboard/projects", { replace: true });
     } catch {
       // error surfaced by redux slice
