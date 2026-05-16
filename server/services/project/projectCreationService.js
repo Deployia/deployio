@@ -41,8 +41,15 @@ class ProjectCreationService {
 
   async _fetchRawFile(owner, repo, branch, filePath) {
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-    const response = await axios.get(url, { timeout: 8000 });
-    return response.data;
+    const response = await axios.get(url, {
+      timeout: 8000,
+      responseType: "text",
+      transformResponse: [(data) => data],
+    });
+    const data = response.data;
+    if (typeof data === "string") return data;
+    if (data == null) return "";
+    return JSON.stringify(data, null, 2);
   }
 
   async _fetchFirstAvailable(owner, repo, branch, candidates) {

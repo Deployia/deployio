@@ -68,6 +68,47 @@ class RuleBasedAnalyzer {
    * docker-compose.yml is ignored for deployability; return advisory note only.
    * @private
    */
+  /**
+   * GitHub/axios may return package.json as a parsed object; normalize to text.
+   * @private
+   */
+  _coerceFileText(value) {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return "";
+      }
+    }
+    return String(value);
+  }
+
+  /**
+   * @private
+   */
+  _parsePackageJsonObject(packageJsonValue) {
+    if (packageJsonValue == null) return null;
+    if (
+      typeof packageJsonValue === "object" &&
+      !Array.isArray(packageJsonValue)
+    ) {
+      return packageJsonValue;
+    }
+    try {
+      return JSON.parse(this._coerceFileText(packageJsonValue));
+    } catch {
+      return null;
+    }
+  }
+
+  _parsePackageDeps(packageJsonValue) {
+    const pkg = this._parsePackageJsonObject(packageJsonValue);
+    if (!pkg) return {};
+    return { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+  }
+
   _composeAdvisory(dockerComposeContent) {
     if (!dockerComposeContent) {
       return { isMultiContainer: false, serviceCount: 0, note: null };
@@ -306,11 +347,9 @@ class RuleBasedAnalyzer {
     const { packageJson, requirementsTxt } = fileContents;
     if (packageJson) {
       try {
-        const pkgData = JSON.parse(packageJson);
-        const deps = {
-          ...pkgData.dependencies,
-          ...pkgData.devDependencies,
-        };
+        const pkgData = this._parsePackageJsonObject(packageJson);
+        if (!pkgData) return { detected: false };
+        const deps = this._parsePackageDeps(pkgData);
         if (deps.next) {
           return {
             detected: true,
@@ -394,18 +433,14 @@ class RuleBasedAnalyzer {
     // Check for Node/Next.js/Express/MERN
     if (packageJson) {
       try {
-        let pkgData;
-        try {
-          pkgData = JSON.parse(packageJson);
-        } catch (parseError) {
-          logger.warn(
-            "package.json JSON parsing failed, attempting recovery:",
-            parseError.message,
-          );
-          // Try to detect from Dockerfile or fallback to generic Node
+        const pkgData = this._parsePackageJsonObject(packageJson);
+        if (!pkgData) {
+          logger.warn("package.json could not be parsed");
           if (dockerfileContent) {
-            const dockerDetection =
-              this._detectStackFromDockerfile(dockerfileContent);
+            const dockerDetection = this._detectStackFromDockerfile(
+              dockerfileContent,
+              { packageJson, requirementsTxt },
+            );
             if (dockerDetection.detected) {
               return dockerDetection;
             }
@@ -416,10 +451,7 @@ class RuleBasedAnalyzer {
           };
         }
 
-        const deps = {
-          ...pkgData.dependencies,
-          ...pkgData.devDependencies,
-        };
+        const deps = this._parsePackageDeps(pkgData);
 
         // Priority 1: Check for Next.js (must be first to avoid false positives with MERN)
         if (deps.next) {
@@ -526,7 +558,7 @@ class RuleBasedAnalyzer {
 
     if (requirementsTxt) {
       try {
-        const reqLower = requirementsTxt.toLowerCase();
+        const reqLower = this._coerceFileText(requirementsTxt).toLowerCase();
         if (reqLower.includes("fastapi")) {
           logger.info("Stack detected: FastAPI");
           return {
@@ -575,8 +607,10 @@ class RuleBasedAnalyzer {
 
     // Fallback: Try to detect from Dockerfile
     if (dockerfileContent) {
-      const dockerDetection =
-        this._detectStackFromDockerfile(dockerfileContent);
+      const dockerDetection = this._detectStackFromDockerfile(
+        dockerfileContent,
+        { packageJson, requirementsTxt },
+      );
       if (dockerDetection.detected) {
         return dockerDetection;
       }
@@ -599,8 +633,10 @@ class RuleBasedAnalyzer {
 
     const signals = this._parseDockerfileSignals(dockerfileContent);
     const content = signals.contentLower;
-    const reqLower = (context.requirementsTxt || "").toLowerCase();
-    const pkgHint = context.packageJson || "";
+    const reqLower = this._coerceFileText(context.requirementsTxt).toLowerCase();
+    const pkgText = this._coerceFileText(context.packageJson);
+    const deps = this._parsePackageDeps(context.packageJson);
+    const hasDep = (name) => Object.prototype.hasOwnProperty.call(deps, name);
     const port = signals.ports[0] || 3000;
 
     const startFromDocker =
@@ -612,7 +648,8 @@ class RuleBasedAnalyzer {
       content.includes(".next/standalone") ||
       content.includes("next/standalone") ||
       content.includes("next build") ||
-      pkgHint.includes('"next"')
+      hasDep("next") ||
+      pkgText.includes('"next"')
     ) {
       logger.info("Stack detected from Dockerfile: Next.js");
       return {
@@ -703,7 +740,8 @@ class RuleBasedAnalyzer {
     if (
       content.includes("react") ||
       content.includes("npm run build") ||
-      pkgHint.includes('"react"')
+      hasDep("react") ||
+      pkgText.includes('"react"')
     ) {
       logger.info("Stack detected from Dockerfile: MERN/React");
       return {
@@ -722,7 +760,8 @@ class RuleBasedAnalyzer {
       signals.fromImages.some((img) => img.startsWith("node")) ||
       content.includes("npm install") ||
       content.includes("node ") ||
-      pkgHint.includes('"express"')
+      hasDep("express") ||
+      pkgText.includes('"express"')
     ) {
       logger.info("Stack detected from Dockerfile: Express/Node");
       return {
@@ -789,7 +828,8 @@ class RuleBasedAnalyzer {
   async _checkVersionSupportFromContent(fileContents, stack) {
     if (stack === "express" || stack === "mern") {
       try {
-        const packageJson = JSON.parse(fileContents.packageJson);
+        const packageJson = this._parsePackageJsonObject(fileContents.packageJson);
+        if (!packageJson) return { supported: true };
         const engines = packageJson.engines || {};
         const nodeVersion = engines.node || ">=16";
 
@@ -829,7 +869,8 @@ class RuleBasedAnalyzer {
   async _inferCommandsFromContent(fileContents, stack) {
     if (stack === "express" || stack === "mern") {
       try {
-        const packageJson = JSON.parse(fileContents.packageJson);
+        const packageJson = this._parsePackageJsonObject(fileContents.packageJson);
+        if (!packageJson) return {};
         const scripts = packageJson.scripts || {};
 
         return {
@@ -1420,11 +1461,10 @@ class RuleBasedAnalyzer {
     let dependencies = [];
     if (fileContents.packageJson) {
       try {
-        const pkg = JSON.parse(fileContents.packageJson);
-        dependencies = Object.keys({
-          ...pkg.dependencies,
-          ...pkg.devDependencies,
-        });
+        const pkg = this._parsePackageJsonObject(fileContents.packageJson);
+        if (pkg) {
+          dependencies = Object.keys(this._parsePackageDeps(pkg));
+        }
       } catch (e) {
         logger.warn("Could not parse dependencies");
       }
