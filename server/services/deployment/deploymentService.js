@@ -14,6 +14,7 @@ const {
   COLLABORATOR_ROLES,
   toObjectIdString,
 } = require("@utils/projectAccess");
+const { snapshotProjectEnvForDeployment } = require("../../utils/envVarPayload");
 
 const ACTIVE_DEPLOYMENT_STATUSES = [
   "pending",
@@ -298,6 +299,10 @@ class DeploymentService {
         timestamp: project.repository?.metadata?.lastCommit?.date || new Date(),
       };
 
+      const environmentVariables = snapshotProjectEnvForDeployment(
+        project.deployment?.environment?.[environment],
+      );
+
       try {
         // Create deployment
         deployment = new Deployment({
@@ -315,6 +320,7 @@ class DeploymentService {
             subdomain,
             fullUrl: `https://${subdomain}.${subdomainManager.baseDomain}`,
           },
+          environmentVariables,
           status: "pending",
         });
 

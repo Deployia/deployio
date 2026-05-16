@@ -11,6 +11,9 @@
 const Deployment = require("@models/Deployment");
 const Project = require("@models/Project");
 const logger = require("@config/logger");
+const {
+  snapshotProjectEnvForDeployment,
+} = require("../../utils/envVarPayload");
 const webSocketManager = require("@config/webSocketManager");
 const {
   notifyDeploymentStatusChange,
@@ -142,27 +145,50 @@ class DeploymentOrchestrator {
       const branch =
         deployment.config?.branch || project.repository?.branch || "main";
 
+      const projectId = project._id || project.id;
+      let resolvedProject = project;
+      if (projectId) {
+        const freshProject = await Project.findById(projectId)
+          .select("deployment repository name dockerImage")
+          .lean();
+        if (freshProject) {
+          resolvedProject = freshProject;
+        }
+      }
+
       const deploymentEnvironment =
         deployment.config?.environment || "production";
-      const deploymentEnvVars = Array.isArray(deployment.environmentVariables)
-        ? deployment.environmentVariables
-        : [];
-      const projectEnvVars = Array.isArray(
-        project.deployment?.environment?.[deploymentEnvironment],
+      const projectEnvList = Array.isArray(
+        resolvedProject.deployment?.environment?.[deploymentEnvironment],
       )
-        ? project.deployment.environment[deploymentEnvironment]
+        ? resolvedProject.deployment.environment[deploymentEnvironment]
         : [];
+
+      const envSnapshot = snapshotProjectEnvForDeployment(projectEnvList);
+      if (envSnapshot.length > 0) {
+        await Deployment.findOneAndUpdate(
+          { deploymentId },
+          { environmentVariables: envSnapshot },
+        );
+      }
+
+      const deploymentEnvVars =
+        envSnapshot.length > 0
+          ? envSnapshot
+          : Array.isArray(deployment.environmentVariables)
+            ? deployment.environmentVariables
+            : projectEnvList;
 
       const { normalizeEnvVarValue } = require("../../utils/envVarNormalize");
       const { decryptEnvVarList } = require("../../utils/envVarPayload");
-      const mergedEnvVars = [
-        ...decryptEnvVarList(projectEnvVars),
-        ...decryptEnvVarList(deploymentEnvVars),
-      ].reduce((acc, envVar) => {
+      const mergedEnvVars = decryptEnvVarList(deploymentEnvVars).reduce(
+        (acc, envVar) => {
         if (!envVar?.key) return acc;
-        acc[envVar.key] = normalizeEnvVarValue(envVar.key, envVar.value ?? "");
-        return acc;
-      }, {});
+          acc[envVar.key] = normalizeEnvVarValue(envVar.key, envVar.value ?? "");
+          return acc;
+        },
+        {},
+      );
 
       // Determine container port from deployment config or project defaults
       const containerPort =
@@ -195,11 +221,15 @@ class DeploymentOrchestrator {
         dockerfilePath: project.deployment?.dockerfile?.path || "Dockerfile",
       };
 
+      const envKeys = Object.keys(mergedEnvVars);
       logger.info("Sending deployment:trigger to agent", {
         deploymentId,
         agent: agentId,
         image: dockerImage,
         subdomain,
+        deploymentEnvironment,
+        platformEnvCount: envKeys.length,
+        platformEnvKeys: envKeys.slice(0, 25),
       });
 
       // Update status to "queued" while we wait for the agent

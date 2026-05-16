@@ -132,6 +132,20 @@ function decryptEnvVarList(list = []) {
     }));
 }
 
+/**
+ * Copy project env rows onto a deployment record (values stay encrypted at rest).
+ */
+function snapshotProjectEnvForDeployment(projectEnvList = []) {
+  return (Array.isArray(projectEnvList) ? projectEnvList : [])
+    .filter((row) => row && row.key)
+    .map((row) => ({
+      key: String(row.key).trim(),
+      value: row.value || "",
+      isSecret: row.isSecret !== false,
+    }))
+    .filter((row) => row.key);
+}
+
 module.exports = {
   ENV_TARGETS,
   encryptEnvironmentMap,
@@ -140,4 +154,5 @@ module.exports = {
   decryptEnvironmentMapForDeploy,
   decryptEnvVarList,
   normalizeEnvRowForStorage,
+  snapshotProjectEnvForDeployment,
 };
