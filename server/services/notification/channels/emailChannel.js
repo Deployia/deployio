@@ -76,6 +76,13 @@ function flattenNotificationContext(variables, context = {}, action = null) {
   }
 
   variables.userName = variables.userName || variables.username;
+
+  if (context?.analysis && !variables.analysisSummary) {
+    variables.analysisSummary =
+      typeof context.analysis === "string"
+        ? context.analysis
+        : context.analysis?.stack?.primary || "";
+  }
 }
 
 class EmailChannel {
@@ -159,8 +166,8 @@ class EmailChannel {
       "deployment.failed": "deployment.failed",
       "deployment.stopped": "deployment.stopped",
 
-      // Project templates (fix: use dot notation keys)
-      "project.created": "auth.welcome",
+      // Project templates
+      "project.created": "project.created",
       "project.analysis_complete": "project.analysis_complete",
       "project.analysis_failed": "project.analysis_failed",
       "project.collaborator_added": "project.collaborator_added",
@@ -328,6 +335,10 @@ class EmailChannel {
       "deployment.success": `Deployment Successful - ${projectLabel}`,
       "deployment.failed": `Deployment Failed - ${projectLabel}`,
       "deployment.stopped": `Deployment Stopped - ${projectLabel}`,
+      "project.created": `Project Created - ${projectLabel}`,
+      "project.analysis_complete": `Analysis Complete - ${projectLabel}`,
+      "project.analysis_failed": `Analysis Failed - ${projectLabel}`,
+      "project.collaborator_added": `Collaborator Added - ${projectLabel}`,
       "system.test": "DeployIO System Test",
       "general.welcome": "Welcome to DeployIO!",
     };

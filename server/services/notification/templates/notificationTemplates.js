@@ -110,6 +110,30 @@ class NotificationTemplates {
       subject: "⏹️ Deployment Stopped - {{projectName}}",
       text: `Deployment Stopped - {{projectName}}\n\nHi {{userName}},\n\nYour deployment for {{projectName}} has been stopped.\n\nDeployment Details:\n- Project: {{projectName}}\n- Environment: {{environment}}\n- Stopped: {{timestamp}}\n- Reason: {{reason}}\n\nYou can restart the deployment from your project dashboard.\n\nBest regards,\nThe DeployIO Team`,
     });
+
+    this.templates.set("project.analysis_complete", {
+      hbs: "projectAnalysisComplete.hbs",
+      subject: "📊 Analysis Complete - {{projectName}}",
+      text: `Project Analysis Complete - {{projectName}}\n\nHi {{username}},\n\nAnalysis for {{projectName}} has completed successfully.\n\nCompleted: {{timestamp}}\n\nReview results in your dashboard: {{dashboardUrl}}\n\nBest regards,\nThe DeployIO Team`,
+    });
+
+    this.templates.set("project.analysis_failed", {
+      hbs: "projectAnalysisFailed.hbs",
+      subject: "⚠️ Analysis Failed - {{projectName}}",
+      text: `Project Analysis Failed - {{projectName}}\n\nHi {{username}},\n\nAnalysis for {{projectName}} could not be completed.\n\nReason: {{reason}}\n\nTry again: {{dashboardUrl}}\n\nBest regards,\nThe DeployIO Team`,
+    });
+
+    this.templates.set("project.created", {
+      hbs: "projectCreated.hbs",
+      subject: "🎉 Project Created - {{projectName}}",
+      text: `Project Created - {{projectName}}\n\nHi {{username}},\n\nYour project {{projectName}} has been created successfully.\n\nOpen your dashboard: {{dashboardUrl}}\n\nBest regards,\nThe DeployIO Team`,
+    });
+
+    this.templates.set("project.collaborator_added", {
+      hbs: "projectCollaboratorAdded.hbs",
+      subject: "👥 Collaborator Added - {{projectName}}",
+      text: `Collaborator Added - {{projectName}}\n\nHi {{username}},\n\nA collaborator was added to {{projectName}}.\n\nBest regards,\nThe DeployIO Team`,
+    });
   }
 
   /**

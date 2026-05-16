@@ -1,0 +1,28 @@
+<div class="badge warning-badge">⚠️ Analysis Failed</div>
+
+<h1 class="title">Project Analysis Failed</h1>
+<p class="subtitle">We could not complete analysis for <strong>{{projectName}}</strong>. Please review the details below and try again.</p>
+
+<div class="feature-list">
+  <h3>Analysis Details</h3>
+  <ul>
+    <li><strong>Project:</strong> {{projectName}}</li>
+    <li><strong>Failed:</strong> {{timestamp}}</li>
+    {{#if reason}}
+    <li><strong>Reason:</strong> {{reason}}</li>
+    {{/if}}
+    {{#if error}}
+    <li><strong>Details:</strong> {{error}}</li>
+    {{/if}}
+  </ul>
+</motion.div>
+
+<p style="color: #a3a3a3; margin: 24px 0; font-size: 14px;">
+  Ensure your repository has a valid Dockerfile and supported configuration, then run analysis again from the project creation flow.
+</p>
+
+{{#if actionUrl}}
+{{> button url=actionUrl label="Try Again"}}
+{{else if dashboardUrl}}
+{{> button url=dashboardUrl label="Go to Dashboard"}}
+{{/if}}

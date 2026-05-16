@@ -236,6 +236,7 @@ const getNotificationPreferences = async (userId) => {
       deploymentFailure: true,
       deploymentStarted: true,
       deploymentStopped: true,
+      projectCreated: true,
       projectAnalysisComplete: true,
       projectAnalysisFailed: true,
       projectCollaboratorAdded: true,
@@ -272,53 +273,26 @@ const getNotificationPreferences = async (userId) => {
 
 // Update user notification preferences
 const updateNotificationPreferences = async (userId, preferences) => {
-  // Validate preferences object
-  const allowedPreferences = [
-    // Basic delivery methods
-    "email",
-    "inApp",
-    "push",
-
-    // Legacy preferences (maintain backward compatibility)
-    "deployments",
-    "security",
-    "marketing",
-    "updates",
-
-    // Deployment notifications
-    "deploymentSuccess",
-    "deploymentFailure",
-    "deploymentStarted",
-
-    // Security & Account notifications
-    "securityAlerts",
-    "accountChanges",
-    "newDeviceLogin",
-
-    // Communication notifications
-    "productUpdates",
-    "tips",
-
-    // Complex nested objects
-    "quietHours",
-    "digestSettings",
-  ];
+  const {
+    BOOLEAN_NOTIFICATION_PREFERENCE_KEYS,
+    NESTED_NOTIFICATION_PREFERENCE_KEYS,
+  } = require("../notification/preferenceKeys");
 
   const updateData = {};
 
   for (const [key, value] of Object.entries(preferences)) {
-    if (allowedPreferences.includes(key)) {
-      if (typeof value === "boolean") {
-        // Simple boolean preferences
-        updateData[`notificationPreferences.${key}`] = value;
-      } else if (typeof value === "object" && value !== null) {
-        // Handle nested objects like quietHours and digestSettings
-        if (key === "quietHours" || key === "digestSettings") {
-          for (const [nestedKey, nestedValue] of Object.entries(value)) {
-            updateData[`notificationPreferences.${key}.${nestedKey}`] =
-              nestedValue;
-          }
-        }
+    if (
+      BOOLEAN_NOTIFICATION_PREFERENCE_KEYS.includes(key) &&
+      typeof value === "boolean"
+    ) {
+      updateData[`notificationPreferences.${key}`] = value;
+    } else if (
+      NESTED_NOTIFICATION_PREFERENCE_KEYS.includes(key) &&
+      typeof value === "object" &&
+      value !== null
+    ) {
+      for (const [nestedKey, nestedValue] of Object.entries(value)) {
+        updateData[`notificationPreferences.${key}.${nestedKey}`] = nestedValue;
       }
     }
   }

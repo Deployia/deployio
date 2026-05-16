@@ -7,6 +7,10 @@ const EmailChannel = require("./channels/emailChannel");
 const InAppChannel = require("./channels/inAppChannel");
 const PushChannel = require("./channels/pushChannel");
 const NotificationTemplates = require("./templates/notificationTemplates");
+const {
+  NOTIFICATION_TYPE_PREFERENCE_MAP,
+  QUIET_HOURS_BYPASS_TYPES,
+} = require("./preferenceKeys");
 
 class NotificationService {
   constructor() {
@@ -75,9 +79,17 @@ class NotificationService {
         throw new Error("User not found");
       }
 
-      // Determine delivery channels based on user preferences
+      // Determine delivery channels based on user preferences (explicit channels bypass prefs)
       const deliveryChannels =
-        channels || (await this.determineChannels(userId, type));
+        channels ?? (await this.determineChannels(userId, type));
+
+      if (deliveryChannels.length === 0) {
+        logger.debug("Notification skipped due to user preferences", {
+          userId,
+          type,
+        });
+        return null;
+      }
 
       // Create notification document
       const notification = new Notification({
@@ -518,21 +530,31 @@ class NotificationService {
       }
 
       const prefs = user.notificationPreferences || {};
+
+      if (!this.isNotificationTypeEnabled(prefs, notificationType)) {
+        return [];
+      }
+
       const channels = [];
 
-      // Always include in-app if enabled
       if (prefs.inApp !== false) {
         channels.push("in_app");
       }
 
-      // Check if user wants email notifications for this type
-      if (prefs.email && this.shouldSendEmailForType(prefs, notificationType)) {
+      if (prefs.email) {
         channels.push("email");
       }
 
-      // Check if user wants push notifications for this type
       if (prefs.push && this.shouldSendPushForType(prefs, notificationType)) {
         channels.push("push");
+      }
+
+      const inQuietHours = await this.isInQuietHours(userId);
+      if (
+        inQuietHours &&
+        !QUIET_HOURS_BYPASS_TYPES.has(notificationType)
+      ) {
+        return channels.filter((c) => c !== "email");
       }
 
       return channels;
@@ -552,31 +574,20 @@ class NotificationService {
    * @param {string} notificationType - Notification type
    * @returns {boolean} Whether to send email
    */
-  shouldSendEmailForType(preferences, notificationType) {
-    const typeMap = {
-      "deployment.started": "deploymentStarted",
-      "deployment.success": "deploymentSuccess",
-      "deployment.failed": "deploymentFailure",
-      "deployment.stopped": "deploymentStopped",
-      "project.created": "projectCreated",
-      "project.analysis_complete": "projectAnalysisComplete",
-      "project.analysis_failed": "projectAnalysisFailed",
-      "project.collaborator_added": "projectCollaboratorAdded",
-      "security.login_new_device": "newDeviceLogin",
-      "security.password_changed": "passwordChanged",
-      "security.2fa_enabled": "twoFactorEnabled",
-      "security.2fa_disabled": "twoFactorDisabled",
-      "security.api_key_created": "apiKeyCreated",
-      "system.maintenance": "systemMaintenance",
-      "system.update": "systemUpdates",
-      "system.quota_warning": "quotaWarning",
-      "system.quota_exceeded": "quotaExceeded",
-      "general.welcome": "welcomeMessage",
-      "general.announcement": "announcements",
-    };
+  /**
+   * Whether this notification type is enabled in user preferences (in-app + email).
+   */
+  isNotificationTypeEnabled(preferences, notificationType) {
+    const prefKey = NOTIFICATION_TYPE_PREFERENCE_MAP[notificationType];
+    if (!prefKey) {
+      return true;
+    }
+    return preferences[prefKey] !== false;
+  }
 
-    const prefKey = typeMap[notificationType];
-    return prefKey ? preferences[prefKey] !== false : true;
+  /** @deprecated Use isNotificationTypeEnabled — kept for callers */
+  shouldSendEmailForType(preferences, notificationType) {
+    return this.isNotificationTypeEnabled(preferences, notificationType);
   }
 
   /**

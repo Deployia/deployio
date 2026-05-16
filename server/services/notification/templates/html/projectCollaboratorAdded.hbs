@@ -1,0 +1,24 @@
+<div class="badge">👥 New Collaborator</div>
+
+<h1 class="title">Collaborator Added</h1>
+<p class="subtitle">A new collaborator was added to <strong>{{projectName}}</strong>.</p>
+
+<div class="feature-list">
+  <h3>Details</h3>
+  <ul>
+    <li><strong>Project:</strong> {{projectName}}</li>
+    {{#if collaboratorName}}
+    <li><strong>Collaborator:</strong> {{collaboratorName}}</li>
+    {{/if}}
+    {{#if role}}
+    <li><strong>Role:</strong> {{role}}</li>
+    {{/if}}
+    <li><strong>Time:</strong> {{timestamp}}</li>
+  </ul>
+</motion.div>
+
+{{#if actionUrl}}
+{{> button url=actionUrl label="View Project"}}
+{{else if dashboardUrl}}
+{{> button url=dashboardUrl label="View Project"}}
+{{/if}}

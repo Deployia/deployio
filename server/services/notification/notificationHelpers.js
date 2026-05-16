@@ -255,8 +255,9 @@ class NotificationHelpers {
           data: {
             projectName,
             projectId: projectId ? String(projectId) : undefined,
+            reason: analysisError,
+            error: analysisError,
           },
-          error: analysisError,
         },
         action: {
           label: projectId ? "Go to Project" : "Try Again",
@@ -336,9 +337,14 @@ class NotificationHelpers {
         message: `${collaboratorName} has been added as a ${role} to ${projectName}.`,
         priority: "normal",
         context: {
-          project: { name: projectName, _id: projectId },
-          collaborator: { name: collaboratorName, email: collaboratorEmail },
-          role,
+          project: projectId,
+          data: {
+            projectName,
+            projectId: projectId ? String(projectId) : undefined,
+            collaboratorName,
+            collaboratorEmail,
+            role,
+          },
         },
         action: {
           label: "View Project",

@@ -58,6 +58,12 @@ const NotificationsPreferences = ({
       description: "Notifications related to your projects",
       categories: [
         {
+          key: "projectCreated",
+          label: "Project Created",
+          icon: FaBell,
+          description: "When a new project is created",
+        },
+        {
           key: "projectAnalysisComplete",
           label: "Analysis Complete",
           icon: FaBell,

@@ -1,0 +1,22 @@
+<div class="badge success-badge">🎉 Project Created</div>
+
+<h1 class="title">Project Created Successfully</h1>
+<p class="subtitle">Your project <strong>{{projectName}}</strong> is ready in DeployIO. You can configure environments and deploy when you're ready.</p>
+
+<div class="feature-list">
+  <h3>Project Details</h3>
+  <ul>
+    <li><strong>Project:</strong> {{projectName}}</li>
+    <li><strong>Created:</strong> {{timestamp}}</li>
+  </ul>
+</div>
+
+<p style="color: #a3a3a3; margin: 24px 0; font-size: 14px;">
+  Open your project dashboard to manage deployments, environment variables, and settings.
+</p>
+
+{{#if actionUrl}}
+{{> button url=actionUrl label="View Project"}}
+{{else if dashboardUrl}}
+{{> button url=dashboardUrl label="View Project"}}
+{{/if}}

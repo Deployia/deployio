@@ -139,6 +139,7 @@ router.put(
     body("deploymentFailure").optional().isBoolean(),
     body("deploymentStarted").optional().isBoolean(),
     body("deploymentStopped").optional().isBoolean(),
+    body("projectCreated").optional().isBoolean(),
     body("projectAnalysisComplete").optional().isBoolean(),
     body("projectAnalysisFailed").optional().isBoolean(),
     body("projectCollaboratorAdded").optional().isBoolean(),
