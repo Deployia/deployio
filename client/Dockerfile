@@ -34,9 +34,12 @@ RUN npm run build
 # ---------- RUNTIME STAGE ----------
 FROM nginx:1.27-alpine AS runtime
 
+# Static SPA: /assets 404 on miss, index.html no-cache. nginx-main.conf routes
+# pid/logs/temp to /tmp because compose sets read_only: true on this service.
+COPY nginx-main.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["sh", "-c", "mkdir -p /tmp/client_body /tmp/proxy /tmp/fastcgi /tmp/uwsgi /tmp/scgi && exec nginx -g 'daemon off;'"]
