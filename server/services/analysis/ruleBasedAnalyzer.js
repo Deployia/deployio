@@ -3,17 +3,151 @@
  * Analyzes GitHub repositories to determine deployability and stack type.
  * Replaces AI service for Phase 1 of deployment pipeline.
  *
- * Supported Stacks: Next.js, MERN, Express, FastAPI
- * Stack Detection Priority: Next.js → MERN → Express → Generic Node
- * Deployment Model: Single container only (rejects docker-compose with multiple services)
+ * Supported Stacks: Next.js, MERN, Express, FastAPI, Flask, Django
+ * Stack Detection Priority: Dockerfile signals → package.json / requirements.txt
+ * Docker Compose: informational only (deploy via individual Dockerfiles)
  */
 
 const fs = require("fs");
 const path = require("path");
 const logger = require("../../config/logger");
 const { parseEnvFile } = require("../../utils/parseEnvFile");
+const { isValidDockerfileContent } = require("../../utils/dockerfileNaming");
 
 class RuleBasedAnalyzer {
+  /**
+   * Parse Dockerfile directives for stack hints (ports, commands, base images).
+   * Valid deployable images need FROM plus CMD or ENTRYPOINT.
+   * @private
+   */
+  _parseDockerfileSignals(dockerfileContent) {
+    if (!dockerfileContent) {
+      return {
+        valid: false,
+        ports: [],
+        cmd: null,
+        entrypoint: null,
+        fromImages: [],
+        contentLower: "",
+      };
+    }
+
+    const content = dockerfileContent;
+    const contentLower = content.toLowerCase();
+    const fromImages = [];
+    const fromRegex = /^FROM\s+([^\s]+)/gim;
+    let match;
+    while ((match = fromRegex.exec(content)) !== null) {
+      fromImages.push(match[1].toLowerCase());
+    }
+
+    const exposePorts = [];
+    const exposeRegex = /^EXPOSE\s+([^\s#]+)/gim;
+    while ((match = exposeRegex.exec(content)) !== null) {
+      const raw = match[1].split("/")[0];
+      const port = parseInt(raw, 10);
+      if (!Number.isNaN(port) && port > 0) {
+        exposePorts.push(port);
+      }
+    }
+
+    const cmdMatch = content.match(/^\s*CMD\s+(.+)$/im);
+    const entryMatch = content.match(/^\s*ENTRYPOINT\s+(.+)$/im);
+
+    return {
+      valid: isValidDockerfileContent(content),
+      ports: exposePorts,
+      cmd: cmdMatch ? cmdMatch[1].trim() : null,
+      entrypoint: entryMatch ? entryMatch[1].trim() : null,
+      fromImages,
+      contentLower,
+    };
+  }
+
+  /**
+   * docker-compose.yml is ignored for deployability; return advisory note only.
+   * @private
+   */
+  _composeAdvisory(dockerComposeContent) {
+    if (!dockerComposeContent) {
+      return { isMultiContainer: false, serviceCount: 0, note: null };
+    }
+
+    try {
+      const yaml = require("js-yaml");
+      const content = yaml.load(dockerComposeContent);
+      const serviceCount = Object.keys(content.services || {}).length;
+      if (serviceCount > 1) {
+        return {
+          isMultiContainer: true,
+          serviceCount,
+          note: `docker-compose.yml lists ${serviceCount} services. Deploy each service using its Dockerfile as a separate project.`,
+        };
+      }
+    } catch (error) {
+      logger.warn("Error parsing docker-compose (ignored):", error.message);
+    }
+
+    return { isMultiContainer: false, serviceCount: 0, note: null };
+  }
+
+  /**
+   * Score analysis confidence from Dockerfile signals and supporting files.
+   * @private
+   */
+  _calculateConfidence({
+    stackDetection,
+    dockerSignals,
+    fileContents,
+    versionCheck,
+    envVars = [],
+    composeAdvisory = {},
+  }) {
+    let score = 35;
+
+    if (stackDetection?.detected) {
+      score += 22;
+    }
+
+    if (dockerSignals?.valid) {
+      score += 18;
+    } else if (fileContents.dockerfileContent) {
+      score += 4;
+    }
+
+    if (dockerSignals?.ports?.length) {
+      score += 6;
+    }
+
+    if (dockerSignals?.cmd || dockerSignals?.entrypoint) {
+      score += 5;
+    }
+
+    if (fileContents.packageJson || fileContents.requirementsTxt) {
+      score += 8;
+    }
+
+    if (stackDetection?.detectionSource === "dockerfile+manifest") {
+      score += 12;
+    } else if (stackDetection?.detectionSource === "dockerfile") {
+      score += 6;
+    }
+
+    if (envVars.length > 0) {
+      score += Math.min(8, envVars.length);
+    }
+
+    if (versionCheck?.supported === false) {
+      score -= 25;
+    }
+
+    if (composeAdvisory?.isMultiContainer) {
+      score -= 3;
+    }
+
+    return Math.max(0, Math.min(98, Math.round(score)));
+  }
+
   /**
    * Analyze repository file contents for deployability and stack type.
    * Used during project creation when files are fetched from GitHub.
@@ -30,25 +164,13 @@ class RuleBasedAnalyzer {
         return {
           deployable: false,
           stack: null,
-          reason: `Stack not detected. Supported: Express, MERN, FastAPI. ${stackDetection.reason}`,
+          reason: `Stack not detected. Supported: Express, MERN, Next.js, FastAPI, Flask, Django. ${stackDetection.reason}`,
           confidence: 0,
           detectedConfig: {},
         };
       }
 
-      // Rule 2: Check for multi-container setup
-      const multiContainerCheck = await this._checkMultiContainerFromContent(
-        fileContents.dockerCompose,
-      );
-      if (multiContainerCheck.isMultiContainer) {
-        return {
-          deployable: false,
-          stack: stackDetection.stack,
-          reason: `Multi-container deployments not supported (${multiContainerCheck.serviceCount} services found). Only single-container deployments are supported.`,
-          confidence: 50,
-          detectedConfig: stackDetection.config,
-        };
-      }
+      const composeAdvisory = this._composeAdvisory(fileContents.dockerCompose);
 
       // Rule 3: Check version support
       const versionCheck = await this._checkVersionSupportFromContent(
@@ -65,14 +187,26 @@ class RuleBasedAnalyzer {
         };
       }
 
-      // Rule 4: Check for existing Dockerfile
+      const dockerSignals = this._parseDockerfileSignals(
+        fileContents.dockerfileContent,
+      );
+
+      if (fileContents.dockerfileContent && !dockerSignals.valid) {
+        return {
+          deployable: false,
+          stack: stackDetection.stack,
+          reason:
+            "Selected Dockerfile is missing required instructions (FROM and CMD or ENTRYPOINT).",
+          confidence: 28,
+          detectedConfig: stackDetection.config,
+          composeNote: composeAdvisory.note,
+        };
+      }
+
       const dockerfileCheck = {
         exists: !!fileContents.dockerfileContent,
-        valid:
-          !!fileContents.dockerfileContent &&
-          fileContents.dockerfileContent.includes("FROM") &&
-          (fileContents.dockerfileContent.includes("CMD") ||
-            fileContents.dockerfileContent.includes("ENTRYPOINT")),
+        valid: dockerSignals.valid,
+        path: fileContents.dockerfilePath || "Dockerfile",
       };
 
       // Rule 5: Infer build/start commands
@@ -85,12 +219,13 @@ class RuleBasedAnalyzer {
       const envVars = await this._detectEnvVarsFromContent(
         fileContents.envExample,
       );
+      const envSourcePath = fileContents.envExampleSource || "env-example";
       const mapEnvTemplate = (env) => ({
         key: env.key,
         value: env.default ?? "",
         isSecret: !!env.isSecret,
         required: true,
-        source: "env-example",
+        source: envSourcePath,
       });
       const envTemplate = {
         development: envVars.map(mapEnvTemplate),
@@ -98,8 +233,23 @@ class RuleBasedAnalyzer {
         production: envVars.map(mapEnvTemplate),
       };
 
+      const confidence = this._calculateConfidence({
+        stackDetection,
+        dockerSignals,
+        fileContents,
+        versionCheck,
+        envVars,
+        composeAdvisory,
+      });
+
+      const resolvedPort =
+        dockerSignals.ports[0] ||
+        stackDetection.config.port ||
+        commands.port ||
+        3000;
+
       logger.info(
-        `✅ Stack detected: ${stackDetection.stack}, deployable: true`,
+        `✅ Stack detected: ${stackDetection.stack}, deployable: true, confidence: ${confidence}`,
       );
 
       // Build complete AI-like schema for full analysis
@@ -107,12 +257,13 @@ class RuleBasedAnalyzer {
         deployable: true,
         stack: stackDetection.stack,
         reason: "Repository meets deployment requirements",
-        confidence: 95,
+        confidence,
         detectedConfig: {
           ...stackDetection.config,
           ...commands,
-          port: stackDetection.config.port,
+          port: resolvedPort,
           hasExistingDockerfile: dockerfileCheck.exists,
+          dockerfilePath: dockerfileCheck.path,
           environmentVariables: envVars,
         },
         // Full AI-schema simulation for complete analysis
@@ -129,8 +280,9 @@ class RuleBasedAnalyzer {
           stackDetection,
           envVars,
         ),
-        insights: this._generateInsights(stackDetection, fileContents),
+        insights: this._generateInsights(stackDetection, fileContents, composeAdvisory),
         envTemplate,
+        composeNote: composeAdvisory.note,
       };
 
       return analysisResult;
@@ -147,13 +299,97 @@ class RuleBasedAnalyzer {
   }
 
   /**
+   * Detect stack from package.json / requirements.txt only (no Dockerfile).
+   * @private
+   */
+  async _detectStackFromManifests(fileContents) {
+    const { packageJson, requirementsTxt } = fileContents;
+    if (packageJson) {
+      try {
+        const pkgData = JSON.parse(packageJson);
+        const deps = {
+          ...pkgData.dependencies,
+          ...pkgData.devDependencies,
+        };
+        if (deps.next) {
+          return {
+            detected: true,
+            stack: "nextjs",
+            config: {
+              buildCommand: pkgData.scripts?.build || "npm run build",
+              startCommand: pkgData.scripts?.start || "npm start",
+              installCommand: "npm install",
+              port: 3000,
+            },
+          };
+        }
+        if (deps.express) {
+          return {
+            detected: true,
+            stack: "express",
+            config: {
+              buildCommand: pkgData.scripts?.build || "npm run build",
+              startCommand: pkgData.scripts?.start || "npm start",
+              installCommand: "npm install",
+              port: 3000,
+            },
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (requirementsTxt?.toLowerCase().includes("fastapi")) {
+      return {
+        detected: true,
+        stack: "fastapi",
+        config: {
+          buildCommand: "pip install -r requirements.txt",
+          startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000",
+          installCommand: "pip install -r requirements.txt",
+          port: 8000,
+        },
+      };
+    }
+    return { detected: false };
+  }
+
+  /**
    * RULE 1: Detect stack from file contents
-   * Supports: Next.js, MERN, Express, FastAPI
+   * Supports: Next.js, MERN, Express, FastAPI, Flask, Django
    * Priority order for Node.js: Next.js → MERN → Express → Generic
    * @private
    */
   async _detectStackFromContent(fileContents) {
     const { packageJson, requirementsTxt, dockerfileContent } = fileContents;
+
+    if (dockerfileContent) {
+      const dockerDetection = this._detectStackFromDockerfile(
+        dockerfileContent,
+        { packageJson, requirementsTxt },
+      );
+      if (dockerDetection.detected) {
+        const manifestDetection = await this._detectStackFromManifests(
+          fileContents,
+        );
+        if (
+          manifestDetection.detected &&
+          manifestDetection.stack === dockerDetection.stack
+        ) {
+          return {
+            ...dockerDetection,
+            detectionSource: "dockerfile+manifest",
+            config: {
+              ...dockerDetection.config,
+              port:
+                dockerDetection.config.port ||
+                manifestDetection.config.port,
+            },
+          };
+        }
+        return { ...dockerDetection, detectionSource: "dockerfile" };
+      }
+    }
 
     // Check for Node/Next.js/Express/MERN
     if (packageJson) {
@@ -288,13 +524,10 @@ class RuleBasedAnalyzer {
       }
     }
 
-    // Check for FastAPI
     if (requirementsTxt) {
       try {
-        if (
-          requirementsTxt.includes("fastapi") &&
-          requirementsTxt.includes("uvicorn")
-        ) {
+        const reqLower = requirementsTxt.toLowerCase();
+        if (reqLower.includes("fastapi")) {
           logger.info("Stack detected: FastAPI");
           return {
             detected: true,
@@ -302,6 +535,33 @@ class RuleBasedAnalyzer {
             config: {
               buildCommand: "pip install -r requirements.txt",
               startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000",
+              installCommand: "pip install -r requirements.txt",
+              port: 8000,
+            },
+          };
+        }
+        if (reqLower.includes("flask")) {
+          logger.info("Stack detected: Flask");
+          return {
+            detected: true,
+            stack: "flask",
+            config: {
+              buildCommand: "pip install -r requirements.txt",
+              startCommand: "flask run --host=0.0.0.0 --port=5000",
+              installCommand: "pip install -r requirements.txt",
+              port: 5000,
+            },
+          };
+        }
+        if (reqLower.includes("django")) {
+          logger.info("Stack detected: Django");
+          return {
+            detected: true,
+            stack: "django",
+            config: {
+              buildCommand: "pip install -r requirements.txt",
+              startCommand:
+                "gunicorn config.wsgi:application --bind 0.0.0.0:8000",
               installCommand: "pip install -r requirements.txt",
               port: 8000,
             },
@@ -332,18 +592,27 @@ class RuleBasedAnalyzer {
    * Helper: Detect stack from Dockerfile content when package.json is unavailable
    * @private
    */
-  _detectStackFromDockerfile(dockerfileContent) {
+  _detectStackFromDockerfile(dockerfileContent, context = {}) {
     if (!dockerfileContent) {
       return { detected: false };
     }
 
-    const content = dockerfileContent.toLowerCase();
+    const signals = this._parseDockerfileSignals(dockerfileContent);
+    const content = signals.contentLower;
+    const reqLower = (context.requirementsTxt || "").toLowerCase();
+    const pkgHint = context.packageJson || "";
+    const port = signals.ports[0] || 3000;
 
-    // Check for Next.js indicators
+    const startFromDocker =
+      signals.entrypoint || signals.cmd ?
+        [signals.entrypoint, signals.cmd].filter(Boolean).join(" ")
+      : null;
+
     if (
       content.includes(".next/standalone") ||
       content.includes("next/standalone") ||
-      (content.includes(".next") && content.includes("npm run build"))
+      content.includes("next build") ||
+      pkgHint.includes('"next"')
     ) {
       logger.info("Stack detected from Dockerfile: Next.js");
       return {
@@ -351,56 +620,36 @@ class RuleBasedAnalyzer {
         stack: "nextjs",
         config: {
           buildCommand: "npm run build",
-          startCommand: "npm start",
+          startCommand: startFromDocker || "npm start",
           installCommand: "npm install",
-          port: 3000,
+          port: signals.ports[0] || 3000,
         },
       };
     }
 
-    // Check for MERN/React indicators
     if (
-      content.includes("node_modules") &&
-      (content.includes("react") ||
-        content.includes("npm run build") ||
-        content.includes("npm start"))
+      content.includes("gunicorn") &&
+      (content.includes("wsgi") || reqLower.includes("django"))
     ) {
-      logger.info("Stack detected from Dockerfile: MERN");
+      logger.info("Stack detected from Dockerfile: Django");
       return {
         detected: true,
-        stack: "mern",
+        stack: "django",
         config: {
-          buildCommand: "npm run build",
-          startCommand: "npm start",
-          installCommand: "npm install",
-          port: 3000,
+          buildCommand: "pip install -r requirements.txt",
+          startCommand:
+            startFromDocker ||
+            "gunicorn config.wsgi:application --bind 0.0.0.0:8000",
+          installCommand: "pip install -r requirements.txt",
+          port: signals.ports[0] || 8000,
         },
       };
     }
 
-    // Check for Express/Node indicators
     if (
-      content.includes("node:") ||
-      content.includes("npm install") ||
-      content.includes("node index")
-    ) {
-      logger.info("Stack detected from Dockerfile: Express");
-      return {
-        detected: true,
-        stack: "express",
-        config: {
-          buildCommand: "npm install",
-          startCommand: "npm start",
-          installCommand: "npm install",
-          port: 3000,
-        },
-      };
-    }
-
-    // Check for FastAPI indicators
-    if (
-      content.includes("python:") &&
-      (content.includes("fastapi") || content.includes("uvicorn"))
+      content.includes("uvicorn") ||
+      reqLower.includes("fastapi") ||
+      content.includes("fastapi")
     ) {
       logger.info("Stack detected from Dockerfile: FastAPI");
       return {
@@ -408,9 +657,99 @@ class RuleBasedAnalyzer {
         stack: "fastapi",
         config: {
           buildCommand: "pip install -r requirements.txt",
-          startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000",
+          startCommand:
+            startFromDocker || "uvicorn main:app --host 0.0.0.0 --port 8000",
           installCommand: "pip install -r requirements.txt",
-          port: 8000,
+          port: signals.ports[0] || 8000,
+        },
+      };
+    }
+
+    if (
+      content.includes("flask") ||
+      reqLower.includes("flask") ||
+      (content.includes("python") && content.includes("app.py"))
+    ) {
+      logger.info("Stack detected from Dockerfile: Flask");
+      return {
+        detected: true,
+        stack: "flask",
+        config: {
+          buildCommand: "pip install -r requirements.txt",
+          startCommand: startFromDocker || "python app.py",
+          installCommand: "pip install -r requirements.txt",
+          port: signals.ports[0] || 5000,
+        },
+      };
+    }
+
+    if (
+      content.includes("nginx") &&
+      (content.includes("react") || content.includes("/dist"))
+    ) {
+      logger.info("Stack detected from Dockerfile: React static (MERN)");
+      return {
+        detected: true,
+        stack: "mern",
+        config: {
+          buildCommand: "npm run build",
+          startCommand: startFromDocker || "nginx -g 'daemon off;'",
+          installCommand: "npm install",
+          port: signals.ports[0] || 80,
+        },
+      };
+    }
+
+    if (
+      content.includes("react") ||
+      content.includes("npm run build") ||
+      pkgHint.includes('"react"')
+    ) {
+      logger.info("Stack detected from Dockerfile: MERN/React");
+      return {
+        detected: true,
+        stack: "mern",
+        config: {
+          buildCommand: "npm run build",
+          startCommand: startFromDocker || "npm start",
+          installCommand: "npm install",
+          port,
+        },
+      };
+    }
+
+    if (
+      signals.fromImages.some((img) => img.startsWith("node")) ||
+      content.includes("npm install") ||
+      content.includes("node ") ||
+      pkgHint.includes('"express"')
+    ) {
+      logger.info("Stack detected from Dockerfile: Express/Node");
+      return {
+        detected: true,
+        stack: "express",
+        config: {
+          buildCommand: "npm install",
+          startCommand: startFromDocker || "npm start",
+          installCommand: "npm install",
+          port,
+        },
+      };
+    }
+
+    if (
+      signals.fromImages.some((img) => img.startsWith("python")) ||
+      content.includes("pip install")
+    ) {
+      logger.info("Stack detected from Dockerfile: Python (generic)");
+      return {
+        detected: true,
+        stack: "fastapi",
+        config: {
+          buildCommand: "pip install -r requirements.txt",
+          startCommand: startFromDocker || "python app.py",
+          installCommand: "pip install -r requirements.txt",
+          port: signals.ports[0] || 8000,
         },
       };
     }
@@ -512,6 +851,22 @@ class RuleBasedAnalyzer {
       };
     }
 
+    if (stack === "flask") {
+      return {
+        buildCommand: "pip install -r requirements.txt",
+        startCommand: "flask run --host=0.0.0.0 --port=5000",
+        installCommand: "pip install -r requirements.txt",
+      };
+    }
+
+    if (stack === "django") {
+      return {
+        buildCommand: "pip install -r requirements.txt",
+        startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:8000",
+        installCommand: "pip install -r requirements.txt",
+      };
+    }
+
     return {};
   }
 
@@ -551,23 +906,13 @@ class RuleBasedAnalyzer {
         return {
           deployable: false,
           stack: null,
-          reason: `Stack not detected. Supported: Express, MERN, FastAPI. ${stackDetection.reason}`,
+          reason: `Stack not detected. Supported: Express, MERN, Next.js, FastAPI, Flask, Django. ${stackDetection.reason}`,
           confidence: 0,
           detectedConfig: {},
         };
       }
 
-      // Rule 2: Check for single container (reject docker-compose with multiple services)
-      const multiContainerCheck = await this._checkMultiContainer(repoPath);
-      if (multiContainerCheck.isMultiContainer) {
-        return {
-          deployable: false,
-          stack: stackDetection.stack,
-          reason: `Multi-container deployments not supported (docker-compose found with ${multiContainerCheck.serviceCount} services). Only single-container deployments are supported.`,
-          confidence: 50,
-          detectedConfig: stackDetection.config,
-        };
-      }
+      const composeAdvisory = await this._checkMultiContainer(repoPath);
 
       // Rule 3: Check version support
       const versionCheck = await this._checkVersionSupport(
@@ -938,11 +1283,7 @@ class RuleBasedAnalyzer {
     if (fs.existsSync(dockerfilePath)) {
       try {
         const content = fs.readFileSync(dockerfilePath, "utf-8");
-        const hasFrom = content.includes("FROM");
-        const hasCmdOrEntrypoint =
-          content.includes("CMD") || content.includes("ENTRYPOINT");
-
-        if (hasFrom && hasCmdOrEntrypoint) {
+        if (isValidDockerfileContent(content)) {
           logger.info("Existing Dockerfile found and valid");
           return {
             exists: true,
@@ -1056,6 +1397,8 @@ class RuleBasedAnalyzer {
       mern: { language: "javascript", runtime: "nodejs", version: "18+" },
       express: { language: "javascript", runtime: "nodejs", version: "16+" },
       fastapi: { language: "python", runtime: "python", version: "3.9+" },
+      flask: { language: "python", runtime: "python", version: "3.9+" },
+      django: { language: "python", runtime: "python", version: "3.9+" },
     };
 
     const frameworks = {
@@ -1063,6 +1406,8 @@ class RuleBasedAnalyzer {
       mern: "react",
       express: "express",
       fastapi: "fastapi",
+      flask: "flask",
+      django: "django",
     };
 
     const stackInfo = languages[stackDetection.stack] || {
@@ -1093,8 +1438,13 @@ class RuleBasedAnalyzer {
       runtime: stackInfo.runtime,
       version: stackInfo.version,
       dependencies: dependencies,
-      confidence: 0.95,
+      confidence: Math.min(
+        0.98,
+        (stackDetection.detectionSource === "dockerfile+manifest" ? 0.92 : 0.82) +
+          (fileContents.dockerfileContent ? 0.05 : 0),
+      ),
       detection_method: "rule_based",
+      detection_source: stackDetection.detectionSource || "manifest",
     };
   }
 
@@ -1178,12 +1528,14 @@ class RuleBasedAnalyzer {
    * Maps to AI analyzer's insights output
    * @private
    */
-  _generateInsights(stackDetection, fileContents) {
+  _generateInsights(stackDetection, fileContents, composeAdvisory = {}) {
     const projectTypes = {
       nextjs: "Frontend (Next.js)",
       mern: "Full-Stack (MERN)",
       express: "Backend (Express.js)",
       fastapi: "Backend (FastAPI)",
+      flask: "Backend (Flask)",
+      django: "Backend (Django)",
     };
 
     const complexityMap = {
@@ -1191,9 +1543,11 @@ class RuleBasedAnalyzer {
       mern: "high",
       express: "medium",
       fastapi: "medium",
+      flask: "medium",
+      django: "medium",
     };
 
-    return [
+    const insights = [
       {
         category: "architecture",
         title: "Project Type Detected",
@@ -1219,6 +1573,18 @@ class RuleBasedAnalyzer {
         confidence: 0.85,
       },
     ];
+
+    if (composeAdvisory?.note) {
+      insights.push({
+        category: "deployment",
+        title: "Docker Compose detected",
+        description: composeAdvisory.note,
+        severity: "info",
+        confidence: 0.9,
+      });
+    }
+
+    return insights;
   }
 }
 

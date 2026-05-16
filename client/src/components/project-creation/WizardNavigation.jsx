@@ -24,9 +24,10 @@ const WizardNavigation = ({
     1: FaGithub,
     2: FaCodeBranch,
     3: FaCogs,
-    4: FaBrain,
-    5: FaCogs,
-    6: FaRocket,
+    4: FaCodeBranch,
+    5: FaBrain,
+    6: FaCogs,
+    7: FaRocket,
   };
 
   // AI confidence color mapping

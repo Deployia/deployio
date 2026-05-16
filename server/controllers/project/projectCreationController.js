@@ -44,6 +44,39 @@ class ProjectCreationController {
     }
   }
 
+  async discoverDockerfiles(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: errors.array(),
+        });
+      }
+
+      const { repositoryUrl, branch, provider } = req.body;
+      const result = await projectCreationService.discoverDockerfiles({
+        repositoryUrl,
+        branch,
+        provider,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Dockerfiles discovered",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error discovering Dockerfiles:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to discover Dockerfiles",
+        error: error.message,
+      });
+    }
+  }
+
   // Analyze repository without a session (client-first flow)
   async analyzeRepositoryStandalone(req, res) {
     try {

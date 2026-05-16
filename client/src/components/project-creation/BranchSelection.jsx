@@ -437,7 +437,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
             }
           `}
         >
-          Start AI Analysis
+          Continue
         </button>
       </div>
     </div>

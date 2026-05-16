@@ -114,7 +114,7 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
               <span>Project Details</span>
             </h3>
             <button
-              onClick={() => handleEdit(5)}
+              onClick={() => handleEdit(6)}
               className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-sm"
             >
               <FaEdit className="w-3 h-3" />
@@ -153,7 +153,7 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
               <span>Build Configuration</span>
             </h3>
             <button
-              onClick={() => handleEdit(5)}
+              onClick={() => handleEdit(6)}
               className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-sm"
             >
               <FaEdit className="w-3 h-3" />
@@ -228,7 +228,7 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
               <span>Runtime Configuration</span>
             </h3>
             <button
-              onClick={() => handleEdit(5)}
+              onClick={() => handleEdit(6)}
               className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-sm"
             >
               <FaEdit className="w-3 h-3" />
@@ -305,15 +305,24 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
               <span>Dockerfile</span>
             </h3>
             <button
-              onClick={() => handleEdit(5)}
+              onClick={() => handleEdit(4)}
               className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-sm"
             >
               <FaEdit className="w-3 h-3" />
-              <span>Edit</span>
+              <span>Change</span>
             </button>
           </motion.div>
-          <p className="text-sm text-neutral-400">Path</p>
-          <code className="text-white text-sm">{stepData.dockerfilePath || "Dockerfile"}</code>
+          <p className="text-sm text-neutral-400">Path (locked for this project)</p>
+          <code className="text-white text-sm break-all">
+            {stepData.selectedDockerfile?.path ||
+              stepData.dockerfilePath ||
+              "Dockerfile"}
+          </code>
+          {stepData.selectedDockerfile?.suggestedName && (
+            <p className="text-xs text-neutral-500 mt-2">
+              Service name: {stepData.selectedDockerfile.suggestedName}
+            </p>
+          )}
         </motion.div>
 
         {/* Environment Variables */}
@@ -370,7 +379,7 @@ const ProjectReview = ({ stepData, onComplete, loading, error }) => {
                   <span>Environment Variables</span>
                 </h3>
                 <button
-                  onClick={() => handleEdit(5)}
+                  onClick={() => handleEdit(6)}
                   className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-sm"
                 >
                   <FaEdit className="w-3 h-3" />

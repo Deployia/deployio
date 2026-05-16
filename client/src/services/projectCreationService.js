@@ -1,6 +1,14 @@
 import api from "../utils/api";
 
 class ProjectCreationService {
+  async discoverDockerfiles(repositoryData) {
+    const response = await api.post(
+      "/projects/creation/discover-dockerfiles",
+      repositoryData,
+    );
+    return response.data?.data || response.data;
+  }
+
   async analyzeRepository(repositoryData) {
     const response = await api.post(
       "/projects/creation/analyze",
@@ -91,17 +99,18 @@ class ProjectCreationService {
       1: (value) => value.selectedProvider,
       2: (value) => value.selectedRepository && value.selectedRepository.url,
       3: (value) => value.selectedBranch,
-      4: (value) =>
+      4: (value) => value.selectedDockerfile?.path,
+      5: (value) =>
         value.analysisResults || value.analysisStatus === "completed",
-      5: (value) => value.projectName,
-      6: (value) => value.finalConfiguration === true,
+      6: (value) => value.projectName,
+      7: (value) => value.finalConfiguration === true,
     };
 
     return validators[step] ? validators[step](data) : true;
   }
 
   calculateProgress(currentStep, completedSteps = []) {
-    const totalSteps = 6;
+    const totalSteps = 7;
     const baseProgress = ((currentStep - 1) / totalSteps) * 100;
     const completionBonus = (completedSteps.length / totalSteps) * 10;
 

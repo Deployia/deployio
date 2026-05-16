@@ -67,6 +67,17 @@ router.post(
 );
 
 /**
+ * @route   POST /api/v1/projects/creation/discover-dockerfiles
+ * @desc    List Dockerfiles in a repository with metadata (no full analysis)
+ * @access  Private
+ */
+router.post(
+  "/discover-dockerfiles",
+  analyzeRepositoryValidation,
+  projectCreationController.discoverDockerfiles,
+);
+
+/**
  * @route   POST /api/v1/projects/creation/complete
  * @desc    Complete project creation using full client payload
  * @access  Private

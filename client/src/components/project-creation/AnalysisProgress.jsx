@@ -32,7 +32,8 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     if (
       !stepData.analysisId &&
       stepData.selectedRepository &&
-      stepData.selectedBranch
+      stepData.selectedBranch &&
+      (stepData.selectedDockerfile?.path || stepData.dockerfilePath)
     ) {
       // Extract repository URL from selectedRepository
       let repositoryUrl;
@@ -53,6 +54,10 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
         repositoryUrl,
         branch: stepData.selectedBranch?.name || stepData.selectedBranch,
         provider: stepData.selectedProvider || "github",
+        dockerfilePath:
+          stepData.selectedDockerfile?.path ||
+          stepData.dockerfilePath ||
+          "Dockerfile",
       };
 
       dispatch(analyzeRepository(repositoryData));
@@ -62,6 +67,8 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     stepData.selectedRepository,
     stepData.selectedBranch,
     stepData.selectedProvider,
+    stepData.selectedDockerfile?.path,
+    stepData.dockerfilePath,
   ]);
 
   // Polling for analysis progress
@@ -164,7 +171,7 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
       didAutoAdvanceRef.current = true;
 
       const timeout = setTimeout(() => {
-        dispatch(completeStep(4));
+        dispatch(completeStep(5));
         onNext();
       }, 800);
 
@@ -192,12 +199,16 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
       repositoryUrl,
       branch: stepData.selectedBranch?.name || stepData.selectedBranch,
       provider: stepData.selectedProvider || "github",
+      dockerfilePath:
+        stepData.selectedDockerfile?.path ||
+        stepData.dockerfilePath ||
+        "Dockerfile",
     };
   };
 
   const handleContinue = ({ allowManual = false } = {}) => {
     if (stepData.analysisStatus === "completed") {
-      dispatch(completeStep(4));
+      dispatch(completeStep(5));
       onNext();
       return;
     }
@@ -205,11 +216,11 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     if (stepData.analysisStatus === "failed" && allowManual) {
       dispatch(
         setStepData({
-          step: 4,
+          step: 5,
           data: { allowManualConfiguration: true },
         }),
       );
-      dispatch(completeStep(4));
+      dispatch(completeStep(5));
       onNext();
     }
   };
@@ -232,6 +243,12 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     didAutoAdvanceRef.current = false;
     dispatch(resetAnalysisForNewRepo());
     dispatch(updateStep({ step: 3 }));
+  };
+
+  const handleBackToDockerfile = () => {
+    didAutoAdvanceRef.current = false;
+    dispatch(resetAnalysisForNewRepo());
+    dispatch(updateStep({ step: 4 }));
   };
 
   const isDockerfileFailure =
@@ -593,6 +610,13 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
             </button>
             <button
               type="button"
+              onClick={handleBackToDockerfile}
+              className="px-6 py-3 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg font-medium transition-colors"
+            >
+              Choose another Dockerfile
+            </button>
+            <button
+              type="button"
               onClick={handleBackToBranch}
               className="px-6 py-3 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg font-medium transition-colors"
             >
@@ -604,13 +628,6 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
               className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
             >
               Retry analysis
-            </button>
-            <button
-              type="button"
-              onClick={() => handleContinue({ allowManual: true })}
-              className="px-6 py-3 bg-neutral-600 hover:bg-neutral-500 text-white rounded-lg font-medium transition-colors"
-            >
-              Configure manually
             </button>
           </div>
         ) : (

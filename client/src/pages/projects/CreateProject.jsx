@@ -14,6 +14,7 @@ import WizardNavigation from "@components/project-creation/WizardNavigation";
 import ProviderSelection from "@components/project-creation/ProviderSelection";
 import RepositoryBrowser from "@components/project-creation/RepositoryBrowser";
 import BranchSelection from "@components/project-creation/BranchSelection";
+import DockerfileSelection from "@components/project-creation/DockerfileSelection";
 import AnalysisProgress from "@components/project-creation/AnalysisProgress";
 import SmartProjectForm from "@components/project-creation/SmartProjectForm";
 import ProjectReview from "@components/project-creation/ProjectReview";
@@ -74,15 +75,23 @@ const CreateProject = () => {
         return stepData.selectedRepository && stepData.selectedRepository.name;
       case 3: // Branch
         return stepData.selectedBranch;
-      case 4: // Analysis
+      case 4: // Dockerfile
         return (
-          stepData.analysisStatus === "completed" ||
+          stepData.selectedDockerfile?.path &&
+          stepData.selectedDockerfile?.isValid !== false &&
+          stepData.dockerfileDiscoveryStatus === "completed" &&
+          (stepData.dockerfiles || []).some((df) => df.isValid)
+        );
+      case 5: // Analysis
+        return (
+          (stepData.analysisStatus === "completed" &&
+            stepData.analysisResults?.deployable !== false) ||
           (stepData.analysisStatus === "failed" &&
             stepData.allowManualConfiguration)
         );
-      case 5: // Configuration
+      case 6: // Configuration
         return true; // Form is always valid
-      case 6: // Review
+      case 7: // Review
         return false; // Final step
       default:
         return false;
@@ -96,7 +105,7 @@ const CreateProject = () => {
       );
       return;
     }
-    if (currentStep < 6) {
+    if (currentStep < 7) {
       dispatch(updateStep({ step: currentStep + 1 }));
     }
   };
@@ -164,20 +173,27 @@ const CreateProject = () => {
     },
     {
       id: 4,
+      title: "Dockerfile",
+      description: "Select service to deploy",
+      component: DockerfileSelection,
+      aiEnhanced: false,
+    },
+    {
+      id: 5,
       title: "Analysis",
       description: "Analyzing your codebase",
       component: AnalysisProgress,
       aiEnhanced: false,
     },
     {
-      id: 5,
+      id: 6,
       title: "Project Configuration",
       description: "Configure your project",
       component: SmartProjectForm,
       aiEnhanced: true,
     },
     {
-      id: 6,
+      id: 7,
       title: "Review & Deploy",
       description: "Review and create project",
       component: ProjectReview,
@@ -307,7 +323,7 @@ const CreateProject = () => {
             </div>
 
             <button
-              onClick={currentStep === 6 ? handleComplete : handleNext}
+              onClick={currentStep === 7 ? handleComplete : handleNext}
               disabled={loading}
               className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-medium transition-colors w-full sm:w-auto text-sm sm:text-base"
             >
@@ -316,7 +332,7 @@ const CreateProject = () => {
                   <FaSpinner className="w-4 h-4 animate-spin" />
                   <span>Processing...</span>
                 </>
-              ) : currentStep === 6 ? (
+              ) : currentStep === 7 ? (
                 <>
                   <FaCheckCircle className="w-4 h-4" />
                   <span>Create Project</span>
