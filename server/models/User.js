@@ -311,6 +311,7 @@ const userSchema = new mongoose.Schema(
       deploymentStopped: { type: Boolean, default: true },
 
       // Project notifications
+      projectCreated: { type: Boolean, default: true },
       projectAnalysisComplete: { type: Boolean, default: true },
       projectAnalysisFailed: { type: Boolean, default: true },
       projectCollaboratorAdded: { type: Boolean, default: true },

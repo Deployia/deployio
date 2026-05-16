@@ -1,5 +1,13 @@
 const notificationService = require("./notificationService");
 const logger = require("../../config/logger");
+const { getFrontendUrl, projectDashboardUrl } = require("./notificationUrls");
+
+function projectAnalysisUrl(projectId) {
+  if (projectId) {
+    return `${projectDashboardUrl(projectId)}/analysis`;
+  }
+  return `${getFrontendUrl()}/dashboard/projects/create`;
+}
 
 /**
  * Notification Helper Functions
@@ -164,11 +172,17 @@ class NotificationHelpers {
           },
           reason: reason || "Manual stop",
         },
-        action: {
-          label: "Go to Project",
-          url: `${process.env.FRONTEND_URL}/projects/${projectName}`,
-          type: "button",
-        },
+        action: deploymentData.projectUrl
+          ? {
+              label: "Go to Project",
+              url: deploymentData.projectUrl,
+              type: "button",
+            }
+          : {
+              label: "Go to Project",
+              url: projectDashboardUrl(projectId),
+              type: "button",
+            },
       });
     } catch (error) {
       logger.error("Failed to send deployment stopped notification", {
@@ -201,7 +215,7 @@ class NotificationHelpers {
         },
         action: {
           label: "View Results",
-          url: `${process.env.FRONTEND_URL}/projects/${projectName}/analysis`,
+          url: projectAnalysisUrl(projectId),
           type: "button",
         },
       });
@@ -235,13 +249,49 @@ class NotificationHelpers {
           error: analysisError,
         },
         action: {
-          label: "Go to Project",
-          url: `${process.env.FRONTEND_URL}/projects/${projectName}`,
+          label: projectId ? "Go to Project" : "Try Again",
+          url: projectId
+            ? projectDashboardUrl(projectId)
+            : `${getFrontendUrl()}/dashboard/projects/create`,
           type: "button",
         },
       });
     } catch (error) {
       logger.error("Failed to send project analysis failed notification", {
+        userId,
+        projectData,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Send project created notification
+   * @param {string} userId - User ID
+   * @param {Object} projectData - Project information
+   */
+  static async projectCreated(userId, projectData) {
+    try {
+      const { projectName, projectId } = projectData;
+
+      return await notificationService.createNotification({
+        userId,
+        type: "project.created",
+        title: "Project Created",
+        message: `${projectName} has been created successfully. You can deploy it when you're ready.`,
+        priority: "normal",
+        context: {
+          project: { name: projectName, _id: projectId },
+        },
+        action: {
+          label: "View Project",
+          url: projectDashboardUrl(projectId),
+          type: "button",
+        },
+      });
+    } catch (error) {
+      logger.error("Failed to send project created notification", {
         userId,
         projectData,
         error: error.message,
@@ -278,7 +328,7 @@ class NotificationHelpers {
         },
         action: {
           label: "View Project",
-          url: `${process.env.FRONTEND_URL}/projects/${projectName}`,
+          url: projectDashboardUrl(projectId),
           type: "button",
         },
       });

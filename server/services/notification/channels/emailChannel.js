@@ -83,6 +83,7 @@ class EmailChannel {
       "deployment.stopped": "deployment.stopped",
 
       // Project templates (fix: use dot notation keys)
+      "project.created": "auth.welcome",
       "project.analysis_complete": "project.analysis_complete",
       "project.analysis_failed": "project.analysis_failed",
       "project.collaborator_added": "project.collaborator_added",

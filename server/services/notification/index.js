@@ -37,6 +37,7 @@ module.exports.NOTIFICATION_TYPES = {
   DEPLOYMENT_STOPPED: "deployment.stopped",
 
   // Project notifications
+  PROJECT_CREATED: "project.created",
   PROJECT_ANALYSIS_COMPLETE: "project.analysis_complete",
   PROJECT_ANALYSIS_FAILED: "project.analysis_failed",
   PROJECT_COLLABORATOR_ADDED: "project.collaborator_added",

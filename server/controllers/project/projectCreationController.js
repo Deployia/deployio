@@ -1,4 +1,5 @@
 const projectCreationService = require("../../services/project/projectCreationService");
+const NotificationHelpers = require("../../services/notification/notificationHelpers");
 const { validationResult } = require("express-validator");
 const logger = require("@config/logger");
 
@@ -56,12 +57,40 @@ class ProjectCreationController {
       }
 
       const { repositoryUrl, branch, provider, dockerfilePath } = req.body;
+      const userId = req.user.id;
 
       const result = await projectCreationService.analyzeRepositoryStandalone({
         repositoryUrl,
         branch,
         provider,
         dockerfilePath,
+      });
+
+      const repoMatch = repositoryUrl?.match(/github\.com\/[^/]+\/([^/.]+)/i);
+      const projectName = repoMatch?.[1] || "Repository";
+      const analysisStatus = result?.analysis?.status;
+      const isComplete = analysisStatus === "completed";
+
+      const notifyPromise = isComplete
+        ? NotificationHelpers.projectAnalysisComplete(userId, {
+            projectName,
+            projectId: null,
+            analysisResults: result.analysis?.results,
+          })
+        : NotificationHelpers.projectAnalysisFailed(userId, {
+            projectName,
+            projectId: null,
+            error:
+              result?.analysis?.results?.reason ||
+              "Repository analysis did not complete successfully",
+          });
+
+      notifyPromise.catch((error) => {
+        logger.error("Failed to send repository analysis notification", {
+          userId,
+          repositoryUrl,
+          error: error.message,
+        });
       });
 
       res.status(200).json({

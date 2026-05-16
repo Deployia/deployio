@@ -5,6 +5,10 @@ const logger = require("@config/logger");
 const deploymentOrchestrator = require("./deploymentOrchestrator");
 const subdomainManager = require("./subdomainManager");
 const { buildDeploymentLookup } = require("../../utils/deploymentLookup");
+const {
+  notifyDeploymentStarted,
+  notifyDeploymentStatusChange,
+} = require("../notification/deploymentNotifications");
 
 const ACTIVE_DEPLOYMENT_STATUSES = [
   "pending",
@@ -351,6 +355,8 @@ class DeploymentService {
         logger.error("Orchestrator trigger failed (non-blocking):", orchErr);
       }
 
+      notifyDeploymentStarted(userId, deployment, project);
+
       // Populate for response
       await deployment.populate("project", "name repository.url");
       await deployment.populate("deployedBy", "name email");
@@ -460,9 +466,19 @@ class DeploymentService {
         logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
       }
 
+      const previousStatus = deployment.status;
+
       await deployment.updateStatus("cancelled", {
         cancelled: true,
         cancelledAt: new Date(),
+      });
+
+      notifyDeploymentStatusChange({
+        userId,
+        previousStatus,
+        newStatus: "cancelled",
+        deployment,
+        message: "Cancelled",
       });
 
       return this.transformDeployment(deployment.toObject());
@@ -483,6 +499,8 @@ class DeploymentService {
         throw new Error("Only running deployments can be stopped");
       }
 
+      const previousStatus = deployment.status;
+
       await deployment.updateStatus("stopping", { stoppingAt: new Date() });
       try {
         await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
@@ -490,6 +508,14 @@ class DeploymentService {
         logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
       }
       await deployment.updateStatus("stopped", { stoppedAt: new Date() });
+
+      notifyDeploymentStatusChange({
+        userId,
+        previousStatus,
+        newStatus: "stopped",
+        deployment,
+        message: "Manual stop",
+      });
 
       return this.transformDeployment(deployment.toObject());
     } catch (error) {
@@ -524,6 +550,18 @@ class DeploymentService {
 
     if (isRunningLike) {
       await deployment.updateStatus("stopped", { reason, stoppedAt: new Date() });
+
+      const notifyUserId = deployment.deployedBy?.toString?.() || deployment.deployedBy;
+      if (notifyUserId) {
+        notifyDeploymentStatusChange({
+          userId: notifyUserId,
+          previousStatus: priorStatus,
+          newStatus: "stopped",
+          deployment,
+          message: reason,
+        });
+      }
+
       return deployment;
     }
 
@@ -532,6 +570,18 @@ class DeploymentService {
       cancelled: true,
       cancelledAt: new Date(),
     });
+
+    const notifyUserId = deployment.deployedBy?.toString?.() || deployment.deployedBy;
+    if (notifyUserId) {
+      notifyDeploymentStatusChange({
+        userId: notifyUserId,
+        previousStatus: priorStatus,
+        newStatus: "cancelled",
+        deployment,
+        message: reason,
+      });
+    }
+
     return deployment;
   }
 

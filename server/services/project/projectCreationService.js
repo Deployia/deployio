@@ -1,6 +1,7 @@
 const Project = require("../../models/Project");
 const ruleBasedAnalyzer = require("../analysis/ruleBasedAnalyzer");
 const logger = require("@config/logger");
+const NotificationHelpers = require("../notification/notificationHelpers");
 const axios = require("axios");
 const path = require("path");
 
@@ -220,6 +221,17 @@ class ProjectCreationService {
     logger.info("Project created via client payload", {
       projectId: project._id,
       owner: userId,
+    });
+
+    NotificationHelpers.projectCreated(userId, {
+      projectName: project.name,
+      projectId: project._id,
+    }).catch((error) => {
+      logger.error("Failed to send project created notification", {
+        userId,
+        projectId: project._id,
+        error: error.message,
+      });
     });
 
     return { project };

@@ -12,6 +12,9 @@ const Deployment = require("@models/Deployment");
 const Project = require("@models/Project");
 const logger = require("@config/logger");
 const webSocketManager = require("@config/webSocketManager");
+const {
+  notifyDeploymentStatusChange,
+} = require("../notification/deploymentNotifications");
 
 class DeploymentOrchestrator {
   constructor() {
@@ -312,6 +315,17 @@ class DeploymentOrchestrator {
         };
       }
 
+      const existing = await Deployment.findOne({ deploymentId }).select(
+        "status deployedBy project",
+      );
+
+      if (!existing) {
+        logger.warn("Deployment not found for status update", { deploymentId });
+        return;
+      }
+
+      const previousStatus = existing.status;
+
       const deployment = await Deployment.findOneAndUpdate(
         { deploymentId },
         { $set: setFields, ...(pushFields ? { $push: pushFields } : {}) },
@@ -351,6 +365,16 @@ class DeploymentOrchestrator {
           message,
           url: deployment.networking?.fullUrl,
           timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (previousStatus !== status && existing.deployedBy) {
+        notifyDeploymentStatusChange({
+          userId: existing.deployedBy.toString(),
+          previousStatus,
+          newStatus: status,
+          deployment,
+          message,
         });
       }
     } catch (error) {

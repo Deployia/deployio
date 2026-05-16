@@ -20,6 +20,24 @@ class NotificationService {
   }
 
   /**
+   * Map persisted channel names (in_app) to dispatch keys (inApp).
+   * @param {string} channel
+   * @returns {string}
+   */
+  _normalizeChannel(channel) {
+    if (channel === "in_app") return "inApp";
+    return channel;
+  }
+
+  /**
+   * @param {string[]} channels
+   * @returns {boolean}
+   */
+  _hasInAppChannel(channels) {
+    return channels.some((c) => c === "in_app" || c === "inApp");
+  }
+
+  /**
    * Create and queue a notification for delivery
    * @param {Object} notificationData - Notification data
    * @param {string} notificationData.userId - Target user ID
@@ -76,7 +94,7 @@ class NotificationService {
       await notification.save();
 
       // **IMMEDIATE REAL-TIME DELIVERY** - Send via WebSocket right away
-      if (deliveryChannels.includes("inApp")) {
+      if (this._hasInAppChannel(deliveryChannels)) {
         try {
           const NotificationsNamespace = require("../../websockets/namespaces/NotificationsNamespace");
 
@@ -157,7 +175,8 @@ class NotificationService {
       // Send via each channel
       for (const channelType of notification.channels) {
         try {
-          const channel = this.channels[channelType];
+          const dispatchKey = this._normalizeChannel(channelType);
+          const channel = this.channels[dispatchKey];
           if (channel) {
             const result = await channel.send(notification);
             deliveryResults[channelType] = {
@@ -538,6 +557,7 @@ class NotificationService {
       "deployment.success": "deploymentSuccess",
       "deployment.failed": "deploymentFailure",
       "deployment.stopped": "deploymentStopped",
+      "project.created": "projectCreated",
       "project.analysis_complete": "projectAnalysisComplete",
       "project.analysis_failed": "projectAnalysisFailed",
       "project.collaborator_added": "projectCollaboratorAdded",

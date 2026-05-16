@@ -21,6 +21,7 @@ const notificationSchema = new mongoose.Schema(
         "deployment.stopped",
 
         // Project notifications
+        "project.created",
         "project.analysis_complete",
         "project.analysis_failed",
         "project.collaborator_added",

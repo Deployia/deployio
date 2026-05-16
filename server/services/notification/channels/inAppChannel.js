@@ -174,6 +174,7 @@ class InAppChannel {
       "deployment.stopped": "stop-circle",
 
       // Project icons
+      "project.created": "folder-plus",
       "project.analysis_complete": "file-check",
       "project.analysis_failed": "file-x",
       "project.collaborator_added": "user-plus",
@@ -218,6 +219,7 @@ class InAppChannel {
       "deployment.started": "blue",
       "deployment.stopped": "yellow",
 
+      "project.created": "green",
       "project.analysis_complete": "green",
       "project.analysis_failed": "red",
       "project.collaborator_added": "blue",
