@@ -301,6 +301,23 @@ class EmailChannel {
         flattenNotificationContext(variables, context, action);
         break;
 
+      case "system.quota_warning":
+      case "system.quota_exceeded":
+        if (context?.quotaType) variables.quotaType = context.quotaType;
+        if (context?.currentUsage != null) {
+          variables.currentUsage = context.currentUsage;
+        }
+        if (context?.quotaLimit != null) {
+          variables.quotaLimit = context.quotaLimit;
+        }
+        if (context?.usagePercentage != null) {
+          variables.usagePercentage = context.usagePercentage;
+        }
+        variables.billingUrl =
+          action?.url ||
+          `${process.env.FRONTEND_URL || "https://deployio.tech"}/billing`;
+        break;
+
       default:
         // For other types, ensure all context properties are available
         break;
@@ -339,6 +356,8 @@ class EmailChannel {
       "project.analysis_complete": `Analysis Complete - ${projectLabel}`,
       "project.analysis_failed": `Analysis Failed - ${projectLabel}`,
       "project.collaborator_added": `Collaborator Added - ${projectLabel}`,
+      "system.quota_warning": `Usage Quota Warning - ${context.quotaType || "account"}`,
+      "system.quota_exceeded": `Usage Quota Exceeded - ${context.quotaType || "account"}`,
       "system.test": "DeployIO System Test",
       "general.welcome": "Welcome to DeployIO!",
     };

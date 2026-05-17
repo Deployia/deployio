@@ -14,6 +14,8 @@ const ACTIVE_DEPLOYMENT_STATUSES = [
   "running",
 ];
 
+const isAdminUser = (user) => user?.role === "admin";
+
 const getLimits = (user) => ({
   maxProjects: user.resourceLimits?.maxProjects ?? 2,
   maxDeployments: user.resourceLimits?.maxDeployments ?? 6,
@@ -30,6 +32,9 @@ const countUserActiveDeployments = (userId) =>
 
 const maybeSendQuotaWarning = async (userId, quotaType, current, limit) => {
   if (limit <= 0) return;
+
+  const user = await User.findById(userId).select("role");
+  if (isAdminUser(user)) return;
   const usagePercentage = Math.round((current / limit) * 100);
   if (usagePercentage < 80) return;
   try {
@@ -65,13 +70,20 @@ const syncUserResourceUsage = async (userId) => {
 };
 
 const assertCanCreateProject = async (userId) => {
-  const user = await User.findById(userId).select("resourceLimits currentUsage");
+  const user = await User.findById(userId).select(
+    "resourceLimits currentUsage role",
+  );
   if (!user) {
     throw new Error("User not found");
   }
 
-  const { maxProjects } = getLimits(user);
   const projectCount = await countUserProjects(userId);
+
+  if (isAdminUser(user)) {
+    return { projectCount, maxProjects: null, unlimited: true };
+  }
+
+  const { maxProjects } = getLimits(user);
 
   if (projectCount >= maxProjects) {
     await NotificationHelpers.systemQuotaExceeded(userId, {
@@ -98,13 +110,20 @@ const assertCanCreateProject = async (userId) => {
 };
 
 const assertCanDeploy = async (userId) => {
-  const user = await User.findById(userId).select("resourceLimits currentUsage");
+  const user = await User.findById(userId).select(
+    "resourceLimits currentUsage role",
+  );
   if (!user) {
     throw new Error("User not found");
   }
 
-  const { maxDeployments } = getLimits(user);
   const activeCount = await countUserActiveDeployments(userId);
+
+  if (isAdminUser(user)) {
+    return { activeCount, maxDeployments: null, unlimited: true };
+  }
+
+  const { maxDeployments } = getLimits(user);
 
   if (activeCount >= maxDeployments) {
     await NotificationHelpers.systemQuotaExceeded(userId, {

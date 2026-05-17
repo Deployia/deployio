@@ -1,0 +1,26 @@
+<div class="badge warning-badge">⚠️ Usage Quota Warning</div>
+
+<h1 class="title">You're approaching your plan limit</h1>
+<p class="subtitle">
+  You have used <strong>{{usagePercentage}}%</strong> of your
+  <strong>{{quotaType}}</strong> quota on DeployIO.
+</p>
+
+<div class="feature-list">
+  <h3>Usage summary</h3>
+  <ul>
+    <li><strong>Resource:</strong> {{quotaType}}</li>
+    <li><strong>Current usage:</strong> {{currentUsage}} / {{quotaLimit}}</li>
+    <li><strong>Usage:</strong> {{usagePercentage}}%</li>
+  </ul>
+</div>
+
+<p style="color: #a3a3a3; margin: 24px 0; font-size: 14px;">
+  Consider upgrading your plan or freeing unused resources so new projects and deployments are not blocked.
+</p>
+
+{{#if actionUrl}}
+{{> button url=actionUrl label="Upgrade plan"}}
+{{else}}
+{{> button url=billingUrl label="View billing"}}
+{{/if}}

@@ -1,0 +1,25 @@
+<div class="badge error-badge">🚫 Usage Quota Exceeded</div>
+
+<h1 class="title">Plan limit reached</h1>
+<p class="subtitle">
+  You have reached the limit for <strong>{{quotaType}}</strong> on your DeployIO account.
+  Some actions may be blocked until you upgrade or free up resources.
+</p>
+
+<div class="feature-list">
+  <h3>Usage summary</h3>
+  <ul>
+    <li><strong>Resource:</strong> {{quotaType}}</li>
+    <li><strong>Current usage:</strong> {{currentUsage}} / {{quotaLimit}}</li>
+  </ul>
+</div>
+
+<p style="color: #a3a3a3; margin: 24px 0; font-size: 14px;">
+  Upgrade your plan to continue creating projects or running more concurrent deployments.
+</p>
+
+{{#if actionUrl}}
+{{> button url=actionUrl label="Upgrade plan"}}
+{{else}}
+{{> button url=billingUrl label="View billing"}}
+{{/if}}

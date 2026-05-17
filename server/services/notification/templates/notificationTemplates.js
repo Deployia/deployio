@@ -134,6 +134,18 @@ class NotificationTemplates {
       subject: "👥 Collaborator Added - {{projectName}}",
       text: `Collaborator Added - {{projectName}}\n\nHi {{username}},\n\nA collaborator was added to {{projectName}}.\n\nBest regards,\nThe DeployIO Team`,
     });
+
+    this.templates.set("system.quota_warning", {
+      hbs: "systemQuotaWarning.hbs",
+      subject: "⚠️ Usage Quota Warning - {{quotaType}}",
+      text: `Usage Quota Warning\n\nHi {{username}},\n\nYou have used {{usagePercentage}}% of your {{quotaType}} quota ({{currentUsage}} / {{quotaLimit}}).\n\nConsider upgrading: {{actionUrl}}\n\nBest regards,\nThe DeployIO Team`,
+    });
+
+    this.templates.set("system.quota_exceeded", {
+      hbs: "systemQuotaExceeded.hbs",
+      subject: "🚫 Usage Quota Exceeded - {{quotaType}}",
+      text: `Usage Quota Exceeded\n\nHi {{username}},\n\nYou have reached your {{quotaType}} limit ({{currentUsage}} / {{quotaLimit}}).\n\nUpgrade your plan: {{actionUrl}}\n\nBest regards,\nThe DeployIO Team`,
+    });
   }
 
   /**
