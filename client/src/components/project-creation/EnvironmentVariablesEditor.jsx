@@ -13,6 +13,16 @@ const ENV_LABELS = {
   production: "Production",
 };
 
+/** Matches .env, .env.local, .env.production, app.env, etc. */
+const isLikelyEnvFile = (name = "") => {
+  const base = name.split(/[/\\]/).pop() || name;
+  return (
+    base === ".env" ||
+    /^\.env\./.test(base) ||
+    /\.env(?:\.|$)/i.test(base)
+  );
+};
+
 const EnvironmentVariablesEditor = ({
   value,
   onChange,
@@ -25,6 +35,7 @@ const EnvironmentVariablesEditor = ({
   const fileInputRef = useRef(null);
   const uploadTargetRef = useRef("development");
   const [dragOverEnv, setDragOverEnv] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
   const envVars = normalizeEnvironmentVariables(value);
 
   const updateEnvVars = (next) => {
@@ -36,13 +47,30 @@ const EnvironmentVariablesEditor = ({
     fileInputRef.current?.click();
   };
 
-  const applyParsedFile = (text, target) => {
+  const applyParsedFile = (text, target, fileName = "") => {
+    setUploadError(null);
     const parsed = parseEnvFile(text);
-    if (!parsed.length) return;
+    if (!parsed.length) {
+      setUploadError(
+        fileName && !isLikelyEnvFile(fileName)
+          ? `"${fileName}" does not look like an env file. Use .env, .env.local, or similar.`
+          : "No KEY=value pairs found in that file.",
+      );
+      return;
+    }
     updateEnvVars({
       ...envVars,
       [target]: parsed,
     });
+  };
+
+  const readEnvFile = (file, target) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      applyParsedFile(reader.result, target, file.name || "");
+    reader.onerror = () =>
+      setUploadError("Could not read the file. Try again or paste variables manually.");
+    reader.readAsText(file);
   };
 
   const handleFileUpload = (event) => {
@@ -51,9 +79,7 @@ const EnvironmentVariablesEditor = ({
     if (!file) return;
 
     const target = uploadTargetRef.current || "development";
-    const reader = new FileReader();
-    reader.onload = () => applyParsedFile(reader.result, target);
-    reader.readAsText(file);
+    readEnvFile(file, target);
   };
 
   const handleDrop = (environment, event) => {
@@ -64,9 +90,7 @@ const EnvironmentVariablesEditor = ({
     const file = event.dataTransfer?.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => applyParsedFile(reader.result, environment);
-    reader.readAsText(file);
+    readEnvFile(file, environment);
   };
 
   const addVariable = (environment) => {
@@ -183,8 +207,10 @@ const EnvironmentVariablesEditor = ({
         </div>
 
         <p className="text-[11px] text-neutral-500">
-          Drop a <code className="text-neutral-400">.env</code> file here. On Mac,
-          use Cmd+Shift+. in the file picker to show hidden files.
+          Drop a <code className="text-neutral-400">.env</code> or{" "}
+          <code className="text-neutral-400">.env.local</code> file here. In the
+          file picker on Mac, press Cmd+Shift+. to show hidden files like{" "}
+          <code className="text-neutral-400">.env</code>.
         </p>
 
         <div className="flex flex-wrap gap-2">
@@ -294,10 +320,14 @@ const EnvironmentVariablesEditor = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="text/plain,application/octet-stream,.env,.env.*,*/*"
         className="hidden"
         onChange={handleFileUpload}
       />
+      {uploadError && (
+        <p className="text-xs text-amber-400/90" role="alert">
+          {uploadError}
+        </p>
+      )}
       <p className="text-xs text-gray-400">
         All values are stored as secrets and are never shown again after save.
         Upload or paste from your repo&apos;s{" "}
