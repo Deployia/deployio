@@ -24,8 +24,7 @@ const {
 
 class ProjectCreationService {
   async _getProviderApi(userId, provider) {
-    const apiProvider = normalizeProviderApi(provider);
-    if (apiProvider === "github" || !userId) {
+    if (!userId) {
       return null;
     }
 
@@ -71,10 +70,35 @@ class ProjectCreationService {
     };
   }
 
+  _filterDockerfilePaths(entries) {
+    return entries
+      .filter(
+        (entry) =>
+          entry.type === "blob" &&
+          /(^|\/)Dockerfile(\.[^/]+)?$/i.test(entry.path),
+      )
+      .map((entry) => entry.path)
+      .slice(0, 30);
+  }
+
   async _fetchRawFile(parsed, branch, filePath, userId) {
     const apiProvider = normalizeProviderApi(parsed.provider);
 
     if (apiProvider === "github") {
+      const providerApi = await this._getProviderApi(userId, parsed.provider);
+      if (providerApi) {
+        const file = await providerApi.getFileContent(
+          parsed.owner,
+          parsed.repo,
+          filePath,
+          branch,
+        );
+        if (!file) {
+          throw new Error(`File not found: ${filePath}`);
+        }
+        return typeof file === "string" ? file : file.content || "";
+      }
+
       const url = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${branch}/${filePath}`;
       const response = await axios.get(url, {
         timeout: 8000,
@@ -136,27 +160,40 @@ class ProjectCreationService {
 
   async _listDockerfilePaths(parsed, branch, userId) {
     const apiProvider = normalizeProviderApi(parsed.provider);
+    const providerApi = await this._getProviderApi(userId, parsed.provider);
 
     if (apiProvider === "github") {
+      if (providerApi) {
+        try {
+          const tree = await providerApi.getRepositoryTree(
+            parsed.owner,
+            parsed.repo,
+            branch,
+          );
+          return this._filterDockerfilePaths(tree.files || []);
+        } catch (error) {
+          logger.debug(
+            `Could not fetch repo tree via GitHub provider: ${error.message}`,
+          );
+        }
+      }
+
       try {
-        const treeUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${branch}?recursive=1`;
+        const branchUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/branches/${encodeURIComponent(branch)}`;
+        const branchResponse = await axios.get(branchUrl, { timeout: 8000 });
+        const commitSha = branchResponse.data?.commit?.sha;
+        if (!commitSha) {
+          return [];
+        }
+        const treeUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${commitSha}?recursive=1`;
         const treeResponse = await axios.get(treeUrl, { timeout: 8000 });
-        const tree = treeResponse.data?.tree || [];
-        return tree
-          .filter(
-            (entry) =>
-              entry.type === "blob" &&
-              /(^|\/)Dockerfile(\.[^/]+)?$/i.test(entry.path),
-          )
-          .map((entry) => entry.path)
-          .slice(0, 30);
+        return this._filterDockerfilePaths(treeResponse.data?.tree || []);
       } catch (error) {
-        logger.debug(`Could not fetch repo tree: ${error.message}`);
+        logger.debug(`Could not fetch public repo tree: ${error.message}`);
         return [];
       }
     }
 
-    const providerApi = await this._getProviderApi(userId, parsed.provider);
     if (!providerApi) {
       throw new Error(
         `Connect your ${parsed.provider} account in Integrations to browse private repositories`,
@@ -165,14 +202,7 @@ class ProjectCreationService {
 
     if (apiProvider === "gitlab") {
       const tree = await providerApi.getRepositoryTree(parsed.projectId, branch);
-      return (tree.files || [])
-        .filter(
-          (entry) =>
-            entry.type === "blob" &&
-            /(^|\/)Dockerfile(\.[^/]+)?$/i.test(entry.path),
-        )
-        .map((entry) => entry.path)
-        .slice(0, 30);
+      return this._filterDockerfilePaths(tree.files || []);
     }
 
     if (apiProvider === "azuredevops") {

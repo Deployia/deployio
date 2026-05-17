@@ -22,6 +22,7 @@ import { buildRepositoryDiscoveryPayload } from "@/utils/repositoryDiscoveryPayl
 const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
   const dispatch = useDispatch();
   const autoAdvancedRef = useRef(false);
+  const discoveryKeyRef = useRef(null);
   const [localSelection, setLocalSelection] = useState(
     stepData.selectedDockerfile,
   );
@@ -37,12 +38,7 @@ const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
     });
 
   useEffect(() => {
-    if (
-      !stepData.selectedRepository ||
-      !stepData.selectedBranch ||
-      stepData.dockerfiles?.length > 0 ||
-      stepData.dockerfileDiscoveryStatus === "loading"
-    ) {
+    if (!stepData.selectedRepository || !stepData.selectedBranch) {
       return;
     }
 
@@ -51,12 +47,26 @@ const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
       return;
     }
 
+    const discoveryKey = `${payload.repositoryUrl}:${payload.branch}`;
+    const status = stepData.dockerfileDiscoveryStatus;
+
+    if (
+      status === "loading" ||
+      (status === "completed" && discoveryKeyRef.current === discoveryKey)
+    ) {
+      return;
+    }
+
+    if (status === "failed" && discoveryKeyRef.current === discoveryKey) {
+      return;
+    }
+
+    discoveryKeyRef.current = discoveryKey;
     dispatch(discoverDockerfiles(payload));
   }, [
     dispatch,
     stepData.selectedRepository,
     stepData.selectedBranch,
-    stepData.dockerfiles?.length,
     stepData.dockerfileDiscoveryStatus,
   ]);
 
@@ -149,6 +159,7 @@ const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
   };
 
   const handleGoBack = () => {
+    discoveryKeyRef.current = null;
     dispatch(resetAnalysisForNewRepo());
     if (onPrevious) {
       onPrevious();
@@ -158,6 +169,7 @@ const DockerfileSelection = ({ stepData, onNext, onPrevious, loading }) => {
   };
 
   const handleGoToRepository = () => {
+    discoveryKeyRef.current = null;
     dispatch(resetAnalysisForNewRepo());
     dispatch(updateStep({ step: 2 }));
   };
