@@ -60,15 +60,69 @@ class ProjectCreationService {
     return `${dir}/.env.example`;
   }
 
-  _contextFilePaths(dockerfilePath) {
+  _manifestPathsFromDockerfileCopy(dockerfileContent) {
+    const packageJson = [];
+    const requirementsTxt = [];
+    if (!dockerfileContent || typeof dockerfileContent !== "string") {
+      return { packageJson, requirementsTxt };
+    }
+
+    const copyRegex = /^\s*COPY\s+(--from=\S+\s+)?([^\s]+)/gim;
+    let match;
+    while ((match = copyRegex.exec(dockerfileContent)) !== null) {
+      if (match[1]) {
+        continue;
+      }
+      const src = match[2].replace(/["']/g, "");
+      if (/package(\*\.json|\.json)/i.test(src)) {
+        const dir = src
+          .replace(/\/package\*\.json$/i, "")
+          .replace(/\/package\.json$/i, "")
+          .replace(/package\*\.json$/i, "")
+          .replace(/package\.json$/i, "");
+        packageJson.push(dir && dir !== "." ? `${dir}/package.json` : "package.json");
+      }
+      if (/requirements(\.txt|\*\.txt)/i.test(src)) {
+        const path = src.replace(/\*\.txt$/i, ".txt");
+        if (path.endsWith("requirements.txt")) {
+          requirementsTxt.push(path);
+        }
+      }
+    }
+
+    const prioritizeBackend = (paths) =>
+      [...new Set(paths)].sort((a, b) => {
+        const rank = (p) => {
+          if (/^backend\//i.test(p)) return 0;
+          if (/^api\//i.test(p)) return 1;
+          if (/^server\//i.test(p)) return 2;
+          if (/^frontend\//i.test(p)) return 9;
+          return 5;
+        };
+        return rank(a) - rank(b);
+      });
+
+    return {
+      packageJson: prioritizeBackend(packageJson),
+      requirementsTxt: [...new Set(requirementsTxt)],
+    };
+  }
+
+  _contextFilePaths(dockerfilePath, dockerfileContent = null) {
     const dir = dockerfileDirectory(dockerfilePath);
     const prefix = dir ? `${dir}/` : "";
-    // Scope manifests to the service directory so monorepo root files (e.g. another
-    // service's requirements.txt) do not skew stack detection.
-    return {
+    const base = {
       packageJson: dir ? [`${prefix}package.json`] : ["package.json"],
       requirementsTxt: dir ? [`${prefix}requirements.txt`] : ["requirements.txt"],
       pyproject: dir ? [`${prefix}pyproject.toml`] : ["pyproject.toml"],
+    };
+    const fromDocker = this._manifestPathsFromDockerfileCopy(dockerfileContent);
+    return {
+      packageJson: [...new Set([...fromDocker.packageJson, ...base.packageJson])],
+      requirementsTxt: [
+        ...new Set([...fromDocker.requirementsTxt, ...base.requirementsTxt]),
+      ],
+      pyproject: base.pyproject,
     };
   }
 
@@ -324,7 +378,18 @@ class ProjectCreationService {
         ? preferredDockerfilePath
         : files.dockerfiles[0] || "Dockerfile";
 
-    const contextPaths = this._contextFilePaths(selectedPath);
+    try {
+      files.dockerfile = await this._fetchRawFile(
+        parsed,
+        branch,
+        selectedPath,
+        userId,
+      );
+    } catch (error) {
+      logger.debug(`Could not fetch Dockerfile at ${selectedPath}: ${error.message}`);
+    }
+
+    const contextPaths = this._contextFilePaths(selectedPath, files.dockerfile);
 
     const pkg = await this._fetchFirstAvailable(
       parsed,
@@ -351,17 +416,6 @@ class ProjectCreationService {
       );
     } catch (error) {
       logger.debug(`Could not fetch docker-compose.yml: ${error.message}`);
-    }
-
-    try {
-      files.dockerfile = await this._fetchRawFile(
-        parsed,
-        branch,
-        selectedPath,
-        userId,
-      );
-    } catch (error) {
-      logger.debug(`Could not fetch Dockerfile at ${selectedPath}: ${error.message}`);
     }
 
     const envExamplePath = this._envExamplePathForDockerfile(selectedPath);

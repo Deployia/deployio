@@ -398,8 +398,36 @@ class RuleBasedAnalyzer {
    * Priority order for Node.js: Next.js → MERN → Express → Generic
    * @private
    */
+  _dockerfileUsesNodeBase(dockerfileContent) {
+    if (!dockerfileContent) return false;
+    const signals = this._parseDockerfileSignals(dockerfileContent);
+    return signals.fromImages.some((img) => /^node(?::|@|$)/i.test(img));
+  }
+
+  _dockerfileUsesPythonBase(dockerfileContent) {
+    if (!dockerfileContent) return false;
+    const signals = this._parseDockerfileSignals(dockerfileContent);
+    return signals.fromImages.some((img) => img.startsWith("python"));
+  }
+
   async _detectStackFromContent(fileContents) {
     const { packageJson, requirementsTxt, dockerfileContent } = fileContents;
+
+    // Root/monorepo Dockerfiles with FROM node must win over a stray root requirements.txt
+    // (common in repos that also ship Python microservices).
+    if (
+      dockerfileContent &&
+      this._dockerfileUsesNodeBase(dockerfileContent) &&
+      !this._dockerfileUsesPythonBase(dockerfileContent)
+    ) {
+      const dockerDetection = this._detectStackFromDockerfile(
+        dockerfileContent,
+        { packageJson, requirementsTxt },
+      );
+      if (dockerDetection.detected) {
+        return { ...dockerDetection, detectionSource: "dockerfile" };
+      }
+    }
 
     // Prefer service-scoped manifests (package.json / requirements.txt) over Dockerfile
     // heuristics so monorepos do not mis-detect (e.g. Express backend vs root Python deps).
@@ -532,7 +560,14 @@ class RuleBasedAnalyzer {
       }
     }
 
-    if (requirementsTxt) {
+    if (
+      requirementsTxt &&
+      !(
+        dockerfileContent &&
+        this._dockerfileUsesNodeBase(dockerfileContent) &&
+        !this._dockerfileUsesPythonBase(dockerfileContent)
+      )
+    ) {
       try {
         const reqLower = this._coerceFileText(requirementsTxt).toLowerCase();
         if (reqLower.includes("fastapi")) {
@@ -693,6 +728,7 @@ class RuleBasedAnalyzer {
     if (
       signals.fromImages.some((img) => img.startsWith("node")) ||
       content.includes("npm install") ||
+      content.includes("npm ci") ||
       content.includes("yarn install") ||
       content.includes("pnpm install") ||
       content.includes("node ") ||
