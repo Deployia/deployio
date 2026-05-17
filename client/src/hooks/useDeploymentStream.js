@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import webSocketService from "../services/websocketService";
+import {
+  mergeDeploymentLogs,
+  upsertDeploymentLog,
+} from "../utils/deploymentLogMerge";
 
 function formatLogMessage(value) {
   if (value == null) return "";
@@ -34,6 +38,7 @@ function normalizeLogEntry(entry, fallbackTs) {
   return {
     timestamp,
     level: entry.level || "info",
+    source: entry.source,
     message: formatLogMessage(entry.message),
   };
 }
@@ -77,16 +82,18 @@ export default function useDeploymentStream(deploymentId, options = {}) {
         const list = Array.isArray(raw) ? raw : [];
         const normalized = list.map((row) => normalizeLogEntry(row, now));
         if (normalized.length) {
-          setLiveLogs((prev) => [...normalized, ...prev].slice(-400));
+          setLiveLogs((prev) => mergeDeploymentLogs(prev, normalized, { max: 500 }));
         }
       });
 
       socket.on("deployment:log_update", (entry) => {
-        setLiveLogs((prev) => [...prev.slice(-299), normalizeLogEntry(entry, new Date().toISOString())]);
+        const normalized = normalizeLogEntry(entry, new Date().toISOString());
+        setLiveLogs((prev) => upsertDeploymentLog(prev, normalized, { max: 500 }));
       });
       socket.on("deployment:runtime_log_update", (entry) => {
         if (buildOnly) return;
-        setLiveLogs((prev) => [...prev.slice(-299), normalizeLogEntry(entry, new Date().toISOString())]);
+        const normalized = normalizeLogEntry(entry, new Date().toISOString());
+        setLiveLogs((prev) => upsertDeploymentLog(prev, normalized, { max: 500 }));
       });
       socket.on("deployment:metrics_update", (event) => {
         if (buildOnly) return;

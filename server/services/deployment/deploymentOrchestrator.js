@@ -25,6 +25,38 @@ class DeploymentOrchestrator {
     this.isInitialized = false;
     // Default agent for single-agent setup
     this.defaultAgentId = process.env.DEFAULT_AGENT_ID || "agent-ec2-2";
+    /** @type {Map<string, Set<string>>} deploymentId -> seen runtime log line keys */
+    this._runtimeLogLineKeys = new Map();
+  }
+
+  _rememberRuntimeLogLines(deploymentId, lines) {
+    if (!this._runtimeLogLineKeys.has(deploymentId)) {
+      this._runtimeLogLineKeys.set(deploymentId, new Set());
+    }
+    const seen = this._runtimeLogLineKeys.get(deploymentId);
+    const fresh = [];
+    for (const line of lines) {
+      const key = String(line).trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      fresh.push(key);
+      if (seen.size > 2500) {
+        const drop = seen.size - 2000;
+        let removed = 0;
+        for (const old of seen) {
+          seen.delete(old);
+          removed += 1;
+          if (removed >= drop) break;
+        }
+      }
+    }
+    return fresh;
+  }
+
+  clearRuntimeLogDedupe(deploymentId) {
+    if (deploymentId) {
+      this._runtimeLogLineKeys.delete(deploymentId);
+    }
   }
 
   /**
@@ -539,18 +571,22 @@ class DeploymentOrchestrator {
       }
       if (typeof logs !== "string") return;
 
-      const entries = logs
+      const lines = logs
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean)
-        .slice(-120)
-        .map((line) => ({
-          deploymentId,
-          level: "info",
-          source: "runtime",
-          message: line,
-          timestamp: new Date().toISOString(),
-        }));
+        .slice(-200);
+      const newLines = this._rememberRuntimeLogLines(deploymentId, lines);
+      if (!newLines.length) return;
+
+      const now = new Date().toISOString();
+      const entries = newLines.map((line) => ({
+        deploymentId,
+        level: "info",
+        source: "runtime",
+        message: line,
+        timestamp: now,
+      }));
 
       const logsNs = webSocketManager.getNamespace("/logs");
       if (logsNs) {

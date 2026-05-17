@@ -47,6 +47,7 @@ import {
 } from "../../utils/deploymentConstants";
 import DeploymentPreviewIframe from "../../components/deployments/DeploymentPreviewIframe";
 import { getDeploymentUrl, isLiveForPreview } from "../../utils/deploymentPreview";
+import { mergeDeploymentLogs } from "../../utils/deploymentLogMerge";
 
 const ProjectDeployments = () => {
   const { onOpenDeployModal, project, isArchived } = useOutletContext() || {};
@@ -329,7 +330,7 @@ const ProjectDeployments = () => {
         return `[${new Date(log.timestamp).toISOString()}] ${log.level || "info"} ${msg}`;
       })
       .join("\n");
-    const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob(["\uFEFF", contents], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -470,11 +471,7 @@ const ProjectDeployments = () => {
             !log.source || log.source === "build" || log.source === "deploy",
         )
       : persisted;
-    const rows = [...persistedFiltered, ...streamLiveLogs];
-    return rows.sort(
-      (a, b) =>
-        new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime(),
-    );
+    return mergeDeploymentLogs(persistedFiltered, streamLiveLogs, { max: 500 });
   }, [deploymentLogs, streamLiveLogs, formatLogs, isBuildPhase]);
 
   useEffect(() => {

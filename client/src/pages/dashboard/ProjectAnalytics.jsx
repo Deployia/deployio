@@ -165,7 +165,7 @@ const ProjectAnalytics = () => {
           `[${new Date(log.timestamp || Date.now()).toISOString()}] ${log.level || "info"} ${log.message || ""}`,
       )
       .join("\n");
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob(["\uFEFF", content], { type: "text/plain;charset=utf-8" });
     const href = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = href;
