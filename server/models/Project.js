@@ -798,9 +798,9 @@ projectSchema.methods.updateBuildStats = function (buildTime) {
   return this.save();
 };
 
-// Pre-save middleware to generate slug
-projectSchema.pre("save", async function (next) {
-  if (this.isNew && !this.slug) {
+// Generate slug before validation (slug is required on the schema)
+projectSchema.pre("validate", async function (next) {
+  if (this.isNew && !this.slug && this.name && this.owner) {
     this.slug = await this.constructor.generateSlug(this.name, this.owner);
   }
   next();

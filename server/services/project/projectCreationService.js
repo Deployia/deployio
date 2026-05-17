@@ -521,6 +521,7 @@ class ProjectCreationService {
     await assertCanCreateProject(userId);
 
     const projectData = this._buildProjectDocument(payload, analysis, dockerfilePath);
+    projectData.slug = await Project.generateSlug(projectData.name, userId);
 
     const project = new Project({
       ...projectData,

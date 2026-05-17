@@ -157,6 +157,18 @@ class MetricsCollector extends EventEmitter {
     }
   }
 
+  _parseJsonFile(raw, fallback = null) {
+    const trimmed = String(raw || "").trim();
+    if (!trimmed) {
+      return fallback;
+    }
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return fallback;
+    }
+  }
+
   async addToHistoricalMetrics(metrics) {
     try {
       let historical = [];
@@ -166,7 +178,10 @@ class MetricsCollector extends EventEmitter {
           this.historicalMetricsFile,
           "utf8"
         );
-        historical = JSON.parse(data);
+        historical = this._parseJsonFile(data, []) || [];
+        if (!Array.isArray(historical)) {
+          historical = [];
+        }
       }
 
       historical.push(metrics);
@@ -192,7 +207,7 @@ class MetricsCollector extends EventEmitter {
           this.currentMetricsFile,
           "utf8"
         );
-        return JSON.parse(data);
+        return this._parseJsonFile(data);
       }
     } catch (error) {
       logger.error("Failed to read current metrics:", error);
@@ -214,7 +229,10 @@ class MetricsCollector extends EventEmitter {
         this.historicalMetricsFile,
         "utf8"
       );
-      const historical = JSON.parse(data);
+      const historical = this._parseJsonFile(data, []);
+      if (!Array.isArray(historical)) {
+        return [];
+      }
 
       const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
