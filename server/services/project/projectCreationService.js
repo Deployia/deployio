@@ -593,6 +593,10 @@ class ProjectCreationService {
         throw error;
       }
     }
+
+    const platformStatsService = require("../platform/platformStatsService");
+    platformStatsService.recordProject().catch(() => {});
+
     await syncUserResourceUsage(userId);
 
     logger.info("Project created via client payload", {

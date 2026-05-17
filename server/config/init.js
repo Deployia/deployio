@@ -22,11 +22,20 @@ const { metricsCollector } = require("../services/logging/MetricsCollector");
 
 module.exports = (app) => {
   // Connect to the database and log the host
-  connectDB().then((conn) => {
+  connectDB().then(async (conn) => {
     if (conn) {
       logger.info(
         `Backend successfully connected to MongoDB at ${conn.connection.host}`,
       );
+
+      try {
+        const platformStatsService = require("../services/platform/platformStatsService");
+        await platformStatsService.reconcile();
+      } catch (error) {
+        logger.error("Platform stats startup reconcile failed", {
+          error: error.message,
+        });
+      }
     }
   });
 

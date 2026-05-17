@@ -332,6 +332,9 @@ class DeploymentService {
 
         await deployment.save();
 
+        const platformStatsService = require("../platform/platformStatsService");
+        platformStatsService.recordDeployment().catch(() => {});
+
         await subdomainManager.linkDeployment({
           deploymentId: deployment._id,
           projectId,

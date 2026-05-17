@@ -146,6 +146,9 @@ const registerUser = async (userData, registrationInfo = {}) => {
     );
 
     logger.info(`Registration OTP sent via notification system to ${email}`);
+
+    const platformStatsService = require("../platform/platformStatsService");
+    platformStatsService.recordDeveloper().catch(() => {});
   } catch (emailError) {
     logger.error(
       `Failed to send registration OTP via notification system to ${email}:`,

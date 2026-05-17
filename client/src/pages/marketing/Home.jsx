@@ -12,8 +12,10 @@ import {
   Pricing,
   CTA,
 } from "@components/home";
+import { usePlatformStats } from "@hooks/usePlatformStats";
 
 function Home() {
+  const { stats: platformStats } = usePlatformStats();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -152,11 +154,14 @@ function Home() {
         {/* Content */}
         <div className="relative z-10">
           <Hero onGetStarted={handleGetStarted} onWatchDemo={handleWatchDemo} />
-          <About />
+          <About platformStats={platformStats} />
           <Features />
           <Testimonials />
           <Pricing />
-          <CTA onGetStarted={handleGetStarted} />
+          <CTA
+            onGetStarted={handleGetStarted}
+            platformStats={platformStats}
+          />
           <BusinessChatbot />
         </div>
       </div>

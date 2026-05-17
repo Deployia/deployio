@@ -20,6 +20,7 @@ const Notification = require("./Notification");
 // Content Models
 const Blog = require("./Blog");
 const Documentation = require("./Documentation");
+const PlatformStats = require("./PlatformStats");
 
 module.exports = {
   // Core Models
@@ -39,4 +40,5 @@ module.exports = {
   // Content Models
   Blog,
   Documentation,
+  PlatformStats,
 };

@@ -58,6 +58,9 @@ passport.use(
             lastLogin: new Date(),
           });
 
+          const platformStatsService = require("../services/platform/platformStatsService");
+          platformStatsService.recordDeveloper().catch(() => {});
+
           // Follow the same flow as regular registration for consistency
           try {
             // Import required services

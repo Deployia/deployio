@@ -11,7 +11,7 @@ import {
   FaCloud,
 } from "react-icons/fa";
 
-const CTA = ({ onGetStarted }) => {
+const CTA = ({ onGetStarted, platformStats }) => {
   const navigate = useNavigate();
   const [ref, inView] = useInView({
     triggerOnce: true,
@@ -77,7 +77,8 @@ const CTA = ({ onGetStarted }) => {
               className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-green-500/20 border border-blue-500/30 text-blue-300 text-sm font-medium mb-6"
             >
               <FaRocket className="w-4 h-4 mr-2" />
-              Join 10,000+ developers already using Deployio
+              Join {platformStats?.developers?.display ?? "10,000+"} developers
+              already using Deployio
             </motion.div>
             {/* Heading */}
             <motion.h2
@@ -110,19 +111,19 @@ const CTA = ({ onGetStarted }) => {
             >
               <div className="text-center">
                 <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-1">
-                  30s
+                  {platformStats?.avgDeployTime?.display ?? "30s"}
                 </div>
                 <div className="text-gray-400 text-sm">Deploy Time</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-1">
-                  99.9%
+                  {platformStats?.uptime?.display ?? "99.9%"}
                 </div>
                 <div className="text-gray-400 text-sm">Uptime</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-1">
-                  10K+
+                  {platformStats?.developers?.display ?? "10K+"}
                 </div>
                 <div className="text-gray-400 text-sm">Developers</div>
               </div>

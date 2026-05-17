@@ -9,7 +9,7 @@ import {
   FaHeart,
 } from "react-icons/fa";
 
-const About = () => {
+const About = ({ platformStats }) => {
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
@@ -35,10 +35,26 @@ const About = () => {
   };
 
   const stats = [
-    { icon: FaRocket, value: "10,000+", label: "Deployments" },
-    { icon: FaUsers, value: "5,000+", label: "Developers" },
-    { icon: FaGlobe, value: "50+", label: "Countries" },
-    { icon: FaShieldAlt, value: "99.9%", label: "Uptime" },
+    {
+      icon: FaRocket,
+      value: platformStats?.deployments?.display ?? "10,000+",
+      label: "Deployments",
+    },
+    {
+      icon: FaUsers,
+      value: platformStats?.developers?.display ?? "5,000+",
+      label: "Developers",
+    },
+    {
+      icon: FaGlobe,
+      value: platformStats?.countries?.display ?? "50+",
+      label: "Countries",
+    },
+    {
+      icon: FaShieldAlt,
+      value: platformStats?.uptime?.display ?? "99.9%",
+      label: "Uptime",
+    },
   ];
   return (
     <section
@@ -190,7 +206,8 @@ const About = () => {
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <span className="text-gray-300 text-sm">
-                    Average deployment: 30 seconds
+                    Average deployment:{" "}
+                    {platformStats?.avgDeployTime?.display ?? "30 seconds"}
                   </span>
                 </div>
               </motion.div>
