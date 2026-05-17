@@ -63,10 +63,12 @@ class ProjectCreationService {
   _contextFilePaths(dockerfilePath) {
     const dir = dockerfileDirectory(dockerfilePath);
     const prefix = dir ? `${dir}/` : "";
+    // Scope manifests to the service directory so monorepo root files (e.g. another
+    // service's requirements.txt) do not skew stack detection.
     return {
-      packageJson: [`${prefix}package.json`, "package.json"],
-      requirementsTxt: [`${prefix}requirements.txt`, "requirements.txt"],
-      pyproject: [`${prefix}pyproject.toml`, "pyproject.toml"],
+      packageJson: dir ? [`${prefix}package.json`] : ["package.json"],
+      requirementsTxt: dir ? [`${prefix}requirements.txt`] : ["requirements.txt"],
+      pyproject: dir ? [`${prefix}pyproject.toml`] : ["pyproject.toml"],
     };
   }
 
@@ -526,7 +528,16 @@ class ProjectCreationService {
       status: "active",
     });
 
-    await project.save();
+    try {
+      await project.save();
+    } catch (error) {
+      if (error?.code === 11000 && error?.keyPattern?.slug) {
+        project.slug = await Project.generateSlug(projectData.name, userId);
+        await project.save();
+      } else {
+        throw error;
+      }
+    }
     await syncUserResourceUsage(userId);
 
     logger.info("Project created via client payload", {
@@ -627,18 +638,10 @@ class ProjectCreationService {
       results.dockerfile?.suggestedName ||
       repository.name ||
       "project";
-    const slugify = (s) =>
-      String(s)
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
     const stackPrimary = results.stack || "other";
 
     return {
       name: rawName,
-      slug: slugify(rawName) || `project-${Date.now()}`,
       description: config.projectDescription || repository.description || "",
       repository: {
         provider: stepData.provider || repository.provider || "github",

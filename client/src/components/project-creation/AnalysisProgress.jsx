@@ -27,6 +27,7 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
   const dispatch = useDispatch();
   const [analysisLogs, setAnalysisLogs] = useState([]);
   const didAutoAdvanceRef = useRef(false);
+  const analysisKeyRef = useRef(null);
 
   const buildRepositoryData = () => {
     const base = buildRepositoryDiscoveryPayload({
@@ -47,21 +48,34 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     };
   };
 
-  // Start analysis when component mounts
+  // Start analysis once per repo + branch + dockerfile path
   useEffect(() => {
     if (
-      !stepData.analysisId &&
-      stepData.selectedRepository &&
-      stepData.selectedBranch &&
-      (stepData.selectedDockerfile?.path || stepData.dockerfilePath)
+      !stepData.selectedRepository ||
+      !stepData.selectedBranch ||
+      !(stepData.selectedDockerfile?.path || stepData.dockerfilePath)
     ) {
-      const repositoryData = buildRepositoryData();
-      if (!repositoryData?.repositoryUrl) {
-        return;
-      }
-
-      dispatch(analyzeRepository(repositoryData));
+      return;
     }
+
+    const repositoryData = buildRepositoryData();
+    if (!repositoryData?.repositoryUrl) {
+      return;
+    }
+
+    const analysisKey = `${repositoryData.repositoryUrl}:${repositoryData.branch}:${repositoryData.dockerfilePath}`;
+    const status = stepData.analysisStatus;
+
+    if (
+      status === "running" ||
+      (status === "completed" && analysisKeyRef.current === analysisKey) ||
+      (status === "failed" && analysisKeyRef.current === analysisKey)
+    ) {
+      return;
+    }
+
+    analysisKeyRef.current = analysisKey;
+    dispatch(analyzeRepository(repositoryData));
   }, [
     dispatch,
     stepData.selectedRepository,
@@ -69,6 +83,7 @@ const AnalysisProgress = ({ stepData, onNext, loading: _loading }) => {
     stepData.selectedProvider,
     stepData.selectedDockerfile?.path,
     stepData.dockerfilePath,
+    stepData.analysisStatus,
   ]);
 
   // Polling for analysis progress

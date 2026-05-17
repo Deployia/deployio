@@ -664,7 +664,7 @@ projectSchema.statics.generateSlug = async function (name, ownerId) {
   let slug = baseSlug;
   let counter = 1;
 
-  while (await this.findOne({ slug, owner: ownerId })) {
+  while (await this.findOne({ slug })) {
     slug = `${baseSlug}-${counter}`;
     counter++;
   }

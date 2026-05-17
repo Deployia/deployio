@@ -401,33 +401,8 @@ class RuleBasedAnalyzer {
   async _detectStackFromContent(fileContents) {
     const { packageJson, requirementsTxt, dockerfileContent } = fileContents;
 
-    if (dockerfileContent) {
-      const dockerDetection = this._detectStackFromDockerfile(
-        dockerfileContent,
-        { packageJson, requirementsTxt },
-      );
-      if (dockerDetection.detected) {
-        const manifestDetection = await this._detectStackFromManifests(
-          fileContents,
-        );
-        if (
-          manifestDetection.detected &&
-          manifestDetection.stack === dockerDetection.stack
-        ) {
-          return {
-            ...dockerDetection,
-            detectionSource: "dockerfile+manifest",
-            config: {
-              ...dockerDetection.config,
-              port:
-                dockerDetection.config.port ||
-                manifestDetection.config.port,
-            },
-          };
-        }
-        return { ...dockerDetection, detectionSource: "dockerfile" };
-      }
-    }
+    // Prefer service-scoped manifests (package.json / requirements.txt) over Dockerfile
+    // heuristics so monorepos do not mis-detect (e.g. Express backend vs root Python deps).
 
     // Check for Node/Next.js/Express/MERN
     if (packageJson) {
@@ -520,6 +495,7 @@ class RuleBasedAnalyzer {
           return {
             detected: true,
             stack: "express",
+            detectionSource: "manifest",
             config: {
               buildCommand: pkgData.scripts?.build || "npm run build",
               startCommand: pkgData.scripts?.start || "npm start",
@@ -534,6 +510,7 @@ class RuleBasedAnalyzer {
         return {
           detected: true,
           stack: "express",
+          detectionSource: "manifest",
           config: {
             buildCommand: "npm install",
             startCommand: pkgData.scripts?.start || "node index.js",
@@ -643,6 +620,37 @@ class RuleBasedAnalyzer {
         [signals.entrypoint, signals.cmd].filter(Boolean).join(" ")
       : null;
 
+    // Trust package.json in the service directory over Dockerfile hints
+    if (hasDep("express")) {
+      logger.info("Stack detected from manifest via Dockerfile context: Express");
+      return {
+        detected: true,
+        stack: "express",
+        detectionSource: "manifest",
+        config: {
+          buildCommand: "npm install",
+          startCommand: startFromDocker || "npm start",
+          installCommand: "npm install",
+          port,
+        },
+      };
+    }
+
+    if (hasDep("next")) {
+      logger.info("Stack detected from manifest via Dockerfile context: Next.js");
+      return {
+        detected: true,
+        stack: "nextjs",
+        detectionSource: "manifest",
+        config: {
+          buildCommand: "npm run build",
+          startCommand: startFromDocker || "npm start",
+          installCommand: "npm install",
+          port: signals.ports[0] || 3000,
+        },
+      };
+    }
+
     if (
       content.includes(".next/standalone") ||
       content.includes("next/standalone") ||
@@ -678,6 +686,27 @@ class RuleBasedAnalyzer {
             "gunicorn config.wsgi:application --bind 0.0.0.0:8000",
           installCommand: "pip install -r requirements.txt",
           port: signals.ports[0] || 8000,
+        },
+      };
+    }
+
+    if (
+      signals.fromImages.some((img) => img.startsWith("node")) ||
+      content.includes("npm install") ||
+      content.includes("yarn install") ||
+      content.includes("pnpm install") ||
+      content.includes("node ") ||
+      pkgText.includes('"express"')
+    ) {
+      logger.info("Stack detected from Dockerfile: Express/Node");
+      return {
+        detected: true,
+        stack: "express",
+        config: {
+          buildCommand: "npm install",
+          startCommand: startFromDocker || "npm start",
+          installCommand: "npm install",
+          port,
         },
       };
     }
@@ -756,40 +785,51 @@ class RuleBasedAnalyzer {
     }
 
     if (
-      signals.fromImages.some((img) => img.startsWith("node")) ||
-      content.includes("npm install") ||
-      content.includes("node ") ||
-      hasDep("express") ||
-      pkgText.includes('"express"')
-    ) {
-      logger.info("Stack detected from Dockerfile: Express/Node");
-      return {
-        detected: true,
-        stack: "express",
-        config: {
-          buildCommand: "npm install",
-          startCommand: startFromDocker || "npm start",
-          installCommand: "npm install",
-          port,
-        },
-      };
-    }
-
-    if (
       signals.fromImages.some((img) => img.startsWith("python")) ||
       content.includes("pip install")
     ) {
-      logger.info("Stack detected from Dockerfile: Python (generic)");
-      return {
-        detected: true,
-        stack: "fastapi",
-        config: {
-          buildCommand: "pip install -r requirements.txt",
-          startCommand: startFromDocker || "python app.py",
-          installCommand: "pip install -r requirements.txt",
-          port: signals.ports[0] || 8000,
-        },
-      };
+      if (reqLower.includes("django")) {
+        logger.info("Stack detected from Dockerfile: Django (requirements)");
+        return {
+          detected: true,
+          stack: "django",
+          config: {
+            buildCommand: "pip install -r requirements.txt",
+            startCommand:
+              startFromDocker ||
+              "gunicorn config.wsgi:application --bind 0.0.0.0:8000",
+            installCommand: "pip install -r requirements.txt",
+            port: signals.ports[0] || 8000,
+          },
+        };
+      }
+      if (reqLower.includes("flask")) {
+        logger.info("Stack detected from Dockerfile: Flask (requirements)");
+        return {
+          detected: true,
+          stack: "flask",
+          config: {
+            buildCommand: "pip install -r requirements.txt",
+            startCommand: startFromDocker || "python app.py",
+            installCommand: "pip install -r requirements.txt",
+            port: signals.ports[0] || 5000,
+          },
+        };
+      }
+      if (reqLower.includes("fastapi") || content.includes("uvicorn")) {
+        logger.info("Stack detected from Dockerfile: FastAPI (requirements)");
+        return {
+          detected: true,
+          stack: "fastapi",
+          config: {
+            buildCommand: "pip install -r requirements.txt",
+            startCommand:
+              startFromDocker || "uvicorn main:app --host 0.0.0.0 --port 8000",
+            installCommand: "pip install -r requirements.txt",
+            port: signals.ports[0] || 8000,
+          },
+        };
+      }
     }
 
     return { detected: false };

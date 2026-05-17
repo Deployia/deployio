@@ -54,6 +54,15 @@ class ProjectCreationController {
         return res.status(403).json({ success: false, message: error.message });
       }
 
+      if (error?.code === 11000 && error?.keyPattern?.slug) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "A project with this name already exists. Choose a different project name and try again.",
+          code: "DUPLICATE_SLUG",
+        });
+      }
+
       res.status(500).json({
         success: false,
         message: "Failed to complete project",
