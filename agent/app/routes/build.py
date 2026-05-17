@@ -69,27 +69,15 @@ async def analyze_repository(request: AnalyzeRequest):
 @router.post("/api/generate-dockerfile")
 async def generate_dockerfile(request: GenerateDockerfileRequest):
     """
-    Generate a Dockerfile for a GitHub repository.
-
-    Returns: { dockerfile, dockerfile_path, port, stack }
+    Deprecated: DeployIO only builds from Dockerfiles committed in the repository.
     """
-    try:
-        logger.info(f"Generating Dockerfile for: {request.git_url}")
-
-        result = await build_service.generate_dockerfile(
-            request.git_url,
-            request.github_token,
-            request.branch,
-        )
-
-        if result["status"] == "error":
-            raise HTTPException(status_code=400, detail=result["error"])
-
-        return result
-
-    except Exception as e:
-        logger.error(f"Dockerfile generation error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "Dockerfile generation is disabled. Add a Dockerfile to your repository "
+            "or select an existing one during project creation."
+        ),
+    )
 
 
 @router.post("/api/deploy-from-git")

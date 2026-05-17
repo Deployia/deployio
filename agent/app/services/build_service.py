@@ -243,6 +243,47 @@ class BuildService:
             # Backward compatibility for older two-argument callbacks.
             logs_callback(message, level)
 
+    async def _resolve_repository_dockerfile(
+        self, repo_path: Path, dockerfile_path: Optional[str]
+    ) -> Path:
+        """
+        Resolve the repository Dockerfile to build. Never generates templates.
+        """
+        if dockerfile_path:
+            check = await self.dockerfile_service.check_existing_dockerfile(
+                str(repo_path), dockerfile_path
+            )
+            if not check.get("valid"):
+                detail = (
+                    f"not found at {dockerfile_path}"
+                    if not check.get("exists")
+                    else f"at {dockerfile_path} is missing FROM or CMD/ENTRYPOINT"
+                )
+                raise ValueError(
+                    f"Invalid platform Dockerfile ({detail}). "
+                    "Fix the file in your repository or choose another service Dockerfile."
+                )
+            return Path(check["path"])
+
+        discovered = await self.dockerfile_service.discover_valid_dockerfiles(
+            str(repo_path)
+        )
+        if len(discovered) == 1:
+            logger.info("Auto-selected repository Dockerfile at %s", discovered[0])
+            return Path(discovered[0])
+        if not discovered:
+            raise ValueError(
+                "No valid Dockerfile in repository. Add a Dockerfile with FROM and "
+                "CMD or ENTRYPOINT, or select one during project creation."
+            )
+        rel_paths = [
+            Path(p).relative_to(repo_path).as_posix() for p in discovered[:8]
+        ]
+        raise ValueError(
+            "Multiple valid Dockerfiles found "
+            f"({', '.join(rel_paths)}). Select one during project creation."
+        )
+
     @staticmethod
     def _resolve_docker_build_paths(
         repo_path: Path, dockerfile_path: Path
@@ -250,9 +291,8 @@ class BuildService:
         """
         Resolve docker build -f and context directory.
 
-        Service Dockerfiles under a subdirectory (e.g. Python_services/Dockerfile)
-        typically use COPY paths relative to that folder. Use the Dockerfile's
-        parent as build context instead of the repository root.
+        Build context is the Dockerfile's directory (not repo root). COPY paths must
+        exist inside that context — fix Dockerfiles in the repo if they reference siblings.
         """
         repo_path = repo_path.resolve()
         dockerfile_path = dockerfile_path.resolve()
@@ -279,13 +319,9 @@ class BuildService:
         dockerfile_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Full pipeline: clone → detect → generate Dockerfile → build → deploy.
-        ``env_vars`` are merged from the platform (project + deployment) and passed
-        to ``deployment_service.deploy`` as container runtime environment (same as
-        image-only deploy path on the agent).
-        ``dockerfile_path`` is a path relative to the repo root (e.g. ``apps/server/Dockerfile``).
-        When provided it takes precedence over auto-detection; falls back to auto-detect
-        if the path does not exist after cloning.
+        Full pipeline: clone → detect stack → build with repository Dockerfile → deploy.
+        Only Dockerfiles committed in the repository are used (no generated templates).
+        ``dockerfile_path`` is relative to the repo root (e.g. ``backend/Dockerfile``).
         Returns: { deployment_id, subdomain, url, status, port }
         """
         # Allow server to provide a deployment_id to keep things in sync
@@ -332,56 +368,21 @@ class BuildService:
                 logs_callback, deployment_id, "info", f"Stack detected: {stack_type}"
             )
 
-            await _stage("building", "Preparing Dockerfile")
+            await _stage("building", "Resolving Dockerfile")
             await self._emit_log(
-                logs_callback, deployment_id, "info", "Preparing Dockerfile..."
+                logs_callback, deployment_id, "info", "Resolving repository Dockerfile..."
             )
 
-            # Prefer the user-selected dockerfile path when provided by the platform.
-            # Fall back to auto-detection only when no path is specified.
-            resolved_dockerfile: Optional[Path] = None
-            platform_specified_dockerfile = False
-            if dockerfile_path:
-                candidate = repo_path / dockerfile_path
-                if candidate.exists():
-                    resolved_dockerfile = candidate
-                    platform_specified_dockerfile = True
-                    logger.info(
-                        "Using platform-specified Dockerfile at %s", resolved_dockerfile
-                    )
-                else:
-                    logger.warning(
-                        "Platform-specified Dockerfile not found at %s — falling back to auto-detect",
-                        candidate,
-                    )
-
-            if resolved_dockerfile is None:
-                # Auto-detect: prefer a valid repository Dockerfile over generated templates.
-                existing_df = await self.dockerfile_service.check_existing_dockerfile(
-                    str(repo_path)
-                )
-                using_repo_dockerfile = bool(existing_df.get("valid"))
-                if using_repo_dockerfile and existing_df.get("path"):
-                    resolved_dockerfile = Path(existing_df["path"])
-                    logger.info(
-                        "Auto-detected repository Dockerfile at %s", resolved_dockerfile
-                    )
-                else:
-                    dockerfile_info = await self.dockerfile_service.generate_dockerfile(
-                        stack_type, str(repo_path), port
-                    )
-                    _ = dockerfile_info
-                    resolved_dockerfile = repo_path / "Dockerfile.generated"
-                    if not resolved_dockerfile.exists() and dockerfile_info.get(
-                        "dockerfile_path"
-                    ):
-                        resolved_dockerfile = Path(dockerfile_info["dockerfile_path"])
-
-            # Alias for remainder of the build flow
-            using_repo_dockerfile = not str(resolved_dockerfile).endswith(
-                "Dockerfile.generated"
+            dockerfile_path_obj = await self._resolve_repository_dockerfile(
+                repo_path, dockerfile_path
             )
-            dockerfile_path_obj = resolved_dockerfile
+            logger.info("Building with repository Dockerfile at %s", dockerfile_path_obj)
+            await self._emit_log(
+                logs_callback,
+                deployment_id,
+                "info",
+                f"Using Dockerfile: {dockerfile_path_obj.relative_to(repo_path)}",
+            )
 
             # Build Docker image
             await _stage("building", "Running Docker build")
@@ -425,59 +426,11 @@ class BuildService:
             )
 
             if not result["success"]:
-                if using_repo_dockerfile and platform_specified_dockerfile:
-                    raise Exception(
-                        f"Docker build failed for platform Dockerfile {dockerfile_path_obj}: "
-                        f"{result.get('error', 'unknown error')}"
-                    )
-
-                if using_repo_dockerfile:
-                    logger.warning(
-                        "Build failed with repository Dockerfile for %s, retrying with generated profile",
-                        deployment_id,
-                    )
-                    await self._emit_log(
-                        logs_callback,
-                        deployment_id,
-                        "warn",
-                        "Repository Dockerfile build failed; retrying with generated Dockerfile...",
-                    )
-                    dockerfile_info = await self.dockerfile_service.generate_dockerfile(
-                        stack_type, str(repo_path), port, force_template=True
-                    )
-                    path_str = dockerfile_info.get("dockerfile_path")
-                    dockerfile_path_obj = (
-                        Path(path_str)
-                        if path_str
-                        else repo_path / "Dockerfile.generated"
-                    )
-                    if not dockerfile_path_obj.exists():
-                        raise Exception(
-                            f"Generated Dockerfile missing after retry at {dockerfile_path_obj}"
-                        )
-                    if str(stack_type).upper() == "NEXT":
-                        DockerfileService.ensure_next_public_dir(repo_path)
-                    retry_dockerfile, retry_context = self._resolve_docker_build_paths(
-                        repo_path, dockerfile_path_obj
-                    )
-                    build_command = [
-                        "docker",
-                        "build",
-                        "-t",
-                        f"deployio/{deployment_id}:latest",
-                        "-f",
-                        retry_dockerfile,
-                        str(retry_context),
-                    ]
-                    result = await asyncio.to_thread(
-                        self._run_build_with_logs,
-                        build_command,
-                        deployment_id,
-                        logs_callback,
-                        event_loop,
-                    )
-                if not result["success"]:
-                    raise Exception(f"Docker build failed: {result['error']}")
+                rel = dockerfile_path_obj.relative_to(repo_path)
+                raise Exception(
+                    f"Docker build failed for {rel}: {result.get('error', 'unknown error')}. "
+                    "Fix the Dockerfile in your repository (build context is the Dockerfile's folder)."
+                )
 
             await self._emit_log(
                 logs_callback, deployment_id, "info", "Build completed successfully"

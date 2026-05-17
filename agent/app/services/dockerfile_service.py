@@ -4,6 +4,7 @@ Generates optimized Dockerfiles based on detected stack type.
 """
 
 import logging
+import re
 from typing import Optional, Dict
 from pathlib import Path
 
@@ -356,6 +357,43 @@ CMD ["nginx", "-g", "daemon off;"]
                 "content": None,
                 "path": str(dockerfile_path),
             }
+
+    @staticmethod
+    def _is_dockerfile_candidate(path: Path) -> bool:
+        name = path.name
+        if name == "Dockerfile":
+            return True
+        return bool(re.match(r"^Dockerfile\.[^/]+$", name, re.I))
+
+    @staticmethod
+    async def discover_valid_dockerfiles(
+        repo_path: str, *, max_files: int = 30
+    ) -> list[str]:
+        """Return absolute paths of valid Dockerfiles under the repository."""
+        root = Path(repo_path)
+        if not root.is_dir():
+            return []
+
+        candidates: list[Path] = []
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            if "node_modules" in path.parts or ".git" in path.parts:
+                continue
+            if not DockerfileService._is_dockerfile_candidate(path):
+                continue
+            candidates.append(path)
+
+        candidates.sort(key=lambda p: (len(p.parts), str(p)))
+        valid_paths: list[str] = []
+        for path in candidates:
+            rel = path.relative_to(root).as_posix()
+            check = await DockerfileService.check_existing_dockerfile(repo_path, rel)
+            if check.get("valid") and check.get("path"):
+                valid_paths.append(check["path"])
+            if len(valid_paths) >= max_files:
+                break
+        return valid_paths
 
     @staticmethod
     async def generate_dockerfile(
