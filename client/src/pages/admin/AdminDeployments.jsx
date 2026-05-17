@@ -5,12 +5,51 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminFilters from "@/components/admin/AdminFilters";
 import AdminDataTable from "@/components/admin/AdminDataTable";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import DeploymentPreviewIframe from "@/components/deployments/DeploymentPreviewIframe";
+import DeploymentLivePreview from "@/components/deployments/DeploymentLivePreview";
 import { formatUserName, formatDate, StatusBadge } from "@/utils/adminFormatters";
 import { getDeploymentUrl, isLiveForPreview } from "@/utils/deploymentPreview";
 import { adminTokens } from "@/constants/adminDesignTokens";
 
 const CANCELLABLE = ["pending", "queued", "cloning", "detecting", "building", "deploying", "running"];
+
+const AdminDeploymentPreviewCell = ({ deployment }) => {
+  const previewUrl = getDeploymentUrl(deployment);
+  if (!isLiveForPreview(deployment?.status) || !previewUrl) {
+    return <span className="text-gray-600 text-xs">—</span>;
+  }
+
+  return (
+    <div
+      className="w-[200px] sm:w-[240px]"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      role="presentation"
+    >
+      <div className="rounded-lg border border-neutral-800 bg-neutral-950/70 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 px-2 py-1 border-b border-neutral-800/80">
+          <span className="text-[10px] text-gray-500 uppercase tracking-wide">Live</span>
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-purple-400 hover:text-purple-300 inline-flex items-center gap-1"
+          >
+            Open
+            <FaExternalLinkAlt className="w-2.5 h-2.5" />
+          </a>
+        </div>
+        <div className="h-32">
+          <DeploymentLivePreview
+            deployment={deployment}
+            variant="mini"
+            pointerEventsNone
+            title={`admin-preview-${deployment.deploymentId || deployment._id}`}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminDeployments = () => {
   const [deployments, setDeployments] = useState([]);
@@ -21,7 +60,7 @@ const AdminDeployments = () => {
   const [page, setPage] = useState(1);
   const [confirm, setConfirm] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [selectedDeployment, setSelectedDeployment] = useState(null);
+  const [selectedDeploymentId, setSelectedDeploymentId] = useState(null);
 
   const fetchDeployments = useCallback(async () => {
     setLoading(true);
@@ -55,7 +94,7 @@ const AdminDeployments = () => {
       if (confirm.type === "cancel") await adminService.cancelDeployment(id);
       else await adminService.stopDeployment(id);
       setConfirm(null);
-      setSelectedDeployment(null);
+      setSelectedDeploymentId(null);
       fetchDeployments();
     } catch (err) {
       console.error("Action failed:", err);
@@ -65,15 +104,9 @@ const AdminDeployments = () => {
   };
 
   const handleRowClick = (row) => {
-    setSelectedDeployment((prev) =>
-      prev?._id === row._id ? null : row,
-    );
+    const id = row._id || row.id;
+    setSelectedDeploymentId((prev) => (prev === id ? null : id));
   };
-
-  const previewUrl = selectedDeployment
-    ? getDeploymentUrl(selectedDeployment)
-    : null;
-  const showPreview = selectedDeployment && isLiveForPreview(selectedDeployment.status);
 
   const columns = [
     {
@@ -91,6 +124,11 @@ const AdminDeployments = () => {
     { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
     { key: "environment", label: "Env", render: (row) => row.config?.environment || "—" },
     { key: "createdAt", label: "Created", render: (row) => formatDate(row.createdAt) },
+    {
+      key: "preview",
+      label: "Preview",
+      render: (row) => <AdminDeploymentPreviewCell deployment={row} />,
+    },
     {
       key: "actions",
       label: "Actions",
@@ -140,51 +178,8 @@ const AdminDeployments = () => {
         onPageChange={setPage}
         rowKey="_id"
         onRowClick={handleRowClick}
-        selectedRowKey={selectedDeployment?._id}
+        selectedRowKey={selectedDeploymentId}
       />
-
-      {selectedDeployment && (
-        <div className={`${adminTokens.glassCard} mt-4 p-4`}>
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-white font-mono text-sm">{selectedDeployment.deploymentId}</p>
-                  <p className="text-gray-400 text-xs">
-                    {selectedDeployment.project?.name || "—"} ·{" "}
-                    <StatusBadge status={selectedDeployment.status} />
-                  </p>
-                </div>
-                {previewUrl && (
-                  <a
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300"
-                  >
-                    Open site
-                    <FaExternalLinkAlt className="w-3 h-3" />
-                  </a>
-                )}
-              </div>
-              <p className="text-gray-500 text-xs">
-                {selectedDeployment.config?.subdomain}.deployio.tech ·{" "}
-                {formatUserName(selectedDeployment.deployedBy)} ·{" "}
-                {formatDate(selectedDeployment.createdAt)}
-              </p>
-            </div>
-            {showPreview && (
-              <div className="w-full lg:w-72 h-40 rounded-lg overflow-hidden border border-neutral-700/50 bg-neutral-900/50 shrink-0">
-                <DeploymentPreviewIframe
-                  deployment={selectedDeployment}
-                  variant="mini"
-                  pointerEventsNone
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       <ConfirmDialog
         open={Boolean(confirm)}

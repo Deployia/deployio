@@ -57,7 +57,7 @@ const AdminDataTable = ({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={`border-b border-neutral-800/30 transition-colors ${
                     onRowClick ? "cursor-pointer hover:bg-neutral-800/40" : "hover:bg-neutral-800/40"
-                  } ${isSelected ? "bg-purple-500/10" : ""}`}
+                  } ${isSelected ? "bg-purple-500/10 ring-1 ring-inset ring-purple-500/30" : ""}`}
                 >
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-sm text-gray-300">
