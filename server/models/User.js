@@ -417,11 +417,11 @@ const userSchema = new mongoose.Schema(
     resourceLimits: {
       maxProjects: {
         type: Number,
-        default: 5, // Free tier limit
+        default: 2, // Free tier limit
       },
       maxDeployments: {
         type: Number,
-        default: 10, // Concurrent deployments
+        default: 6, // Concurrent deployments
       },
       memoryPerApp: {
         type: String,

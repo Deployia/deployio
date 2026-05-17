@@ -137,7 +137,12 @@ class DeploymentController {
       });
     } catch (error) {
       logger.error("Error in createDeployment:", error);
-      res.status(error.message.includes("not found") ? 404 : 500).json({
+      const status = error.statusCode === 403
+        ? 403
+        : error.message.includes("not found")
+          ? 404
+          : 500;
+      res.status(status).json({
         success: false,
         message: error.message || "Failed to create deployment",
       });

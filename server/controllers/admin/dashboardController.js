@@ -32,6 +32,28 @@ const buildDateRange = (days) => {
   return range;
 };
 
+const buildMonthlyRange = (months) => {
+  const range = [];
+  const today = new Date();
+  today.setUTCDate(1);
+  today.setUTCHours(0, 0, 0, 0);
+  for (let i = months - 1; i >= 0; i -= 1) {
+    const d = new Date(today);
+    d.setUTCMonth(today.getUTCMonth() - i);
+    range.push(d.toISOString().slice(0, 7));
+  }
+  return range;
+};
+
+const buildCumulativeSeries = (range, rows, valueKey = "count") => {
+  const map = new Map(rows.map((row) => [row._id, row.count]));
+  let running = 0;
+  return range.map((period) => {
+    running += map.get(period) || 0;
+    return { period, [valueKey]: running };
+  });
+};
+
 const fillTrendSeries = (range, rows, valueKey = "count") => {
   const map = new Map(rows.map((row) => [row._id, row.count]));
   return range.map((date) => ({
@@ -49,6 +71,12 @@ const getDashboardStats = async (req, res) => {
     const signupRange = buildDateRange(30);
     const deploymentRange = buildDateRange(14);
     const activityRange = buildDateRange(14);
+    const projectRange = buildDateRange(30);
+    const cumulativeUserRange = buildMonthlyRange(12);
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setUTCMonth(twelveMonthsAgo.getUTCMonth() - 12);
+    twelveMonthsAgo.setUTCDate(1);
+    twelveMonthsAgo.setUTCHours(0, 0, 0, 0);
 
     const [
       totalUsers,
@@ -65,6 +93,8 @@ const getDashboardStats = async (req, res) => {
       userSignupsAgg,
       deploymentsTrendAgg,
       activityTrendAgg,
+      projectsCreatedAgg,
+      cumulativeUsersAgg,
     ] = await Promise.all([
       User.countDocuments(),
       Project.countDocuments(),
@@ -143,6 +173,30 @@ const getDashboardStats = async (req, res) => {
         },
         { $sort: { _id: 1 } },
       ]),
+      Project.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+      User.aggregate([
+        { $match: { createdAt: { $gte: twelveMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m", date: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
     ]);
 
     const userSignupsTrend = fillTrendSeries(signupRange, userSignupsAgg);
@@ -160,6 +214,14 @@ const getDashboardStats = async (req, res) => {
     const deploymentsTrend = Array.from(deploymentsByDate.values());
 
     const activityTrend = fillTrendSeries(activityRange, activityTrendAgg);
+    const projectsCreatedTrend = fillTrendSeries(
+      projectRange,
+      projectsCreatedAgg,
+    );
+    const cumulativeUsersTrend = buildCumulativeSeries(
+      cumulativeUserRange,
+      cumulativeUsersAgg,
+    );
 
     res.status(200).json({
       success: true,
@@ -178,6 +240,8 @@ const getDashboardStats = async (req, res) => {
           userSignupsTrend,
           deploymentsTrend,
           activityTrend,
+          projectsCreatedTrend,
+          cumulativeUsersTrend,
           deploymentStatusBreakdown,
           roleDistribution,
         },

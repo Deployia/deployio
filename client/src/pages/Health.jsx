@@ -190,30 +190,38 @@ const formatUptime = (seconds) => {
 
 // Status indicator component
 const StatusIndicator = ({ status, type = "default" }) => {
-  let isHealthy = false;
+  let tone = "error";
 
   if (type === "service") {
-    isHealthy = status === "ok" || status === "healthy";
-  } else {
-    // For subservices (mongodb, redis, docker)
-    isHealthy =
-      status === "connected" || status === "ok" || status === "healthy";
+    if (status === "ok" || status === "healthy") tone = "success";
+    else if (status === "degraded" || status === "unknown") tone = "warning";
+  } else if (
+    status === "connected" ||
+    status === "ok" ||
+    status === "healthy"
+  ) {
+    tone = "success";
+  } else if (status === "not_configured" || status === "unknown") {
+    tone = "warning";
   }
+
+  const toneClasses = {
+    success: { icon: "text-green-400", text: "text-green-400" },
+    warning: { icon: "text-yellow-400", text: "text-yellow-400" },
+    error: { icon: "text-red-400", text: "text-red-400" },
+  };
+  const { icon: iconClass, text: textClass } = toneClasses[tone];
 
   return (
     <div className="flex items-center">
-      {isHealthy ? (
-        <FaCheckCircle className="text-green-400 mr-2" />
+      {tone === "success" ? (
+        <FaCheckCircle className={`${iconClass} mr-2`} />
+      ) : tone === "warning" ? (
+        <FaExclamationTriangle className={`${iconClass} mr-2`} />
       ) : (
-        <FaTimesCircle className="text-red-400 mr-2" />
+        <FaTimesCircle className={`${iconClass} mr-2`} />
       )}
-      <span
-        className={`capitalize ${
-          isHealthy ? "text-green-400" : "text-red-400"
-        }`}
-      >
-        {status || "Unknown"}
-      </span>
+      <span className={`capitalize ${textClass}`}>{status || "Unknown"}</span>
     </div>
   );
 };
@@ -356,7 +364,6 @@ function Health() {
   const {
     isConnected: notificationsConnected,
     notifications,
-    sendTestNotification,
     error: notificationsError,
   } = useNotifications();
 
@@ -374,13 +381,13 @@ function Health() {
       }
     } catch (error) {
       console.error("Failed to send test notification:", error);
-      // Fallback to direct WebSocket test
-      if (sendTestNotification) {
-        sendTestNotification({
+      try {
+        await backend.post("/api/internal/notifications/test-websocket", {
+          message: "Test notification from Health Dashboard (WebSocket fallback)",
           type: "info",
-          message: "Test notification from Health Dashboard (fallback mode)",
-          timestamp: new Date().toISOString(),
         });
+      } catch (fallbackError) {
+        console.error("WebSocket test notification fallback failed:", fallbackError);
       }
     }
   };

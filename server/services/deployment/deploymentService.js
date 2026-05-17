@@ -15,6 +15,10 @@ const {
   toObjectIdString,
 } = require("@utils/projectAccess");
 const { snapshotProjectEnvForDeployment } = require("../../utils/envVarPayload");
+const {
+  assertCanDeploy,
+  syncUserResourceUsage,
+} = require("../user/resourceUsageService");
 
 const ACTIVE_DEPLOYMENT_STATUSES = [
   "pending",
@@ -258,6 +262,8 @@ class DeploymentService {
 
       const environment = deploymentData.environment || "staging";
 
+      await assertCanDeploy(userId);
+
       const activeDeployments = await Deployment.countDocuments({
         project: projectId,
         status: { $in: ACTIVE_DEPLOYMENT_STATUSES },
@@ -350,6 +356,7 @@ class DeploymentService {
       }
 
       notifyDeploymentStarted(userId, deployment, project);
+      await syncUserResourceUsage(userId);
 
       // Populate for response
       await deployment.populate("project", "name repository.url");
@@ -475,6 +482,7 @@ class DeploymentService {
         message: "Cancelled",
       });
 
+      await syncUserResourceUsage(userId);
       return this.transformDeployment(deployment.toObject());
     } catch (error) {
       logger.error("Error in cancelDeployment:", error);
@@ -511,6 +519,7 @@ class DeploymentService {
         message: "Manual stop",
       });
 
+      await syncUserResourceUsage(userId);
       return this.transformDeployment(deployment.toObject());
     } catch (error) {
       logger.error("Error in stopDeployment:", error);
@@ -554,6 +563,7 @@ class DeploymentService {
           deployment,
           message: reason,
         });
+        await syncUserResourceUsage(notifyUserId);
       }
 
       return deployment;
@@ -574,6 +584,7 @@ class DeploymentService {
         deployment,
         message: reason,
       });
+      await syncUserResourceUsage(notifyUserId);
     }
 
     return deployment;
@@ -607,6 +618,7 @@ class DeploymentService {
       });
 
       await Deployment.findByIdAndDelete(deployment._id);
+      await syncUserResourceUsage(userId);
 
       return { success: true, message: "Deployment deleted successfully" };
     } catch (error) {

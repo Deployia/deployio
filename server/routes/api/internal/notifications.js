@@ -4,7 +4,7 @@
 const express = require("express");
 const logger = require("@config/logger");
 const { protect, adminOnly } = require("@middleware/authMiddleware");
-const NotificationService = require("@services/notification/notificationService");
+const notificationService = require("@services/notification/notificationService");
 
 const router = express.Router();
 
@@ -22,9 +22,6 @@ router.post("/test", protect, async (req, res) => {
       channels = ["inApp"],
     } = req.body;
 
-    const notificationService = new NotificationService();
-
-    // Create a real notification using the service
     const notification = await notificationService.createNotification({
       userId: req.user._id,
       type: type,
@@ -192,7 +189,6 @@ router.post("/test/broadcast", protect, adminOnly, async (req, res) => {
 router.post("/test/multiple", protect, async (req, res) => {
   try {
     const { count = 3, delay = 1000 } = req.body;
-    const notificationService = new NotificationService();
 
     const notifications = [];
 

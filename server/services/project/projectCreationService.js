@@ -17,6 +17,10 @@ const {
   suggestProjectName,
   isValidDockerfileContent,
 } = require("../../utils/dockerfileNaming");
+const {
+  assertCanCreateProject,
+  syncUserResourceUsage,
+} = require("../user/resourceUsageService");
 
 class ProjectCreationService {
   async _getProviderApi(userId, provider) {
@@ -482,6 +486,8 @@ class ProjectCreationService {
       );
     }
 
+    await assertCanCreateProject(userId);
+
     const projectData = this._buildProjectDocument(payload, analysis, dockerfilePath);
 
     const project = new Project({
@@ -491,6 +497,7 @@ class ProjectCreationService {
     });
 
     await project.save();
+    await syncUserResourceUsage(userId);
 
     logger.info("Project created via client payload", {
       projectId: project._id,

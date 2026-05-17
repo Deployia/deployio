@@ -11,6 +11,8 @@ const AdminDataTable = ({
   pagination,
   onPageChange,
   rowKey = "_id",
+  onRowClick,
+  selectedRowKey,
 }) => {
   if (loading) {
     return <LoadingGrid columns={1} rows={3} />;
@@ -43,13 +45,19 @@ const AdminDataTable = ({
                 </td>
               </tr>
             ) : (
-              rows.map((row, index) => (
+              rows.map((row, index) => {
+                const key = row[rowKey] || row.id || index;
+                const isSelected = selectedRowKey != null && selectedRowKey === key;
+                return (
                 <motion.tr
-                  key={row[rowKey] || row.id || index}
+                  key={key}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.02 }}
-                  className="border-b border-neutral-800/30 hover:bg-neutral-800/40 transition-colors"
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  className={`border-b border-neutral-800/30 transition-colors ${
+                    onRowClick ? "cursor-pointer hover:bg-neutral-800/40" : "hover:bg-neutral-800/40"
+                  } ${isSelected ? "bg-purple-500/10" : ""}`}
                 >
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-sm text-gray-300">
@@ -57,7 +65,8 @@ const AdminDataTable = ({
                     </td>
                   ))}
                 </motion.tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>

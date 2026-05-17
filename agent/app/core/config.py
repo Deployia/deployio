@@ -3,6 +3,7 @@ Configuration module for DeployIO Agent
 """
 
 from typing import Optional
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 
@@ -62,11 +63,13 @@ class Settings(BaseSettings):
     # Health check settings
     health_check_interval: int = 30
     heartbeat_interval: int = 60
-    health_check_mongodb_enabled: bool = True 
-    health_check_docker_required: bool = True 
+    health_check_docker_required: bool = True
 
     # Database Configuration (MongoDB Atlas)
-    mongodb_uri: Optional[str] = None
+    mongodb_uri: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("MONGODB_URI", "DATABASE_URL"),
+    )
     mongodb_database: Optional[str] = None
     # Domain Configuration
     base_domain: Optional[str] = None

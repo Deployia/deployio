@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { FaStopCircle, FaTimesCircle } from "react-icons/fa";
+import { FaExternalLinkAlt, FaStopCircle, FaTimesCircle } from "react-icons/fa";
 import adminService from "@/services/adminService";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminFilters from "@/components/admin/AdminFilters";
 import AdminDataTable from "@/components/admin/AdminDataTable";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import DeploymentPreviewIframe from "@/components/deployments/DeploymentPreviewIframe";
 import { formatUserName, formatDate, StatusBadge } from "@/utils/adminFormatters";
+import { getDeploymentUrl, isLiveForPreview } from "@/utils/deploymentPreview";
 import { adminTokens } from "@/constants/adminDesignTokens";
 
 const CANCELLABLE = ["pending", "queued", "cloning", "detecting", "building", "deploying", "running"];
@@ -19,6 +21,7 @@ const AdminDeployments = () => {
   const [page, setPage] = useState(1);
   const [confirm, setConfirm] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedDeployment, setSelectedDeployment] = useState(null);
 
   const fetchDeployments = useCallback(async () => {
     setLoading(true);
@@ -52,6 +55,7 @@ const AdminDeployments = () => {
       if (confirm.type === "cancel") await adminService.cancelDeployment(id);
       else await adminService.stopDeployment(id);
       setConfirm(null);
+      setSelectedDeployment(null);
       fetchDeployments();
     } catch (err) {
       console.error("Action failed:", err);
@@ -59,6 +63,17 @@ const AdminDeployments = () => {
       setActionLoading(false);
     }
   };
+
+  const handleRowClick = (row) => {
+    setSelectedDeployment((prev) =>
+      prev?._id === row._id ? null : row,
+    );
+  };
+
+  const previewUrl = selectedDeployment
+    ? getDeploymentUrl(selectedDeployment)
+    : null;
+  const showPreview = selectedDeployment && isLiveForPreview(selectedDeployment.status);
 
   const columns = [
     {
@@ -80,7 +95,7 @@ const AdminDeployments = () => {
       key: "actions",
       label: "Actions",
       render: (row) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           {CANCELLABLE.includes(row.status) && row.status !== "running" && (
             <button type="button" title="Cancel" onClick={() => setConfirm({ type: "cancel", ...row })} className="p-2 rounded-lg bg-orange-500/20 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30">
               <FaTimesCircle className="w-4 h-4" />
@@ -117,7 +132,60 @@ const AdminDeployments = () => {
           ],
         }]}
       />
-      <AdminDataTable columns={columns} rows={deployments} loading={loading} pagination={pagination} onPageChange={setPage} rowKey="_id" />
+      <AdminDataTable
+        columns={columns}
+        rows={deployments}
+        loading={loading}
+        pagination={pagination}
+        onPageChange={setPage}
+        rowKey="_id"
+        onRowClick={handleRowClick}
+        selectedRowKey={selectedDeployment?._id}
+      />
+
+      {selectedDeployment && (
+        <div className={`${adminTokens.glassCard} mt-4 p-4`}>
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-white font-mono text-sm">{selectedDeployment.deploymentId}</p>
+                  <p className="text-gray-400 text-xs">
+                    {selectedDeployment.project?.name || "—"} ·{" "}
+                    <StatusBadge status={selectedDeployment.status} />
+                  </p>
+                </div>
+                {previewUrl && (
+                  <a
+                    href={previewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300"
+                  >
+                    Open site
+                    <FaExternalLinkAlt className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+              <p className="text-gray-500 text-xs">
+                {selectedDeployment.config?.subdomain}.deployio.tech ·{" "}
+                {formatUserName(selectedDeployment.deployedBy)} ·{" "}
+                {formatDate(selectedDeployment.createdAt)}
+              </p>
+            </div>
+            {showPreview && (
+              <div className="w-full lg:w-72 h-40 rounded-lg overflow-hidden border border-neutral-700/50 bg-neutral-900/50 shrink-0">
+                <DeploymentPreviewIframe
+                  deployment={selectedDeployment}
+                  variant="mini"
+                  pointerEventsNone
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         open={Boolean(confirm)}
         title={confirm?.type === "cancel" ? "Cancel deployment" : "Stop deployment"}

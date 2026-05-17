@@ -13,6 +13,13 @@ import {
 import { motion } from "framer-motion";
 import { adminTokens } from "@/constants/adminDesignTokens";
 
+const defaultMonthTick = (value) => {
+  if (!value) return "";
+  const [year, month] = String(value).split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+};
+
 const AdminTrendChart = ({
   title,
   subtitle,
@@ -20,9 +27,18 @@ const AdminTrendChart = ({
   series = [{ key: "count", name: "Count", color: "#60A5FA" }],
   chartType = "area",
   emptyMessage = "No data available",
+  dateKey = "date",
+  tickFormatter,
 }) => {
   const hasData = data.length > 0 && series.some((s) => data.some((d) => (d[s.key] || 0) > 0));
   const Chart = chartType === "line" ? LineChart : AreaChart;
+  const formatTick =
+    tickFormatter ||
+    ((value) => {
+      if (!value) return "";
+      if (dateKey === "period") return defaultMonthTick(value);
+      return String(value).slice(5);
+    });
 
   return (
     <motion.div
@@ -42,9 +58,9 @@ const AdminTrendChart = ({
             <Chart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="2 2" stroke="#374151" opacity={0.2} />
               <XAxis
-                dataKey="date"
+                dataKey={dateKey}
                 tick={{ fill: "#9CA3AF", fontSize: 11 }}
-                tickFormatter={(v) => (v ? v.slice(5) : "")}
+                tickFormatter={formatTick}
               />
               <YAxis tick={{ fill: "#9CA3AF", fontSize: 11 }} allowDecimals={false} />
               <Tooltip

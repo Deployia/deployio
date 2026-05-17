@@ -44,8 +44,6 @@ async def root():
 async def check_mongodb_connection():
     """Check MongoDB connection and log status"""
     logger = get_logger("mongodb-health")
-    if not settings.health_check_mongodb_enabled:
-        return "disabled"
     if not settings.mongodb_uri:
         return "not_configured"
     try:
@@ -148,7 +146,6 @@ async def health_check():
     docker_healthy = docker_status == "connected"
     mongodb_healthy_or_optional = mongodb_status in (
         "connected",
-        "disabled",
         "not_configured",
     )
 

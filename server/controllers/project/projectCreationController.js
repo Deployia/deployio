@@ -50,6 +50,10 @@ class ProjectCreationController {
         return res.status(400).json({ success: false, message: error.message });
       }
 
+      if (error.statusCode === 403) {
+        return res.status(403).json({ success: false, message: error.message });
+      }
+
       res.status(500).json({
         success: false,
         message: "Failed to complete project",

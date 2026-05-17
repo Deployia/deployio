@@ -10,6 +10,20 @@ const AdminOverviewCharts = ({ charts = {} }) => (
       series={[{ key: "count", name: "New users", color: "#60A5FA" }]}
     />
     <AdminTrendChart
+      title="Users over time"
+      subtitle="Cumulative — last 12 months"
+      data={charts.cumulativeUsersTrend || []}
+      chartType="line"
+      dateKey="period"
+      series={[{ key: "count", name: "Total users", color: "#A78BFA" }]}
+    />
+    <AdminTrendChart
+      title="Projects created"
+      subtitle="Last 30 days"
+      data={charts.projectsCreatedTrend || []}
+      series={[{ key: "count", name: "New projects", color: "#34D399" }]}
+    />
+    <AdminTrendChart
       title="Deployments"
       subtitle="Last 14 days"
       data={charts.deploymentsTrend || []}
@@ -18,6 +32,12 @@ const AdminOverviewCharts = ({ charts = {} }) => (
         { key: "successful", name: "Successful", color: "#34D399" },
         { key: "failed", name: "Failed", color: "#F87171" },
       ]}
+    />
+    <AdminTrendChart
+      title="Platform activity"
+      subtitle="Audit events — last 14 days"
+      data={charts.activityTrend || []}
+      series={[{ key: "count", name: "Events", color: "#FBBF24" }]}
     />
     <AdminDistributionChart
       title="Deployment status"

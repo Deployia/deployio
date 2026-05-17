@@ -18,6 +18,7 @@ const {
   mergeEnvironmentMapUpdate,
   redactEnvironmentMapForApi,
 } = require("@utils/envVarPayload");
+const { syncUserResourceUsage } = require("../user/resourceUsageService");
 
 const COLLABORATOR_USER_FIELDS =
   "username email firstName lastName profileImage";
@@ -305,6 +306,7 @@ class ProjectService {
       await this._stopAllProjectDeployments(projectId, "project-deleted");
       await Deployment.deleteMany({ project: projectId });
       await Project.deleteOne({ _id: projectId });
+      await syncUserResourceUsage(userId);
 
       logger.info("Project hard-deleted", { projectId, userId });
 
