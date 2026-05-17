@@ -2,32 +2,32 @@ import sqlite3
 import os
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from datetime import datetime
 
 app = FastAPI()
 
-# SQLite setup
-DB_PATH = "bookmarks.db"
+# SQLite lives on disk so bookmarks persist across restarts (local dev + container volumes).
+DATA_DIR = os.environ.get("DATA_DIR", "data")
+DB_PATH = os.path.join(DATA_DIR, "bookmarks.db")
 
 
 def init_db():
-    if not os.path.exists(DB_PATH):
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            CREATE TABLE bookmarks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                city TEXT UNIQUE NOT NULL,
-                temperature REAL,
-                condition TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-        conn.close()
+    os.makedirs(DATA_DIR, exist_ok=True)
+    # Opening the connection creates/touches the file immediately.
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS bookmarks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            city TEXT UNIQUE NOT NULL,
+            temperature REAL,
+            condition TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 
 init_db()

@@ -1,3 +1,12 @@
+# ---- Stage 1: Build React frontend ----
+FROM node:20-alpine AS frontend-build
+WORKDIR /app/frontend
+COPY frontend/package.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# ---- Stage 2: Production server ----
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -5,18 +14,16 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Build frontend
-COPY frontend/ ./frontend_build/
-RUN cd frontend_build && npm install && npm run build
-
-# Copy built frontend
-RUN mkdir -p static && cp -r frontend_build/dist/* static/
-
+COPY --from=frontend-build /app/frontend/dist ./static/
 COPY main.py .
-COPY leaderboard.db .
+
+RUN mkdir -p /app/data
 
 ENV ENVIRONMENT=production
 ENV PORT=8000
+ENV DATA_DIR=/app/data
+
+VOLUME ["/app/data"]
 
 EXPOSE 8000
 

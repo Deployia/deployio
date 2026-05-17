@@ -36,7 +36,19 @@ Visit `http://localhost:8000` in your browser.
 
 ```bash
 docker build -t weather-bookmark .
-docker run -p 8000:8000 weather-bookmark
+docker run -p 8000:8000 -v weather-bookmarks:/app/data weather-bookmark
+```
+
+Bookmarks are stored in `/app/data/bookmarks.db` inside the container. Mount a volume (as above) or a host path so data survives restarts:
+
+```bash
+docker run -p 8000:8000 -v "$(pwd)/data:/app/data" weather-bookmark
+```
+
+Inspect the DB while the container is running:
+
+```bash
+docker exec -it <container-id> sqlite3 /app/data/bookmarks.db "SELECT * FROM bookmarks;"
 ```
 
 ## API Endpoints

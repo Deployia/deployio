@@ -201,12 +201,12 @@ export default function App() {
                     Save Score
                   </button>
                   <button
-                    style={{linear-gradient(135deg, #ff00ff 0%, #ff0080 100%)",
+                    style={{
+                      ...styles.btn,
+                      background: "linear-gradient(135deg, #a0aec0 0%, #718096 100%)",
                       color: "white",
                       marginTop: "10px",
-                      boxShadow: "0 0 15px rgba(255, 0, 255, 0.4)
-                      background: "#a0aec0",
-                      marginTop: "10px",
+                      boxShadow: "0 0 15px rgba(160, 174, 192, 0.4)",
                     }}
                     onClick={() => setShowNameInput(false)}
                   >
@@ -223,13 +223,15 @@ export default function App() {
         <h3>🏆 Leaderboard</h3>
         <div style={styles.leaderboardList}>
           {leaderboard.length === 0 ? (
-            <p style= style={{ color: "#ff00ff", fontWeight: "bold" }}>#{entry.rank}</span>
-                <span style={{ color: "#00ffc8" }}>{entry.player}</span>
-                <span style={{ color: "#ff00ff
+            <p style={{ textAlign: "center", color: "rgba(0, 255, 200, 0.5)" }}>
+              No scores yet. Be the first!
+            </p>
+          ) : (
+            leaderboard.map((entry) => (
               <div key={entry.rank} style={styles.leaderboardEntry}>
-                <span>#{entry.rank}</span>
-                <span>{entry.player}</span>
-                <span style={{ color: "#667eea", fontWeight: "bold" }}>
+                <span style={{ color: "#ff00ff", fontWeight: "bold" }}>#{entry.rank}</span>
+                <span style={{ color: "#00ffc8" }}>{entry.player}</span>
+                <span style={{ color: "#ff00ff", fontWeight: "bold" }}>
                   {entry.score}
                 </span>
               </div>

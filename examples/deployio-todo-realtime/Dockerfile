@@ -11,9 +11,15 @@ COPY package*.json ./
 RUN npm install --omit=dev
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY next.config.js ./
+
+RUN mkdir -p /app/data
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV DATA_DIR=/app/data
+
+VOLUME ["/app/data"]
 
 EXPOSE 3000
 

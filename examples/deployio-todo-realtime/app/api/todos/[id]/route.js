@@ -1,16 +1,5 @@
 import { NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
-
-const dbPath = path.join(process.cwd(), "todos.db");
-let db;
-
-function getDb() {
-  if (!db) {
-    db = new Database(dbPath);
-  }
-  return db;
-}
+import { getDb } from "../../../../lib/db";
 
 export async function PUT(request, { params }) {
   try {
@@ -27,7 +16,7 @@ export async function PUT(request, { params }) {
     if (completed !== undefined) {
       database
         .prepare("UPDATE todos SET completed = ?, updatedAt = ? WHERE id = ?")
-        .run(completed, now, id);
+        .run(completed ? 1 : 0, now, id);
     }
 
     const todo = database.prepare("SELECT * FROM todos WHERE id = ?").get(id);

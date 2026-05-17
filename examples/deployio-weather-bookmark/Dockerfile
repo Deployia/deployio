@@ -8,8 +8,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY templates/ ./templates/
 
+RUN mkdir -p /app/data
+
 ENV ENVIRONMENT=production
 ENV PORT=8000
+ENV DATA_DIR=/app/data
+
+VOLUME ["/app/data"]
 
 EXPOSE 8000
 

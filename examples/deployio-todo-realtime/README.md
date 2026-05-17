@@ -37,7 +37,19 @@ Visit `http://localhost:3000`
 
 ```bash
 docker build -t todo-realtime .
-docker run -p 3000:3000 todo-realtime
+docker run -p 3000:3000 -v todo-data:/app/data todo-realtime
+```
+
+Todos are stored in `/app/data/todos.db` inside the container. Mount a volume (as above) or a host path so data survives restarts:
+
+```bash
+docker run -p 3000:3000 -v "$(pwd)/data:/app/data" todo-realtime
+```
+
+Inspect the DB while the container is running:
+
+```bash
+docker exec -it <container-id> sqlite3 /app/data/todos.db "SELECT * FROM todos;"
 ```
 
 ## API Endpoints

@@ -1,31 +1,31 @@
 import sqlite3
 import os
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from datetime import datetime
 
 app = FastAPI()
 
-# SQLite setup
-DB_PATH = "leaderboard.db"
+# SQLite lives on disk so scores persist across restarts (local dev + container volumes).
+DATA_DIR = os.environ.get("DATA_DIR", "data")
+DB_PATH = os.path.join(DATA_DIR, "leaderboard.db")
 
 
 def init_db():
-    if not os.path.exists(DB_PATH):
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            CREATE TABLE leaderboard (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                player_name TEXT NOT NULL,
-                score INTEGER NOT NULL,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-        conn.close()
+    os.makedirs(DATA_DIR, exist_ok=True)
+    # Opening the connection creates/touches the file immediately.
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS leaderboard (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_name TEXT NOT NULL,
+            score INTEGER NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 
 init_db()
