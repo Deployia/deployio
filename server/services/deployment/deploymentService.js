@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const Deployment = require("@models/Deployment");
 const Project = require("@models/Project");
 const logger = require("@config/logger");
@@ -260,7 +259,7 @@ class DeploymentService {
         );
       }
 
-      const environment = deploymentData.environment || "staging";
+      const environment = deploymentData.environment || "development";
 
       await assertCanDeploy(userId);
 
@@ -294,15 +293,22 @@ class DeploymentService {
       const subdomain = reservation.reservation.subdomain;
       let deployment;
 
-      // Prepare commit information (from client or project's last commit)
-      const commitData = deploymentData.commit || {
-        hash:
-          project.repository?.metadata?.lastCommit?.sha ||
-          crypto.randomBytes(20).toString("hex"),
-        message:
-          project.repository?.metadata?.lastCommit?.message || "Auto-deploy",
-        author: project.repository?.metadata?.lastCommit?.author || "deployio",
-        timestamp: project.repository?.metadata?.lastCommit?.date || new Date(),
+      const commitInput = deploymentData.commit || {};
+      const commitHash = String(commitInput.hash || "").trim();
+      if (!commitHash || commitHash.length < 7) {
+        throw new Error(
+          "A valid commit is required. Select a branch and commit in the deploy dialog.",
+        );
+      }
+
+      const commitData = {
+        hash: commitHash,
+        message: commitInput.message || "Deployment",
+        author: commitInput.author || "unknown",
+        timestamp: commitInput.timestamp
+          ? new Date(commitInput.timestamp)
+          : new Date(),
+        url: commitInput.url || undefined,
       };
 
       const environmentVariables = snapshotProjectEnvForDeployment(
@@ -353,7 +359,9 @@ class DeploymentService {
 
       // Trigger deployment on the agent via orchestrator
       try {
-        await deploymentOrchestrator.triggerDeploy(deployment, project);
+        await deploymentOrchestrator.triggerDeploy(deployment, project, {
+          deployUserId: userId,
+        });
       } catch (orchErr) {
         logger.error("Orchestrator trigger failed (non-blocking):", orchErr);
       }
@@ -425,6 +433,7 @@ class DeploymentService {
           await deploymentOrchestrator.triggerDeploy(
             deployment,
             deployment.project,
+            { deployUserId: userId },
           );
         }
       } catch (orchErr) {

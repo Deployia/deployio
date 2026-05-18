@@ -188,7 +188,8 @@ const validateDeploymentCreation = [
     .isLength({ min: 1, max: 100 })
     .withMessage("Branch name must be between 1 and 100 characters"),
   body("commit.hash")
-    .optional()
+    .notEmpty()
+    .withMessage("Commit hash is required")
     .isLength({ min: 7, max: 40 })
     .withMessage("Commit hash must be between 7 and 40 characters"),
   body("commit.message")

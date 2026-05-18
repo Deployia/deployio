@@ -89,6 +89,31 @@ class BaseGitProvider {
     };
   }
 
+  normalizeCommit(commit) {
+    const authorName =
+      commit.commit?.author?.name ||
+      commit.author_name ||
+      commit.author?.name ||
+      commit.author?.login ||
+      "unknown";
+    const timestamp =
+      commit.commit?.author?.date ||
+      commit.authored_date ||
+      commit.committed_date ||
+      null;
+
+    return {
+      hash: commit.sha || commit.id,
+      message:
+        (commit.commit?.message || commit.message || commit.title || "")
+          .split("\n")[0]
+          .trim() || "No message",
+      author: authorName,
+      timestamp,
+      url: commit.html_url || commit.web_url || null,
+    };
+  }
+
   normalizeUser(user) {
     return {
       id: user.id,

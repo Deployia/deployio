@@ -37,6 +37,14 @@ router.get(
   user.gitProvider.getBranches
 );
 
+// Get commits for a branch
+router.get(
+  "/:provider/repositories/:owner/:repo/commits",
+  protect,
+  getRateLimiters().gitProviders.repositories,
+  user.gitProvider.getCommits
+);
+
 // Get repository tree/file structure
 router.get(
   "/:provider/repositories/:owner/:repo/tree",

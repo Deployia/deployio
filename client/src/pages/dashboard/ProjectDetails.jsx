@@ -43,6 +43,7 @@ import {
   DEPLOYMENT_POLL_STATUSES,
   getProjectStatusBadge,
 } from "../../utils/deploymentConstants";
+import projectCreationService from "../../services/projectCreationService";
 
 const ProjectDetails = () => {
   const dispatch = useDispatch();
@@ -73,8 +74,17 @@ const ProjectDetails = () => {
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [deploymentForm, setDeploymentForm] = useState({
-    environment: "staging",
+    environment: "development",
     subdomain: "",
+    branch: "",
+    commit: null,
+  });
+  const [gitSourceState, setGitSourceState] = useState({
+    branches: [],
+    commits: [],
+    loadingBranches: false,
+    loadingCommits: false,
+    error: null,
   });
   const [hasLoadedProjectOnce, setHasLoadedProjectOnce] = useState(false);
   const [subdomainState, setSubdomainState] = useState({
@@ -294,12 +304,52 @@ const ProjectDetails = () => {
     }
   };
 
+  const getDeployRepoContext = () => {
+    const repo = currentProject?.repository;
+    if (!repo) return null;
+
+    if (repo.owner && repo.name) {
+      return {
+        provider: repo.provider || "github",
+        owner: repo.owner,
+        repo: repo.name,
+        fullName: `${repo.owner}/${repo.name}`,
+        defaultBranch: repo.branch || repo.defaultBranch || "main",
+      };
+    }
+
+    if (repo.url) {
+      const parsed = projectCreationService.extractRepositoryInfo(repo.url);
+      if (!parsed) return null;
+      return {
+        provider: parsed.provider,
+        owner: parsed.owner,
+        repo: parsed.repo || parsed.name,
+        fullName: `${parsed.owner}/${parsed.repo || parsed.name}`,
+        defaultBranch: repo.branch || repo.defaultBranch || "main",
+      };
+    }
+
+    return null;
+  };
+
   const handleOpenDeployModal = () => {
     if (isArchived) return;
     dispatch(clearDeploymentError({ field: "create" }));
+    const repoCtx = getDeployRepoContext();
+    const defaultBranch = repoCtx?.defaultBranch || "main";
     setDeploymentForm({
-      environment: "staging",
+      environment: "development",
       subdomain: "",
+      branch: defaultBranch,
+      commit: null,
+    });
+    setGitSourceState({
+      branches: [],
+      commits: [],
+      loadingBranches: Boolean(repoCtx),
+      loadingCommits: false,
+      error: null,
     });
     setSubdomainState({
       suggestions: [],
@@ -313,15 +363,23 @@ const ProjectDetails = () => {
       label: null,
       alternatives: [],
     });
-    refreshDeploymentData(id);
     setShowDeployModal(true);
   };
 
   const handleCloseDeployModal = () => {
     setShowDeployModal(false);
     setDeploymentForm({
-      environment: "staging",
+      environment: "development",
       subdomain: "",
+      branch: "",
+      commit: null,
+    });
+    setGitSourceState({
+      branches: [],
+      commits: [],
+      loadingBranches: false,
+      loadingCommits: false,
+      error: null,
     });
     setSubdomainState({
       suggestions: [],
@@ -335,7 +393,6 @@ const ProjectDetails = () => {
       label: null,
       alternatives: [],
     });
-    refreshDeploymentData(id);
   };
 
   const handleDeploymentEnvironmentChange = (environment) => {
@@ -396,6 +453,21 @@ const ProjectDetails = () => {
       (subdomainAvailability.subdomain === deploymentForm.subdomain &&
         subdomainAvailability.available === true));
 
+  const isGitSourceDeployReady =
+    Boolean(deploymentForm.branch) &&
+    Boolean(deploymentForm.commit?.hash);
+
+  const formatCommitLabel = (commit) => {
+    if (!commit?.hash) return "";
+    const sha = String(commit.hash).slice(0, 8);
+    const message = String(commit.message || "")
+      .split("\n")[0]
+      .trim()
+      .slice(0, 72);
+    const author = commit.author ? ` · ${commit.author}` : "";
+    return `${sha} — ${message || "Commit"}${author}`;
+  };
+
   const subdomainChipOptions = (() => {
     const map = new Map();
     (subdomainState.suggestions || []).forEach((item) => {
@@ -411,6 +483,7 @@ const ProjectDetails = () => {
 
   const handleCreateDeployment = async () => {
     if (isEnvCapacityReached(deploymentForm.environment)) return;
+    if (!isGitSourceDeployReady) return;
 
     try {
       const payload = await dispatch(
@@ -419,11 +492,19 @@ const ProjectDetails = () => {
           deploymentData: {
             environment: deploymentForm.environment,
             subdomain: deploymentForm.subdomain || undefined,
+            branch: deploymentForm.branch,
+            commit: {
+              hash: deploymentForm.commit.hash,
+              message: deploymentForm.commit.message,
+              author: deploymentForm.commit.author,
+              timestamp: deploymentForm.commit.timestamp,
+              url: deploymentForm.commit.url,
+            },
           },
         }),
       ).unwrap();
 
-      refreshDeploymentData(id, { bustCache: true });
+      dispatch(fetchProjectDeployments({ projectId: id, _noCache: true }));
 
       const created =
         payload?.data?.deployment ||
@@ -504,6 +585,133 @@ const ProjectDetails = () => {
       cancelled = true;
     };
   }, [dispatch, id, showDeployModal, deploymentForm.environment]);
+
+  useEffect(() => {
+    if (!showDeployModal) return undefined;
+
+    const repoCtx = getDeployRepoContext();
+    if (!repoCtx) {
+      setGitSourceState((prev) => ({
+        ...prev,
+        loadingBranches: false,
+        error: "Repository is not linked to this project.",
+      }));
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadBranches = async () => {
+      setGitSourceState((prev) => ({
+        ...prev,
+        loadingBranches: true,
+        error: null,
+      }));
+      try {
+        const branches = await projectCreationService.getBranches(
+          repoCtx.provider,
+          repoCtx.owner,
+          repoCtx.repo,
+          { fullName: repoCtx.fullName },
+        );
+        if (cancelled) return;
+
+        const branchNames = (branches || [])
+          .map((b) => b.name)
+          .filter(Boolean);
+        const defaultBranch =
+          deploymentForm.branch ||
+          repoCtx.defaultBranch ||
+          branchNames[0] ||
+          "main";
+        const resolvedBranch = branchNames.includes(defaultBranch)
+          ? defaultBranch
+          : branchNames[0] || defaultBranch;
+
+        setGitSourceState((prev) => ({
+          ...prev,
+          branches: branchNames,
+          loadingBranches: false,
+        }));
+        setDeploymentForm((prev) => ({
+          ...prev,
+          branch: resolvedBranch,
+          commit: null,
+        }));
+      } catch (err) {
+        if (cancelled) return;
+        setGitSourceState((prev) => ({
+          ...prev,
+          loadingBranches: false,
+          error:
+            err?.message ||
+            "Failed to load branches. Connect your git provider in settings.",
+        }));
+      }
+    };
+
+    loadBranches();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per modal open
+  }, [showDeployModal, currentProject?.repository?.url]);
+
+  useEffect(() => {
+    if (!showDeployModal || !deploymentForm.branch) return undefined;
+
+    const repoCtx = getDeployRepoContext();
+    if (!repoCtx) return undefined;
+
+    let cancelled = false;
+
+    const loadCommits = async () => {
+      setGitSourceState((prev) => ({
+        ...prev,
+        loadingCommits: true,
+        error: null,
+      }));
+      try {
+        const commits = await projectCreationService.getCommits(
+          repoCtx.provider,
+          repoCtx.owner,
+          repoCtx.repo,
+          {
+            branch: deploymentForm.branch,
+            per_page: 30,
+            fullName: repoCtx.fullName,
+          },
+        );
+        if (cancelled) return;
+
+        const list = Array.isArray(commits) ? commits : [];
+        setGitSourceState((prev) => ({
+          ...prev,
+          commits: list,
+          loadingCommits: false,
+        }));
+        setDeploymentForm((prev) => ({
+          ...prev,
+          commit: list[0] || null,
+        }));
+      } catch (err) {
+        if (cancelled) return;
+        setGitSourceState((prev) => ({
+          ...prev,
+          loadingCommits: false,
+          commits: [],
+          error: err?.message || "Failed to load commits for this branch.",
+        }));
+        setDeploymentForm((prev) => ({ ...prev, commit: null }));
+      }
+    };
+
+    loadCommits();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- branch-driven fetch
+  }, [showDeployModal, deploymentForm.branch, currentProject?.repository?.url]);
 
   useEffect(() => {
     if (!showDeployModal || !id) return undefined;
@@ -1086,6 +1294,87 @@ const ProjectDetails = () => {
               </button>
             </div>
 
+            <div className="mb-5 rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-4">
+              <div>
+                <div className="text-sm font-medium text-white mb-1">
+                  Source branch & commit
+                </div>
+                <div className="text-xs text-gray-400 mb-3">
+                  Each environment can run a different branch. Pick the exact
+                  commit to deploy.
+                </div>
+                {gitSourceState.error && (
+                  <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+                    {gitSourceState.error}
+                  </div>
+                )}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">
+                      Branch
+                    </label>
+                    <select
+                      value={deploymentForm.branch}
+                      onChange={(e) =>
+                        setDeploymentForm((prev) => ({
+                          ...prev,
+                          branch: e.target.value,
+                          commit: null,
+                        }))
+                      }
+                      disabled={
+                        gitSourceState.loadingBranches ||
+                        !gitSourceState.branches.length
+                      }
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white disabled:opacity-50"
+                    >
+                      {gitSourceState.loadingBranches && (
+                        <option value="">Loading branches...</option>
+                      )}
+                      {!gitSourceState.loadingBranches &&
+                        gitSourceState.branches.map((branchName) => (
+                          <option key={branchName} value={branchName}>
+                            {branchName}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">
+                      Commit
+                    </label>
+                    <select
+                      value={deploymentForm.commit?.hash || ""}
+                      onChange={(e) => {
+                        const selected = gitSourceState.commits.find(
+                          (c) => c.hash === e.target.value,
+                        );
+                        setDeploymentForm((prev) => ({
+                          ...prev,
+                          commit: selected || null,
+                        }));
+                      }}
+                      disabled={
+                        gitSourceState.loadingCommits ||
+                        !gitSourceState.commits.length
+                      }
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white disabled:opacity-50"
+                    >
+                      {gitSourceState.loadingCommits && (
+                        <option value="">Loading commits...</option>
+                      )}
+                      {!gitSourceState.loadingCommits &&
+                        gitSourceState.commits.map((commit) => (
+                          <option key={commit.hash} value={commit.hash}>
+                            {formatCommitLabel(commit)}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="mb-5 rounded-xl border border-neutral-800 bg-neutral-900/70 p-4">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div>
@@ -1237,6 +1526,9 @@ const ProjectDetails = () => {
                 disabled={
                   deploymentLoading.create ||
                   !isSubdomainDeployReady ||
+                  !isGitSourceDeployReady ||
+                  gitSourceState.loadingBranches ||
+                  gitSourceState.loadingCommits ||
                   deploymentLoading.subdomainCheck ||
                   isDeploymentCapacityReached ||
                   isEnvCapacityReached(deploymentForm.environment)
@@ -1244,6 +1536,9 @@ const ProjectDetails = () => {
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                   deploymentLoading.create ||
                   !isSubdomainDeployReady ||
+                  !isGitSourceDeployReady ||
+                  gitSourceState.loadingBranches ||
+                  gitSourceState.loadingCommits ||
                   deploymentLoading.subdomainCheck ||
                   isDeploymentCapacityReached ||
                   isEnvCapacityReached(deploymentForm.environment)

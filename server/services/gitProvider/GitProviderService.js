@@ -499,6 +499,63 @@ class GitProviderService {
   }
 
   /**
+   * Get commits for a repository branch
+   */
+  static async getCommits(userId, provider, repoFullName, branch = "main", options = {}) {
+    try {
+      const user = await User.findById(userId).select(
+        this._tokenSelectFields(this._canonicalProvider(provider)),
+      );
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (!this._hasValidGitProviderToken(user, provider)) {
+        throw new Error("No valid token for provider");
+      }
+
+      const apiId = this._apiProviderId(provider);
+      const token = this._getGitProviderToken(user, provider);
+      const providerInstance = GitProviderFactory.createProvider(apiId, token);
+
+      const canonical = this._canonicalProvider(provider);
+      const perPage = options.per_page || options.perPage || 30;
+
+      let commits;
+      if (canonical === "gitlab") {
+        if (typeof providerInstance.getCommits !== "function") {
+          throw new Error("Commits are not supported for this Git provider yet");
+        }
+        commits = await providerInstance.getCommits(repoFullName, {
+          sha: branch,
+          per_page: perPage,
+        });
+      } else if (canonical === "azureDevOps") {
+        throw new Error("Commits listing is not supported for Azure DevOps yet");
+      } else {
+        const [owner, repo] = repoFullName.split("/");
+        if (!owner || !repo) {
+          throw new Error("Invalid repository format. Expected 'owner/repo'");
+        }
+        if (typeof providerInstance.getCommits !== "function") {
+          throw new Error("Commits are not supported for this Git provider yet");
+        }
+        commits = await providerInstance.getCommits(owner, repo, {
+          sha: branch,
+          per_page: perPage,
+        });
+      }
+
+      this._updateProviderLastUsed(user, provider);
+      await user.save();
+
+      return commits;
+    } catch (error) {
+      throw new Error(`Failed to get commits: ${error.message}`);
+    }
+  }
+
+  /**
    * Get repository data for analysis
    */
   static async getRepositoryData(

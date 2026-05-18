@@ -23,6 +23,51 @@ class StackDetectionError(Exception):
     pass
 
 
+def _inject_token_into_clone_url(git_url: str, token: str) -> str:
+    """Embed credentials for HTTPS clone (GitHub, GitLab, etc.)."""
+    if not token or "https://" not in git_url:
+        return git_url
+
+    # Already contains credentials
+    after_scheme = git_url.split("https://", 1)[1]
+    if "@" in after_scheme.split("/")[0]:
+        return git_url
+
+    if "gitlab.com" in git_url.lower():
+        return git_url.replace("https://", f"https://oauth2:{token}@", 1)
+
+    return git_url.replace("https://", f"https://{token}@", 1)
+
+
+def _checkout_commit_sync(clone_dir: str, commit_sha: str) -> str:
+    """Fetch and checkout a specific commit SHA in an existing clone."""
+    repo = Repo(clone_dir)
+    full_sha = commit_sha.strip()
+    if not full_sha:
+        raise StackDetectionError("Commit SHA is required")
+
+    try:
+        repo.git.fetch("origin", full_sha, "--depth", "1")
+    except GitCommandError as fetch_err:
+        raise StackDetectionError(
+            f"Commit {full_sha[:8]} not found on remote: {fetch_err}"
+        ) from fetch_err
+
+    try:
+        repo.git.checkout(full_sha)
+    except GitCommandError as checkout_err:
+        raise StackDetectionError(
+            f"Failed to checkout commit {full_sha[:8]}: {checkout_err}"
+        ) from checkout_err
+
+    resolved = repo.head.commit.hexsha
+    if not resolved.startswith(full_sha[:7]) and not full_sha.startswith(resolved[:7]):
+        raise StackDetectionError(
+            f"Checkout mismatch: expected {full_sha[:8]}, got {resolved[:8]}"
+        )
+    return resolved
+
+
 class GitService:
     """
     Handles Git operations: clone, stack detection.
@@ -42,50 +87,57 @@ class GitService:
         github_token: Optional[str] = None,
         branch: str = "main",
         deployment_id: Optional[str] = None,
+        commit_sha: Optional[str] = None,
     ) -> str:
         """
         Clone a GitHub repository to a temporary directory.
+        When commit_sha is set, checks out that revision after cloning the branch.
         Returns the clone path.
         """
         try:
-            # Create unique directory for this clone
             clone_id = deployment_id or git_url.split("/")[-1].replace(".git", "")
             clone_dir = self.clone_base / clone_id
 
-            # Clean if already exists
             if clone_dir.exists():
                 shutil.rmtree(clone_dir)
 
             clone_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Cloning {git_url} to {clone_dir}")
+            logger.info(
+                "Cloning %s (branch=%s, commit=%s) to %s",
+                git_url,
+                branch,
+                (commit_sha or "")[:8] if commit_sha else "HEAD",
+                clone_dir,
+            )
 
-            # Prepare clone URL with token if provided
-            clone_url = git_url
-            if github_token:
-                # Inject token into URL: https://token@github.com/...
-                if "https://" in clone_url:
-                    clone_url = clone_url.replace(
-                        "https://", f"https://{github_token}@"
-                    )
+            clone_url = _inject_token_into_clone_url(git_url, github_token or "")
 
-            # Clone repository
             await asyncio.to_thread(
                 Repo.clone_from,
                 clone_url,
                 clone_dir,
                 branch=branch,
-                depth=1,  # Shallow clone for speed
+                depth=1,
             )
 
-            logger.info(f"✅ Repository cloned to {clone_dir}")
+            resolved_sha = None
+            if commit_sha:
+                resolved_sha = await asyncio.to_thread(
+                    _checkout_commit_sync, str(clone_dir), commit_sha
+                )
+                logger.info("Checked out commit %s", resolved_sha[:8])
+
+            logger.info("Repository cloned to %s", clone_dir)
             return str(clone_dir)
 
         except GitCommandError as e:
-            logger.error(f"❌ Git clone failed: {e}")
-            raise StackDetectionError(f"Failed to clone repository: {e}")
+            logger.error("Git clone failed: %s", e)
+            raise StackDetectionError(f"Failed to clone repository: {e}") from e
+        except StackDetectionError:
+            raise
         except Exception as e:
-            logger.error(f"❌ Unexpected error during clone: {e}")
-            raise StackDetectionError(f"Clone error: {e}")
+            logger.error("Unexpected error during clone: %s", e)
+            raise StackDetectionError(f"Clone error: {e}") from e
 
     async def detect_stack(self, repo_path: str) -> Dict[str, Any]:
         """
@@ -105,17 +157,14 @@ class GitService:
         if not repo_path.exists():
             raise StackDetectionError(f"Repository path does not exist: {repo_path}")
 
-        # Check for Node.js stack
         package_json = repo_path / "package.json"
         if package_json.exists():
             return await self._detect_node_stack(repo_path, package_json)
 
-        # Check for Python stack
         requirements_txt = repo_path / "requirements.txt"
         if requirements_txt.exists():
             return await self._detect_python_stack(repo_path, requirements_txt)
 
-        # Check for Java stack
         pom_xml = repo_path / "pom.xml"
         if pom_xml.exists():
             return {
@@ -125,7 +174,6 @@ class GitService:
                 "port": 8080,
             }
 
-        # Default to unknown
         return {
             "stack": "UNKNOWN",
             "language": "Unknown",
@@ -153,7 +201,6 @@ class GitService:
 
         dependencies = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
 
-        # Check for Next.js
         if "next" in dependencies:
             port = 3000
             build_cmd = "npm install && npm run build"
@@ -168,9 +215,7 @@ class GitService:
                 "start_command": start_cmd,
             }
 
-        # Check for React (MERN)
         if "react" in dependencies:
-            # Check if it has Express backend
             has_express = "express" in dependencies
 
             if has_express:
@@ -187,8 +232,7 @@ class GitService:
                     "start_command": start_cmd,
                 }
             else:
-                # Just React frontend
-                port = 5173  # Vite default or 3000 for CRA
+                port = 5173
                 build_cmd = "npm install && npm run build"
                 start_cmd = "npm run dev"
 
@@ -201,7 +245,6 @@ class GitService:
                     "start_command": start_cmd,
                 }
 
-        # Default Node.js / Express
         port = pkg.get("deployio", {}).get("port", 5000)
         return {
             "stack": "EXPRESS",
@@ -230,7 +273,6 @@ class GitService:
                 "start_command": "python app.py",
             }
 
-        # Check for FastAPI
         if "fastapi" in requirements:
             return {
                 "stack": "FASTAPI",
@@ -241,7 +283,6 @@ class GitService:
                 "start_command": "uvicorn main:app --host 0.0.0.0 --port 8000",
             }
 
-        # Check for Django
         if "django" in requirements:
             return {
                 "stack": "DJANGO",
@@ -252,7 +293,6 @@ class GitService:
                 "start_command": "python manage.py runserver 0.0.0.0:8000",
             }
 
-        # Check for Flask
         if "flask" in requirements:
             return {
                 "stack": "FLASK",
@@ -263,7 +303,6 @@ class GitService:
                 "start_command": "python app.py",
             }
 
-        # Default Python
         return {
             "stack": "PYTHON",
             "language": "Python",

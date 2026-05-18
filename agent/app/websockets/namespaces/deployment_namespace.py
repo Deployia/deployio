@@ -171,8 +171,19 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             await self._emit_build_log(dep_id, level, message)
 
         branch_name = data.get("branch") or "main"
-        # dockerfile path relative to repo root (e.g. "apps/server/Dockerfile")
+        commit_sha = data.get("commitSha") or data.get("commit_sha")
         dockerfile_path = data.get("dockerfilePath") or "Dockerfile"
+        repo_url = data.get("repoUrl")
+        build_if_missing = data.get("buildIfMissing", True)
+
+        if not image and build_if_missing and not repo_url:
+            await self._emit_status_update(
+                deployment_id,
+                "failed",
+                "Missing repository URL for build",
+            )
+            return
+
         if image:
             result = await deployment_service.deploy(
                 deployment_id=deployment_id,
@@ -187,9 +198,11 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             try:
                 build_service = BuildService()
                 result = await build_service.build_and_deploy(
-                    git_url=data.get("repoUrl"),
-                    github_token=data.get("githubToken"),
+                    git_url=repo_url,
+                    github_token=data.get("gitToken")
+                    or data.get("githubToken"),
                     branch=branch_name,
+                    commit_sha=commit_sha,
                     subdomain=subdomain,
                     logs_callback=log_cb,
                     deployment_id=deployment_id,

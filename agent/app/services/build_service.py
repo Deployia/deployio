@@ -311,6 +311,7 @@ class BuildService:
         git_url: str,
         github_token: Optional[str] = None,
         branch: str = "main",
+        commit_sha: Optional[str] = None,
         subdomain: Optional[str] = None,
         logs_callback: Optional[Callable] = None,
         deployment_id: Optional[str] = None,
@@ -335,23 +336,32 @@ class BuildService:
             )
 
         try:
+            if not git_url or not str(git_url).strip():
+                raise ValueError("Repository URL is required for build")
+
             repo_profile = self._assert_supported_repository(git_url)
             await _stage("queued", "Deployment accepted")
             event_loop = asyncio.get_running_loop()
 
-            # Emit log
             await self._emit_log(
                 logs_callback, deployment_id, "info", "Starting deployment..."
             )
 
-            # Clone repository
             await _stage("cloning", "Cloning repository")
+            pin_label = f" @ {commit_sha[:8]}" if commit_sha else ""
             await self._emit_log(
-                logs_callback, deployment_id, "info", "Cloning repository..."
+                logs_callback,
+                deployment_id,
+                "info",
+                f"Cloning {branch}{pin_label}...",
             )
 
             repo_path_str = await self.git_service.clone_repository(
-                git_url, github_token, branch, deployment_id
+                git_url,
+                github_token,
+                branch,
+                deployment_id,
+                commit_sha=commit_sha,
             )
             repo_path = Path(repo_path_str)
 

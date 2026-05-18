@@ -68,6 +68,15 @@ class GitHubProvider extends BaseGitProvider {
     return branches.map((branch) => this.normalizeBranch(branch));
   }
 
+  async getCommits(owner, repo, options = {}) {
+    const { sha = "main", per_page = 30 } = options;
+    const endpoint = `/repos/${owner}/${repo}/commits`;
+    const params = { sha, per_page: Math.min(Number(per_page) || 30, 100) };
+    const commits = await this.makeRequest(endpoint, { params });
+    const list = Array.isArray(commits) ? commits : [];
+    return list.map((commit) => this.normalizeCommit(commit));
+  }
+
   async getRepositoryContent(owner, repo, path = "", branch = "main") {
     const endpoint = `/repos/${owner}/${repo}/contents/${path}`;
     const params = { ref: branch };

@@ -298,6 +298,36 @@ const getBranches = async (req, res) => {
 };
 
 /**
+ * Get repository commits for a branch
+ */
+const getCommits = async (req, res) => {
+  try {
+    const { provider, owner, repo } = req.params;
+    const branch = req.query.branch || "main";
+    const perPage = req.query.per_page || req.query.perPage || 30;
+    const repoFullName = req.query.fullName || `${owner}/${repo}`;
+
+    const commits = await GitProviderService.getCommits(
+      req.user._id,
+      provider,
+      repoFullName,
+      branch,
+      { per_page: perPage },
+    );
+
+    res.json({
+      success: true,
+      data: commits,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
  * Get repository data for analysis
  */
 const getRepositoryData = async (req, res) => {
@@ -427,6 +457,7 @@ module.exports = {
   getRepositories,
   getRepository,
   getBranches,
+  getCommits,
   getRepositoryData,
   getRepositoryTree,
   getFileContent,

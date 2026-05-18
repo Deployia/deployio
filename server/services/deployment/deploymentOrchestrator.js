@@ -14,6 +14,8 @@ const logger = require("@config/logger");
 const {
   snapshotProjectEnvForDeployment,
 } = require("../../utils/envVarPayload");
+const { resolveDeployGitToken } = require("../../utils/resolveDeployGitToken");
+const { resolveCommitShaForAgent } = require("../../utils/deploymentCommit");
 const webSocketManager = require("@config/webSocketManager");
 const {
   notifyDeploymentStatusChange,
@@ -141,9 +143,11 @@ class DeploymentOrchestrator {
    *
    * @param {Object} deployment — Mongoose deployment document (or plain object)
    * @param {Object} project — Mongoose project document (or plain object)
+   * @param {Object} [options]
+   * @param {string} [options.deployUserId] — user who triggered deploy (for OAuth token)
    * @returns {boolean} — whether the trigger was sent successfully
    */
-  async triggerDeploy(deployment, project) {
+  async triggerDeploy(deployment, project, options = {}) {
     if (!this.isInitialized || !this.bridgeService) {
       logger.error(
         "DeploymentOrchestrator not initialized — cannot trigger deployment",
@@ -176,12 +180,19 @@ class DeploymentOrchestrator {
         project.repository?.url || project.repository?.git || null;
       const branch =
         deployment.config?.branch || project.repository?.branch || "main";
+      const commitSha = resolveCommitShaForAgent(deployment);
+
+      const deployUserId =
+        options.deployUserId ||
+        deployment.deployedBy?._id?.toString?.() ||
+        deployment.deployedBy?.toString?.() ||
+        null;
 
       const projectId = project._id || project.id;
       let resolvedProject = project;
       if (projectId) {
         const freshProject = await Project.findById(projectId)
-          .select("deployment repository name dockerImage")
+          .select("deployment repository name dockerImage owner")
           .lean();
         if (freshProject) {
           resolvedProject = freshProject;
@@ -189,7 +200,7 @@ class DeploymentOrchestrator {
       }
 
       const deploymentEnvironment =
-        deployment.config?.environment || "production";
+        deployment.config?.environment || "development";
       const projectEnvList = Array.isArray(
         resolvedProject.deployment?.environment?.[deploymentEnvironment],
       )
@@ -236,12 +247,21 @@ class DeploymentOrchestrator {
         ...mergedEnvVars,
       };
 
+      const { token: gitToken, source: gitTokenSource } =
+        await resolveDeployGitToken({
+          deployUserId,
+          project: resolvedProject,
+        });
+
       const payload = {
         deploymentId,
         // If an image is provided, agent can directly run it; otherwise agent should clone+build
         image: dockerImage,
         repoUrl,
         branch,
+        commitSha,
+        githubToken: gitToken,
+        gitToken,
         subdomain,
         port: containerPort,
         envVars,
@@ -250,7 +270,8 @@ class DeploymentOrchestrator {
         // instruct agent to build if no image is available
         buildIfMissing: !dockerImage,
         // dockerfile path selected by the user (relative to repo root)
-        dockerfilePath: project.deployment?.dockerfile?.path || "Dockerfile",
+        dockerfilePath:
+          resolvedProject.deployment?.dockerfile?.path || "Dockerfile",
       };
 
       const envKeys = Object.keys(mergedEnvVars);
@@ -259,6 +280,10 @@ class DeploymentOrchestrator {
         agent: agentId,
         image: dockerImage,
         subdomain,
+        branch,
+        commitSha: commitSha ? commitSha.slice(0, 8) : "branch-head",
+        gitTokenSource: gitTokenSource || "none",
+        hasGitToken: Boolean(gitToken),
         deploymentEnvironment,
         platformEnvCount: envKeys.length,
         platformEnvKeys: envKeys.slice(0, 25),
