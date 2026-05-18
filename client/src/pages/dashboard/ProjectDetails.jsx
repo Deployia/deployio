@@ -80,6 +80,9 @@ const ProjectDetails = () => {
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [deployModalMode, setDeployModalMode] = useState("create");
   const deployPrefillRef = useRef(null);
+  /** Set when the user picks a commit in the modal (prevents async loaders from resetting it). */
+  const commitTouchedRef = useRef(false);
+  const branchTouchedRef = useRef(false);
   const [deploymentForm, setDeploymentForm] = useState({
     environment: "development",
     subdomain: "",
@@ -162,7 +165,13 @@ const ProjectDetails = () => {
       : projectId;
 
     dispatch(fetchProjectById(fetchArg));
-    dispatch(fetchProjectDeployments(fetchArg));
+    dispatch(
+      fetchProjectDeployments(
+        typeof fetchArg === "object"
+          ? { ...fetchArg, silent: true }
+          : { projectId: fetchArg, silent: true },
+      ),
+    );
   };
 
   // Get current tab from URL
@@ -217,7 +226,7 @@ const ProjectDetails = () => {
     if (!id) return undefined;
     const timer = setInterval(() => {
       if (hasInFlightRef.current) {
-        dispatch(fetchProjectDeployments(id));
+        dispatch(fetchProjectDeployments({ projectId: id, silent: true }));
       }
     }, 4000);
     return () => clearInterval(timer);
@@ -358,6 +367,8 @@ const ProjectDetails = () => {
     const repoCtx = getDeployRepoContext();
     const defaultBranch = repoCtx?.defaultBranch || "main";
     deployPrefillRef.current = prefill;
+    commitTouchedRef.current = false;
+    branchTouchedRef.current = false;
     setDeployModalMode(prefill ? "redeploy" : "create");
     setDeploymentForm({
       environment: prefill?.environment || "development",
@@ -412,7 +423,7 @@ const ProjectDetails = () => {
       }
       if (id) {
         await dispatch(
-          fetchProjectDeployments({ projectId: id, _noCache: true }),
+          fetchProjectDeployments({ projectId: id, _noCache: true, silent: true }),
         ).unwrap();
       }
     } catch (err) {
@@ -424,6 +435,8 @@ const ProjectDetails = () => {
 
   const handleCloseDeployModal = () => {
     deployPrefillRef.current = null;
+    commitTouchedRef.current = false;
+    branchTouchedRef.current = false;
     setDeployModalMode("create");
     setShowDeployModal(false);
     setDeploymentForm({
@@ -569,7 +582,9 @@ const ProjectDetails = () => {
         }),
       ).unwrap();
 
-      dispatch(fetchProjectDeployments({ projectId: id, _noCache: true }));
+      dispatch(
+        fetchProjectDeployments({ projectId: id, _noCache: true, silent: true }),
+      );
 
       const created =
         payload?.data?.deployment ||
@@ -701,8 +716,10 @@ const ProjectDetails = () => {
         }));
         setDeploymentForm((prev) => ({
           ...prev,
-          branch: resolvedBranch,
-          commit: deployPrefillRef.current?.commit || null,
+          branch: branchTouchedRef.current ? prev.branch : resolvedBranch,
+          commit: commitTouchedRef.current
+            ? prev.commit
+            : deployPrefillRef.current?.commit || prev.commit || null,
         }));
       } catch (err) {
         if (cancelled) return;
@@ -751,26 +768,37 @@ const ProjectDetails = () => {
         if (cancelled) return;
 
         const list = Array.isArray(commits) ? commits : [];
-        const prefillCommit = deployPrefillRef.current?.commit;
-        let selectedCommit = list[0] || null;
-        if (prefillCommit?.hash) {
-          const match = list.find(
-            (row) =>
-              row.hash === prefillCommit.hash ||
-              row.hash?.startsWith(String(prefillCommit.hash).slice(0, 7)),
+        const findCommitInList = (commit) => {
+          if (!commit?.hash || !list.length) return null;
+          const needle = String(commit.hash).trim();
+          return (
+            list.find(
+              (row) =>
+                row.hash === needle ||
+                String(row.hash || "").startsWith(needle.slice(0, 7)) ||
+                needle.startsWith(String(row.hash || "").slice(0, 7)),
+            ) || commit
           );
-          selectedCommit = match || prefillCommit;
-        }
+        };
 
         setGitSourceState((prev) => ({
           ...prev,
           commits: list,
           loadingCommits: false,
         }));
-        setDeploymentForm((prev) => ({
-          ...prev,
-          commit: selectedCommit,
-        }));
+        setDeploymentForm((prev) => {
+          if (commitTouchedRef.current && prev.commit?.hash) {
+            return { ...prev, commit: findCommitInList(prev.commit) || prev.commit };
+          }
+          const prefillCommit = deployPrefillRef.current?.commit;
+          const isRedeploy = Boolean(deployPrefillRef.current?.sourceDeploymentId);
+          // Redeploy: default to branch HEAD (newest), not the superseded deployment's commit.
+          let selectedCommit = list[0] || null;
+          if (!isRedeploy && prefillCommit?.hash) {
+            selectedCommit = findCommitInList(prefillCommit) || prefillCommit;
+          }
+          return { ...prev, commit: selectedCommit };
+        });
       } catch (err) {
         if (cancelled) return;
         setGitSourceState((prev) => ({
@@ -1437,13 +1465,15 @@ const ProjectDetails = () => {
                     </label>
                     <select
                       value={deploymentForm.branch}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        branchTouchedRef.current = true;
+                        commitTouchedRef.current = false;
                         setDeploymentForm((prev) => ({
                           ...prev,
                           branch: e.target.value,
                           commit: null,
-                        }))
-                      }
+                        }));
+                      }}
                       disabled={
                         gitSourceState.loadingBranches ||
                         !gitSourceState.branches.length
@@ -1465,12 +1495,23 @@ const ProjectDetails = () => {
                     <label className="text-xs text-gray-400 mb-1 block">
                       Commit
                     </label>
+                    {deployModalMode === "redeploy" && (
+                      <p className="text-[11px] text-neutral-500 mb-1.5">
+                        Defaults to the latest commit on this branch. Your
+                        selection is kept if the list reloads.
+                      </p>
+                    )}
                     <select
                       value={deploymentForm.commit?.hash || ""}
                       onChange={(e) => {
                         const selected = gitSourceState.commits.find(
-                          (c) => c.hash === e.target.value,
+                          (c) =>
+                            c.hash === e.target.value ||
+                            String(c.hash || "").startsWith(
+                              String(e.target.value).slice(0, 7),
+                            ),
                         );
+                        commitTouchedRef.current = true;
                         setDeploymentForm((prev) => ({
                           ...prev,
                           commit: selected || null,

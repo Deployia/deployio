@@ -43,7 +43,10 @@ import {
   getDeploymentStatusBadge,
   isDeploymentActionAllowed,
   isDeploymentBuildPhase,
-  isPipelineStageStatus,
+  derivePipelineStageFromLogs,
+  deploymentHadRuntimeContainer,
+  getEffectiveDeploymentStatus,
+  resolveEffectivePipelineStage,
   resolvePipelineStage,
 } from "../../utils/deploymentConstants";
 import DeploymentPreviewIframe from "../../components/deployments/DeploymentPreviewIframe";
@@ -62,6 +65,9 @@ const ProjectDeployments = () => {
   const loadingFetchProject = useSelector(
     (state) => state.deployments.loading.fetchProject,
   );
+  const showDeploymentsListLoader =
+    loadingFetchProject &&
+    (!Array.isArray(projectDeployments) || projectDeployments.length === 0);
   const errorDeployments = useSelector(
     (state) => state.deployments.error.fetchProject,
   );
@@ -164,7 +170,7 @@ const ProjectDeployments = () => {
     [selectedDeployment?.deploymentId, selectedDeploymentId],
   );
   const streamBuildOnly = isDeploymentBuildPhase(
-    selectedDeployment?.status,
+    getEffectiveDeploymentStatus(selectedDeployment, null),
   );
   const { connected, liveLogs, liveStatus, liveMetrics } = useDeploymentStream(
     showPanel ? selectedDeploymentRuntimeId : null,
@@ -208,7 +214,12 @@ const ProjectDeployments = () => {
       setActionError(null);
       await actionFn(id).unwrap();
       if (project?._id || project?.id) {
-        const r = await dispatch(fetchProjectDeployments(project._id || project.id));
+        const r = await dispatch(
+          fetchProjectDeployments({
+            projectId: project._id || project.id,
+            silent: true,
+          }),
+        );
         return { deployments: r.payload?.deployments ?? null, actionId: id };
       }
       return { deployments: null, actionId: id };
@@ -377,7 +388,7 @@ const ProjectDeployments = () => {
 
   useEffect(() => {
     if (!showPanel || !selectedIdForApi) return undefined;
-    const st = String(selectedDeployment?.status || "").toLowerCase();
+    const st = getEffectiveDeploymentStatus(selectedDeployment, liveStatus);
     if (!DEPLOYMENT_POLL_STATUSES.has(st)) {
       return undefined;
     }
@@ -389,6 +400,7 @@ const ProjectDeployments = () => {
     showPanel,
     selectedIdForApi,
     selectedDeployment?.status,
+    liveStatus?.status,
     loadDeploymentLogs,
   ]);
 
@@ -452,38 +464,16 @@ const ProjectDeployments = () => {
   };
 
   const deriveStageFromLogs = useMemo(() => {
-    const allLogs = [...formatLogs(deploymentLogs), ...liveLogs];
-    const lastLogs = allLogs.slice(-120);
-    const contains = (needle) =>
-      lastLogs.some((log) =>
-        String(log.message || "")
-          .toLowerCase()
-          .includes(needle),
-      );
-
-    if (contains("cloning") || contains("repository cloned")) return "cloning";
-    if (contains("detect") || contains("using repository dockerfile")) return "detecting";
-    if (
-      contains("running build command") ||
-      contains("[build] step") ||
-      contains("sending build context")
-    ) {
-      return "building";
-    }
-    if (
-      contains("starting deployment") ||
-      contains("starting container") ||
-      contains("container started")
-    ) {
-      return "deploying";
-    }
-    if (contains("container is running") || contains("deployment completed")) return "running";
-    return null;
+    const messages = [...formatLogs(deploymentLogs), ...liveLogs].map(
+      (log) => log.message,
+    );
+    return derivePipelineStageFromLogs(messages);
   }, [deploymentLogs, formatLogs, liveLogs]);
 
-  const normalizedStatus = String(
-    liveStatus?.status || selectedDeployment?.status || "",
-  ).toLowerCase();
+  const normalizedStatus = getEffectiveDeploymentStatus(
+    selectedDeployment,
+    liveStatus,
+  );
   const isBuildPhase = isDeploymentBuildPhase(normalizedStatus);
   const isRuntimeLive = normalizedStatus === "running";
 
@@ -525,20 +515,24 @@ const ProjectDeployments = () => {
     }
   }, [showPanel, mergedPanelLogs]);
 
-  const terminalOrStableStatus = new Set([
-    "running",
-    "stopped",
-    "failed",
-    "error",
-    "cancelled",
-    "deleted",
-  ]);
-  const effectivePipelineStage = useMemo(() => {
-    const resolved = resolvePipelineStage(normalizedStatus);
-    if (terminalOrStableStatus.has(resolved)) return resolved;
-    if (isPipelineStageStatus(normalizedStatus)) return resolved;
-    return deriveStageFromLogs || resolved || "queued";
-  }, [normalizedStatus, deriveStageFromLogs]);
+  const effectivePipelineStage = useMemo(
+    () =>
+      resolveEffectivePipelineStage({
+        status: normalizedStatus,
+        deriveStageFromLogs,
+        hadRuntimeContainer: deploymentHadRuntimeContainer(
+          selectedDeployment,
+          liveStatus,
+        ),
+      }),
+    [
+      normalizedStatus,
+      deriveStageFromLogs,
+      selectedDeployment?.runtime?.containerId,
+      liveStatus?.container_id,
+      liveStatus?.containerId,
+    ],
+  );
 
   useEffect(() => {
     if (!location.state?.openLatestDeploymentPanel) return;
@@ -550,7 +544,7 @@ const ProjectDeployments = () => {
 
     const pid = project?._id || project?.id;
     if (pid) {
-      dispatch(fetchProjectDeployments(pid));
+      dispatch(fetchProjectDeployments({ projectId: pid, silent: true }));
     }
 
     const focusId = location.state?.focusDeploymentId;
@@ -672,7 +666,7 @@ const ProjectDeployments = () => {
 
       {/* Deployments List */}
       <div className="space-y-4">
-        {loadingFetchProject ? (
+        {showDeploymentsListLoader ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>

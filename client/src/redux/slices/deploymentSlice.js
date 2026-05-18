@@ -21,6 +21,28 @@ const getDeploymentIdentity = (deployment) =>
     deployment?._id ?? deployment?.id ?? deployment?.deploymentId,
   );
 
+/** @returns {{ projectId: string, _noCache: boolean, silent: boolean }} */
+export const parseFetchProjectDeploymentsArg = (arg) => {
+  if (typeof arg === "object" && arg !== null) {
+    return {
+      projectId: arg.projectId,
+      _noCache: Boolean(arg._noCache),
+      silent: Boolean(arg.silent),
+    };
+  }
+  return {
+    projectId: arg,
+    _noCache: false,
+    silent: false,
+  };
+};
+
+const shouldShowFetchProjectLoading = (state, arg) => {
+  const { silent } = parseFetchProjectDeploymentsArg(arg);
+  if (silent) return false;
+  return !Array.isArray(state.projectDeployments) || state.projectDeployments.length === 0;
+};
+
 const mergeDeploymentsByIdentity = (existing, incoming) => {
   const list = Array.isArray(incoming) ? incoming : [];
   if (!list.length) {
@@ -103,8 +125,7 @@ export const fetchProjectDeployments = createAsyncThunk(
   "deployments/fetchProjectDeployments",
   async (arg, { rejectWithValue }) => {
     try {
-      const projectId = typeof arg === "object" ? arg.projectId : arg;
-      const _noCache = typeof arg === "object" ? Boolean(arg._noCache) : false;
+      const { projectId, _noCache } = parseFetchProjectDeploymentsArg(arg);
       const response = await api.get(`/projects/${projectId}/deployments`, {
         _noCache,
       });
@@ -600,8 +621,10 @@ const deploymentSlice = createSlice({
 
     // Fetch project deployments
     builder
-      .addCase(fetchProjectDeployments.pending, (state) => {
-        state.loading.fetchProject = true;
+      .addCase(fetchProjectDeployments.pending, (state, action) => {
+        if (shouldShowFetchProjectLoading(state, action.meta.arg)) {
+          state.loading.fetchProject = true;
+        }
         state.error.fetchProject = null;
       })
       .addCase(fetchProjectDeployments.fulfilled, (state, action) => {

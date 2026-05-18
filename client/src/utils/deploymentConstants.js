@@ -213,6 +213,19 @@ const IN_FLIGHT_DEPLOYMENT_STATUSES = new Set([
   "deploying",
 ]);
 
+/** Statuses where redeploy (replace slot with new build) is offered in the UI. */
+export const REDEPLOY_ALLOWED_STATUSES = new Set([
+  "running",
+  "failed",
+  "pending",
+  "queued",
+  "cloning",
+  "detecting",
+  "building",
+  "deploying",
+  "stopping",
+]);
+
 /** Whether a lifecycle action is valid for the current deployment status. */
 export const isDeploymentActionAllowed = (deployment, action) => {
   const status = String(deployment?.status || "").toLowerCase();
@@ -224,19 +237,7 @@ export const isDeploymentActionAllowed = (deployment, action) => {
     case "restart":
       return ["stopped", "failed", "cancelled"].includes(status);
     case "redeploy":
-      return [
-        "running",
-        "stopped",
-        "failed",
-        "cancelled",
-        "pending",
-        "queued",
-        "cloning",
-        "detecting",
-        "building",
-        "deploying",
-        "stopping",
-      ].includes(status);
+      return REDEPLOY_ALLOWED_STATUSES.has(status);
     case "delete":
       return ["stopped", "failed", "cancelled"].includes(status);
     default:
@@ -307,3 +308,108 @@ export const isPipelineStageStatus = (status) => {
   const resolved = resolvePipelineStage(status);
   return PIPELINE_STAGE_SET.has(resolved);
 };
+
+const PIPELINE_LOG_STAGE_HINTS = [
+  { stage: "running", needles: ["container is running", "deployment completed", "deployment successful"] },
+  { stage: "deploying", needles: ["starting deployment", "starting container", "container started"] },
+  {
+    stage: "building",
+    needles: ["running build command", "[build] step", "sending build context"],
+  },
+  { stage: "detecting", needles: ["detect", "using repository dockerfile"] },
+  { stage: "cloning", needles: ["cloning", "repository cloned"] },
+];
+
+/**
+ * Infer the most advanced pipeline stage from log text (not the earliest mention).
+ */
+export function derivePipelineStageFromLogs(logMessages = []) {
+  const lastLogs = logMessages.slice(-120);
+  const contains = (needle) =>
+    lastLogs.some((msg) =>
+      String(msg || "")
+        .toLowerCase()
+        .includes(needle),
+    );
+
+  const candidates = [];
+  for (const { stage, needles } of PIPELINE_LOG_STAGE_HINTS) {
+    if (needles.some((needle) => contains(needle))) {
+      candidates.push(stage);
+    }
+  }
+  if (!candidates.length) return null;
+
+  return candidates.reduce((best, stage) =>
+    PIPELINE_STAGE_ORDER.indexOf(stage) > PIPELINE_STAGE_ORDER.indexOf(best)
+      ? stage
+      : best,
+  );
+}
+
+const PIPELINE_TERMINAL_STAGES = new Set([
+  "running",
+  "stopped",
+  "failed",
+  "error",
+  "cancelled",
+  "deleted",
+]);
+
+/** Statuses not in PIPELINE_STAGE_ORDER but should reflect last pipeline progress. */
+const PIPELINE_OVERLAY_STATUSES = new Set([
+  "stopping",
+  "stopped",
+  "superseded",
+]);
+
+/** Prefer websocket/API live status over a possibly stale list row. */
+export function getEffectiveDeploymentStatus(deployment, liveStatus) {
+  return String(liveStatus?.status || deployment?.status || "").toLowerCase();
+}
+
+export function deploymentHadRuntimeContainer(deployment, liveStatus) {
+  return Boolean(
+    deployment?.runtime?.containerId ||
+      liveStatus?.container_id ||
+      liveStatus?.containerId,
+  );
+}
+
+/**
+ * Pipeline stepper stage — may differ from API status (e.g. stopping while stepper shows progress reached).
+ */
+export function resolveEffectivePipelineStage({
+  status,
+  deriveStageFromLogs = null,
+  hadRuntimeContainer = false,
+}) {
+  const normalized = String(status || "").toLowerCase();
+  const resolved = resolvePipelineStage(normalized);
+
+  if (PIPELINE_OVERLAY_STATUSES.has(normalized)) {
+    if (hadRuntimeContainer) return "running";
+    if (deriveStageFromLogs && isPipelineStageStatus(deriveStageFromLogs)) {
+      return deriveStageFromLogs;
+    }
+    return "deploying";
+  }
+
+  if (normalized === "cancelled") {
+    if (deriveStageFromLogs && isPipelineStageStatus(deriveStageFromLogs)) {
+      return deriveStageFromLogs;
+    }
+    return "queued";
+  }
+
+  if (PIPELINE_TERMINAL_STAGES.has(resolved)) {
+    if (resolved === "running") return resolved;
+    if (hadRuntimeContainer) return "running";
+    if (deriveStageFromLogs && isPipelineStageStatus(deriveStageFromLogs)) {
+      return deriveStageFromLogs;
+    }
+    return resolved;
+  }
+  if (isPipelineStageStatus(normalized)) return resolved;
+  return deriveStageFromLogs || resolved || "queued";
+}

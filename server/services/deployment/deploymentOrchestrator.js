@@ -472,6 +472,18 @@ class DeploymentOrchestrator {
         return;
       }
 
+      if (
+        previousStatus === "stopping" &&
+        buildPipelineStatuses.has(status) &&
+        !terminalAgentStatuses.has(status)
+      ) {
+        logger.debug("Ignoring pipeline status while deployment is stopping", {
+          deploymentId,
+          status,
+        });
+        return;
+      }
+
       // Always accept explicit terminal outcomes from the agent (runtime crash, bad env, etc.)
       if (
         !terminalAgentStatuses.has(status) &&

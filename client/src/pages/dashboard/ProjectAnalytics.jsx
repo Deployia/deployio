@@ -38,7 +38,7 @@ const ProjectAnalytics = () => {
 
   useEffect(() => {
     if (!projectId) return;
-    dispatch(fetchProjectDeployments(projectId));
+    dispatch(fetchProjectDeployments({ projectId, silent: true }));
   }, [dispatch, projectId]);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ const ProjectAnalytics = () => {
     );
     if (!busy) return undefined;
     const t = setInterval(() => {
-      dispatch(fetchProjectDeployments(projectId));
+      dispatch(fetchProjectDeployments({ projectId, silent: true }));
     }, 4000);
     return () => clearInterval(t);
   }, [dispatch, projectId, deployments]);

@@ -178,6 +178,18 @@ class DeploymentService {
       throw new Error("Cannot redeploy from a superseded deployment");
     }
 
+    if (source.status === "stopped") {
+      throw new Error(
+        "Cannot redeploy a stopped deployment. Use Restart on this deployment, or create a new deploy from the project.",
+      );
+    }
+
+    if (source.status === "cancelled") {
+      throw new Error(
+        "Cannot redeploy a cancelled deployment. Create a new deploy from the project.",
+      );
+    }
+
     if (
       ACTIVE_DEPLOYMENT_STATUSES.includes(source.status) ||
       source.status === "stopping" ||
