@@ -178,25 +178,27 @@ class DeploymentService {
       throw new Error("Cannot redeploy from a superseded deployment");
     }
 
-    if (source.status === "stopped") {
-      throw new Error(
-        "Cannot redeploy a stopped deployment. Use Restart on this deployment, or create a new deploy from the project.",
-      );
-    }
+    const TERMINAL_REDEPLOY_SOURCES = new Set([
+      "stopped",
+      "failed",
+      "cancelled",
+      "error",
+    ]);
 
-    if (source.status === "cancelled") {
-      throw new Error(
-        "Cannot redeploy a cancelled deployment. Create a new deploy from the project.",
-      );
-    }
-
-    if (
+    if (TERMINAL_REDEPLOY_SOURCES.has(source.status)) {
+      // Already shut down or never reached running — supersede in place, no stop/cancel.
+    } else if (
       ACTIVE_DEPLOYMENT_STATUSES.includes(source.status) ||
       source.status === "stopping" ||
       IN_FLIGHT_DEPLOYMENT_STATUSES.includes(source.status)
     ) {
-      await this.stopDeploymentBySystem(source, "redeploy-replace");
-      await source.reload();
+      throw new Error(
+        "Stop or cancel this deployment before redeploying with a new commit.",
+      );
+    } else if (source.status === "superseded" || source.status === "deleted") {
+      throw new Error(`Cannot redeploy from a ${source.status} deployment`);
+    } else {
+      throw new Error(`Cannot redeploy from status: ${source.status}`);
     }
 
     const originalSubdomain = await this._supersedeDeploymentForRedeploy(source);

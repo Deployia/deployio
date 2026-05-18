@@ -35,8 +35,6 @@ import {
   fetchDeploymentSubdomains,
   checkDeploymentSubdomain,
   createDeployment,
-  stopDeployment,
-  cancelDeployment,
   clearDeploymentError,
   clearProjectError,
   clearProjectSuccess,
@@ -398,38 +396,10 @@ const ProjectDetails = () => {
     setShowDeployModal(true);
   };
 
-  const handleRedeployFromDeployment = async (deployment) => {
+  const handleRedeployFromDeployment = (deployment) => {
     const prefill = redeployPrefillFromDeployment(deployment);
     if (!prefill) return;
-
-    const status = String(deployment?.status || "").toLowerCase();
-    const deploymentId =
-      deployment._id || deployment.id || deployment.deploymentId;
-
-    try {
-      if (status === "running" || status === "stopping") {
-        await dispatch(stopDeployment(deploymentId)).unwrap();
-      } else if (
-        [
-          "pending",
-          "queued",
-          "cloning",
-          "detecting",
-          "building",
-          "deploying",
-        ].includes(status)
-      ) {
-        await dispatch(cancelDeployment(deploymentId)).unwrap();
-      }
-      if (id) {
-        await dispatch(
-          fetchProjectDeployments({ projectId: id, _noCache: true, silent: true }),
-        ).unwrap();
-      }
-    } catch (err) {
-      console.error("Failed to stop deployment before redeploy:", err);
-    }
-
+    // Redeploy is only offered for terminal deployments (stopped/failed/cancelled).
     handleOpenDeployModal(prefill);
   };
 

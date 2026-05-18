@@ -213,18 +213,32 @@ const IN_FLIGHT_DEPLOYMENT_STATUSES = new Set([
   "deploying",
 ]);
 
-/** Statuses where redeploy (replace slot with new build) is offered in the UI. */
-export const REDEPLOY_ALLOWED_STATUSES = new Set([
-  "running",
-  "failed",
-  "pending",
-  "queued",
-  "cloning",
-  "detecting",
-  "building",
-  "deploying",
-  "stopping",
-]);
+/**
+ * Deployment lifecycle actions (single source of truth for UI + API expectations).
+ *
+ * | Status | Stop | Cancel | Restart | Redeploy | Delete |
+ * |--------|------|--------|---------|----------|--------|
+ * | Build pipeline (pending…deploying) | | yes | | | |
+ * | running | yes | yes | | | |
+ * | stopping | | | | | |
+ * | stopped | | | yes | yes | yes |
+ * | failed / error | | | yes | yes | yes |
+ * | cancelled | | | yes | yes | yes |
+ *
+ * - Stop — shut down a live container (running → stopping → stopped).
+ * - Cancel — abort an in-flight build or a running deployment.
+ * - Restart — rebuild/restart the same deployment record (same commit/config).
+ * - Redeploy — open deploy modal, pick commit, supersede this record (new build).
+ * - Delete — remove record and container.
+ *
+ * Redeploy is not offered on running or in-flight deployments; stop or cancel first.
+ * Use project Deploy for a brand-new slot when no deployment exists.
+ */
+export const REDEPLOY_ALLOWED_STATUSES = new Set(["stopped", "failed", "error", "cancelled"]);
+
+const RESTART_ALLOWED_STATUSES = new Set(["stopped", "failed", "error", "cancelled"]);
+
+const DELETE_ALLOWED_STATUSES = new Set(["stopped", "failed", "error", "cancelled"]);
 
 /** Whether a lifecycle action is valid for the current deployment status. */
 export const isDeploymentActionAllowed = (deployment, action) => {
@@ -235,11 +249,11 @@ export const isDeploymentActionAllowed = (deployment, action) => {
     case "stop":
       return status === "running";
     case "restart":
-      return ["stopped", "failed", "cancelled"].includes(status);
+      return RESTART_ALLOWED_STATUSES.has(status);
     case "redeploy":
       return REDEPLOY_ALLOWED_STATUSES.has(status);
     case "delete":
-      return ["stopped", "failed", "cancelled"].includes(status);
+      return DELETE_ALLOWED_STATUSES.has(status);
     default:
       return false;
   }
