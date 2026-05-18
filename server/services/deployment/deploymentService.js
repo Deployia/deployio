@@ -142,11 +142,16 @@ class DeploymentService {
       originalSubdomain,
     };
     sourceDeployment.config.subdomain = archivedSlug;
-    sourceDeployment.networking = {
-      ...(sourceDeployment.networking || {}),
-      subdomain: archivedSlug,
-      fullUrl: `https://${archivedSlug}.${subdomainManager.baseDomain}`,
-    };
+
+    if (!sourceDeployment.networking) {
+      sourceDeployment.networking = {};
+    }
+    sourceDeployment.networking.subdomain = archivedSlug;
+    sourceDeployment.networking.fullUrl = `https://${archivedSlug}.${subdomainManager.baseDomain}`;
+
+    sourceDeployment.markModified("config");
+    sourceDeployment.markModified("networking");
+    sourceDeployment.markModified("lineage");
 
     await sourceDeployment.save();
     return originalSubdomain;
