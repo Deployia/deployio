@@ -142,8 +142,8 @@ const NotificationsPreferences = ({
           description: "Scheduled maintenance and downtime alerts",
         },
         {
-          key: "systemUpdates",
-          label: "System Updates",
+          key: "productUpdates",
+          label: "Product Updates",
           icon: FaBell,
           description: "Platform updates and new features",
         },
@@ -177,18 +177,6 @@ const NotificationsPreferences = ({
           icon: FaEnvelope,
           description: "Important platform announcements",
         },
-        {
-          key: "productUpdates",
-          label: "Product Updates",
-          icon: FaBell,
-          description: "New features and improvements",
-        },
-        {
-          key: "tips",
-          label: "Tips & Best Practices",
-          icon: FaCog,
-          description: "Helpful tips and tutorials",
-        },
       ],
     },
   ];
@@ -198,13 +186,13 @@ const NotificationsPreferences = ({
       key: "email",
       label: "Email Notifications",
       icon: FaEnvelope,
-      description: "Receive notifications via email",
+      description: "Send email when an enabled event occurs",
     },
     {
       key: "inApp",
       label: "In-App Notifications",
       icon: FaBell,
-      description: "Show notifications in the application",
+      description: "Bell badge and pop-up toasts in the app",
     },
     {
       key: "push",
@@ -228,7 +216,8 @@ const NotificationsPreferences = ({
               Delivery Methods
             </h3>
             <p className="text-gray-400">
-              Choose how you want to receive notifications
+              Delivery methods control <em>where</em> alerts go. Event toggles
+              below control <em>which</em> events are sent at all.
             </p>
           </div>
           <button
@@ -409,40 +398,26 @@ const NotificationsPreferences = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6"
+        className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800/50 rounded-xl p-6 opacity-60"
       >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <FaCalendarAlt className="text-orange-400 text-xl" />
-            <div>
+        <div className="flex items-center gap-3">
+          <FaCalendarAlt className="text-orange-400 text-xl" />
+          <div>
+            <div className="flex items-center gap-2">
               <h3 className="text-xl font-semibold text-white">
                 Notification Digest
               </h3>
-              <p className="text-gray-400">
-                Receive a summary of your notifications
-              </p>
+              <span className="rounded-full bg-neutral-700 px-2 py-0.5 text-xs text-neutral-300">
+                Coming soon
+              </span>
             </div>
+            <p className="text-gray-400">
+              Email summaries of your activity (not available yet)
+            </p>
           </div>
-          <button
-            onClick={() =>
-              handleDigestSettingsChange({
-                ...digestSettings,
-                enabled: !digestSettings.enabled,
-              })
-            }
-            className={`relative w-12 h-6 rounded-full transition-colors ${
-              digestSettings.enabled ? "bg-orange-500" : "bg-neutral-600"
-            }`}
-          >
-            <div
-              className={`absolute w-5 h-5 bg-white rounded-full top-0.5 transition-transform ${
-                digestSettings.enabled ? "translate-x-6" : "translate-x-0.5"
-              }`}
-            />
-          </button>
         </div>
 
-        {digestSettings.enabled && (
+        {false && digestSettings.enabled && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">

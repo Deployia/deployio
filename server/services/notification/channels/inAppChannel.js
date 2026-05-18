@@ -1,4 +1,5 @@
 const logger = require("../../../config/logger");
+const { formatInAppPayload } = require("../formatInAppPayload");
 
 class InAppChannel {
   constructor() {
@@ -17,17 +18,21 @@ class InAppChannel {
       // In-app notifications are already stored in the database
       // This method handles real-time delivery via WebSocket/SSE
 
-      const notificationData = this.prepareInAppNotification(notification);
+      const notificationData = formatInAppPayload(notification);
+      const userId = notification.user._id || notification.user;
+      const alreadyRealtime =
+        notification.context?.data?._realtimeWsDelivered === true;
 
-      // Send via WebSocket if available
-      await this.sendViaWebSocket(notification.user._id, notificationData);
+      if (!alreadyRealtime) {
+        await this.sendViaWebSocket(userId, notificationData);
+      }
 
       // Send via Server-Sent Events as fallback
-      await this.sendViaSSE(notification.user._id, notificationData);
+      await this.sendViaSSE(userId, notificationData);
 
       logger.info("In-app notification sent successfully", {
         notificationId: notification._id,
-        userId: notification.user._id,
+        userId,
         type: notification.type,
       });
 
@@ -54,38 +59,9 @@ class InAppChannel {
     }
   }
 
-  /**
-   * Prepare in-app notification data for real-time delivery
-   * @param {Object} notification - Notification document
-   * @returns {Object} Formatted notification data
-   */
+  /** @deprecated Use formatInAppPayload from ../formatInAppPayload */
   prepareInAppNotification(notification) {
-    return {
-      id: notification._id,
-      type: notification.type,
-      title: notification.title,
-      message: notification.message,
-      priority: notification.priority,
-      status: notification.status,
-      context: notification.context,
-      action: notification.action,
-      createdAt: notification.createdAt,
-      expiresAt: notification.expiresAt,
-      // Add UI-specific properties
-      ui: {
-        icon: this.getNotificationIcon(notification.type),
-        color: this.getNotificationColor(
-          notification.type,
-          notification.priority
-        ),
-        sound: this.shouldPlaySound(notification.type, notification.priority),
-        persist: this.shouldPersist(notification.type, notification.priority),
-        showToast: this.shouldShowToast(
-          notification.type,
-          notification.priority
-        ),
-      },
-    };
+    return formatInAppPayload(notification);
   }
 
   /**
@@ -161,140 +137,6 @@ class InAppChannel {
   }
 
   /**
-   * Get notification icon based on type
-   * @param {string} type - Notification type
-   * @returns {string} Icon name/class
-   */
-  getNotificationIcon(type) {
-    const iconMap = {
-      // Deployment icons
-      "deployment.started": "rocket",
-      "deployment.success": "check-circle",
-      "deployment.failed": "x-circle",
-      "deployment.stopped": "stop-circle",
-
-      // Project icons
-      "project.created": "folder-plus",
-      "project.analysis_complete": "file-check",
-      "project.analysis_failed": "file-x",
-      "project.collaborator_added": "user-plus",
-
-      // Security icons
-      "security.login_new_device": "shield-alert",
-      "security.password_changed": "key",
-      "security.2fa_enabled": "shield-check",
-      "security.2fa_disabled": "shield-x",
-      "security.api_key_created": "code",
-
-      // System icons
-      "system.maintenance": "tool",
-      "system.update": "download",
-      "system.quota_warning": "alert-triangle",
-      "system.quota_exceeded": "alert-circle",
-
-      // General icons
-      "general.welcome": "heart",
-      "general.announcement": "megaphone",
-    };
-
-    return iconMap[type] || "bell";
-  }
-
-  /**
-   * Get notification color based on type and priority
-   * @param {string} type - Notification type
-   * @param {string} priority - Notification priority
-   * @returns {string} Color class/code
-   */
-  getNotificationColor(type, priority) {
-    // Priority-based colors
-    if (priority === "urgent") return "red";
-    if (priority === "high") return "orange";
-    if (priority === "low") return "gray";
-
-    // Type-based colors
-    const colorMap = {
-      "deployment.success": "green",
-      "deployment.failed": "red",
-      "deployment.started": "blue",
-      "deployment.stopped": "yellow",
-
-      "project.created": "green",
-      "project.analysis_complete": "green",
-      "project.analysis_failed": "red",
-      "project.collaborator_added": "blue",
-
-      "security.login_new_device": "red",
-      "security.password_changed": "green",
-      "security.2fa_enabled": "green",
-      "security.2fa_disabled": "red",
-      "security.api_key_created": "blue",
-
-      "system.maintenance": "yellow",
-      "system.update": "blue",
-      "system.quota_warning": "yellow",
-      "system.quota_exceeded": "red",
-
-      "general.welcome": "green",
-      "general.announcement": "blue",
-    };
-
-    return colorMap[type] || "blue";
-  }
-
-  /**
-   * Determine if notification should play sound
-   * @param {string} type - Notification type
-   * @param {string} priority - Notification priority
-   * @returns {boolean} Whether to play sound
-   */
-  shouldPlaySound(type, priority) {
-    // Play sound for urgent/high priority notifications
-    if (priority === "urgent" || priority === "high") return true;
-
-    // Play sound for critical events
-    const soundTypes = [
-      "deployment.failed",
-      "security.login_new_device",
-      "system.quota_exceeded",
-    ];
-
-    return soundTypes.includes(type);
-  }
-
-  /**
-   * Determine if notification should persist on screen
-   * @param {string} type - Notification type
-   * @param {string} priority - Notification priority
-   * @returns {boolean} Whether to persist
-   */
-  shouldPersist(type, priority) {
-    // Persist urgent notifications
-    if (priority === "urgent") return true;
-
-    // Persist security alerts
-    const persistTypes = [
-      "security.login_new_device",
-      "security.password_changed",
-      "system.quota_exceeded",
-    ];
-
-    return persistTypes.includes(type);
-  }
-
-  /**
-   * Determine if notification should show as toast
-   * @param {string} type - Notification type
-   * @param {string} priority - Notification priority
-   * @returns {boolean} Whether to show toast
-   */
-  shouldShowToast(type, priority) {
-    // Show toast for all notifications except low priority general ones
-    if (priority === "low" && type.startsWith("general.")) return false;
-    return true;
-  }
-
-  /**
    * Get unread notification count for user
    * @param {string} userId - User ID
    * @returns {Promise<number>} Unread count
@@ -333,9 +175,7 @@ class InAppChannel {
     // Send notifications for each user
     for (const [userId, userNotifs] of Object.entries(userNotifications)) {
       try {
-        const notificationData = userNotifs.map((n) =>
-          this.prepareInAppNotification(n)
-        );
+        const notificationData = userNotifs.map((n) => formatInAppPayload(n));
 
         // Send batch via WebSocket
         await this.sendBatchViaWebSocket(userId, notificationData);

@@ -10,7 +10,13 @@ const NotificationTemplates = require("./templates/notificationTemplates");
 const {
   NOTIFICATION_TYPE_PREFERENCE_MAP,
   QUIET_HOURS_BYPASS_TYPES,
+  SECURITY_ALERT_TYPES,
+  ACCOUNT_CHANGE_TYPES,
+  PRODUCT_UPDATE_TYPES,
+  MUST_DELIVER_EMAIL_TYPES,
+  IN_APP_ONLY_TYPES,
 } = require("./preferenceKeys");
+const { formatInAppPayload } = require("./formatInAppPayload");
 
 class NotificationService {
   constructor() {
@@ -79,9 +85,11 @@ class NotificationService {
         throw new Error("User not found");
       }
 
-      // Determine delivery channels based on user preferences (explicit channels bypass prefs)
-      const deliveryChannels =
-        channels ?? (await this.determineChannels(userId, type));
+      const deliveryChannels = await this.resolveDeliveryChannels(
+        userId,
+        type,
+        channels
+      );
 
       if (deliveryChannels.length === 0) {
         logger.debug("Notification skipped due to user preferences", {
@@ -109,27 +117,19 @@ class NotificationService {
       if (this._hasInAppChannel(deliveryChannels)) {
         try {
           const NotificationsNamespace = require("../../websockets/namespaces/NotificationsNamespace");
+          const payload = formatInAppPayload(notification);
 
-          // Prepare notification data for real-time delivery
-          const notificationData = {
-            _id: notification._id,
-            id: notification._id,
-            type: notification.type,
-            title: notification.title,
-            message: notification.message,
-            priority: notification.priority,
-            status: notification.status,
-            context: notification.context,
-            action: notification.action,
-            createdAt: notification.createdAt,
-            expiresAt: notification.expiresAt,
+          await NotificationsNamespace.sendNotificationToUser(userId, payload);
+
+          notification.context = {
+            ...notification.context,
+            data: {
+              ...(notification.context?.data || {}),
+              _realtimeWsDelivered: true,
+            },
           };
-
-          // Send immediately via WebSocket
-          await NotificationsNamespace.sendNotificationToUser(
-            userId,
-            notificationData
-          );
+          notification.markModified("context");
+          await notification.save();
 
           logger.debug("Real-time notification sent immediately", {
             notificationId: notification._id,
@@ -185,9 +185,20 @@ class NotificationService {
 
       const deliveryResults = {};
 
+      const prefs = notification.user?.notificationPreferences || {};
+
       // Send via each channel
       for (const channelType of notification.channels) {
         try {
+          if (!this.shouldDeliverOnChannel(prefs, notification.type, channelType)) {
+            logger.debug("Channel skipped due to user preferences at send time", {
+              notificationId,
+              channel: channelType,
+              type: notification.type,
+            });
+            continue;
+          }
+
           const dispatchKey = this._normalizeChannel(channelType);
           const channel = this.channels[dispatchKey];
           if (channel) {
@@ -515,6 +526,57 @@ class NotificationService {
   }
 
   /**
+   * Resolve channels from preferences. Only OTP/password-reset may bypass prefs.
+   * @param {string} userId
+   * @param {string} type
+   * @param {string[]|undefined} explicitChannels
+   * @returns {Promise<string[]>}
+   */
+  async resolveDeliveryChannels(userId, type, explicitChannels) {
+    if (explicitChannels && MUST_DELIVER_EMAIL_TYPES.has(type)) {
+      return explicitChannels;
+    }
+
+    let resolved = await this.determineChannels(userId, type);
+
+    if (IN_APP_ONLY_TYPES.has(type)) {
+      resolved = resolved.filter((c) => c === "in_app");
+    }
+
+    return resolved;
+  }
+
+  /**
+   * Whether a channel should deliver for this notification (re-check at send time).
+   */
+  shouldDeliverOnChannel(preferences, notificationType, channelType) {
+    if (MUST_DELIVER_EMAIL_TYPES.has(notificationType)) {
+      return channelType === "email";
+    }
+
+    if (!this.isNotificationTypeEnabled(preferences, notificationType)) {
+      return false;
+    }
+
+    if (channelType === "email") {
+      return preferences.email !== false;
+    }
+
+    if (channelType === "in_app" || channelType === "inApp") {
+      return preferences.inApp !== false;
+    }
+
+    if (channelType === "push") {
+      return (
+        preferences.push === true &&
+        this.shouldSendPushForType(preferences, notificationType)
+      );
+    }
+
+    return true;
+  }
+
+  /**
    * Determine delivery channels based on user preferences and notification type
    * @param {string} userId - User ID
    * @param {string} notificationType - Notification type
@@ -541,7 +603,7 @@ class NotificationService {
         channels.push("in_app");
       }
 
-      if (prefs.email) {
+      if (prefs.email !== false) {
         channels.push("email");
       }
 
@@ -578,6 +640,26 @@ class NotificationService {
    * Whether this notification type is enabled in user preferences (in-app + email).
    */
   isNotificationTypeEnabled(preferences, notificationType) {
+    if (
+      preferences.securityAlerts === false &&
+      SECURITY_ALERT_TYPES.has(notificationType)
+    ) {
+      return false;
+    }
+
+    if (
+      preferences.accountChanges === false &&
+      ACCOUNT_CHANGE_TYPES.has(notificationType)
+    ) {
+      return false;
+    }
+
+    if (PRODUCT_UPDATE_TYPES.has(notificationType)) {
+      const productPref =
+        preferences.productUpdates ?? preferences.systemUpdates;
+      if (productPref === false) return false;
+    }
+
     const prefKey = NOTIFICATION_TYPE_PREFERENCE_MAP[notificationType];
     if (!prefKey) {
       return true;

@@ -59,7 +59,26 @@ const NOTIFICATION_TYPE_PREFERENCE_MAP = {
   "system.quota_exceeded": "quotaExceeded",
   "general.welcome": "welcomeMessage",
   "general.announcement": "announcements",
+  "auth.welcome": "welcomeMessage",
+  "auth.verification_success": "welcomeMessage",
 };
+
+/** Blocked when notificationPreferences.securityAlerts === false */
+const SECURITY_ALERT_TYPES = new Set([
+  "security.login_new_device",
+  "security.password_changed",
+  "security.2fa_enabled",
+  "security.2fa_disabled",
+  "security.api_key_created",
+  "security.account_locked",
+  "auth.account_security",
+]);
+
+/** Blocked when notificationPreferences.accountChanges === false */
+const ACCOUNT_CHANGE_TYPES = new Set(["general.announcement"]);
+
+/** Uses productUpdates pref when type is system.update */
+const PRODUCT_UPDATE_TYPES = new Set(["system.update"]);
 
 const QUIET_HOURS_BYPASS_TYPES = new Set([
   "deployment.failed",
@@ -68,9 +87,23 @@ const QUIET_HOURS_BYPASS_TYPES = new Set([
   "system.quota_exceeded",
 ]);
 
+/** Always sent via email; bypasses user preference toggles */
+const MUST_DELIVER_EMAIL_TYPES = new Set([
+  "auth.otp_verification",
+  "auth.password_reset",
+]);
+
+/** Never emailed; in-app only when preferences allow */
+const IN_APP_ONLY_TYPES = new Set(["auth.verification_success"]);
+
 module.exports = {
   BOOLEAN_NOTIFICATION_PREFERENCE_KEYS,
   NESTED_NOTIFICATION_PREFERENCE_KEYS,
   NOTIFICATION_TYPE_PREFERENCE_MAP,
   QUIET_HOURS_BYPASS_TYPES,
+  SECURITY_ALERT_TYPES,
+  ACCOUNT_CHANGE_TYPES,
+  PRODUCT_UPDATE_TYPES,
+  MUST_DELIVER_EMAIL_TYPES,
+  IN_APP_ONLY_TYPES,
 };

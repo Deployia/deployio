@@ -124,7 +124,6 @@ class AuthNotifications {
         title: "Welcome to DeployIO!",
         message: `Welcome ${username}! We're excited to have you on board. Get started by creating your first project.`,
         priority: "normal",
-        channels: ["email", "in_app"], // Both email and in-app
         context: {
           data: {
             username,
@@ -166,7 +165,6 @@ class AuthNotifications {
         title: "Account Verified Successfully!",
         message: `Congratulations ${username}! Your account has been verified. You can now access all DeployIO features.`,
         priority: "normal",
-        channels: ["in_app"], // In-app only - they just verified via email
         context: {
           data: {
             username,
@@ -208,7 +206,6 @@ class AuthNotifications {
         message:
           "Your password has been changed successfully. If you didn't make this change, please contact support immediately.",
         priority: "high",
-        channels: ["email", "in_app"], // Both channels for security
         context: {
           data: {
             username,
@@ -254,7 +251,6 @@ class AuthNotifications {
         message:
           "We detected a login from a new device. If this wasn't you, please secure your account immediately.",
         priority: "high",
-        channels: ["email", "in_app"], // Both channels for security
         context: {
           data: {
             username,
@@ -289,6 +285,14 @@ class AuthNotifications {
    * @param {Object} userData - User data
    * @param {boolean} enabled - Whether 2FA was enabled or disabled
    */
+  static async send2FAEnabled(userId, userData) {
+    return AuthNotifications.send2FAChange(userId, userData, true);
+  }
+
+  static async send2FADisabled(userId, userData) {
+    return AuthNotifications.send2FAChange(userId, userData, false);
+  }
+
   static async send2FAChange(userId, userData, enabled) {
     try {
       const { username, email } = userData;
@@ -303,7 +307,6 @@ class AuthNotifications {
           ? "Two-factor authentication has been enabled for your account. Your account is now more secure."
           : "Two-factor authentication has been disabled for your account. Consider re-enabling it for better security.",
         priority: "normal",
-        channels: ["email", "in_app"],
         context: {
           data: {
             username,
@@ -348,7 +351,6 @@ class AuthNotifications {
         title: "Account Temporarily Locked",
         message: `Your account has been temporarily locked due to ${reason}. It will be unlocked automatically.`,
         priority: "high",
-        channels: ["email"],
         context: {
           data: {
             username,
@@ -393,7 +395,6 @@ class AuthNotifications {
         title: `Security Alert: ${securityAction}`,
         message: `A security-related change was made to your DeployIO account: ${securityAction}. If this wasn't you, please secure your account immediately.`,
         priority: "high",
-        channels: ["email"],
         context: {
           data: {
             username,
