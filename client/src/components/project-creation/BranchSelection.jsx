@@ -232,7 +232,7 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
                   </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           )}
         </div>
 
