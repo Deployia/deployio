@@ -9,6 +9,7 @@ import DeploymentLivePreview from "@/components/deployments/DeploymentLivePrevie
 import { formatUserName, formatDate, StatusBadge } from "@/utils/adminFormatters";
 import { getDeploymentUrl, isLiveForPreview } from "@/utils/deploymentPreview";
 import { adminTokens } from "@/constants/adminDesignTokens";
+import appToast from "@/utils/appToast";
 
 const CANCELLABLE = ["pending", "queued", "cloning", "detecting", "building", "deploying", "running"];
 
@@ -91,12 +92,21 @@ const AdminDeployments = () => {
     setActionLoading(true);
     try {
       const id = confirm.deploymentId || confirm._id;
-      if (confirm.type === "cancel") await adminService.cancelDeployment(id);
-      else await adminService.stopDeployment(id);
+      const res =
+        confirm.type === "cancel"
+          ? await adminService.cancelDeployment(id)
+          : await adminService.stopDeployment(id);
+      if (!res?.success) {
+        throw new Error(res?.message || "Action failed");
+      }
       setConfirm(null);
       setSelectedDeploymentId(null);
-      fetchDeployments();
+      appToast.success(res.message || "Deployment updated");
+      await fetchDeployments();
     } catch (err) {
+      appToast.error(
+        err?.response?.data?.message || err?.message || "Action failed",
+      );
       console.error("Action failed:", err);
     } finally {
       setActionLoading(false);

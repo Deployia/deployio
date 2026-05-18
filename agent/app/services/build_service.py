@@ -72,6 +72,7 @@ class BuildService:
         stage: str,
         message: str = "",
         status_callback: Optional[Callable] = None,
+        **status_kwargs: Any,
     ) -> None:
         entry = self.active_builds.setdefault(
             deployment_id,
@@ -96,9 +97,11 @@ class BuildService:
         if status_callback:
             try:
                 if inspect.iscoroutinefunction(status_callback):
-                    await status_callback(deployment_id, stage, message)
+                    await status_callback(
+                        deployment_id, stage, message, **status_kwargs
+                    )
                 else:
-                    status_callback(deployment_id, stage, message)
+                    status_callback(deployment_id, stage, message, **status_kwargs)
             except Exception:
                 logger.debug("status_callback failed for stage %s", stage, exc_info=True)
 
@@ -472,15 +475,23 @@ class BuildService:
                     ),
                 )
 
-            # Do not pass status_callback into deploy(): it emits a generic "building"
-            # phase that would overwrite real pipeline state after the image is built.
+            async def _deploy_status_cb(dep_id, status, message, **kwargs):
+                # deploy() uses "building" for its pre-run phase; map to deploying here.
+                mapped = "deploying" if status == "building" else status
+                await _stage(
+                    mapped,
+                    message or mapped,
+                    status_callback=status_callback,
+                    **kwargs,
+                )
+
             deploy_result = await self.deployment_service.deploy(
                 deployment_id,
                 f"deployio/{deployment_id}:latest",
                 subdomain,
                 port,
                 runtime_env,
-                status_callback=None,
+                status_callback=_deploy_status_cb,
                 log_callback=logs_callback,
             )
 
@@ -492,7 +503,13 @@ class BuildService:
                 logs_callback, deployment_id, "info", "Deployment successful!"
             )
 
-            await _stage("running", "Deployment running")
+            await _stage(
+                "running",
+                "Deployment running",
+                status_callback=status_callback,
+                container_id=deploy_result.get("container_id"),
+                url=deploy_result.get("url"),
+            )
             self.active_builds[deployment_id].update(
                 {
                     "url": deploy_result.get("url"),

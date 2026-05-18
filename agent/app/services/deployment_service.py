@@ -7,7 +7,7 @@ Configures Traefik labels for automatic subdomain routing with SSL.
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
 import docker
@@ -25,6 +25,14 @@ logger = logging.getLogger(__name__)
 # Container name prefix for deployio-managed containers
 CONTAINER_PREFIX = "deploy-"
 
+# Docker engine statuses that mean the deploy cannot succeed.
+_UNHEALTHY_CONTAINER_STATUSES = frozenset(
+    {"restarting", "exited", "dead", "paused", "removing"}
+)
+
+# Only used when deploy_runtime_healthcheck=true (opt-in).
+_DEFAULT_HEALTH_PATHS = ("/api/health", "/health", "/")
+
 
 class DeploymentService:
     """
@@ -36,6 +44,7 @@ class DeploymentService:
     def __init__(self):
         self.client: Optional[docker.DockerClient] = None
         self.active_deployments: Dict[str, Dict[str, Any]] = {}
+        self._runtime_watchdog_tasks: Dict[str, asyncio.Task] = {}
         self.max_concurrent = settings.max_concurrent_deployments
         self.deployment_timeout = settings.deployment_timeout
         self.docker_network = settings.docker_network
@@ -157,6 +166,188 @@ class DeploymentService:
 
         return fallback_port
 
+    @staticmethod
+    def _build_runtime_healthcheck(
+        port: int,
+        paths: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Platform healthcheck used during deploy verification.
+        Overrides any HEALTHCHECK in the app Dockerfile (see deploy() run_kwargs).
+        """
+        probes = paths or list(_DEFAULT_HEALTH_PATHS)
+        wget_parts = [
+            f"wget -qO- --timeout=5 http://127.0.0.1:{port}{p} 2>/dev/null"
+            for p in probes
+        ]
+        shell = " || ".join(wget_parts) + " || exit 1"
+        start_period_s = float(settings.deploy_runtime_verify_seconds)
+        return {
+            "Test": ["CMD-SHELL", shell],
+            "Interval": 10_000_000_000,
+            "Timeout": 5_000_000_000,
+            "Retries": 3,
+            "StartPeriod": int(start_period_s * 1_000_000_000),
+        }
+
+    def _runtime_healthcheck_enabled(self) -> bool:
+        if settings.deploy_runtime_healthcheck:
+            return True
+        return bool(settings.enable_container_healthcheck)
+
+    async def _stop_failed_container(self, container) -> None:
+        """Stop crash-looping containers so Docker does not keep restarting them."""
+        try:
+            container.update(restart_policy={"Name": "no"})
+        except Exception:
+            pass
+        try:
+            container.stop(timeout=8)
+        except Exception:
+            pass
+
+    def _evaluate_container_runtime(self, container) -> Tuple[str, str]:
+        """
+        Docker-only readiness: engine status, OOM, and restart count.
+        No log scraping and no assumed HTTP routes (unless healthcheck opt-in is on).
+        """
+        container.reload()
+        status = container.status
+        state = container.attrs.get("State") or {}
+
+        if status in _UNHEALTHY_CONTAINER_STATUSES:
+            return "failed", f"Container status: {status}"
+
+        if status != "running":
+            return "failed", f"Container status: {status}"
+
+        if state.get("OOMKilled"):
+            return "failed", "Container was OOM killed"
+
+        restart_count = state.get("RestartCount", 0) or 0
+        if restart_count > 0:
+            return (
+                "failed",
+                f"Container restarted {restart_count} time(s) — process likely crashed on startup",
+            )
+
+        # Opt-in only: honor an HTTP HEALTHCHECK when explicitly enabled on the agent.
+        if self._runtime_healthcheck_enabled():
+            health = state.get("Health") or {}
+            health_status = health.get("Status")
+            if health_status == "unhealthy":
+                failing = health.get("Log") or []
+                detail = ""
+                if failing:
+                    last = failing[-1]
+                    detail = str(last.get("Output", "")).strip()[:200]
+                return "failed", (
+                    "Health check failed"
+                    f"{f': {detail}' if detail else ''}"
+                )
+            if health_status != "healthy":
+                return "pending", f"Health check: {health_status or 'starting'}"
+
+        return "ok", ""
+
+    async def _verify_container_runtime_stability(
+        self,
+        container,
+        *,
+        wait_seconds: Optional[float] = None,
+        poll_interval: float = 2.0,
+    ) -> Tuple[bool, str]:
+        """
+        Poll Docker state after start. Uses restart_policy=no so a crashing process
+        shows as exited/restarting instead of an endless restart loop.
+        """
+        if wait_seconds is None:
+            wait_seconds = float(settings.deploy_runtime_verify_seconds)
+
+        loops = max(1, int(wait_seconds / poll_interval))
+        for i in range(loops):
+            if i > 0:
+                await asyncio.sleep(poll_interval)
+            outcome, reason = self._evaluate_container_runtime(container)
+            if outcome == "failed":
+                return False, reason
+
+        outcome, reason = self._evaluate_container_runtime(container)
+        if outcome == "failed":
+            return False, reason
+        if self._runtime_healthcheck_enabled() and outcome != "ok":
+            return (
+                False,
+                f"Container did not become healthy within {int(wait_seconds)}s ({reason})",
+            )
+
+        return True, ""
+
+    def _cancel_runtime_watchdog(self, deployment_id: str) -> None:
+        task = self._runtime_watchdog_tasks.pop(deployment_id, None)
+        if task and not task.done():
+            task.cancel()
+
+    def _start_runtime_watchdog(
+        self,
+        deployment_id: str,
+        container,
+        *,
+        status_callback=None,
+        log_callback=None,
+    ) -> None:
+        """After a successful deploy, keep watching for crash loops and emit failed."""
+
+        async def _log(level: str, message: str):
+            if log_callback:
+                try:
+                    await log_callback(deployment_id, level, message)
+                except Exception:
+                    pass
+
+        async def _status(status: str, message: str = "", **kwargs):
+            if status_callback:
+                try:
+                    await status_callback(deployment_id, status, message, **kwargs)
+                except Exception:
+                    pass
+
+        async def watch() -> None:
+            interval = 3.0
+            loops = max(
+                1,
+                int(float(settings.deploy_runtime_watchdog_seconds) / interval),
+            )
+            try:
+                for _ in range(loops):
+                    await asyncio.sleep(interval)
+                    outcome, reason = self._evaluate_container_runtime(container)
+                    if outcome == "failed":
+                        logger.warning(
+                            "Runtime watchdog failed for %s: %s",
+                            deployment_id,
+                            reason,
+                        )
+                        try:
+                            logs = container.logs(tail=80).decode(
+                                "utf-8", errors="replace"
+                            )
+                            await _log("error", f"Runtime crashed: {reason}")
+                            await _log("error", f"Last logs:\n{logs}")
+                        except Exception:
+                            await _log("error", f"Runtime crashed: {reason}")
+                        await self._stop_failed_container(container)
+                        self.active_deployments.pop(deployment_id, None)
+                        await _status("failed", reason)
+                        return
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._runtime_watchdog_tasks.pop(deployment_id, None)
+
+        self._cancel_runtime_watchdog(deployment_id)
+        self._runtime_watchdog_tasks[deployment_id] = asyncio.create_task(watch())
+
     async def deploy(
         self,
         deployment_id: str,
@@ -183,6 +374,7 @@ class DeploymentService:
             Dict with container_id, status, url, etc.
         """
         container_name = self._container_name(deployment_id)
+        self._cancel_runtime_watchdog(deployment_id)
 
         async def _log(level: str, message: str):
             logger.log(getattr(logging, level.upper(), logging.INFO), message)
@@ -278,32 +470,15 @@ class DeploymentService:
                 # cpu_quota is in microseconds per cpu_period (100000 = 1 CPU)
                 # 0.25 CPU = 25000 microseconds
                 "cpu_quota": int(float(settings.max_cpu) * 100000),
-                "restart_policy": {"Name": "unless-stopped"},
+                # No auto-restart until verification passes — crash loops stay as exited.
+                "restart_policy": {"Name": "no"},
             }
 
-            if settings.enable_container_healthcheck:
-                # Optional runtime probe (wget or python for slim Python images).
-                run_kwargs["healthcheck"] = {
-                    "Test": [
-                        "CMD-SHELL",
-                        (
-                            f"wget -qO- http://127.0.0.1:{runtime_port}/health "
-                            f"2>/dev/null || wget -qO- http://127.0.0.1:{runtime_port}/api/health "
-                            f"2>/dev/null || wget -qO- http://127.0.0.1:{runtime_port}/ "
-                            f"2>/dev/null || python -c \"import urllib.request; "
-                            f"urllib.request.urlopen('http://127.0.0.1:{runtime_port}/')\" "
-                            "|| exit 1"
-                        ),
-                    ],
-                    "Interval": 30_000_000_000,  # 30s in nanoseconds
-                    "Timeout": 5_000_000_000,
-                    "Retries": 3,
-                    "StartPeriod": 15_000_000_000,
-                }
+            if self._runtime_healthcheck_enabled():
+                run_kwargs["healthcheck"] = self._build_runtime_healthcheck(runtime_port)
             else:
-                # Disable Dockerfile HEALTHCHECK. Broken image checks (e.g. wget on
-                # python:slim) mark the container unhealthy and Traefik excludes it,
-                # so requests fall through to the landing-page catch-all router.
+                # No HTTP probe — verify via Docker status only. Disable image HEALTHCHECK
+                # so Traefik is not driven by app-specific curl/wget commands.
                 run_kwargs["healthcheck"] = {"Test": ["NONE"]}
 
             # Run the container
@@ -316,51 +491,76 @@ class DeploymentService:
             await _log("info", f"✅ Container started: {container_id}")
             await _log("info", f"🌐 URL: {full_url}")
 
-            # Wait briefly and verify container is running
-            await asyncio.sleep(3)
-            container.reload()
-            container_status = container.status
+            await asyncio.sleep(2)
+            await _log("info", "Verifying container is still running (Docker state)...")
 
-            if container_status == "running":
-                await _log("info", f"✅ Container is running (status: {container_status})")
-                await _status(
-                    "running",
-                    "Deployment successful!",
-                    container_id=container_id,
-                    url=full_url,
-                )
-
-                # Track active deployment
-                self.active_deployments[deployment_id] = {
-                    "container_id": container_id,
-                    "container_name": container_name,
-                    "image": image,
-                    "subdomain": subdomain,
-                    "port": port,
-                    "runtime_port": runtime_port,
-                    "url": full_url,
-                    "status": "running",
-                    "started_at": datetime.utcnow().isoformat(),
-                }
-
-                return {
-                    "status": "running",
-                    "container_id": container_id,
-                    "container_name": container_name,
-                    "url": full_url,
-                    "subdomain": subdomain,
-                    "port": runtime_port,
-                }
-            else:
-                # Container started but isn't running — check logs
+            initial_outcome, initial_reason = self._evaluate_container_runtime(container)
+            if initial_outcome == "failed":
                 try:
-                    logs = container.logs(tail=50).decode("utf-8", errors="replace")
-                    await _log("error", f"Container exited with status: {container_status}")
+                    logs = container.logs(tail=80).decode("utf-8", errors="replace")
+                    await _log("error", f"Runtime verification failed: {initial_reason}")
                     await _log("error", f"Last logs:\n{logs}")
                 except Exception:
-                    pass
-                await _status("failed", f"Container exited with status: {container_status}")
-                return {"status": "failed", "error": f"Container status: {container_status}"}
+                    await _log("error", f"Runtime verification failed: {initial_reason}")
+                await self._stop_failed_container(container)
+                await _status("failed", initial_reason)
+                return {"status": "failed", "error": initial_reason}
+
+            stable, stability_error = await self._verify_container_runtime_stability(
+                container
+            )
+            if not stable:
+                try:
+                    logs = container.logs(tail=80).decode("utf-8", errors="replace")
+                    await _log("error", f"Runtime verification failed: {stability_error}")
+                    await _log("error", f"Last logs:\n{logs}")
+                except Exception:
+                    await _log("error", f"Runtime verification failed: {stability_error}")
+                await self._stop_failed_container(container)
+                await _status("failed", stability_error)
+                return {"status": "failed", "error": stability_error}
+
+            try:
+                container.update(restart_policy={"Name": "unless-stopped"})
+                await _log("info", "Runtime verified — auto-restart enabled")
+            except Exception as e:
+                await _log("warning", f"Could not enable auto-restart policy: {e}")
+
+            await _log("info", "✅ Container stable — marking deployment running")
+            await _status(
+                "running",
+                "Deployment successful!",
+                container_id=container_id,
+                url=full_url,
+            )
+
+            self.active_deployments[deployment_id] = {
+                "container_id": container_id,
+                "container_name": container_name,
+                "image": image,
+                "subdomain": subdomain,
+                "port": port,
+                "runtime_port": runtime_port,
+                "url": full_url,
+                "status": "running",
+                "started_at": datetime.utcnow().isoformat(),
+            }
+
+            self._start_runtime_watchdog(
+                deployment_id,
+                container,
+                status_callback=status_callback,
+                log_callback=log_callback,
+            )
+
+            return {
+                "status": "running",
+                "container_id": container_id,
+                "container_name": container_name,
+                "url": full_url,
+                "subdomain": subdomain,
+                "port": runtime_port,
+            }
 
         except ContainerError as e:
             error_msg = f"Container error: {e}"
@@ -380,6 +580,7 @@ class DeploymentService:
 
     async def stop(self, deployment_id: str) -> Dict[str, Any]:
         """Stop a deployed container. Does NOT remove compose-managed containers."""
+        self._cancel_runtime_watchdog(deployment_id)
         try:
             client = self._get_client()
             container, container_name = self._resolve_container(deployment_id)

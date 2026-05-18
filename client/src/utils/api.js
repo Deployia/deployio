@@ -47,6 +47,7 @@ api.interceptors.request.use((config) => {
     !config.url.includes("/activity") && // Activities should be fresh to reflect real-time updates
     !config.url.includes("/projects") && // Project lists/details change on mutations
     !config.url.includes("/deployments") && // Deployment lists change frequently
+    !config.url.includes("/admin") && // Admin panel must reflect mutations immediately
     !config._noCache // Check for the custom _noCache flag
   ) {
     const cacheKey = `${config.method}:${config.url}:${JSON.stringify(
@@ -83,6 +84,7 @@ api.interceptors.response.use(
       !response.config.url.includes("/activity") && // Activities should be fresh to reflect real-time updates
       !response.config.url.includes("/projects") &&
       !response.config.url.includes("/deployments") &&
+      !response.config.url.includes("/admin") &&
       !response.config._noCache && // Only cache if _noCache is not set
       response.status === 200 &&
       !response.headers["x-cached-response"] // Do not re-cache if it was served from cache by the request interceptor
@@ -104,6 +106,14 @@ api.interceptors.response.use(
           }
         }
       }
+    }
+
+    const method = String(response.config?.method || "").toLowerCase();
+    if (
+      ["post", "put", "patch", "delete"].includes(method) &&
+      response.config?.url?.includes("/admin")
+    ) {
+      invalidateAllCacheEntriesForUrl("/admin");
     }
 
     return response;

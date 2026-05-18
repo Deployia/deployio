@@ -48,6 +48,7 @@ import {
 } from "../../utils/deploymentConstants";
 import projectCreationService from "../../services/projectCreationService";
 import { resolveRepositoryForGitApi } from "@/utils/resolveRepositoryForGitApi";
+import appToast from "@/utils/appToast";
 
 const ProjectDetails = () => {
   const dispatch = useDispatch();
@@ -232,22 +233,33 @@ const ProjectDetails = () => {
     }
   }, [currentProject]);
 
-  // Clear messages
+  // Project save feedback (single toast — includes saves from Settings tab)
   useEffect(() => {
     if (success.update) {
-      setTimeout(
+      appToast.success("Project saved");
+      setIsEditing(false);
+      const timer = setTimeout(
         () => dispatch(clearProjectSuccess({ field: "update" })),
         3000,
       );
-      setIsEditing(false);
+      return () => clearTimeout(timer);
     }
-    if (error.currentProject) {
-      setTimeout(
-        () => dispatch(clearProjectError({ field: "currentProject" })),
-        5000,
-      );
-    }
-  }, [success.update, error.currentProject, dispatch]);
+    return undefined;
+  }, [success.update, dispatch]);
+
+  useEffect(() => {
+    const message = error.update || error.currentProject;
+    if (!message) return undefined;
+    appToast.error(message);
+    const timer = setTimeout(
+      () => {
+        dispatch(clearProjectError({ field: "update" }));
+        dispatch(clearProjectError({ field: "currentProject" }));
+      },
+      5000,
+    );
+    return () => clearTimeout(timer);
+  }, [error.update, error.currentProject, dispatch]);
 
   // Handle tab navigation
   const handleTabChange = (tab) => {
@@ -846,6 +858,26 @@ const ProjectDetails = () => {
     subdomainState.suggestions,
   ]);
 
+  useEffect(() => {
+    if (!showDeployModal) return undefined;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleCloseDeployModal();
+      }
+    };
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showDeployModal]);
+
   // Helper functions
   const detectTechnology = (project) => {
     // Check technology.primary first
@@ -1257,15 +1289,30 @@ const ProjectDetails = () => {
       </motion.div>
 
       {showDeployModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deploy-modal-title"
+        >
           <div
             className="absolute inset-0 bg-black/70"
             onClick={handleCloseDeployModal}
+            aria-hidden="true"
           />
-          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-neutral-800/70 bg-neutral-950/95 p-5 sm:p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <h3 className="text-xl font-semibold text-white">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.15 }}
+            className="relative z-10 flex w-full max-w-2xl max-h-[min(90vh,840px)] flex-col overflow-hidden rounded-2xl border border-neutral-800/70 bg-neutral-950/95 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-neutral-800/60 px-5 py-4 sm:px-6 sm:py-5">
+              <div className="min-w-0 pr-2">
+                <h3
+                  id="deploy-modal-title"
+                  className="text-xl font-semibold text-white"
+                >
                   {deployModalMode === "redeploy"
                     ? "Redeploy"
                     : "Create Deployment"}
@@ -1299,8 +1346,9 @@ const ProjectDetails = () => {
               </button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 space-y-5">
             {currentProject?.deployment?.dockerfile?.path && (
-              <div className="mb-4 rounded-xl border border-neutral-800/70 bg-neutral-900/50 px-4 py-3 flex items-center gap-3">
+              <div className="rounded-xl border border-neutral-800/70 bg-neutral-900/50 px-4 py-3 flex items-center gap-3">
                 <FaDocker className="w-4 h-4 text-blue-400 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs text-gray-400">Dockerfile</p>
@@ -1320,7 +1368,7 @@ const ProjectDetails = () => {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3 mb-5">
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
               <button
                 type="button"
                 onClick={() => handleDeploymentEnvironmentChange("development")}
@@ -1368,7 +1416,7 @@ const ProjectDetails = () => {
               </button>
             </div>
 
-            <div className="mb-5 rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-4">
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-4">
               <div>
                 <div className="text-sm font-medium text-white mb-1">
                   Source branch & commit
@@ -1449,7 +1497,7 @@ const ProjectDetails = () => {
               </div>
             </div>
 
-            <div className="mb-5 rounded-xl border border-neutral-800 bg-neutral-900/70 p-4">
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div>
                   <div className="text-sm font-medium text-white">
@@ -1585,8 +1633,9 @@ const ProjectDetails = () => {
                 </div>
               )}
             </div>
+            </div>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-neutral-800/60 bg-neutral-950/95 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
               <button
                 type="button"
                 onClick={handleCloseDeployModal}
@@ -1629,28 +1678,27 @@ const ProjectDetails = () => {
                     : "Create Deployment"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success/Error Messages */}
-      {success.update && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-green-400"
-        >
-          Project updated successfully!
+          </motion.div>
         </motion.div>
       )}
 
-      {(projectErrorMessage || error.update || error.delete) && (
+      {projectErrorMessage && !error.update && !error.delete && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 max-w-sm"
+          className="fixed bottom-4 right-4 z-40 max-w-sm rounded-lg border border-red-500/20 bg-neutral-950/95 p-4 text-red-400 shadow-lg"
         >
-          {projectErrorMessage || error.update || error.delete}
+          {projectErrorMessage}
+        </motion.div>
+      )}
+
+      {error.delete && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-4 right-4 z-40 max-w-sm rounded-lg border border-red-500/20 bg-neutral-950/95 p-4 text-red-400 shadow-lg"
+        >
+          {error.delete}
         </motion.div>
       )}
 

@@ -16,8 +16,6 @@ import {
   FaUsers,
 } from "react-icons/fa";
 import {
-  clearProjectError,
-  clearProjectSuccess,
   clearProjectDeployments,
   deleteProject,
   fetchProjects,
@@ -34,7 +32,7 @@ const ProjectSettings = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
-  const { currentProject, loading, error, success } = useSelector(
+  const { currentProject, loading, error } = useSelector(
     (state) => state.projects,
   );
 
@@ -93,26 +91,6 @@ const ProjectSettings = () => {
       normalizeEnvironmentVariables(currentProject.deployment.environment),
     );
   }, [currentProject?.deployment?.environment, currentProject?.updatedAt]);
-
-  useEffect(() => {
-    if (success.update) {
-      const timer = setTimeout(
-        () => dispatch(clearProjectSuccess({ field: "update" })),
-        3000,
-      );
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [dispatch, success.update]);
-
-  useEffect(() => {
-    if (!error.update && !error.currentProject) return undefined;
-    const timer = setTimeout(
-      () => dispatch(clearProjectError({ field: "update" })),
-      5000,
-    );
-    return () => clearTimeout(timer);
-  }, [dispatch, error.currentProject, error.update]);
 
   const saveProject = (updateData) =>
     dispatch(updateProject({ projectId: id, updateData }));
@@ -546,15 +524,10 @@ const ProjectSettings = () => {
         </div>
       </div>
 
-      {success.update && (
-        <motion.div className="fixed bottom-4 right-4 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-300">
-          Settings updated.
-        </motion.div>
-      )}
       {(error.update || error.currentProject) && (
-        <motion.div className="fixed bottom-4 right-4 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300">
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error.update || error.currentProject}
-        </motion.div>
+        </div>
       )}
     </div>
   );

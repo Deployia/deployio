@@ -6,6 +6,7 @@ import AdminDataTable from "@/components/admin/AdminDataTable";
 import RoleSelect from "@/components/admin/RoleSelect";
 import { formatUserName, formatDate, StatusBadge } from "@/utils/adminFormatters";
 import { adminTokens } from "@/constants/adminDesignTokens";
+import appToast from "@/utils/appToast";
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
@@ -40,8 +41,18 @@ const AdminUsers = () => {
   }, [fetchUsers, search]);
 
   const handleRoleChange = async (userId, role) => {
-    const res = await adminService.updateUserRole(userId, role);
-    if (res.success) fetchUsers();
+    try {
+      const res = await adminService.updateUserRole(userId, role);
+      if (!res?.success) {
+        throw new Error(res?.message || "Failed to update role");
+      }
+      appToast.success(res.message || "User role updated");
+      await fetchUsers();
+    } catch (err) {
+      appToast.error(
+        err?.response?.data?.message || err?.message || "Failed to update role",
+      );
+    }
   };
 
   const columns = [

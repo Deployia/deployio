@@ -7,6 +7,7 @@ import AdminDataTable from "@/components/admin/AdminDataTable";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { formatUserName, formatDate, StatusBadge } from "@/utils/adminFormatters";
 import { adminTokens } from "@/constants/adminDesignTokens";
+import appToast from "@/utils/appToast";
 
 const AdminProjects = () => {
   const [projects, setProjects] = useState([]);
@@ -46,11 +47,23 @@ const AdminProjects = () => {
     if (!confirm) return;
     setActionLoading(true);
     try {
-      if (confirm.type === "archive") await adminService.archiveProject(confirm.id);
-      else await adminService.deleteProject(confirm.id);
+      const res =
+        confirm.type === "archive"
+          ? await adminService.archiveProject(confirm.id)
+          : await adminService.deleteProject(confirm.id);
+      if (!res?.success) {
+        throw new Error(res?.message || "Action failed");
+      }
       setConfirm(null);
-      fetchProjects();
+      appToast.success(
+        res.message ||
+          (confirm.type === "archive" ? "Project archived" : "Project deleted"),
+      );
+      await fetchProjects();
     } catch (err) {
+      const message =
+        err?.response?.data?.message || err?.message || "Action failed";
+      appToast.error(message);
       console.error("Action failed:", err);
     } finally {
       setActionLoading(false);

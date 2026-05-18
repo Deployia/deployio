@@ -126,10 +126,10 @@ class DeploymentOrchestrator {
     if (platform.has(s)) return s;
     const docker = {
       created: "deploying",
-      restarting: "deploying",
+      restarting: "failed",
       removing: "stopping",
       paused: "stopped",
-      exited: "stopped",
+      exited: "failed",
       dead: "failed",
       not_found: "stopped",
       unknown: "deploying",
@@ -338,6 +338,8 @@ class DeploymentOrchestrator {
   async handleStatusUpdate(data) {
     try {
       let { deploymentId, status, message, container_id, url } = data;
+      container_id = container_id || data.containerId;
+      url = url || data.fullUrl;
 
       if (!deploymentId) {
         logger.warn("Received status_update without deploymentId");
@@ -392,6 +394,11 @@ class DeploymentOrchestrator {
         setFields["runtime.health.lastCheck"] = new Date();
       }
 
+      if (["failed", "stopped", "error"].includes(status)) {
+        setFields["runtime.health.status"] = "unhealthy";
+        setFields["runtime.health.lastCheck"] = new Date();
+      }
+
       // If failed, record error
       if (status === "failed" && message) {
         pushFields = {
@@ -423,7 +430,30 @@ class DeploymentOrchestrator {
         "building",
         "deploying",
       ]);
+      const terminalAgentStatuses = new Set([
+        "running",
+        "failed",
+        "stopped",
+        "cancelled",
+        "error",
+      ]);
+
+      // Do not regress a live deployment back into the build pipeline (e.g. poll noise).
       if (
+        previousStatus === "running" &&
+        buildPipelineStatuses.has(status) &&
+        !terminalAgentStatuses.has(status)
+      ) {
+        logger.debug("Ignoring pipeline status while deployment is running", {
+          deploymentId,
+          status,
+        });
+        return;
+      }
+
+      // Always accept explicit terminal outcomes from the agent (runtime crash, bad env, etc.)
+      if (
+        !terminalAgentStatuses.has(status) &&
         buildPipelineStatuses.has(previousStatus) &&
         status === "stopped" &&
         !existing.runtime?.containerId

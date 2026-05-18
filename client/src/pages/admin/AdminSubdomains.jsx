@@ -7,6 +7,7 @@ import AdminDataTable from "@/components/admin/AdminDataTable";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { formatDate, StatusBadge } from "@/utils/adminFormatters";
 import { adminTokens } from "@/constants/adminDesignTokens";
+import appToast from "@/utils/appToast";
 
 const BLOCKLIST_CATEGORIES = [
   { value: "reserved", label: "Reserved slug" },
@@ -102,10 +103,19 @@ const AdminSubdomains = () => {
     if (!confirm) return;
     setActionLoading(true);
     try {
-      await adminService.releaseSubdomain(confirm._id);
+      const res = await adminService.releaseSubdomain(confirm._id);
+      if (!res?.success) {
+        throw new Error(res?.message || "Release failed");
+      }
       setConfirm(null);
-      fetchSubdomains();
+      appToast.success(
+        res.message || `Released "${confirm.subdomain}" — status is now released`,
+      );
+      await fetchSubdomains();
     } catch (err) {
+      const message =
+        err?.response?.data?.message || err?.message || "Failed to release subdomain";
+      appToast.error(message);
       console.error("Release failed:", err);
     } finally {
       setActionLoading(false);
@@ -172,7 +182,7 @@ const AdminSubdomains = () => {
       key: "actions",
       label: "Actions",
       render: (row) =>
-        ["reserved", "active", "hold"].includes(row.status) ? (
+        ["reserved", "active"].includes(row.status) ? (
           <button
             type="button"
             title="Release"

@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "@redux/index";
-import { toast } from "react-hot-toast";
+import appToast from "@/utils/appToast";
 import { useState, memo, useCallback, useRef, useEffect, useMemo } from "react";
 import { FaBars, FaChevronDown } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -98,11 +98,11 @@ const Navbar = memo(() => {
     dispatch(logout())
       .unwrap()
       .then(() => {
-        toast.success("Logged out successfully");
+        appToast.success("Logged out successfully");
         navigate("/");
       })
       .catch((error) => {
-        toast.error(error);
+        appToast.error(error);
       });
   }, [dispatch, navigate]);
 

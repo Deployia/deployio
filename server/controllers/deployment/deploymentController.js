@@ -268,12 +268,17 @@ class DeploymentController {
       const { id } = req.params;
       const userId = req.user._id;
 
-      const deployment = await deploymentService.restartDeployment(id, userId);
+      const result = await deploymentService.restartDeployment(id, userId);
 
       res.status(200).json({
         success: true,
-        message: "Deployment restart initiated",
-        data: { deployment },
+        message:
+          result.message ||
+          "Restart initiated. Track progress in deployment logs; success is reported only when the app stays healthy.",
+        data: {
+          deployment: result.deployment,
+          initiated: result.initiated !== false,
+        },
       });
     } catch (error) {
       logger.error("Error in restartDeployment:", error);

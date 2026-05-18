@@ -1029,6 +1029,31 @@ class SubdomainManager {
     );
   }
 
+  /**
+   * Admin action: fully release a reservation record (not the 12h deployment hold).
+   */
+  async adminReleaseReservationById(reservationId, reason = "admin-release") {
+    if (!reservationId) {
+      return null;
+    }
+
+    return ReservedSubdomain.findOneAndUpdate(
+      {
+        _id: reservationId,
+        status: { $in: ["reserved", "active", "hold"] },
+      },
+      {
+        $set: {
+          status: "released",
+          holdUntil: null,
+          releasedAt: new Date(),
+          "metadata.reason": reason,
+        },
+      },
+      { new: true },
+    );
+  }
+
   async releaseReservationImmediate({ deploymentId, reason = "redeploy-replace" }) {
     if (!deploymentId) {
       return null;

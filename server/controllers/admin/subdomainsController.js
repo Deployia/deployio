@@ -203,12 +203,10 @@ const releaseSubdomain = async (req, res) => {
       });
     }
 
-    const updated = await subdomainManager.releaseReservation({
-      projectId: reservation.project,
-      environment: reservation.environment,
-      subdomain: reservation.subdomain,
-      reason: "admin-release",
-    });
+    const updated = await subdomainManager.adminReleaseReservationById(
+      reservation._id,
+      "admin-release",
+    );
 
     if (!updated) {
       return res.status(400).json({

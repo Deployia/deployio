@@ -605,38 +605,52 @@ class DeploymentService {
    */
   async restartDeployment(deploymentId, userId) {
     try {
-      const result = await this.updateDeploymentStatus(
-        deploymentId,
-        "pending",
-        userId,
-        {
-          restarted: true,
-          restartedAt: new Date(),
-        },
-      );
-
-      // Trigger re-deployment via orchestrator
-      try {
-        const deploymentOrchestrator = require("./deploymentOrchestrator");
-        const lookup = buildDeploymentLookup(deploymentId);
-        const deployment = lookup
-          ? await Deployment.findOne(lookup).populate("project")
-          : null;
-        if (deployment && deployment.project) {
-          await deploymentOrchestrator.triggerDeploy(
-            deployment,
-            deployment.project,
-            { deployUserId: userId },
-          );
-        }
-      } catch (orchErr) {
-        logger.warn(
-          "Orchestrator restart trigger failed (non-blocking):",
-          orchErr.message,
-        );
+      const lookup = buildDeploymentLookup(deploymentId);
+      const deployment = lookup
+        ? await this._findAccessibleDeployment(deploymentId, userId)
+        : null;
+      if (!deployment) {
+        throw new Error("Deployment not found");
       }
 
-      return result;
+      this._assertTransitionAllowed(deployment.status, "queued");
+
+      deployment.status = "queued";
+      deployment.queuedAt = new Date();
+      deployment.trigger = {
+        type: "restart",
+        branch: deployment.config?.branch,
+        commitSha: deployment.config?.commit?.hash,
+        at: new Date(),
+      };
+      await deployment.save();
+
+      const deploymentOrchestrator = require("./deploymentOrchestrator");
+      const populated = await Deployment.findOne(lookup).populate("project");
+      const triggered = populated?.project
+        ? await deploymentOrchestrator.triggerDeploy(populated, populated.project, {
+            deployUserId: userId,
+          })
+        : false;
+
+      if (!triggered) {
+        await deployment.updateStatus("failed", {
+          error: "No agent available to process restart",
+        });
+        throw new Error("No agent available to process restart");
+      }
+
+      const fresh = await Deployment.findOne(lookup)
+        .populate("project", "name slug")
+        .populate("deployedBy", "name email")
+        .lean();
+
+      return {
+        deployment: this.transformDeployment(fresh),
+        initiated: true,
+        message:
+          "Restart initiated. Status will update as the agent rebuilds and verifies the deployment.",
+      };
     } catch (error) {
       logger.error("Error in restartDeployment:", error);
       throw error;

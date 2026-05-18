@@ -808,7 +808,8 @@ const deploymentSlice = createSlice({
       })
       .addCase(restartDeployment.fulfilled, (state, action) => {
         state.loading.restart = false;
-        state.success.restart = true;
+        // HTTP 200 means restart was queued, not that the deployment is healthy again.
+        state.success.restart = false;
         const updatedDeployment = extractDeployment(action.payload);
         if (!updatedDeployment) return;
         const matchDeployment = (d) =>

@@ -85,6 +85,13 @@ class Settings(BaseSettings):
     # Deployment Configuration
     max_concurrent_deployments: int = 5
     deployment_timeout: int = 600
+    # Optional: inject HTTP healthcheck at deploy (off by default — not all apps expose /health).
+    deploy_runtime_healthcheck: bool = False
+    # Seconds to poll Docker container state after start before marking running
+    deploy_runtime_verify_seconds: float = 15.0
+    # Extra seconds to watch a running deployment for process crashes (Docker state only)
+    deploy_runtime_watchdog_seconds: float = 45.0
+    # Legacy alias for deploy_runtime_healthcheck
     enable_container_healthcheck: bool = False
     # Traefik Auth
     traefik_auth_users: Optional[str] = None

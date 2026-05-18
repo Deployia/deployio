@@ -37,10 +37,11 @@ logger = logging.getLogger(__name__)
 _DOCKER_STATUS_MAP = {
     "running": "running",
     "created": "deploying",
-    "restarting": "deploying",
+    # Crash loop / failed startup — must not map to deploying (regresses UI pipeline).
+    "restarting": "failed",
     "removing": "stopping",
     "paused": "stopped",
-    "exited": "stopped",
+    "exited": "failed",
     "dead": "failed",
     "not_found": "stopped",
 }
@@ -75,6 +76,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         super().__init__("/agent-bridge")
         self._streaming = False
         self._live_container_log_tasks: Dict[str, asyncio.Task] = {}
+        self._deploy_tasks: Dict[str, asyncio.Task] = {}
 
     async def _register_event_handlers(self):
         self.event_handlers = {
@@ -102,6 +104,10 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
     async def cleanup(self):
         for dep_id in list(self._live_container_log_tasks.keys()):
             await self._stop_live_container_logs(dep_id)
+        for dep_id, task in list(self._deploy_tasks.items()):
+            if task and not task.done():
+                task.cancel()
+        self._deploy_tasks.clear()
         await super().cleanup()
 
     async def _emit_status_update(
@@ -143,6 +149,49 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         port = data.get("port", 3000)
         env_vars = data.get("envVars") or {}
 
+        if not deployment_id:
+            return
+
+        existing = self._deploy_tasks.get(deployment_id)
+        if existing and not existing.done():
+            logger.warning(
+                "deployment:trigger ignored — deploy already in progress for %s",
+                deployment_id,
+            )
+            return
+
+        async def _run_wrapped() -> None:
+            try:
+                await self._run_deploy_trigger(
+                    deployment_id=deployment_id,
+                    image=image,
+                    subdomain=subdomain,
+                    port=port,
+                    env_vars=env_vars,
+                    data=data,
+                )
+            except Exception as e:
+                logger.exception("deployment:trigger failed for %s", deployment_id)
+                await self._emit_status_update(
+                    deployment_id,
+                    "failed",
+                    str(e) or "Deployment failed unexpectedly",
+                )
+            finally:
+                self._deploy_tasks.pop(deployment_id, None)
+
+        self._deploy_tasks[deployment_id] = asyncio.create_task(_run_wrapped())
+
+    async def _run_deploy_trigger(
+        self,
+        *,
+        deployment_id: Optional[str],
+        image: Optional[str],
+        subdomain: Optional[str],
+        port: int,
+        env_vars: Dict[str, Any],
+        data: Dict[str, Any],
+    ) -> None:
         if not deployment_id or not subdomain:
             logger.error(f"deployment:trigger missing required fields: {data}")
             await self._emit_status_update(
@@ -165,7 +214,8 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         )
 
         async def status_cb(dep_id, status, message, **kwargs):
-            await self._emit_status_update(dep_id, status, message, **kwargs)
+            mapped = "deploying" if status == "building" else status
+            await self._emit_status_update(dep_id, mapped, message, **kwargs)
 
         async def log_cb(dep_id, level, message):
             await self._emit_build_log(dep_id, level, message)

@@ -4,6 +4,7 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import useNotificationToasts from "@hooks/useNotificationToasts";
+import { APP_TOAST_STYLE } from "@utils/appToast";
 
 function Layout({ children }) {
   const location = useLocation();
@@ -27,9 +28,19 @@ function Layout({ children }) {
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-b from-black to-neutral-900 body">
       <Toaster
-        position="top-right"
+        position="bottom-right"
+        containerStyle={{ zIndex: 10000 }}
         toastOptions={{
-          className: "!bg-transparent !shadow-none !p-0",
+          duration: 4000,
+          style: APP_TOAST_STYLE,
+          success: {
+            duration: 3500,
+            iconTheme: { primary: "#4ade80", secondary: "#171717" },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: { primary: "#f87171", secondary: "#171717" },
+          },
         }}
       />
       <Navbar />
