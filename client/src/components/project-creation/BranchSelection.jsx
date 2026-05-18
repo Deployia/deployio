@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import {
   FaCodeBranch,
@@ -18,9 +18,14 @@ import {
   setAnalysisSettings,
   completeStep,
 } from "@redux/slices/projectCreationSlice";
+import { resolveRepositoryForGitApi } from "@/utils/resolveRepositoryForGitApi";
 
 const BranchSelection = ({ stepData, onNext, loading }) => {
   const dispatch = useDispatch();
+  const branchesLoading = useSelector(
+    (state) => state.projectCreation.branchesLoading,
+  );
+  const branchError = useSelector((state) => state.projectCreation.branchError);
   const [selectedBranch, setLocalSelectedBranch] = useState(
     stepData.selectedBranch,
   );
@@ -32,44 +37,34 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
     ...stepData.analysisSettings,
   });
 
-  // Fetch branches when component mounts
+  // Fetch branches when repository is selected
   useEffect(() => {
-    if (stepData.selectedRepository) {
-      const provider = stepData.selectedProvider || "github";
-      const selected = stepData.selectedRepository;
-      let owner;
-      let repo = selected.name;
-      let fullName = selected.fullName || null;
-
-      if (provider === "gitlab" && fullName) {
-        const parts = fullName.split("/");
-        owner = parts[0];
-        repo = parts.slice(1).join("/") || selected.name;
-        fullName = fullName;
-      } else if (provider === "azure-devops") {
-        if (fullName) {
-          const parts = fullName.split("/");
-          repo = parts.pop();
-          owner = parts.join("/");
-        } else if (selected.organization && selected.project) {
-          owner = `${selected.organization}/${selected.project}`;
-          repo = selected.name;
-          fullName = `${owner}/${repo}`;
-        } else if (typeof selected.owner === "string" && selected.owner.includes("/")) {
-          owner = selected.owner;
-          fullName = `${owner}/${repo}`;
-        }
-      } else if (selected.owner && typeof selected.owner === "object") {
-        owner = selected.owner.login;
-      } else if (selected.owner) {
-        owner = selected.owner;
-      }
-
-      if (owner && repo) {
-        dispatch(fetchBranches({ provider, owner, repo, fullName }));
-      }
+    if (!stepData.selectedRepository) {
+      return;
     }
-  }, [dispatch, stepData.selectedRepository, stepData.selectedProvider]);
+
+    const coords = resolveRepositoryForGitApi(
+      stepData.selectedProvider,
+      stepData.selectedRepository,
+    );
+
+    if (coords) {
+      dispatch(
+        fetchBranches({
+          provider: coords.provider,
+          owner: coords.owner,
+          repo: coords.repo,
+          fullName: coords.fullName,
+        }),
+      );
+    }
+  }, [
+    dispatch,
+    stepData.selectedRepository,
+    stepData.selectedProvider,
+    stepData.selectedRepository?.id,
+    stepData.selectedRepository?.fullName,
+  ]);
 
   const handleBranchSelect = (branch) => {
     setLocalSelectedBranch(branch);
@@ -154,14 +149,23 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
             <span>Select Branch</span>
           </h3>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
+          {branchesLoading || loading ? (
+            <motion.div className="flex items-center justify-center py-8">
               <FaSpinner className="w-6 h-6 text-purple-500 animate-spin" />
               <span className="ml-3 text-neutral-400">Loading branches...</span>
-            </div>
+            </motion.div>
+          ) : branchError ? (
+            <motion.div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+              {branchError}
+            </motion.div>
+          ) : (stepData.branches || []).length === 0 ? (
+            <motion.div className="rounded-lg border border-dashed border-neutral-700 p-6 text-center text-sm text-neutral-400">
+              No branches found. Check that your git provider is connected and
+              has access to this repository.
+            </motion.div>
           ) : (
-            <div className="space-y-3">
-              {stepData.branches.map((branch, index) => {
+            <motion.div className="space-y-3">
+              {(stepData.branches || []).map((branch, index) => {
                 const isSelected = selectedBranch?.name === branch.name;
                 const isDefault = branch.isDefault;
 
@@ -442,11 +446,11 @@ const BranchSelection = ({ stepData, onNext, loading }) => {
       <div className="mt-6 sm:mt-8 text-center">
         <button
           onClick={handleContinue}
-          disabled={!selectedBranch || loading}
+          disabled={!selectedBranch || loading || branchesLoading}
           className={`
             px-6 sm:px-8 py-3 rounded-lg font-medium transition-all text-sm sm:text-base
             ${
-              selectedBranch && !loading
+              selectedBranch && !loading && !branchesLoading
                 ? "bg-purple-600 hover:bg-purple-700 text-white"
                 : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
             }

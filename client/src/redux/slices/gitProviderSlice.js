@@ -53,7 +53,7 @@ export const fetchRepositories = createAsyncThunk(
         page,
         limit,
       });
-      return response.data; // Return the data object directly
+      return response?.data || response;
     } catch (error) {
       return rejectWithValue({
         provider,
@@ -74,7 +74,8 @@ export const searchRepositories = createAsyncThunk(
         query,
         { page, limit },
       );
-      return { query, ...response.data }; // Extract data and add query
+      const payload = response?.data || response;
+      return { query, ...payload };
     } catch (error) {
       return rejectWithValue({
         provider,

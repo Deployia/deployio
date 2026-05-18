@@ -44,6 +44,7 @@ import {
   getProjectStatusBadge,
 } from "../../utils/deploymentConstants";
 import projectCreationService from "../../services/projectCreationService";
+import { resolveRepositoryForGitApi } from "@/utils/resolveRepositoryForGitApi";
 
 const ProjectDetails = () => {
   const dispatch = useDispatch();
@@ -308,29 +309,28 @@ const ProjectDetails = () => {
     const repo = currentProject?.repository;
     if (!repo) return null;
 
-    if (repo.owner && repo.name) {
-      return {
-        provider: repo.provider || "github",
-        owner: repo.owner,
-        repo: repo.name,
-        fullName: `${repo.owner}/${repo.name}`,
-        defaultBranch: repo.branch || repo.defaultBranch || "main",
-      };
-    }
+    const coords = resolveRepositoryForGitApi(
+      repo.provider || "github",
+      {
+        ...repo,
+        htmlUrl: repo.url,
+        fullName:
+          repo.owner && repo.name && !repo.fullName
+            ? `${repo.owner}/${repo.name}`
+            : repo.fullName,
+        owner:
+          typeof repo.owner === "string"
+            ? { login: repo.owner }
+            : repo.owner,
+      },
+    );
 
-    if (repo.url) {
-      const parsed = projectCreationService.extractRepositoryInfo(repo.url);
-      if (!parsed) return null;
-      return {
-        provider: parsed.provider,
-        owner: parsed.owner,
-        repo: parsed.repo || parsed.name,
-        fullName: `${parsed.owner}/${parsed.repo || parsed.name}`,
-        defaultBranch: repo.branch || repo.defaultBranch || "main",
-      };
-    }
+    if (!coords) return null;
 
-    return null;
+    return {
+      ...coords,
+      defaultBranch: repo.branch || repo.defaultBranch || "main",
+    };
   };
 
   const handleOpenDeployModal = () => {

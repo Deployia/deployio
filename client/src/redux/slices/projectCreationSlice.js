@@ -291,6 +291,8 @@ const initialState = {
 
   // UI state
   loading: false,
+  branchesLoading: false,
+  branchError: null,
   error: null,
   success: null,
 
@@ -621,8 +623,25 @@ const projectCreationSlice = createSlice({
       })
 
       // Fetch branches
+      .addCase(fetchBranches.pending, (state) => {
+        state.branchesLoading = true;
+        state.branchError = null;
+        state.stepData.branches = [];
+      })
       .addCase(fetchBranches.fulfilled, (state, action) => {
-        state.stepData.branches = action.payload;
+        state.branchesLoading = false;
+        state.branchError = null;
+        state.stepData.branches = Array.isArray(action.payload)
+          ? action.payload
+          : [];
+      })
+      .addCase(fetchBranches.rejected, (state, action) => {
+        state.branchesLoading = false;
+        state.branchError =
+          action.payload ||
+          action.error?.message ||
+          "Failed to load branches";
+        state.stepData.branches = [];
       });
   },
 });
