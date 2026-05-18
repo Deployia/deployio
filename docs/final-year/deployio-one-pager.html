@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deployio — Final Year Project One-Pager</title>
+  <style>
+    @page { size: A4; margin: 14mm 16mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 9.2pt;
+      line-height: 1.38;
+      color: #1a1a2e;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    header {
+      border-bottom: 2.5px solid #2563eb;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    h1 { font-size: 20pt; font-weight: 700; color: #0f172a; }
+    .subtitle { font-size: 10pt; color: #475569; margin-top: 3px; }
+    .meta {
+      display: flex; flex-wrap: wrap; gap: 6px 18px;
+      margin-top: 6px; font-size: 8.5pt; color: #64748b;
+    }
+    .meta span strong { color: #334155; }
+    section { margin-bottom: 9px; }
+    h2 {
+      font-size: 9.5pt; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #2563eb;
+      border-left: 3px solid #2563eb; padding-left: 7px; margin-bottom: 5px;
+    }
+    p { text-align: justify; color: #334155; }
+    ul { padding-left: 16px; color: #334155; }
+    li { margin-bottom: 2px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+    .tech-group { margin-bottom: 4px; }
+    .tech-group strong { display: block; font-size: 8.5pt; color: #0f172a; margin-bottom: 1px; }
+    .tech-group span { font-size: 8.5pt; color: #475569; }
+    .results-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 6px; margin-top: 4px;
+    }
+    .result-card {
+      background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+      border: 1px solid #bfdbfe; border-radius: 6px;
+      padding: 6px 8px; text-align: center;
+    }
+    .result-card .value { font-size: 11pt; font-weight: 700; color: #1d4ed8; }
+    .result-card .label { font-size: 7.5pt; color: #64748b; margin-top: 1px; }
+    .flow {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 4px; margin: 5px 0 2px; font-size: 7.8pt; color: #475569;
+    }
+    .flow-step {
+      flex: 1; text-align: center; background: #f1f5f9;
+      border-radius: 4px; padding: 4px 3px; border: 1px solid #e2e8f0;
+    }
+    .flow-arrow { color: #94a3b8; font-size: 9pt; flex-shrink: 0; }
+    footer {
+      margin-top: 8px; padding-top: 6px; border-top: 1px solid #e2e8f0;
+      font-size: 7.5pt; color: #94a3b8; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Deployio</h1>
+      <p class="subtitle">AI-Powered Platform for Automated Application Deployment &amp; DevOps Management</p>
+      <div class="meta">
+        <span><strong>Project Type:</strong> Final Year Project</span>
+        <span><strong>Domain:</strong> Cloud Computing &amp; Software Engineering</span>
+        <span><strong>Platform:</strong> deployio.tech</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>Abstract</h2>
+      <p>
+        Deployio is a web-based deployment platform that helps developers publish applications to the internet without deep expertise in servers or manual DevOps workflows. Users connect their code repository (GitHub, GitLab, or similar), follow a guided seven-step wizard, and let the system automatically analyze the codebase, suggest configuration, and register the project. From a central dashboard, users deploy new versions, track live build progress, view deployment history, and manage releases. The platform unifies repository integration, intelligent codebase understanding, automated hosting, and lifecycle management—making industry-standard release practices accessible to students, startups, and independent developers.
+      </p>
+    </section>
+
+    <section>
+      <h2>Objectives</h2>
+      <ul>
+        <li>To design and implement an end-to-end system from project onboarding to live deployment and post-release management.</li>
+        <li>To simplify deployment through a guided wizard that replaces fragmented manual setup steps.</li>
+        <li>To automatically analyze repositories and recommend suitable build and runtime settings using AI-assisted stack detection.</li>
+        <li>To integrate Git providers securely and automate packaging, build, and release with real-time status updates.</li>
+        <li>To provide a unified dashboard for projects, deployments, analytics, and operational actions.</li>
+        <li>To demonstrate a scalable microservices architecture suitable for production-style workloads.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>End-to-End Flow</h2>
+      <div class="flow">
+        <div class="flow-step">Connect Git</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Guided Wizard</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">AI Analysis</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Deploy Live</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Monitor &amp; Manage</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tools &amp; Technology</h2>
+      <div class="grid-2">
+        <div>
+          <div class="tech-group">
+            <strong>Frontend</strong>
+            <span>React 19, Vite, Redux Toolkit, Tailwind CSS, React Router, Framer Motion, Socket.IO Client, Recharts</span>
+          </div>
+          <div class="tech-group">
+            <strong>Backend API</strong>
+            <span>Node.js, Express.js, MongoDB (Mongoose), Redis, JWT &amp; OAuth2 (GitHub, GitLab, Google), Passport.js, Socket.IO</span>
+          </div>
+          <div class="tech-group">
+            <strong>AI &amp; Analysis Service</strong>
+            <span>Python, FastAPI, Uvicorn, Pydantic, Groq / OpenAI / Gemini APIs, Redis caching</span>
+          </div>
+        </div>
+        <div>
+          <div class="tech-group">
+            <strong>Deployment Agent</strong>
+            <span>Python, FastAPI, Docker, GitPython, MongoDB Motor driver, real-time WebSockets</span>
+          </div>
+          <div class="tech-group">
+            <strong>Infrastructure &amp; DevOps</strong>
+            <span>Docker, Traefik, Nginx, VPS hosting, GitHub Actions / CI pipelines, environment-based configuration</span>
+          </div>
+          <div class="tech-group">
+            <strong>Supporting Tools</strong>
+            <span>Git, VS Code, Swagger API docs, Winston logging, Cloudinary, Nodemailer</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Results &amp; Outcomes</h2>
+      <ul>
+        <li>Delivered a production-oriented platform with separate frontend, API server, AI analysis service, and deployment agent.</li>
+        <li>Implemented a complete 7-step project creation wizard with automated analysis and pre-filled settings.</li>
+        <li>Enabled deployments with live progress tracking and centralized deployment history.</li>
+        <li>Built dashboard modules for projects, deployments, analytics, integrations, and monitoring.</li>
+        <li>Shipped sample demo applications and deployed the platform live at deployio.tech.</li>
+      </ul>
+      <div class="results-grid">
+        <div class="result-card">
+          <div class="value">7</div>
+          <div class="label">Wizard Steps</div>
+        </div>
+        <div class="result-card">
+          <div class="value">4+</div>
+          <div class="label">Microservices</div>
+        </div>
+        <div class="result-card">
+          <div class="value">15+</div>
+          <div class="label">Languages Supported</div>
+        </div>
+        <div class="result-card">
+          <div class="value">~30s</div>
+          <div class="label">Avg. Deploy Time</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Deployio — Final Year Project Documentation · Generated May 2026
+    </footer>
+  </div>
+</body>
+</html>
