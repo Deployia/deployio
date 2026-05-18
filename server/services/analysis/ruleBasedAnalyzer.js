@@ -3,7 +3,7 @@
  * Analyzes GitHub repositories to determine deployability and stack type.
  * Replaces AI service for Phase 1 of deployment pipeline.
  *
- * Supported Stacks: Next.js, MERN, Express, FastAPI, Flask, Django
+ * Supported Stacks: Next.js, MERN, Express, FastAPI, Flask, Django, Spring Boot
  * Stack Detection Priority: Dockerfile signals → package.json / requirements.txt
  * Docker Compose: informational only (deploy via individual Dockerfiles)
  */
@@ -109,6 +109,77 @@ class RuleBasedAnalyzer {
     return { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
   }
 
+  /**
+   * Lightweight pom.xml hints (XML is not fully parsed).
+   * @private
+   */
+  _parsePomSignals(pomXmlValue) {
+    const text = this._coerceFileText(pomXmlValue);
+    if (!text) {
+      return { hasSpringBoot: false, javaVersion: null };
+    }
+    const lower = text.toLowerCase();
+    const versionMatch =
+      text.match(
+        /<java\.version>\s*([^<\s]+)\s*<\/java\.version>/i,
+      ) ||
+      text.match(
+        /<maven\.compiler\.(?:release|source)>\s*([^<\s]+)\s*<\/maven\.compiler\.(?:release|source)>/i,
+      );
+    return {
+      hasSpringBoot:
+        lower.includes("spring-boot-starter") ||
+        lower.includes("org.springframework.boot") ||
+        lower.includes("<artifactid>spring-boot"),
+      javaVersion: versionMatch ? versionMatch[1].trim() : null,
+    };
+  }
+
+  _springBootConfig({ port = 8080, startFromDocker = null } = {}) {
+    return {
+      buildCommand: "./mvnw -B -DskipTests package",
+      startCommand: startFromDocker || 'java -jar app.jar',
+      installCommand: "./mvnw -B dependency:go-offline -DskipTests",
+      port,
+    };
+  }
+
+  _dockerfileUsesJavaBase(dockerfileContent) {
+    if (!dockerfileContent) return false;
+    const signals = this._parseDockerfileSignals(dockerfileContent);
+    return signals.fromImages.some((img) =>
+      /^(eclipse-temurin|temurin|openjdk|amazoncorretto|sapmachine|azul\/zulu|bellsoft\/liberica)(?::|@|$)/i.test(
+        img,
+      ),
+    );
+  }
+
+  _isSpringBootDockerfile(signals, contentLower, context = {}) {
+    const pom = this._parsePomSignals(context.pomXml);
+    if (pom.hasSpringBoot) {
+      return true;
+    }
+
+    const hasJavaBase = signals.fromImages.some((img) =>
+      /^(eclipse-temurin|temurin|openjdk|amazoncorretto|sapmachine|azul\/zulu|bellsoft\/liberica)(?::|@|$)/i.test(
+        img,
+      ),
+    );
+    if (!hasJavaBase) {
+      return false;
+    }
+
+    return (
+      contentLower.includes("mvnw") ||
+      contentLower.includes("pom.xml") ||
+      contentLower.includes("./mvnw") ||
+      contentLower.includes("dependency:go-offline") ||
+      contentLower.includes("app.jar") ||
+      (contentLower.includes("java") && contentLower.includes("-jar")) ||
+      /\buser\s+spring\b/.test(contentLower)
+    );
+  }
+
   _composeAdvisory(dockerComposeContent) {
     if (!dockerComposeContent) {
       return { isMultiContainer: false, serviceCount: 0, note: null };
@@ -164,7 +235,11 @@ class RuleBasedAnalyzer {
       score += 5;
     }
 
-    if (fileContents.packageJson || fileContents.requirementsTxt) {
+    if (
+      fileContents.packageJson ||
+      fileContents.requirementsTxt ||
+      fileContents.pomXml
+    ) {
       score += 8;
     }
 
@@ -192,7 +267,7 @@ class RuleBasedAnalyzer {
   /**
    * Analyze repository file contents for deployability and stack type.
    * Used during project creation when files are fetched from GitHub.
-   * @param {object} fileContents - { packageJson, requirementsTxt, dockerfileContent, envExample, dockerCompose }
+   * @param {object} fileContents - { packageJson, requirementsTxt, pomXml, dockerfileContent, envExample, dockerCompose }
    * @returns {Promise<object>} Analysis result with stack, deployability, and config
    */
   async analyzeRepositoryContent(fileContents = {}) {
@@ -205,7 +280,7 @@ class RuleBasedAnalyzer {
         return {
           deployable: false,
           stack: null,
-          reason: `Stack not detected. Supported: Express, MERN, Next.js, FastAPI, Flask, Django. ${stackDetection.reason}`,
+          reason: `Stack not detected. Supported: Express, MERN, Next.js, FastAPI, Flask, Django, Spring Boot. ${stackDetection.reason}`,
           confidence: 0,
           detectedConfig: {},
         };
@@ -343,7 +418,15 @@ class RuleBasedAnalyzer {
    * @private
    */
   async _detectStackFromManifests(fileContents) {
-    const { packageJson, requirementsTxt } = fileContents;
+    const { packageJson, requirementsTxt, pomXml } = fileContents;
+    const pomSignals = this._parsePomSignals(pomXml);
+    if (pomSignals.hasSpringBoot) {
+      return {
+        detected: true,
+        stack: "spring-boot",
+        config: this._springBootConfig({ port: 8080 }),
+      };
+    }
     if (packageJson) {
       try {
         const pkgData = this._parsePackageJsonObject(packageJson);
@@ -411,7 +494,25 @@ class RuleBasedAnalyzer {
   }
 
   async _detectStackFromContent(fileContents) {
-    const { packageJson, requirementsTxt, dockerfileContent } = fileContents;
+    const { packageJson, requirementsTxt, pomXml, dockerfileContent } =
+      fileContents;
+    const dockerContext = { packageJson, requirementsTxt, pomXml };
+
+    // Spring Boot / Java Dockerfiles (mvnw, temurin, java -jar) before stray manifests.
+    if (
+      dockerfileContent &&
+      this._dockerfileUsesJavaBase(dockerfileContent) &&
+      !this._dockerfileUsesNodeBase(dockerfileContent) &&
+      !this._dockerfileUsesPythonBase(dockerfileContent)
+    ) {
+      const dockerDetection = this._detectStackFromDockerfile(
+        dockerfileContent,
+        dockerContext,
+      );
+      if (dockerDetection.detected) {
+        return { ...dockerDetection, detectionSource: "dockerfile" };
+      }
+    }
 
     // Root/monorepo Dockerfiles with FROM node must win over a stray root requirements.txt
     // (common in repos that also ship Python microservices).
@@ -422,11 +523,22 @@ class RuleBasedAnalyzer {
     ) {
       const dockerDetection = this._detectStackFromDockerfile(
         dockerfileContent,
-        { packageJson, requirementsTxt },
+        dockerContext,
       );
       if (dockerDetection.detected) {
         return { ...dockerDetection, detectionSource: "dockerfile" };
       }
+    }
+
+    const pomSignals = this._parsePomSignals(pomXml);
+    if (pomSignals.hasSpringBoot) {
+      logger.info("Stack detected: Spring Boot (pom.xml)");
+      return {
+        detected: true,
+        stack: "spring-boot",
+        detectionSource: "manifest",
+        config: this._springBootConfig({ port: 8080 }),
+      };
     }
 
     // Prefer service-scoped manifests (package.json / requirements.txt) over Dockerfile
@@ -441,7 +553,7 @@ class RuleBasedAnalyzer {
           if (dockerfileContent) {
             const dockerDetection = this._detectStackFromDockerfile(
               dockerfileContent,
-              { packageJson, requirementsTxt },
+              dockerContext,
             );
             if (dockerDetection.detected) {
               return dockerDetection;
@@ -620,7 +732,7 @@ class RuleBasedAnalyzer {
     if (dockerfileContent) {
       const dockerDetection = this._detectStackFromDockerfile(
         dockerfileContent,
-        { packageJson, requirementsTxt },
+        dockerContext,
       );
       if (dockerDetection.detected) {
         return dockerDetection;
@@ -629,7 +741,7 @@ class RuleBasedAnalyzer {
 
     return {
       detected: false,
-      reason: "No package.json or requirements.txt found",
+      reason: "No package.json, pom.xml, or requirements.txt found",
     };
   }
 
@@ -648,12 +760,29 @@ class RuleBasedAnalyzer {
     const pkgText = this._coerceFileText(context.packageJson);
     const deps = this._parsePackageDeps(context.packageJson);
     const hasDep = (name) => Object.prototype.hasOwnProperty.call(deps, name);
-    const port = signals.ports[0] || 3000;
+    const nodePort = signals.ports[0] || 3000;
 
     const startFromDocker =
       signals.entrypoint || signals.cmd ?
         [signals.entrypoint, signals.cmd].filter(Boolean).join(" ")
       : null;
+
+    const pomSignals = this._parsePomSignals(context.pomXml);
+    if (
+      pomSignals.hasSpringBoot ||
+      this._isSpringBootDockerfile(signals, content, context)
+    ) {
+      logger.info("Stack detected from Dockerfile: Spring Boot");
+      return {
+        detected: true,
+        stack: "spring-boot",
+        detectionSource: pomSignals.hasSpringBoot ? "dockerfile+manifest" : "dockerfile",
+        config: this._springBootConfig({
+          port: signals.ports[0] || 8080,
+          startFromDocker,
+        }),
+      };
+    }
 
     // Trust package.json in the service directory over Dockerfile hints
     if (hasDep("express")) {
@@ -666,7 +795,7 @@ class RuleBasedAnalyzer {
           buildCommand: "npm install",
           startCommand: startFromDocker || "npm start",
           installCommand: "npm install",
-          port,
+          port: nodePort,
         },
       };
     }
@@ -742,7 +871,7 @@ class RuleBasedAnalyzer {
           buildCommand: "npm install",
           startCommand: startFromDocker || "npm start",
           installCommand: "npm install",
-          port,
+          port: nodePort,
         },
       };
     }
@@ -815,7 +944,7 @@ class RuleBasedAnalyzer {
           buildCommand: "npm run build",
           startCommand: startFromDocker || "npm start",
           installCommand: "npm install",
-          port,
+          port: nodePort,
         },
       };
     }
@@ -934,6 +1063,30 @@ class RuleBasedAnalyzer {
       return { supported: true };
     }
 
+    if (stack === "spring-boot") {
+      const pomSignals = this._parsePomSignals(fileContents.pomXml);
+      const dockerSignals = this._parseDockerfileSignals(
+        fileContents.dockerfileContent,
+      );
+      const javaHint =
+        pomSignals.javaVersion ||
+        dockerSignals.fromImages.find((img) =>
+          /temurin|openjdk|corretto/i.test(img),
+        );
+      if (javaHint) {
+        const major = String(javaHint).match(/(\d{2}|\d+)/);
+        const versionNum = major ? parseInt(major[1], 10) : 21;
+        if (versionNum < 17) {
+          return {
+            supported: false,
+            reason: `Java ${versionNum} detected. Spring Boot deployments require Java 17+.`,
+          };
+        }
+      }
+      logger.info("Java version assumed: 17+");
+      return { supported: true };
+    }
+
     return { supported: true };
   }
 
@@ -983,6 +1136,10 @@ class RuleBasedAnalyzer {
       };
     }
 
+    if (stack === "spring-boot") {
+      return this._springBootConfig({ port: 8080 });
+    }
+
     return {};
   }
 
@@ -1022,7 +1179,7 @@ class RuleBasedAnalyzer {
         return {
           deployable: false,
           stack: null,
-          reason: `Stack not detected. Supported: Express, MERN, Next.js, FastAPI, Flask, Django. ${stackDetection.reason}`,
+          reason: `Stack not detected. Supported: Express, MERN, Next.js, FastAPI, Flask, Django, Spring Boot. ${stackDetection.reason}`,
           confidence: 0,
           detectedConfig: {},
         };
@@ -1233,6 +1390,23 @@ class RuleBasedAnalyzer {
       }
     }
 
+    const pomPath = path.join(repoPath, "pom.xml");
+    if (fs.existsSync(pomPath)) {
+      try {
+        const pomContent = fs.readFileSync(pomPath, "utf-8");
+        if (this._parsePomSignals(pomContent).hasSpringBoot) {
+          logger.info("Stack detected: Spring Boot");
+          return {
+            detected: true,
+            stack: "spring-boot",
+            config: this._springBootConfig({ port: 8080 }),
+          };
+        }
+      } catch (error) {
+        logger.warn("Error reading pom.xml:", error.message);
+      }
+    }
+
     // Check for FastAPI
     const requirementsPath = path.join(repoPath, "requirements.txt");
     if (fs.existsSync(requirementsPath)) {
@@ -1387,6 +1561,11 @@ class RuleBasedAnalyzer {
       }
     }
 
+    if (stack === "spring-boot") {
+      logger.info("Java version assumed: 17+");
+      return { supported: true };
+    }
+
     return { supported: true };
   }
 
@@ -1458,6 +1637,10 @@ class RuleBasedAnalyzer {
       };
     }
 
+    if (stack === "spring-boot") {
+      return this._springBootConfig({ port: 8080 });
+    }
+
     return {};
   }
 
@@ -1515,6 +1698,7 @@ class RuleBasedAnalyzer {
       fastapi: { language: "python", runtime: "python", version: "3.9+" },
       flask: { language: "python", runtime: "python", version: "3.9+" },
       django: { language: "python", runtime: "python", version: "3.9+" },
+      "spring-boot": { language: "java", runtime: "jvm", version: "17+" },
     };
 
     const frameworks = {
@@ -1524,6 +1708,7 @@ class RuleBasedAnalyzer {
       fastapi: "fastapi",
       flask: "flask",
       django: "django",
+      "spring-boot": "spring-boot",
     };
 
     const stackInfo = languages[stackDetection.stack] || {
@@ -1548,8 +1733,14 @@ class RuleBasedAnalyzer {
     return {
       language: stackInfo.language,
       framework: frameworks[stackDetection.stack] || "unknown",
-      buildTool: stackDetection.stack === "fastapi" ? "pip" : "npm",
-      packageManager: stackDetection.stack === "fastapi" ? "pip" : "npm",
+      buildTool:
+        stackDetection.stack === "spring-boot" ? "maven"
+        : stackDetection.stack === "fastapi" ? "pip"
+        : "npm",
+      packageManager:
+        stackDetection.stack === "spring-boot" ? "maven"
+        : stackDetection.stack === "fastapi" ? "pip"
+        : "npm",
       runtime: stackInfo.runtime,
       version: stackInfo.version,
       dependencies: dependencies,
@@ -1587,7 +1778,9 @@ class RuleBasedAnalyzer {
       environment_variables: [],
       dockerfile_hints: {
         base_image_suggestion:
-          stackDetection.stack === "fastapi" ? "python:3.11" : "node:18-alpine",
+          stackDetection.stack === "spring-boot" ? "eclipse-temurin:21-jre-alpine"
+          : stackDetection.stack === "fastapi" ? "python:3.11"
+          : "node:18-alpine",
         working_directory: "/app",
         entry_point: commands.startCommand || "npm start",
       },
@@ -1606,6 +1799,7 @@ class RuleBasedAnalyzer {
       mern: "/api/health",
       express: "/health",
       fastapi: "/health",
+      "spring-boot": "/actuator/health",
     };
 
     const resourceRequirements = {
@@ -1613,6 +1807,7 @@ class RuleBasedAnalyzer {
       mern: { cpu: "500m", memory: "512Mi" },
       express: { cpu: "250m", memory: "256Mi" },
       fastapi: { cpu: "250m", memory: "256Mi" },
+      "spring-boot": { cpu: "500m", memory: "512Mi" },
     };
 
     const resources = resourceRequirements[stackDetection.stack] || {
@@ -1651,6 +1846,7 @@ class RuleBasedAnalyzer {
       fastapi: "Backend (FastAPI)",
       flask: "Backend (Flask)",
       django: "Backend (Django)",
+      "spring-boot": "Backend (Spring Boot)",
     };
 
     const complexityMap = {
@@ -1660,6 +1856,7 @@ class RuleBasedAnalyzer {
       fastapi: "medium",
       flask: "medium",
       django: "medium",
+      "spring-boot": "medium",
     };
 
     const insights = [

@@ -63,8 +63,9 @@ class ProjectCreationService {
   _manifestPathsFromDockerfileCopy(dockerfileContent) {
     const packageJson = [];
     const requirementsTxt = [];
+    const pomXml = [];
     if (!dockerfileContent || typeof dockerfileContent !== "string") {
-      return { packageJson, requirementsTxt };
+      return { packageJson, requirementsTxt, pomXml };
     }
 
     const copyRegex = /^\s*COPY\s+(--from=\S+\s+)?([^\s]+)/gim;
@@ -88,6 +89,10 @@ class ProjectCreationService {
           requirementsTxt.push(path);
         }
       }
+      if (/pom\.xml/i.test(src)) {
+        const dir = src.replace(/\/pom\.xml$/i, "").replace(/pom\.xml$/i, "");
+        pomXml.push(dir && dir !== "." ? `${dir}/pom.xml` : "pom.xml");
+      }
     }
 
     const prioritizeBackend = (paths) =>
@@ -105,6 +110,7 @@ class ProjectCreationService {
     return {
       packageJson: prioritizeBackend(packageJson),
       requirementsTxt: [...new Set(requirementsTxt)],
+      pomXml: [...new Set(pomXml)],
     };
   }
 
@@ -114,6 +120,7 @@ class ProjectCreationService {
     const base = {
       packageJson: dir ? [`${prefix}package.json`] : ["package.json"],
       requirementsTxt: dir ? [`${prefix}requirements.txt`] : ["requirements.txt"],
+      pomXml: dir ? [`${prefix}pom.xml`] : ["pom.xml"],
       pyproject: dir ? [`${prefix}pyproject.toml`] : ["pyproject.toml"],
     };
     const fromDocker = this._manifestPathsFromDockerfileCopy(dockerfileContent);
@@ -122,6 +129,7 @@ class ProjectCreationService {
       requirementsTxt: [
         ...new Set([...fromDocker.requirementsTxt, ...base.requirementsTxt]),
       ],
+      pomXml: [...new Set([...fromDocker.pomXml, ...base.pomXml])],
       pyproject: base.pyproject,
     };
   }
@@ -356,6 +364,7 @@ class ProjectCreationService {
     const files = {
       packageJson: null,
       requirementsTxt: null,
+      pomXml: null,
       dockerfile: null,
       envExample: null,
       dockerCompose: null,
@@ -406,6 +415,14 @@ class ProjectCreationService {
       userId,
     );
     files.requirementsTxt = req.data;
+
+    const pom = await this._fetchFirstAvailable(
+      parsed,
+      branch,
+      contextPaths.pomXml,
+      userId,
+    );
+    files.pomXml = pom.data;
 
     try {
       files.dockerCompose = await this._fetchRawFile(
@@ -475,6 +492,7 @@ class ProjectCreationService {
     const analysisResult = await ruleBasedAnalyzer.analyzeRepositoryContent({
       packageJson: fileContents.packageJson,
       requirementsTxt: fileContents.requirementsTxt,
+      pomXml: fileContents.pomXml,
       dockerfileContent: fileContents.dockerfile,
       envExample: fileContents.envExample,
       dockerCompose: fileContents.dockerCompose,
