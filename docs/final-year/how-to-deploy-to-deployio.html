@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to Deploy to Deployio — One-Pager</title>
+  <style>
+    @page { size: A4; margin: 12mm 14mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 8.8pt;
+      line-height: 1.35;
+      color: #1e293b;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    header {
+      border-bottom: 2.5px solid #0891b2;
+      padding-bottom: 7px;
+      margin-bottom: 8px;
+    }
+    h1 { font-size: 17pt; font-weight: 700; color: #0f172a; }
+    .subtitle { font-size: 9pt; color: #64748b; margin-top: 2px; }
+    .link { color: #0891b2; text-decoration: none; }
+    h2 {
+      font-size: 8.5pt; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #0891b2;
+      border-left: 3px solid #0891b2; padding-left: 6px;
+      margin: 7px 0 4px;
+    }
+    p { color: #334155; margin-bottom: 4px; }
+    ul { padding-left: 14px; margin-bottom: 4px; color: #334155; }
+    li { margin-bottom: 1px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    pre, code {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 7.5pt;
+    }
+    pre {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 5px 7px;
+      margin: 3px 0 5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.8pt;
+      margin: 3px 0 5px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 3px 5px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; font-weight: 600; color: #0f172a; }
+    .callout {
+      background: #ecfeff;
+      border: 1px solid #a5f3fc;
+      border-radius: 5px;
+      padding: 5px 8px;
+      margin: 4px 0;
+      font-size: 8pt;
+    }
+    .callout strong { color: #0e7490; }
+    .steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin: 4px 0; }
+    .step {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 4px 3px;
+      text-align: center;
+      font-size: 7pt;
+    }
+    .step-num { font-weight: 700; color: #0891b2; display: block; }
+    .prompt-box {
+      background: #f8fafc;
+      border-left: 3px solid #6366f1;
+      padding: 5px 8px;
+      font-size: 7.2pt;
+      max-height: none;
+    }
+    footer {
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 7pt;
+      color: #94a3b8;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>How to Deploy to Deployio</h1>
+    <p class="subtitle">One-page guide · <a class="link" href="https://deployio.tech">deployio.tech</a> · Final-year / developer reference</p>
+  </header>
+
+  <section>
+    <h2>What Deployio Does</h2>
+    <p>Connects to Git (GitHub, GitLab, Azure DevOps), discovers <strong>Dockerfiles</strong>, analyzes each service, builds a container, and hosts it at <code>https://&lt;subdomain&gt;.deployio.tech</code>.</p>
+    <div class="callout"><strong>Important:</strong> <code>docker-compose.yml</code> is <em>not</em> run for hosting. Deploy <strong>one service per project</strong> — each with its own Dockerfile.</div>
+  </section>
+
+  <section>
+    <h2>Repository Layouts</h2>
+    <div class="grid-2">
+      <div>
+        <p><strong>Single service</strong> — <code>Dockerfile</code> at repo root; build context = <code>.</code></p>
+        <pre>my-app/
+├── Dockerfile
+├── package.json
+└── src/</pre>
+        <p><strong>Multi-service</strong> — one Dockerfile per folder; one Deployio project each.</p>
+        <pre>my-platform/
+├── frontend/Dockerfile
+├── backend/Dockerfile
+└── docker-compose.yml  (local only)</pre>
+      </div>
+      <div>
+        <p><strong>Build context:</strong> directory containing the chosen Dockerfile — not always repo root. <code>COPY</code> paths must live inside that folder.</p>
+        <table>
+          <tr><th>Pattern</th><th>Example</th></tr>
+          <tr><td>Root</td><td><code>Dockerfile</code></td></tr>
+          <tr><td>Service dir</td><td><code>backend/Dockerfile</code></td></tr>
+          <tr><td>Variant</td><td><code>Dockerfile.prod</code></td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Dockerfile Requirements</h2>
+    <ul>
+      <li><strong>Required:</strong> <code>FROM</code> + <code>CMD</code> or <code>ENTRYPOINT</code></li>
+      <li><strong>Recommended:</strong> <code>ENV PORT</code>, <code>EXPOSE</code>, listen on <code>0.0.0.0</code>, <code>/health</code> or <code>HEALTHCHECK</code></li>
+      <li><strong>Env hints:</strong> <code>.env.example</code> beside the Dockerfile</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7-Step Wizard</h2>
+    <div class="steps">
+      <div class="step"><span class="step-num">1</span>Git provider</div>
+      <div class="step"><span class="step-num">2</span>Repository</div>
+      <div class="step"><span class="step-num">3</span>Branch</div>
+      <div class="step"><span class="step-num">4</span>Dockerfile</div>
+      <div class="step"><span class="step-num">5</span>Analysis</div>
+      <div class="step"><span class="step-num">6</span>Configure</div>
+      <div class="step"><span class="step-num">7</span>Review</div>
+    </div>
+    <p>Then: Dashboard → project → <strong>Deploy</strong> → pick subdomain → watch build logs.</p>
+  </section>
+
+  <section>
+    <h2>Multi-Service Checklist</h2>
+    <ol style="padding-left:16px;color:#334155;">
+      <li>Dockerfile per service (frontend, API, worker)</li>
+      <li>Project A: select <code>frontend/Dockerfile</code> → deploy</li>
+      <li>Project B: same repo, <code>backend/Dockerfile</code> → wire URLs &amp; secrets</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Troubleshooting</h2>
+    <table>
+      <tr><th>Problem</th><th>Fix</th></tr>
+      <tr><td>No Dockerfiles</td><td>Add valid Dockerfile; push to Git</td></tr>
+      <tr><td>COPY failed</td><td>Files must be inside Dockerfile directory</td></tr>
+      <tr><td>Unreachable</td><td>Bind <code>0.0.0.0</code>; match <code>PORT</code></td></tr>
+      <tr><td>Compose-only</td><td>Add per-service Dockerfiles</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>LLM Prompt (copy-paste)</h2>
+    <div class="prompt-box">
+      Prepare this repo for Deployio: one container per Dockerfile; compose not used for deploy; context = Dockerfile folder; FROM+CMD required; 0.0.0.0 + PORT + /health. Task: [your app]. Deliver: folder tree, each Dockerfile, .env.example per service, Deployio project list and cross-service env vars.
+    </div>
+  </section>
+
+  <footer>Deployio — Final Year Project · May 2026 · how-to-deploy-to-deployio.md</footer>
+</body>
+</html>
