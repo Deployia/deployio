@@ -66,6 +66,21 @@ class AdminService {
     return response.data;
   }
 
+  async getSubdomainBlocklist() {
+    const response = await api.get("/admin/subdomains/blocklist");
+    return response.data;
+  }
+
+  async addSubdomainBlocklistEntry(payload) {
+    const response = await api.post("/admin/subdomains/blocklist", payload);
+    return response.data;
+  }
+
+  async removeSubdomainBlocklistEntry(entryId) {
+    const response = await api.delete(`/admin/subdomains/blocklist/${entryId}`);
+    return response.data;
+  }
+
   async releaseSubdomain(reservationId) {
     const response = await api.post(`/admin/subdomains/${reservationId}/release`);
     return response.data;

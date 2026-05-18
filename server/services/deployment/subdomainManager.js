@@ -1,6 +1,10 @@
 const Project = require("@models/Project");
 const Deployment = require("@models/Deployment");
 const ReservedSubdomain = require("@models/ReservedSubdomain");
+const SubdomainBlocklistEntry = require("@models/SubdomainBlocklistEntry");
+const {
+  DEFAULT_BLOCKED_SUBDOMAIN_TERMS,
+} = require("../../constants/defaultSubdomainBlocklist");
 const logger = require("@config/logger");
 
 const ACTIVE_DEPLOYMENT_STATUSES = [
@@ -51,6 +55,157 @@ class SubdomainManager {
       ...DEFAULT_PLATFORM_RESERVED_SUBDOMAINS,
       ...configuredReservedSubdomains,
     ]);
+
+    this._builtinBlocklist = DEFAULT_BLOCKED_SUBDOMAIN_TERMS.map((row) => ({
+      term: this._normalizeSegment(row.term),
+      matchType: row.matchType === "exact" ? "exact" : "contains",
+      category: row.category || "custom",
+      source: "builtin",
+    })).filter((row) => row.term);
+
+    this._managedBlocklist = [];
+    this._blocklistLoadedAt = 0;
+    this._blocklistTtlMs = 60 * 1000;
+  }
+
+  invalidateBlocklistCache() {
+    this._blocklistLoadedAt = 0;
+    this._managedBlocklist = [];
+  }
+
+  async _ensureBlocklist() {
+    if (
+      this._managedBlocklist.length &&
+      Date.now() - this._blocklistLoadedAt < this._blocklistTtlMs
+    ) {
+      return;
+    }
+
+    const rows = await SubdomainBlocklistEntry.find({ active: true })
+      .select("term matchType category reason")
+      .lean();
+
+    this._managedBlocklist = rows
+      .map((row) => ({
+        term: this._normalizeSegment(row.term),
+        matchType: row.matchType === "exact" ? "exact" : "contains",
+        category: row.category || "custom",
+        reason: row.reason || "",
+        source: "managed",
+        _id: row._id,
+      }))
+      .filter((row) => row.term);
+
+    this._blocklistLoadedAt = Date.now();
+  }
+
+  _getActivePolicyEntries() {
+    return [...this._builtinBlocklist, ...this._managedBlocklist];
+  }
+
+  getPolicyMatch(subdomain) {
+    const normalized = this._normalizeSegment(subdomain);
+    if (!normalized) {
+      return null;
+    }
+
+    for (const entry of this._getActivePolicyEntries()) {
+      if (entry.matchType === "exact" && normalized === entry.term) {
+        return {
+          reason: "blocked-subdomain-policy",
+          category: entry.category,
+          term: entry.term,
+          matchType: entry.matchType,
+          source: entry.source,
+        };
+      }
+
+      if (
+        entry.matchType === "contains" &&
+        entry.term &&
+        normalized.includes(entry.term)
+      ) {
+        return {
+          reason: "blocked-subdomain-policy",
+          category: entry.category,
+          term: entry.term,
+          matchType: entry.matchType,
+          source: entry.source,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  async getSubdomainPolicyOverview() {
+    await this._ensureBlocklist();
+
+    const envReserved = String(process.env.PLATFORM_RESERVED_SUBDOMAINS || "")
+      .split(",")
+      .map((value) => this._normalizeSegment(value))
+      .filter(Boolean);
+
+    return {
+      baseDomain: this.baseDomain,
+      builtinReserved: DEFAULT_PLATFORM_RESERVED_SUBDOMAINS.slice().sort(),
+      envReserved: envReserved.sort(),
+      managedBlocklist: this._managedBlocklist.map((row) => ({
+        _id: row._id,
+        term: row.term,
+        matchType: row.matchType,
+        category: row.category,
+        reason: row.reason || "",
+      })),
+      builtinBlocklist: this._builtinBlocklist.map((row) => ({
+        term: row.term,
+        matchType: row.matchType,
+        category: row.category,
+      })),
+    };
+  }
+
+  async addBlocklistEntry({ term, matchType, category, reason, createdBy }) {
+    const normalized = this._normalizeSegment(term);
+    if (!normalized) {
+      throw new Error("Invalid blocklist term");
+    }
+
+    if (this._isBlockedByFormat(normalized) && matchType === "exact") {
+      throw new Error("Term must be a valid subdomain segment");
+    }
+
+    const entry = await SubdomainBlocklistEntry.findOneAndUpdate(
+      { term: normalized, matchType: matchType === "exact" ? "exact" : "contains" },
+      {
+        $set: {
+          term: normalized,
+          matchType: matchType === "exact" ? "exact" : "contains",
+          category: category || "custom",
+          reason: reason || "",
+          active: true,
+          createdBy: createdBy || null,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    this.invalidateBlocklistCache();
+    return entry;
+  }
+
+  async removeBlocklistEntry(entryId) {
+    const updated = await SubdomainBlocklistEntry.findByIdAndUpdate(
+      entryId,
+      { $set: { active: false } },
+      { new: true },
+    );
+
+    if (updated) {
+      this.invalidateBlocklistCache();
+    }
+
+    return updated;
   }
 
   _normalizeSegment(value) {
@@ -161,7 +316,8 @@ class SubdomainManager {
     const normalizedSubdomain = this._normalizeSegment(subdomain);
     return (
       this._isBlockedByFormat(normalizedSubdomain) ||
-      this.isPlatformReservedSubdomain(normalizedSubdomain)
+      this.isPlatformReservedSubdomain(normalizedSubdomain) ||
+      Boolean(this.getPolicyMatch(normalizedSubdomain))
     );
   }
 
@@ -193,6 +349,8 @@ class SubdomainManager {
   }
 
   async getPublicSubdomainContext(hostname) {
+    await this._ensureBlocklist();
+
     const subdomain = this._extractSubdomainFromHostname(hostname);
     if (!subdomain) {
       return {
@@ -227,6 +385,20 @@ class SubdomainManager {
         isTaken: true,
         status: "taken",
         reason: "platform-reserved-subdomain",
+      };
+    }
+
+    const policyMatch = this.getPolicyMatch(subdomain);
+    if (policyMatch) {
+      return {
+        hostname,
+        subdomain,
+        baseDomain: this.baseDomain,
+        isReserved: true,
+        isTaken: true,
+        status: "taken",
+        reason: policyMatch.reason,
+        policyCategory: policyMatch.category,
       };
     }
 
@@ -329,6 +501,8 @@ class SubdomainManager {
     environment = "staging",
     limit = this.maxSuggestions,
   ) {
+    await this._ensureBlocklist();
+
     const project = await Project.findById(projectId).select("name slug");
     if (!project) {
       throw new Error("Project not found");
@@ -391,6 +565,8 @@ class SubdomainManager {
   }
 
   async checkAvailability(subdomain, { projectId = null, environment = null } = {}) {
+    await this._ensureBlocklist();
+
     const normalized = this._normalizeSegment(subdomain);
     if (!normalized) {
       return {
@@ -419,6 +595,19 @@ class SubdomainManager {
         available: false,
         status: "reserved",
         reason: "platform-reserved-subdomain",
+      };
+    }
+
+    const policyMatch = this.getPolicyMatch(normalized);
+    if (policyMatch) {
+      return {
+        subdomain: normalized,
+        baseDomain: this.baseDomain,
+        available: false,
+        status: "reserved",
+        reason: policyMatch.reason,
+        policyCategory: policyMatch.category,
+        blockedTerm: policyMatch.term,
       };
     }
 
@@ -455,6 +644,8 @@ class SubdomainManager {
     environment = "staging",
     limit = this.maxSuggestions,
   ) {
+    await this._ensureBlocklist();
+
     const normalized = this._normalizeSegment(preferred);
     const taken = await this._getTakenSubdomains(environment);
     const suggestions = [];
@@ -545,6 +736,8 @@ class SubdomainManager {
     preferredSubdomain = null,
     deploymentId = null,
   }) {
+    await this._ensureBlocklist();
+
     const project = await Project.findById(projectId).select("name slug");
     if (!project) {
       throw new Error("Project not found");
@@ -565,6 +758,10 @@ class SubdomainManager {
 
     if (requested && this.isPlatformReservedSubdomain(requested)) {
       throw new Error("Selected subdomain is reserved for platform use");
+    }
+
+    if (requested && this.getPolicyMatch(requested)) {
+      throw new Error("Selected subdomain is not allowed by platform policy");
     }
 
     const candidateList = requested

@@ -23,6 +23,7 @@ import {
   FaDocker,
 } from "react-icons/fa";
 import SEO from "@components/SEO";
+import { redeployPrefillFromDeployment } from "@/utils/deploymentSource";
 import { LoadingGrid, LoadingChart } from "@components/LoadingSpinner";
 import {
   fetchProjectById,
@@ -74,6 +75,8 @@ const ProjectDetails = () => {
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
+  const [deployModalMode, setDeployModalMode] = useState("create");
+  const deployPrefillRef = useRef(null);
   const [deploymentForm, setDeploymentForm] = useState({
     environment: "development",
     subdomain: "",
@@ -105,6 +108,7 @@ const ProjectDetails = () => {
     available: "Available",
     "invalid-subdomain-format": "Invalid format — use lowercase letters, numbers, and hyphens",
     "platform-reserved-subdomain": "Reserved for platform use",
+    "blocked-subdomain-policy": "Not allowed by platform policy",
     "already-allocated": "Already taken",
   };
 
@@ -333,16 +337,18 @@ const ProjectDetails = () => {
     };
   };
 
-  const handleOpenDeployModal = () => {
+  const handleOpenDeployModal = (prefill = null) => {
     if (isArchived) return;
     dispatch(clearDeploymentError({ field: "create" }));
     const repoCtx = getDeployRepoContext();
     const defaultBranch = repoCtx?.defaultBranch || "main";
+    deployPrefillRef.current = prefill;
+    setDeployModalMode(prefill ? "redeploy" : "create");
     setDeploymentForm({
-      environment: "development",
-      subdomain: "",
-      branch: defaultBranch,
-      commit: null,
+      environment: prefill?.environment || "development",
+      subdomain: prefill?.subdomain || "",
+      branch: prefill?.branch || defaultBranch,
+      commit: prefill?.commit || null,
     });
     setGitSourceState({
       branches: [],
@@ -366,7 +372,15 @@ const ProjectDetails = () => {
     setShowDeployModal(true);
   };
 
+  const handleRedeployFromDeployment = (deployment) => {
+    const prefill = redeployPrefillFromDeployment(deployment);
+    if (!prefill) return;
+    handleOpenDeployModal(prefill);
+  };
+
   const handleCloseDeployModal = () => {
+    deployPrefillRef.current = null;
+    setDeployModalMode("create");
     setShowDeployModal(false);
     setDeploymentForm({
       environment: "development",
@@ -620,6 +634,7 @@ const ProjectDetails = () => {
           .map((b) => b.name)
           .filter(Boolean);
         const defaultBranch =
+          deployPrefillRef.current?.branch ||
           deploymentForm.branch ||
           repoCtx.defaultBranch ||
           branchNames[0] ||
@@ -636,7 +651,7 @@ const ProjectDetails = () => {
         setDeploymentForm((prev) => ({
           ...prev,
           branch: resolvedBranch,
-          commit: null,
+          commit: deployPrefillRef.current?.commit || null,
         }));
       } catch (err) {
         if (cancelled) return;
@@ -685,6 +700,17 @@ const ProjectDetails = () => {
         if (cancelled) return;
 
         const list = Array.isArray(commits) ? commits : [];
+        const prefillCommit = deployPrefillRef.current?.commit;
+        let selectedCommit = list[0] || null;
+        if (prefillCommit?.hash) {
+          const match = list.find(
+            (row) =>
+              row.hash === prefillCommit.hash ||
+              row.hash?.startsWith(String(prefillCommit.hash).slice(0, 7)),
+          );
+          selectedCommit = match || prefillCommit;
+        }
+
         setGitSourceState((prev) => ({
           ...prev,
           commits: list,
@@ -692,7 +718,7 @@ const ProjectDetails = () => {
         }));
         setDeploymentForm((prev) => ({
           ...prev,
-          commit: list[0] || null,
+          commit: selectedCommit,
         }));
       } catch (err) {
         if (cancelled) return;
@@ -1181,6 +1207,9 @@ const ProjectDetails = () => {
               analytics: projectAnalytics,
               isArchived,
               onOpenDeployModal: isArchived ? undefined : handleOpenDeployModal,
+              onRedeployFromDeployment: isArchived
+                ? undefined
+                : handleRedeployFromDeployment,
             }}
           />
         )}
@@ -1196,10 +1225,14 @@ const ProjectDetails = () => {
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
                 <h3 className="text-xl font-semibold text-white">
-                  Create Deployment
+                  {deployModalMode === "redeploy"
+                    ? "Redeploy"
+                    : "Create Deployment"}
                 </h3>
                 <p className="text-sm text-gray-400 mt-1">
-                  Reserve a subdomain and send the project to the agent.
+                  {deployModalMode === "redeploy"
+                    ? "Start a new deployment. You can change branch, commit, or subdomain."
+                    : "Reserve a subdomain and send the project to the agent."}
                 </p>
                 {subdomainState.capacity && (
                   <div className="text-xs text-gray-400 mt-2">
@@ -1546,7 +1579,13 @@ const ProjectDetails = () => {
                     : "bg-green-500 text-white hover:bg-green-600"
                 }`}
               >
-                {deploymentLoading.create ? "Creating..." : "Create Deployment"}
+                {deploymentLoading.create
+                  ? deployModalMode === "redeploy"
+                    ? "Redeploying..."
+                    : "Creating..."
+                  : deployModalMode === "redeploy"
+                    ? "Redeploy"
+                    : "Create Deployment"}
               </button>
             </div>
           </div>

@@ -182,6 +182,7 @@ export const isDeploymentActionAllowed = (deployment, action) => {
     case "stop":
       return status === "running";
     case "restart":
+    case "redeploy":
       return ["stopped", "failed", "cancelled"].includes(status);
     case "delete":
       return ["stopped", "failed", "cancelled"].includes(status);

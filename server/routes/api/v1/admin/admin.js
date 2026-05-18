@@ -21,6 +21,12 @@ router.post("/deployments/:deploymentId/stop", admin.admin.stopDeployment);
 
 router.get("/subdomains", admin.admin.getAllSubdomains);
 router.get("/subdomains/platform-reserved", admin.admin.getPlatformReserved);
+router.get("/subdomains/blocklist", admin.admin.getSubdomainBlocklist);
+router.post("/subdomains/blocklist", admin.admin.addSubdomainBlocklistEntry);
+router.delete(
+  "/subdomains/blocklist/:entryId",
+  admin.admin.removeSubdomainBlocklistEntry,
+);
 router.post("/subdomains/:reservationId/release", admin.admin.releaseSubdomain);
 
 router.get("/activity", admin.admin.getActivity);

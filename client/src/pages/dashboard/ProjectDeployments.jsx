@@ -50,7 +50,8 @@ import { getDeploymentUrl, isLiveForPreview } from "../../utils/deploymentPrevie
 import { mergeDeploymentLogs } from "../../utils/deploymentLogMerge";
 
 const ProjectDeployments = () => {
-  const { onOpenDeployModal, project, isArchived } = useOutletContext() || {};
+  const { onOpenDeployModal, onRedeployFromDeployment, project, isArchived } =
+    useOutletContext() || {};
   const canDeploy = Boolean(onOpenDeployModal) && !isArchived;
   const location = useLocation();
   const navigate = useNavigate();
@@ -241,6 +242,15 @@ const ProjectDeployments = () => {
       if (res) openDeploymentDetail(resolveFreshDeployment(res.deployments, deployment, res.actionId));
     },
     [dispatch, openDeploymentDetail, resolveFreshDeployment, withActionLoading],
+  );
+
+  const handleRedeploy = useCallback(
+    (deployment) => {
+      if (!onRedeployFromDeployment) return;
+      setShowPanel(false);
+      onRedeployFromDeployment(deployment);
+    },
+    [onRedeployFromDeployment],
   );
 
   const handleCancel = useCallback(
@@ -730,6 +740,18 @@ const ProjectDeployments = () => {
                             <span className="hidden sm:inline">Restart</span>
                           </button>
                         )}
+                        {isDeploymentActionAllowed(deployment, "redeploy") &&
+                          onRedeployFromDeployment && (
+                          <button
+                            type="button"
+                            onClick={() => handleRedeploy(deployment)}
+                            disabled={isActionBusy(deployment)}
+                            className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 hover:bg-green-500/30 transition-colors text-xs sm:text-sm disabled:opacity-60"
+                          >
+                            <FaRocket className="w-3 h-3" />
+                            <span className="hidden sm:inline">Redeploy</span>
+                          </button>
+                        )}
                         {isDeploymentActionAllowed(deployment, "stop") && (
                           <button
                             type="button"
@@ -860,6 +882,17 @@ const ProjectDeployments = () => {
                   className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 text-xs disabled:opacity-50"
                 >
                   <FaSync className="w-3 h-3" /> Restart
+                </button>
+              )}
+              {isDeploymentActionAllowed(selectedDeployment, "redeploy") &&
+                onRedeployFromDeployment && (
+                <button
+                  type="button"
+                  onClick={() => handleRedeploy(selectedDeployment)}
+                  disabled={isActionBusy(selectedDeployment)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-xs disabled:opacity-50"
+                >
+                  <FaRocket className="w-3 h-3" /> Redeploy
                 </button>
               )}
               {isDeploymentActionAllowed(selectedDeployment, "stop") && (
