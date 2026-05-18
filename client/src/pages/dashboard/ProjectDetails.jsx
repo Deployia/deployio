@@ -367,12 +367,14 @@ const ProjectDetails = () => {
     deployPrefillRef.current = prefill;
     commitTouchedRef.current = false;
     branchTouchedRef.current = false;
-    setDeployModalMode(prefill ? "redeploy" : "create");
+    const isRedeploy = Boolean(prefill?.sourceDeploymentId);
+    setDeployModalMode(isRedeploy ? "redeploy" : "create");
     setDeploymentForm({
       environment: prefill?.environment || "development",
       subdomain: prefill?.subdomain || "",
       branch: prefill?.branch || defaultBranch,
-      commit: prefill?.commit || null,
+      // Redeploy: commit is chosen after loadCommits (branch HEAD), not the old deployment SHA.
+      commit: isRedeploy ? null : prefill?.commit || null,
     });
     setGitSourceState({
       branches: [],
@@ -684,12 +686,15 @@ const ProjectDetails = () => {
           branches: branchNames,
           loadingBranches: false,
         }));
+        const isRedeploy = Boolean(deployPrefillRef.current?.sourceDeploymentId);
         setDeploymentForm((prev) => ({
           ...prev,
           branch: branchTouchedRef.current ? prev.branch : resolvedBranch,
           commit: commitTouchedRef.current
             ? prev.commit
-            : deployPrefillRef.current?.commit || prev.commit || null,
+            : isRedeploy
+              ? prev.commit
+              : deployPrefillRef.current?.commit || prev.commit || null,
         }));
       } catch (err) {
         if (cancelled) return;

@@ -29,7 +29,6 @@ export function redeployPrefillFromDeployment(deployment) {
     deployment.config?.environment || deployment.environment || "development";
   const branch =
     deployment.config?.branch || deployment.branch || "main";
-  const commit = commitFromDeployment(deployment);
   const subdomain =
     deployment.config?.subdomain ||
     deployment.networking?.subdomain ||
@@ -42,7 +41,6 @@ export function redeployPrefillFromDeployment(deployment) {
   return {
     environment,
     branch,
-    commit,
     subdomain,
     sourceDeploymentId,
   };
