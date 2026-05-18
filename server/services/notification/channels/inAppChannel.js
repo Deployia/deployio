@@ -21,7 +21,8 @@ class InAppChannel {
       const notificationData = formatInAppPayload(notification);
       const userId = notification.user._id || notification.user;
       const alreadyRealtime =
-        notification.context?.data?._realtimeWsDelivered === true;
+        notification.context?.data?._realtimeWsDelivered === true ||
+        notification.context?._realtimeWsDelivered === true;
 
       if (!alreadyRealtime) {
         await this.sendViaWebSocket(userId, notificationData);

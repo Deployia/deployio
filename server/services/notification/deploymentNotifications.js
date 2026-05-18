@@ -5,6 +5,34 @@ const { projectDashboardUrl } = require("./notificationUrls");
 
 const TERMINAL_NOTIFY_STATUSES = new Set(["running", "failed", "stopped", "cancelled"]);
 
+/** Prevent duplicate toasts when API + agent both report the same terminal status. */
+const DEDUPE_MS = 15_000;
+const recentlyNotified = new Map();
+
+function deploymentNotifyKey(deployment, newStatus) {
+  const depId =
+    deployment.deploymentId ||
+    deployment._id?.toString?.() ||
+    String(deployment._id || "");
+  return `${depId}:${newStatus}`;
+}
+
+function shouldSkipDuplicateNotify(deployment, newStatus) {
+  const key = deploymentNotifyKey(deployment, newStatus);
+  const now = Date.now();
+  const last = recentlyNotified.get(key);
+  if (last != null && now - last < DEDUPE_MS) {
+    return true;
+  }
+  recentlyNotified.set(key, now);
+  if (recentlyNotified.size > 500) {
+    for (const [k, ts] of recentlyNotified) {
+      if (now - ts >= DEDUPE_MS) recentlyNotified.delete(k);
+    }
+  }
+  return false;
+}
+
 function buildDeploymentPayload(deployment, project, message) {
   const projectId = project?._id ?? deployment.project;
   const projectName = project?.name ?? "Project";
@@ -36,6 +64,15 @@ async function notifyDeploymentStatusChange({
   if (!userId || !deployment) return;
   if (previousStatus === newStatus) return;
   if (!TERMINAL_NOTIFY_STATUSES.has(newStatus) && newStatus !== "building" && newStatus !== "deploying") {
+    return;
+  }
+
+  if (shouldSkipDuplicateNotify(deployment, newStatus)) {
+    logger.debug("Skipping duplicate deployment notification", {
+      deploymentId: deployment.deploymentId || deployment._id,
+      previousStatus,
+      newStatus,
+    });
     return;
   }
 

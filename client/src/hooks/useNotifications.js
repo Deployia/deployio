@@ -34,7 +34,6 @@ function emitToListeners(event, data) {
 function attachSocketHandlers(socket) {
   socket.off("connect");
   socket.off("disconnect");
-  socket.off("notification");
   socket.off("new_notification");
   socket.off("unread_count");
   socket.off("notification_marked_read");
@@ -57,7 +56,7 @@ function attachSocketHandlers(socket) {
     emitToListeners("new_notification", notification);
   };
 
-  socket.on("notification", handleIncoming);
+  // Only `new_notification` — legacy `notification` was for welcome pings and caused duplicate toasts.
   socket.on("new_notification", handleIncoming);
 
   socket.on("unread_count", (payload) => {

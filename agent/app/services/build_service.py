@@ -333,9 +333,13 @@ class BuildService:
         repo_path: Optional[Path] = None
         runtime_env = DeploymentService._coerce_env_vars(env_vars)
 
-        async def _stage(stage: str, message: str = "") -> None:
+        async def _stage(stage: str, message: str = "", **status_kwargs: Any) -> None:
             await self._set_stage(
-                deployment_id, stage, message, status_callback=status_callback
+                deployment_id,
+                stage,
+                message,
+                status_callback=status_callback,
+                **status_kwargs,
             )
 
         try:
@@ -478,12 +482,7 @@ class BuildService:
             async def _deploy_status_cb(dep_id, status, message, **kwargs):
                 # deploy() uses "building" for its pre-run phase; map to deploying here.
                 mapped = "deploying" if status == "building" else status
-                await _stage(
-                    mapped,
-                    message or mapped,
-                    status_callback=status_callback,
-                    **kwargs,
-                )
+                await _stage(mapped, message or mapped, **kwargs)
 
             deploy_result = await self.deployment_service.deploy(
                 deployment_id,
@@ -506,7 +505,6 @@ class BuildService:
             await _stage(
                 "running",
                 "Deployment running",
-                status_callback=status_callback,
                 container_id=deploy_result.get("container_id"),
                 url=deploy_result.get("url"),
             )

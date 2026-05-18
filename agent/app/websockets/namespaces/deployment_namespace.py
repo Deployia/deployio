@@ -77,6 +77,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         self._streaming = False
         self._live_container_log_tasks: Dict[str, asyncio.Task] = {}
         self._deploy_tasks: Dict[str, asyncio.Task] = {}
+        self._last_emitted_status: Dict[str, str] = {}
 
     async def _register_event_handlers(self):
         self.event_handlers = {
@@ -108,6 +109,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             if task and not task.done():
                 task.cancel()
         self._deploy_tasks.clear()
+        self._last_emitted_status.clear()
         await super().cleanup()
 
     async def _emit_status_update(
@@ -117,6 +119,8 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         message: str = "",
         **extra,
     ):
+        if deployment_id:
+            self._last_emitted_status[deployment_id] = status
         payload = {
             "deploymentId": deployment_id,
             "status": status,
@@ -179,6 +183,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                 )
             finally:
                 self._deploy_tasks.pop(deployment_id, None)
+                self._last_emitted_status.pop(deployment_id, None)
 
         self._deploy_tasks[deployment_id] = asyncio.create_task(_run_wrapped())
 
@@ -270,6 +275,15 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         # Pipeline callbacks already emit terminal "running"; only re-emit failures
         # to avoid duplicate success notifications and DB races.
         if final_status != "running":
+            last = self._last_emitted_status.get(deployment_id)
+            if final_status in ("failed", "error") and last == "running":
+                logger.warning(
+                    "Skipping terminal %s for %s — pipeline already reported running "
+                    "(likely post-success bookkeeping error)",
+                    final_status,
+                    deployment_id,
+                )
+                return
             await self._emit_status_update(
                 deployment_id,
                 final_status,

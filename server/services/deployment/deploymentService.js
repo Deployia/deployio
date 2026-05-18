@@ -680,8 +680,9 @@ class DeploymentService {
         );
       }
 
+      let agentAck = false;
       try {
-        await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+        agentAck = await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
       } catch (orchErr) {
         logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
       }
@@ -693,13 +694,16 @@ class DeploymentService {
         cancelledAt: new Date(),
       });
 
-      notifyDeploymentStatusChange({
-        userId,
-        previousStatus,
-        newStatus: "cancelled",
-        deployment,
-        message: "Cancelled",
-      });
+      // Agent emits terminal status via WebSocket; notify only if agent was unreachable.
+      if (!agentAck) {
+        notifyDeploymentStatusChange({
+          userId,
+          previousStatus,
+          newStatus: "cancelled",
+          deployment,
+          message: "Cancelled",
+        });
+      }
 
       await syncUserResourceUsage(userId);
       return this.transformDeployment(deployment.toObject());
@@ -723,20 +727,24 @@ class DeploymentService {
       const previousStatus = deployment.status;
 
       await deployment.updateStatus("stopping", { stoppingAt: new Date() });
+      let agentAck = false;
       try {
-        await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+        agentAck = await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
       } catch (orchErr) {
         logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
       }
-      await deployment.updateStatus("stopped", { stoppedAt: new Date() });
 
-      notifyDeploymentStatusChange({
-        userId,
-        previousStatus,
-        newStatus: "stopped",
-        deployment,
-        message: "Manual stop",
-      });
+      // Let the agent status callback set `stopped` when agentAck; avoids duplicate/missed toasts.
+      if (!agentAck) {
+        await deployment.updateStatus("stopped", { stoppedAt: new Date() });
+        notifyDeploymentStatusChange({
+          userId,
+          previousStatus,
+          newStatus: "stopped",
+          deployment,
+          message: "Manual stop",
+        });
+      }
 
       await syncUserResourceUsage(userId);
       return this.transformDeployment(deployment.toObject());
@@ -759,29 +767,33 @@ class DeploymentService {
       await deployment.updateStatus("stopping", { reason, stoppingAt: new Date() });
     }
 
+    let agentAck = false;
     if (
       deploymentId &&
       (ACTIVE_DEPLOYMENT_STATUSES.includes(priorStatus) || priorStatus === "stopping")
     ) {
       try {
-        await deploymentOrchestrator.stopDeploy(deploymentId);
+        agentAck = await deploymentOrchestrator.stopDeploy(deploymentId);
       } catch (orchErr) {
         logger.warn("System stop failed (non-blocking):", orchErr.message);
       }
     }
 
     if (isRunningLike) {
-      await deployment.updateStatus("stopped", { reason, stoppedAt: new Date() });
-
       const notifyUserId = deployment.deployedBy?.toString?.() || deployment.deployedBy;
+      if (!agentAck) {
+        await deployment.updateStatus("stopped", { reason, stoppedAt: new Date() });
+        if (notifyUserId) {
+          notifyDeploymentStatusChange({
+            userId: notifyUserId,
+            previousStatus: priorStatus,
+            newStatus: "stopped",
+            deployment,
+            message: reason,
+          });
+        }
+      }
       if (notifyUserId) {
-        notifyDeploymentStatusChange({
-          userId: notifyUserId,
-          previousStatus: priorStatus,
-          newStatus: "stopped",
-          deployment,
-          message: reason,
-        });
         await syncUserResourceUsage(notifyUserId);
       }
 
@@ -796,13 +808,15 @@ class DeploymentService {
 
     const notifyUserId = deployment.deployedBy?.toString?.() || deployment.deployedBy;
     if (notifyUserId) {
-      notifyDeploymentStatusChange({
-        userId: notifyUserId,
-        previousStatus: priorStatus,
-        newStatus: "cancelled",
-        deployment,
-        message: reason,
-      });
+      if (!agentAck) {
+        notifyDeploymentStatusChange({
+          userId: notifyUserId,
+          previousStatus: priorStatus,
+          newStatus: "cancelled",
+          deployment,
+          message: reason,
+        });
+      }
       await syncUserResourceUsage(notifyUserId);
     }
 

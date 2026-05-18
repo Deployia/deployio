@@ -157,8 +157,9 @@ const cancelDeployment = async (req, res) => {
       });
     }
 
+    let agentAck = false;
     try {
-      await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+      agentAck = await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
     } catch (orchErr) {
       logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
     }
@@ -169,13 +170,15 @@ const cancelDeployment = async (req, res) => {
       cancelledAt: new Date(),
     });
 
-    notifyDeploymentStatusChange({
-      userId: deployment.deployedBy?._id || deployment.deployedBy,
-      previousStatus,
-      newStatus: "cancelled",
-      deployment,
-      message: "Cancelled by admin",
-    });
+    if (!agentAck) {
+      notifyDeploymentStatusChange({
+        userId: deployment.deployedBy?._id || deployment.deployedBy,
+        previousStatus,
+        newStatus: "cancelled",
+        deployment,
+        message: "Cancelled by admin",
+      });
+    }
 
     logger.info("Deployment cancelled by admin", {
       adminId: req.user._id,
@@ -230,21 +233,23 @@ const stopDeployment = async (req, res) => {
     const previousStatus = deployment.status;
     await deployment.updateStatus("stopping", { stoppingAt: new Date() });
 
+    let agentAck = false;
     try {
-      await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
+      agentAck = await deploymentOrchestrator.stopDeploy(deployment.deploymentId);
     } catch (orchErr) {
       logger.warn("Orchestrator stop trigger failed (non-blocking):", orchErr.message);
     }
 
-    await deployment.updateStatus("stopped", { stoppedAt: new Date() });
-
-    notifyDeploymentStatusChange({
-      userId: deployment.deployedBy?._id || deployment.deployedBy,
-      previousStatus,
-      newStatus: "stopped",
-      deployment,
-      message: "Stopped by admin",
-    });
+    if (!agentAck) {
+      await deployment.updateStatus("stopped", { stoppedAt: new Date() });
+      notifyDeploymentStatusChange({
+        userId: deployment.deployedBy?._id || deployment.deployedBy,
+        previousStatus,
+        newStatus: "stopped",
+        deployment,
+        message: "Stopped by admin",
+      });
+    }
 
     logger.info("Deployment stopped by admin", {
       adminId: req.user._id,
