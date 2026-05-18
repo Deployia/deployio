@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Project = require("@models/Project");
 const Deployment = require("@models/Deployment");
 const ReservedSubdomain = require("@models/ReservedSubdomain");
@@ -321,8 +322,12 @@ class SubdomainManager {
     );
   }
 
-  async _getTakenSubdomains(environment = null) {
+  async _getTakenSubdomains(environment = null, { excludeDeploymentId = null } = {}) {
     const now = new Date();
+    const excludeId = excludeDeploymentId
+      ? String(excludeDeploymentId)
+      : null;
+
     const [takenReservations, takenDeployments] = await Promise.all([
       ReservedSubdomain.find({
         $or: [
@@ -331,21 +336,102 @@ class SubdomainManager {
         ],
         ...(environment ? { environment } : {}),
       })
-        .select("subdomain")
+        .select("subdomain deployment")
         .lean(),
       Deployment.find({
         status: { $in: ACTIVE_DEPLOYMENT_STATUSES },
         ...(environment ? { "config.environment": environment } : {}),
       })
-        .select("config.subdomain")
+        .select("_id config.subdomain")
         .lean(),
     ]);
 
-    return new Set([
-      ...this.getPlatformReservedSubdomains(),
-      ...takenReservations.map((row) => row.subdomain),
-      ...takenDeployments.map((row) => row?.config?.subdomain).filter(Boolean),
-    ]);
+    const taken = new Set(this.getPlatformReservedSubdomains());
+
+    takenReservations.forEach((row) => {
+      if (
+        excludeId &&
+        row.deployment &&
+        String(row.deployment) === excludeId
+      ) {
+        return;
+      }
+      if (row.subdomain) {
+        taken.add(row.subdomain);
+      }
+    });
+
+    takenDeployments.forEach((row) => {
+      if (excludeId && row._id && String(row._id) === excludeId) {
+        return;
+      }
+      if (row?.config?.subdomain) {
+        taken.add(row.config.subdomain);
+      }
+    });
+
+    return taken;
+  }
+
+  async _getRedeploySourceDeployment(redeployFromDeploymentId) {
+    if (!redeployFromDeploymentId) {
+      return null;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(redeployFromDeploymentId)) {
+      return null;
+    }
+
+    return Deployment.findById(redeployFromDeploymentId)
+      .select(
+        "project config.environment config.subdomain status lineage.originalSubdomain",
+      )
+      .lean();
+  }
+
+  _getLogicalSubdomainFromDeployment(deployment) {
+    if (!deployment) {
+      return null;
+    }
+
+    return (
+      deployment.lineage?.originalSubdomain ||
+      deployment.config?.subdomain ||
+      null
+    );
+  }
+
+  async _isRedeploySubdomainReuseAllowed(
+    normalized,
+    { projectId, environment, redeployFromDeploymentId },
+  ) {
+    const source = await this._getRedeploySourceDeployment(
+      redeployFromDeploymentId,
+    );
+    if (!source) {
+      return false;
+    }
+
+    if (String(source.project) !== String(projectId)) {
+      return false;
+    }
+
+    if (source.config?.environment !== environment) {
+      return false;
+    }
+
+    const logicalSlug = this._normalizeSegment(
+      this._getLogicalSubdomainFromDeployment(source),
+    );
+    if (!logicalSlug || logicalSlug !== normalized) {
+      return false;
+    }
+
+    const taken = await this._getTakenSubdomains(environment, {
+      excludeDeploymentId: redeployFromDeploymentId,
+    });
+
+    return !taken.has(normalized);
   }
 
   async getPublicSubdomainContext(hostname) {
@@ -564,7 +650,14 @@ class SubdomainManager {
     };
   }
 
-  async checkAvailability(subdomain, { projectId = null, environment = null } = {}) {
+  async checkAvailability(
+    subdomain,
+    {
+      projectId = null,
+      environment = null,
+      redeployFromDeploymentId = null,
+    } = {},
+  ) {
     await this._ensureBlocklist();
 
     const normalized = this._normalizeSegment(subdomain);
@@ -611,8 +704,33 @@ class SubdomainManager {
       };
     }
 
-    const taken = await this._getTakenSubdomains(environment);
+    const taken = await this._getTakenSubdomains(environment, {
+      excludeDeploymentId: redeployFromDeploymentId,
+    });
+
     if (taken.has(normalized)) {
+      if (
+        redeployFromDeploymentId &&
+        projectId &&
+        environment &&
+        (await this._isRedeploySubdomainReuseAllowed(normalized, {
+          projectId,
+          environment,
+          redeployFromDeploymentId,
+        }))
+      ) {
+        return {
+          subdomain: normalized,
+          baseDomain: this.baseDomain,
+          available: true,
+          status: "available",
+          reason: "redeploy-reuse",
+          projectId,
+          environment,
+          redeployFromDeploymentId,
+        };
+      }
+
       const reason = this.platformReservedSubdomains.has(normalized)
         ? "platform-reserved-subdomain"
         : "already-allocated";
@@ -627,14 +745,27 @@ class SubdomainManager {
       };
     }
 
+    const reason =
+      redeployFromDeploymentId &&
+      projectId &&
+      environment &&
+      (await this._isRedeploySubdomainReuseAllowed(normalized, {
+        projectId,
+        environment,
+        redeployFromDeploymentId,
+      }))
+        ? "redeploy-reuse"
+        : "available";
+
     return {
       subdomain: normalized,
       baseDomain: this.baseDomain,
       available: true,
       status: "available",
-      reason: "available",
+      reason,
       projectId,
       environment,
+      ...(redeployFromDeploymentId ? { redeployFromDeploymentId } : {}),
     };
   }
 
@@ -697,6 +828,7 @@ class SubdomainManager {
     projectId,
     environment = "staging",
     limit = this.maxSuggestions,
+    { redeployFromDeploymentId = null } = {},
   ) {
     const project = await Project.findById(projectId).select("name slug");
     if (!project) {
@@ -706,6 +838,7 @@ class SubdomainManager {
     const availability = await this.checkAvailability(subdomain, {
       projectId,
       environment,
+      redeployFromDeploymentId,
     });
 
     const alternatives =
@@ -888,6 +1021,28 @@ class SubdomainManager {
         $set: {
           status: "hold",
           holdUntil: new Date(Date.now() + HOLD_DURATION_MS),
+          releasedAt: new Date(),
+          "metadata.reason": reason,
+        },
+      },
+      { new: true },
+    );
+  }
+
+  async releaseReservationImmediate({ deploymentId, reason = "redeploy-replace" }) {
+    if (!deploymentId) {
+      return null;
+    }
+
+    return ReservedSubdomain.findOneAndUpdate(
+      {
+        deployment: deploymentId,
+        status: { $in: ["reserved", "active", "hold"] },
+      },
+      {
+        $set: {
+          status: "released",
+          holdUntil: null,
           releasedAt: new Date(),
           "metadata.reason": reason,
         },

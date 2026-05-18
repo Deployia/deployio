@@ -71,8 +71,43 @@ const deploymentSchema = new mongoose.Schema(
         "cancelled",
         "deleted",
         "error",
+        "superseded",
       ],
       default: "pending",
+    },
+
+    slotKey: {
+      type: String,
+      index: true,
+    },
+    revisionNumber: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+    redeployedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Deployment",
+      default: null,
+    },
+    supersededBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Deployment",
+      default: null,
+    },
+    supersededAt: Date,
+    lineage: {
+      originalSubdomain: String,
+    },
+    trigger: {
+      type: {
+        type: String,
+        enum: ["manual", "redeploy", "auto", "restart"],
+        default: "manual",
+      },
+      branch: String,
+      commitSha: String,
+      at: Date,
     },
 
     // Build Process
@@ -312,6 +347,8 @@ deploymentSchema.index({ deployedBy: 1 });
 deploymentSchema.index({ status: 1 });
 deploymentSchema.index({ createdAt: -1 });
 deploymentSchema.index({ "config.environment": 1 });
+deploymentSchema.index({ slotKey: 1, revisionNumber: -1 });
+deploymentSchema.index({ project: 1, "config.environment": 1, status: 1 });
 
 // Generate unique deployment ID
 deploymentSchema.statics.generateDeploymentId = function () {
@@ -374,6 +411,7 @@ deploymentSchema.methods.updateStatus = function (
     case "failed":
     case "cancelled":
     case "error":
+    case "superseded":
       this.stoppedAt = now;
       break;
     case "deleted":

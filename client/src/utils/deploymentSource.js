@@ -36,10 +36,14 @@ export function redeployPrefillFromDeployment(deployment) {
     deployment.subdomain ||
     "";
 
+  const sourceDeploymentId =
+    deployment._id || deployment.id || deployment.deploymentId || null;
+
   return {
     environment,
     branch,
     commit,
     subdomain,
+    sourceDeploymentId,
   };
 }

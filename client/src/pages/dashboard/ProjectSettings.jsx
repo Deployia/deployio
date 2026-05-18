@@ -67,7 +67,7 @@ const ProjectSettings = () => {
       description: currentProject.description || "",
       visibility: currentProject.visibility || "private",
       autoDeployment: {
-        enabled: Boolean(currentProject.settings?.autoDeployment?.enabled),
+        enabled: false,
         branch: currentProject.settings?.autoDeployment?.branch || "main",
         environments: currentProject.settings?.autoDeployment?.environments || [
           "production",
@@ -274,22 +274,18 @@ const ProjectSettings = () => {
                   onChange={(e) =>
                     setGeneralSettings((prev) => ({ ...prev, visibility: e.target.value }))
                   }
-                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
+                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white sm:col-span-2"
                 >
                   <option value="private">Private</option>
                   <option value="public">Public</option>
                 </select>
-                <input
-                  value={generalSettings.autoDeployment.branch}
-                  onChange={(e) =>
-                    setGeneralSettings((prev) => ({
-                      ...prev,
-                      autoDeployment: { ...prev.autoDeployment, branch: e.target.value },
-                    }))
-                  }
-                  className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white"
-                  placeholder="Auto deploy branch"
-                />
+              </div>
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                <p className="text-sm font-medium text-amber-200">Auto-deploy on push</p>
+                <p className="text-xs text-amber-200/80 mt-1">
+                  Coming soon. Use Deploy and Redeploy on the project dashboard to test the full
+                  lifecycle for now.
+                </p>
               </div>
               {isOwner && (
               <button
@@ -301,7 +297,10 @@ const ProjectSettings = () => {
                     visibility: generalSettings.visibility,
                     settings: {
                       ...currentProject?.settings,
-                      autoDeployment: generalSettings.autoDeployment,
+                      autoDeployment: {
+                        ...generalSettings.autoDeployment,
+                        enabled: false,
+                      },
                     },
                   })
                 }

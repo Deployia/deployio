@@ -5,6 +5,7 @@ const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
 const logger = require("@config/logger");
+const githubAutoDeployService = require("../../services/deployment/githubAutoDeployService");
 
 // Middleware to verify GitHub webhook signature
 const verifyGitHubSignature = (req, res, next) => {
@@ -27,7 +28,7 @@ const verifyGitHubSignature = (req, res, next) => {
 };
 
 // GitHub webhook endpoint
-router.post("/", verifyGitHubSignature, (req, res) => {
+router.post("/", verifyGitHubSignature, async (req, res) => {
   const event = req.headers["x-github-event"];
   const payload = req.body;
 
@@ -40,7 +41,7 @@ router.post("/", verifyGitHubSignature, (req, res) => {
   // Handle different GitHub events
   switch (event) {
     case "push":
-      handlePushEvent(payload);
+      await handlePushEvent(payload);
       break;
     case "pull_request":
       handlePullRequestEvent(payload);
@@ -56,13 +57,25 @@ router.post("/", verifyGitHubSignature, (req, res) => {
 });
 
 // Event handlers
-const handlePushEvent = (payload) => {
-  // Handle push event - trigger deployments, etc.
+const handlePushEvent = async (payload) => {
   logger.info("Handling push event", {
-    repository: payload.repository.full_name,
+    repository: payload.repository?.full_name,
     ref: payload.ref,
-    commits: payload.commits.length,
+    commits: payload.commits?.length || 0,
   });
+
+  try {
+    const result = await githubAutoDeployService.handleGitHubPush(payload);
+    logger.info("GitHub push auto-deploy processed", {
+      repository: payload.repository?.full_name,
+      result,
+    });
+  } catch (error) {
+    logger.error("GitHub push auto-deploy failed", {
+      repository: payload.repository?.full_name,
+      error: { message: error.message, stack: error.stack },
+    });
+  }
 };
 
 const handlePullRequestEvent = (payload) => {

@@ -200,6 +200,10 @@ const validateDeploymentCreation = [
     .optional()
     .isFQDN()
     .withMessage("Custom domain must be a valid FQDN"),
+  body("redeployFromDeploymentId")
+    .optional()
+    .isMongoId()
+    .withMessage("redeployFromDeploymentId must be a valid id"),
 ];
 
 const validateSubdomainQuery = [
@@ -224,6 +228,10 @@ const validateSubdomainCheckQuery = [
     .withMessage(
       "Subdomain may only contain letters, numbers, and hyphens",
     ),
+  query("redeployFromDeploymentId")
+    .optional()
+    .isMongoId()
+    .withMessage("redeployFromDeploymentId must be a valid id"),
 ];
 
 /**
@@ -246,6 +254,20 @@ router.get(
   validateObjectId,
   validateSubdomainCheckQuery,
   deploymentController.checkDeploymentSubdomain,
+);
+
+/**
+ * @desc Deployment revision history for an environment slot
+ * @route GET /api/v1/projects/:id/deployments/history
+ */
+router.get(
+  "/:id/deployments/history",
+  validateObjectId,
+  query("environment")
+    .notEmpty()
+    .isIn(["development", "staging", "production"])
+    .withMessage("environment is required"),
+  deploymentController.getDeploymentHistory,
 );
 
 /**

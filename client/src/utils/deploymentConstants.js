@@ -129,6 +129,7 @@ export const getDeploymentStatusBadge = (status) => {
       return `${base} bg-orange-500/20 text-orange-300 border border-orange-500/30 animate-pulse`;
     case "stopped":
     case "cancelled":
+    case "superseded":
       return `${base} bg-gray-500/20 text-gray-400 border border-gray-500/30`;
     case "archived":
       return `${base} bg-orange-500/20 text-orange-300 border border-orange-500/30`;
@@ -182,8 +183,21 @@ export const isDeploymentActionAllowed = (deployment, action) => {
     case "stop":
       return status === "running";
     case "restart":
-    case "redeploy":
       return ["stopped", "failed", "cancelled"].includes(status);
+    case "redeploy":
+      return [
+        "running",
+        "stopped",
+        "failed",
+        "cancelled",
+        "pending",
+        "queued",
+        "cloning",
+        "detecting",
+        "building",
+        "deploying",
+        "stopping",
+      ].includes(status);
     case "delete":
       return ["stopped", "failed", "cancelled"].includes(status);
     default:

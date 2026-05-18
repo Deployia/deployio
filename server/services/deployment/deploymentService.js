@@ -34,6 +34,15 @@ const TERMINAL_DEPLOYMENT_STATUSES = [
   "cancelled",
   "error",
   "deleted",
+  "superseded",
+];
+const IN_FLIGHT_DEPLOYMENT_STATUSES = [
+  "pending",
+  "queued",
+  "cloning",
+  "detecting",
+  "building",
+  "deploying",
 ];
 const ALLOWED_STATUS_TRANSITIONS = {
   pending: ["queued", "building", "deploying", "running", "cancelled", "failed", "error", "deleted"],
@@ -100,6 +109,90 @@ class DeploymentService {
     }
 
     return deployment;
+  }
+
+  _buildSlotKey(projectId, environment) {
+    return `${projectId}:${environment}`;
+  }
+
+  async _getNextRevisionNumber(slotKey) {
+    const latest = await Deployment.findOne({ slotKey })
+      .sort({ revisionNumber: -1 })
+      .select("revisionNumber")
+      .lean();
+
+    return (latest?.revisionNumber || 0) + 1;
+  }
+
+  async _supersedeDeploymentForRedeploy(sourceDeployment) {
+    const originalSubdomain = sourceDeployment.config?.subdomain;
+    if (!originalSubdomain) {
+      throw new Error("Source deployment has no subdomain to supersede");
+    }
+
+    const suffix = String(sourceDeployment._id).slice(-6);
+    const archivedSlug = `${originalSubdomain}-superseded-${suffix}`
+      .toLowerCase()
+      .slice(0, 40);
+
+    sourceDeployment.status = "superseded";
+    sourceDeployment.supersededAt = new Date();
+    sourceDeployment.lineage = {
+      ...(sourceDeployment.lineage || {}),
+      originalSubdomain,
+    };
+    sourceDeployment.config.subdomain = archivedSlug;
+    sourceDeployment.networking = {
+      ...(sourceDeployment.networking || {}),
+      subdomain: archivedSlug,
+      fullUrl: `https://${archivedSlug}.${subdomainManager.baseDomain}`,
+    };
+
+    await sourceDeployment.save();
+    return originalSubdomain;
+  }
+
+  async _prepareRedeploySource(redeployFromDeploymentId, userId, projectId, environment) {
+    const source = await this._findAccessibleDeployment(
+      redeployFromDeploymentId,
+      userId,
+    );
+
+    if (String(source.project._id || source.project) !== String(projectId)) {
+      throw new Error("Redeploy source does not belong to this project");
+    }
+
+    const sourceEnvironment = source.config?.environment;
+    if (sourceEnvironment !== environment) {
+      throw new Error(
+        "Redeploy environment must match the source deployment environment",
+      );
+    }
+
+    if (source.status === "superseded") {
+      throw new Error("Cannot redeploy from a superseded deployment");
+    }
+
+    if (
+      ACTIVE_DEPLOYMENT_STATUSES.includes(source.status) ||
+      source.status === "stopping" ||
+      IN_FLIGHT_DEPLOYMENT_STATUSES.includes(source.status)
+    ) {
+      await this.stopDeploymentBySystem(source, "redeploy-replace");
+      await source.reload();
+    }
+
+    const originalSubdomain = await this._supersedeDeploymentForRedeploy(source);
+
+    await subdomainManager.releaseReservationImmediate({
+      deploymentId: source._id,
+      reason: "redeploy-replace",
+    });
+
+    return {
+      sourceDeployment: source,
+      originalSubdomain,
+    };
   }
 
   /**
@@ -187,10 +280,40 @@ class DeploymentService {
         environment,
         sortBy = "createdAt",
         sortOrder = "desc",
+        currentPerEnv = true,
       } = options;
 
+      if (currentPerEnv && !status && !environment) {
+        const envs = ["development", "staging", "production"];
+        const currentDeployments = await Promise.all(
+          envs.map((env) =>
+            Deployment.findOne({
+              project: projectId,
+              "config.environment": env,
+              status: { $ne: "superseded" },
+            })
+              .populate("deployedBy", "name email")
+              .sort({ revisionNumber: -1, createdAt: -1 })
+              .select("-__v")
+              .lean(),
+          ),
+        );
+
+        const deployments = currentDeployments.filter(Boolean);
+
+        return {
+          deployments: deployments.map(this.transformDeployment),
+          pagination: {
+            page: 1,
+            limit: deployments.length,
+            totalPages: 1,
+            total: deployments.length,
+          },
+        };
+      }
+
       // Build query
-      const query = { project: projectId };
+      const query = { project: projectId, status: { $ne: "superseded" } };
       if (status) query.status = status;
       if (environment) query["config.environment"] = environment;
 
@@ -222,6 +345,32 @@ class DeploymentService {
       logger.error("Error in getProjectDeployments:", error);
       throw error;
     }
+  }
+
+  async getDeploymentHistory(projectId, userId, environment) {
+    const project = await this._findAccessibleProject(projectId, userId);
+    if (!project) {
+      throw new Error("Project not found or access denied");
+    }
+
+    if (!environment) {
+      throw new Error("environment query parameter is required");
+    }
+
+    const deployments = await Deployment.find({
+      project: projectId,
+      "config.environment": environment,
+    })
+      .populate("deployedBy", "name email")
+      .sort({ revisionNumber: 1, createdAt: 1 })
+      .select("-__v")
+      .lean();
+
+    return {
+      environment,
+      slotKey: this._buildSlotKey(projectId, environment),
+      deployments: deployments.map(this.transformDeployment),
+    };
   }
 
   /**
@@ -260,8 +409,20 @@ class DeploymentService {
       }
 
       const environment = deploymentData.environment || "development";
+      const redeployFromDeploymentId =
+        deploymentData.redeployFromDeploymentId || null;
 
       await assertCanDeploy(userId);
+
+      let redeployContext = null;
+      if (redeployFromDeploymentId) {
+        redeployContext = await this._prepareRedeploySource(
+          redeployFromDeploymentId,
+          userId,
+          projectId,
+          environment,
+        );
+      }
 
       const activeDeployments = await Deployment.countDocuments({
         project: projectId,
@@ -284,10 +445,18 @@ class DeploymentService {
         );
       }
 
+      const slotKey = this._buildSlotKey(projectId, environment);
+      const revisionNumber = await this._getNextRevisionNumber(slotKey);
+
+      const preferredSubdomain =
+        deploymentData.subdomain ||
+        redeployContext?.originalSubdomain ||
+        null;
+
       const reservation = await subdomainManager.reserveSubdomain({
         projectId,
         environment,
-        preferredSubdomain: deploymentData.subdomain,
+        preferredSubdomain,
       });
 
       const subdomain = reservation.reservation.subdomain;
@@ -315,11 +484,25 @@ class DeploymentService {
         project.deployment?.environment?.[environment],
       );
 
+      const triggerType = redeployFromDeploymentId
+        ? "redeploy"
+        : deploymentData.trigger?.type || "manual";
+
       try {
         // Create deployment
         deployment = new Deployment({
           project: projectId,
           deployedBy: userId,
+          slotKey,
+          revisionNumber,
+          redeployedFrom: redeployContext?.sourceDeployment?._id || null,
+          trigger: {
+            type: triggerType,
+            branch:
+              deploymentData.branch || project.repository?.branch || "main",
+            commitSha: commitHash,
+            at: new Date(),
+          },
           config: {
             environment,
             branch:
@@ -337,6 +520,11 @@ class DeploymentService {
         });
 
         await deployment.save();
+
+        if (redeployContext?.sourceDeployment) {
+          redeployContext.sourceDeployment.supersededBy = deployment._id;
+          await redeployContext.sourceDeployment.save();
+        }
 
         const platformStatsService = require("../platform/platformStatsService");
         platformStatsService.recordDeployment().catch(() => {});
@@ -682,8 +870,12 @@ class DeploymentService {
    * Transform deployment for API response
    */
   transformDeployment(deployment) {
+    const displaySubdomain =
+      deployment.lineage?.originalSubdomain || deployment.config?.subdomain;
+
     return {
       id: deployment._id,
+      _id: deployment._id,
       deploymentId: deployment.deploymentId,
       project: deployment.project,
       deployedBy: deployment.deployedBy,
@@ -692,7 +884,16 @@ class DeploymentService {
       branch: deployment.config?.branch,
       commit: deployment.config?.commit,
       url: deployment.networking?.fullUrl,
-      subdomain: deployment.config?.subdomain,
+      subdomain: displaySubdomain,
+      config: deployment.config,
+      networking: deployment.networking,
+      slotKey: deployment.slotKey,
+      revisionNumber: deployment.revisionNumber,
+      redeployedFrom: deployment.redeployedFrom,
+      supersededBy: deployment.supersededBy,
+      supersededAt: deployment.supersededAt,
+      lineage: deployment.lineage,
+      trigger: deployment.trigger,
       customDomain: deployment.config?.customDomain,
       buildDuration: deployment.build?.duration,
       buildStatus: deployment.build?.status,

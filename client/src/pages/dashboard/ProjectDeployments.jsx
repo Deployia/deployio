@@ -32,6 +32,7 @@ import {
   deleteDeployment,
   probeDeployment,
   updateDeploymentStatus,
+  fetchDeploymentHistory,
 } from "../../redux/slices/deploymentSlice";
 import useDeploymentStream from "../../hooks/useDeploymentStream";
 import {
@@ -67,6 +68,10 @@ const ProjectDeployments = () => {
   const logsLoading = useSelector((state) => state.deployments.loading.logs);
   const deploymentLogs = useSelector((state) => state.deployments.logs);
   const deploymentProbe = useSelector((state) => state.deployments.probe);
+  const deploymentHistory = useSelector(
+    (state) => state.deployments.deploymentHistory,
+  );
+  const historyLoading = useSelector((state) => state.deployments.loading.history);
 
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [showPanel, setShowPanel] = useState(false);
@@ -124,6 +129,20 @@ const ProjectDeployments = () => {
     setShowPanel(true);
     setIframeFailed(false);
   }, []);
+
+  useEffect(() => {
+    if (!showPanel || !selectedDeployment || !project) {
+      return;
+    }
+
+    const projectId = project._id || project.id;
+    const environment = getDeploymentEnv(selectedDeployment);
+    if (!projectId || !environment) {
+      return;
+    }
+
+    dispatch(fetchDeploymentHistory({ projectId, environment }));
+  }, [dispatch, project, selectedDeployment, showPanel]);
 
   const selectedDeploymentId = useMemo(
     () =>
@@ -684,6 +703,11 @@ const ProjectDeployments = () => {
                             <span className={getDeploymentEnvironmentBadge(environment)}>
                               {getDeploymentEnvironmentLabel(environment)}
                             </span>
+                            {deployment.revisionNumber ? (
+                              <span className="text-xs text-gray-400 border border-neutral-700 rounded px-2 py-0.5">
+                                Rev #{deployment.revisionNumber}
+                              </span>
+                            ) : null}
                             <span className={getStatusBadge(deployment.status)}>
                               {getStatusIcon(deployment.status)}
                               <span className="ml-1">{deployment.status}</span>
@@ -980,6 +1004,44 @@ const ProjectDeployments = () => {
                         : ""}
                     </span>
                   </div>
+                </div>
+
+                {selectedDeployment.revisionNumber ? (
+                  <div className="bg-neutral-900/60 rounded-lg p-2 text-sm">
+                    <span className="text-gray-400">Revision: </span>
+                    <span className="text-white">#{selectedDeployment.revisionNumber}</span>
+                  </div>
+                ) : null}
+
+                <div>
+                  <h4 className="text-sm font-medium text-white mb-2">History</h4>
+                  {historyLoading ? (
+                    <p className="text-xs text-gray-500">Loading revision history…</p>
+                  ) : (deploymentHistory?.deployments || []).length === 0 ? (
+                    <p className="text-xs text-gray-500">No prior revisions for this environment.</p>
+                  ) : (
+                    <ul className="space-y-2 max-h-48 overflow-y-auto mb-4">
+                      {deploymentHistory.deployments.map((entry) => (
+                        <li
+                          key={entry._id || entry.id || entry.deploymentId}
+                          className="flex flex-wrap items-center gap-2 text-xs bg-neutral-900/50 rounded-lg px-3 py-2 border border-neutral-800"
+                        >
+                          <span className="text-gray-300 font-medium">
+                            #{entry.revisionNumber || "—"}
+                          </span>
+                          <span className="font-mono text-gray-400">
+                            {(entry.commit?.hash || "").slice(0, 8) || "—"}
+                          </span>
+                          <span className={getStatusBadge(entry.status)}>
+                            {entry.status}
+                          </span>
+                          {entry.trigger?.type ? (
+                            <span className="text-gray-500">{entry.trigger.type}</span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div>

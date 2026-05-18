@@ -155,14 +155,25 @@ export const fetchDeploymentSubdomains = createAsyncThunk(
 export const checkDeploymentSubdomain = createAsyncThunk(
   "deployments/checkDeploymentSubdomain",
   async (
-    { projectId, subdomain, environment = "staging" },
+    {
+      projectId,
+      subdomain,
+      environment = "staging",
+      redeployFromDeploymentId,
+    },
     { rejectWithValue },
   ) => {
     try {
       const response = await api.get(
         `/projects/${projectId}/deployments/subdomains/check`,
         {
-          params: { subdomain, environment },
+          params: {
+            subdomain,
+            environment,
+            ...(redeployFromDeploymentId
+              ? { redeployFromDeploymentId }
+              : {}),
+          },
         },
       );
 
@@ -175,6 +186,26 @@ export const checkDeploymentSubdomain = createAsyncThunk(
       return rejectWithValue(
         error.response?.data?.message ||
           "Failed to check subdomain availability",
+      );
+    }
+  },
+);
+
+export const fetchDeploymentHistory = createAsyncThunk(
+  "deployments/fetchDeploymentHistory",
+  async ({ projectId, environment }, { rejectWithValue }) => {
+    try {
+      const response = await api.get(
+        `/projects/${projectId}/deployments/history`,
+        { params: { environment } },
+      );
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      return response.data.data || response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch deployment history",
       );
     }
   },
@@ -362,6 +393,10 @@ const initialState = {
     url: null,
     alternatives: [],
   },
+  deploymentHistory: {
+    environment: null,
+    deployments: [],
+  },
   pagination: {
     currentPage: 1,
     totalPages: 1,
@@ -386,6 +421,7 @@ const initialState = {
     metrics: false,
     subdomains: false,
     subdomainCheck: false,
+    history: false,
   },
 
   // Error states
@@ -404,6 +440,7 @@ const initialState = {
     metrics: null,
     subdomains: null,
     subdomainCheck: null,
+    history: null,
   },
 
   // Success states
@@ -623,6 +660,23 @@ const deploymentSlice = createSlice({
       .addCase(checkDeploymentSubdomain.rejected, (state, action) => {
         state.loading.subdomainCheck = false;
         state.error.subdomainCheck = action.payload;
+      });
+
+    builder
+      .addCase(fetchDeploymentHistory.pending, (state) => {
+        state.loading.history = true;
+        state.error.history = null;
+      })
+      .addCase(fetchDeploymentHistory.fulfilled, (state, action) => {
+        state.loading.history = false;
+        state.deploymentHistory = {
+          environment: action.payload.environment || null,
+          deployments: action.payload.deployments || [],
+        };
+      })
+      .addCase(fetchDeploymentHistory.rejected, (state, action) => {
+        state.loading.history = false;
+        state.error.history = action.payload;
       });
 
     // Create deployment

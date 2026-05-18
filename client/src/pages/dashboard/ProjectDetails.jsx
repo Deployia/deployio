@@ -35,6 +35,8 @@ import {
   fetchDeploymentSubdomains,
   checkDeploymentSubdomain,
   createDeployment,
+  stopDeployment,
+  cancelDeployment,
   clearDeploymentError,
   clearProjectError,
   clearProjectSuccess,
@@ -110,6 +112,7 @@ const ProjectDetails = () => {
     "platform-reserved-subdomain": "Reserved for platform use",
     "blocked-subdomain-policy": "Not allowed by platform policy",
     "already-allocated": "Already taken",
+    "redeploy-reuse": "Reusing URL from previous deployment",
   };
 
   // Consider capacity reached when remainingDeployments is 0 or less
@@ -372,9 +375,38 @@ const ProjectDetails = () => {
     setShowDeployModal(true);
   };
 
-  const handleRedeployFromDeployment = (deployment) => {
+  const handleRedeployFromDeployment = async (deployment) => {
     const prefill = redeployPrefillFromDeployment(deployment);
     if (!prefill) return;
+
+    const status = String(deployment?.status || "").toLowerCase();
+    const deploymentId =
+      deployment._id || deployment.id || deployment.deploymentId;
+
+    try {
+      if (status === "running" || status === "stopping") {
+        await dispatch(stopDeployment(deploymentId)).unwrap();
+      } else if (
+        [
+          "pending",
+          "queued",
+          "cloning",
+          "detecting",
+          "building",
+          "deploying",
+        ].includes(status)
+      ) {
+        await dispatch(cancelDeployment(deploymentId)).unwrap();
+      }
+      if (id) {
+        await dispatch(
+          fetchProjectDeployments({ projectId: id, _noCache: true }),
+        ).unwrap();
+      }
+    } catch (err) {
+      console.error("Failed to stop deployment before redeploy:", err);
+    }
+
     handleOpenDeployModal(prefill);
   };
 
@@ -465,7 +497,8 @@ const ProjectDetails = () => {
     Boolean(deploymentForm.subdomain) &&
     (isKnownAvailableSuggestion(deploymentForm.subdomain) ||
       (subdomainAvailability.subdomain === deploymentForm.subdomain &&
-        subdomainAvailability.available === true));
+        (subdomainAvailability.available === true ||
+          subdomainAvailability.reason === "redeploy-reuse")));
 
   const isGitSourceDeployReady =
     Boolean(deploymentForm.branch) &&
@@ -514,6 +547,12 @@ const ProjectDetails = () => {
               timestamp: deploymentForm.commit.timestamp,
               url: deploymentForm.commit.url,
             },
+            ...(deployPrefillRef.current?.sourceDeploymentId
+              ? {
+                  redeployFromDeploymentId:
+                    deployPrefillRef.current.sourceDeploymentId,
+                }
+              : {}),
           },
         }),
       ).unwrap();
@@ -770,6 +809,8 @@ const ProjectDetails = () => {
             projectId: id,
             subdomain: slug,
             environment: deploymentForm.environment,
+            redeployFromDeploymentId:
+              deployPrefillRef.current?.sourceDeploymentId || undefined,
           }),
         ).unwrap();
         if (cancelled) return;

@@ -182,11 +182,7 @@ const ProjectAnalysis = ({ project: projectProp }) => {
           />
         </InfoCard>
         <InfoCard title="Project Settings">
-          <KV
-            label="Auto Deploy"
-            value={settings.autoDeployment?.enabled ? "Enabled" : "Disabled"}
-          />
-          <KV label="Auto Deploy Branch" value={settings.autoDeployment?.branch} />
+          <KV label="Auto Deploy" value="Coming soon" />
           <KV
             label="Notifications (Email)"
             value={settings.notifications?.email ? "Enabled" : "Disabled"}

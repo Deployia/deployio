@@ -56,6 +56,10 @@ class DeploymentController {
         environment: req.query.environment,
         sortBy: req.query.sortBy,
         sortOrder: req.query.sortOrder,
+        currentPerEnv:
+          req.query.currentPerEnv === undefined
+            ? true
+            : req.query.currentPerEnv === "true",
       };
 
       const result = await deploymentService.getProjectDeployments(
@@ -197,11 +201,15 @@ class DeploymentController {
       const { id: projectId } = req.params;
       const environment = req.query.environment || "staging";
       const subdomain = req.query.subdomain;
+      const redeployFromDeploymentId =
+        req.query.redeployFromDeploymentId || null;
 
       const result = await subdomainManager.checkSubdomainWithAlternatives(
         subdomain,
         projectId,
         environment,
+        subdomainManager.maxSuggestions,
+        { redeployFromDeploymentId },
       );
 
       res.status(200).json({
@@ -412,6 +420,37 @@ class DeploymentController {
       res.status(error.message.includes("not found") ? 404 : 500).json({
         success: false,
         message: error.message || "Failed to probe deployment",
+      });
+    }
+  }
+
+  /**
+   * @desc Get deployment revision history for an environment slot
+   * @route GET /api/v1/projects/:id/deployments/history
+   * @access Private
+   */
+  async getDeploymentHistory(req, res) {
+    try {
+      const { id: projectId } = req.params;
+      const userId = req.user._id;
+      const environment = req.query.environment;
+
+      const result = await deploymentService.getDeploymentHistory(
+        projectId,
+        userId,
+        environment,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Deployment history retrieved successfully",
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error in getDeploymentHistory:", error);
+      res.status(error.message.includes("not found") ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to fetch deployment history",
       });
     }
   }

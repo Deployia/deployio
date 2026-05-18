@@ -171,7 +171,7 @@ class GitProviderService {
   getProviderFeatures(provider) {
     const featureMap = {
       github: [
-        "Auto-deploy on push",
+        "Auto-deploy on push (coming soon)",
         "Pull request previews",
         "Branch protection",
         "Repository analysis",

@@ -158,7 +158,7 @@ const Integrations = () => {
         popular: true,
         comingSoon: false,
         features: [
-          "Auto-deploy on push",
+          "Auto-deploy on push (coming soon)",
           "Pull request previews",
           "Branch protection",
           "Webhook integration",
