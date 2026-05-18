@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, Optional
 from app.services.git_service import GitService
 from app.services.dockerfile_service import DockerfileService
 from app.services.deployment_service import DeploymentService, deployment_service
+from app.utils.env_var_phase import split_env_vars
 
 logger = logging.getLogger(__name__)
 
@@ -320,6 +321,8 @@ class BuildService:
         deployment_id: Optional[str] = None,
         status_callback: Optional[Callable] = None,
         env_vars: Optional[Dict[str, Any]] = None,
+        build_args: Optional[Dict[str, Any]] = None,
+        env_phases: Optional[Dict[str, str]] = None,
         dockerfile_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -331,7 +334,18 @@ class BuildService:
         # Allow server to provide a deployment_id to keep things in sync
         deployment_id = deployment_id or f"dep-{uuid.uuid4().hex[:12]}"
         repo_path: Optional[Path] = None
-        runtime_env = DeploymentService._coerce_env_vars(env_vars)
+        coerced = DeploymentService._coerce_env_vars(env_vars)
+        explicit_build = DeploymentService._coerce_env_vars(build_args)
+        phases_map = (
+            {str(k): str(v) for k, v in env_phases.items() if k}
+            if env_phases
+            else None
+        )
+        if explicit_build:
+            build_args_map = explicit_build
+            runtime_env = coerced
+        else:
+            build_args_map, runtime_env = split_env_vars(coerced, phases_map)
 
         async def _stage(stage: str, message: str = "", **status_kwargs: Any) -> None:
             await self._set_stage(
@@ -426,12 +440,28 @@ class BuildService:
                 dockerfile_arg,
                 str(build_context),
             ]
+            for arg_key, arg_val in build_args_map.items():
+                build_command.extend(["--build-arg", f"{arg_key}={arg_val}"])
 
             logger.info(
-                "Running build command: %s (context=%s)",
-                " ".join(build_command),
+                "Running build command: %s (context=%s, build_args=%d)",
+                " ".join(build_command[:8])
+                + (" ..." if len(build_command) > 8 else ""),
                 build_context,
+                len(build_args_map),
             )
+            if build_args_map:
+                await self._emit_log(
+                    logs_callback,
+                    deployment_id,
+                    "info",
+                    "Applying %d build-time arg(s): %s"
+                    % (
+                        len(build_args_map),
+                        ", ".join(sorted(build_args_map.keys())[:20])
+                        + ("…" if len(build_args_map) > 20 else ""),
+                    ),
+                )
 
             # Run build with streaming logs
             result = await asyncio.to_thread(
@@ -477,6 +507,13 @@ class BuildService:
                         ", ".join(sorted(runtime_env.keys())[:20])
                         + ("…" if len(runtime_env) > 20 else ""),
                     ),
+                )
+            elif build_args_map:
+                await self._emit_log(
+                    logs_callback,
+                    deployment_id,
+                    "info",
+                    "No runtime environment variables (build-time only).",
                 )
 
             async def _deploy_status_cb(dep_id, status, message, **kwargs):

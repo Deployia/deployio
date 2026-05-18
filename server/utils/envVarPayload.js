@@ -3,6 +3,7 @@ const {
   decryptSecret,
   hasStoredSecret,
 } = require("./secretsVault");
+const { normalizeEnvRowPhase } = require("./envVarPhase");
 
 const ENV_TARGETS = ["development", "staging", "production"];
 
@@ -24,6 +25,7 @@ function normalizeEnvRowForStorage(row) {
     key,
     value: encryptedValue,
     isSecret: true,
+    phase: normalizeEnvRowPhase(row),
   };
 }
 
@@ -52,6 +54,7 @@ function redactEnvironmentMapForApi(envMap = {}) {
         required: Boolean(row.required),
         description: row.description || "",
         source: row.source || "user",
+        phase: normalizeEnvRowPhase(row),
       }));
   }
   return result;
@@ -103,6 +106,7 @@ function mergeEnvironmentMapUpdate(existingMap = {}, incomingMap = {}) {
           required: Boolean(row.required),
           description: row.description || prev?.description || "",
           source: row.source || prev?.source || "user",
+          phase: normalizeEnvRowPhase({ ...prev, ...row, key }),
         };
       });
   }
@@ -142,6 +146,7 @@ function snapshotProjectEnvForDeployment(projectEnvList = []) {
       key: String(row.key).trim(),
       value: row.value || "",
       isSecret: row.isSecret !== false,
+      phase: normalizeEnvRowPhase(row),
     }))
     .filter((row) => row.key);
 }

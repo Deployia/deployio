@@ -13,7 +13,12 @@ const Project = require("@models/Project");
 const logger = require("@config/logger");
 const {
   snapshotProjectEnvForDeployment,
+  decryptEnvVarList,
 } = require("../../utils/envVarPayload");
+const {
+  splitEnvVarsForDeploy,
+  resolveEnvPhase,
+} = require("../../utils/envVarPhase");
 const { resolveDeployGitToken } = require("../../utils/resolveDeployGitToken");
 const { resolveCommitShaForAgent } = require("../../utils/deploymentCommit");
 const webSocketManager = require("@config/webSocketManager");
@@ -223,15 +228,19 @@ class DeploymentOrchestrator {
             : projectEnvList;
 
       const { normalizeEnvVarValue } = require("../../utils/envVarNormalize");
-      const { decryptEnvVarList } = require("../../utils/envVarPayload");
-      const mergedEnvVars = decryptEnvVarList(deploymentEnvVars).reduce(
-        (acc, envVar) => {
-        if (!envVar?.key) return acc;
-          acc[envVar.key] = normalizeEnvVarValue(envVar.key, envVar.value ?? "");
+      const decryptedRows = decryptEnvVarList(deploymentEnvVars);
+      const { buildArgs: rawBuildArgs, runtimeEnv: rawRuntimeEnv } =
+        splitEnvVarsForDeploy(decryptedRows);
+
+      const normalizeMap = (map) =>
+        Object.entries(map).reduce((acc, [key, val]) => {
+          if (!key) return acc;
+          acc[key] = normalizeEnvVarValue(key, val ?? "");
           return acc;
-        },
-        {},
-      );
+        }, {});
+
+      const buildArgs = normalizeMap(rawBuildArgs);
+      const projectRuntimeEnv = normalizeMap(rawRuntimeEnv);
 
       // Determine container port from deployment config or project defaults
       const containerPort =
@@ -240,12 +249,19 @@ class DeploymentOrchestrator {
         project.deployment?.runtime?.port ||
         3000;
 
-      // Environment variables from deployment config
+      // Runtime container env (build-time vars are sent separately as buildArgs)
       const envVars = {
         NODE_ENV: deploymentEnvironment,
         PORT: String(containerPort),
-        ...mergedEnvVars,
+        ...projectRuntimeEnv,
       };
+
+      const envPhases = decryptedRows.reduce((acc, row) => {
+        if (row?.key) {
+          acc[row.key] = resolveEnvPhase(row);
+        }
+        return acc;
+      }, {});
 
       const { token: gitToken, source: gitTokenSource } =
         await resolveDeployGitToken({
@@ -265,6 +281,8 @@ class DeploymentOrchestrator {
         subdomain,
         port: containerPort,
         envVars,
+        buildArgs,
+        envPhases,
         projectName: project.name,
         environment: deploymentEnvironment,
         // instruct agent to build if no image is available
@@ -274,7 +292,8 @@ class DeploymentOrchestrator {
           resolvedProject.deployment?.dockerfile?.path || "Dockerfile",
       };
 
-      const envKeys = Object.keys(mergedEnvVars);
+      const runtimeKeys = Object.keys(projectRuntimeEnv);
+      const buildArgKeys = Object.keys(buildArgs);
       logger.info("Sending deployment:trigger to agent", {
         deploymentId,
         agent: agentId,
@@ -285,8 +304,10 @@ class DeploymentOrchestrator {
         gitTokenSource: gitTokenSource || "none",
         hasGitToken: Boolean(gitToken),
         deploymentEnvironment,
-        platformEnvCount: envKeys.length,
-        platformEnvKeys: envKeys.slice(0, 25),
+        platformRuntimeEnvCount: runtimeKeys.length,
+        platformBuildArgCount: buildArgKeys.length,
+        platformRuntimeEnvKeys: runtimeKeys.slice(0, 25),
+        platformBuildArgKeys: buildArgKeys.slice(0, 25),
       });
 
       // Update status to "queued" while we wait for the agent

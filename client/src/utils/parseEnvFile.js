@@ -1,3 +1,5 @@
+import { inferEnvPhase } from "./deploymentConstants";
+
 /**
  * Parse .env / .env.example text into variable rows for project configuration.
  */
@@ -41,6 +43,7 @@ export function parseEnvFile(content) {
       hasValue: Boolean(value),
       required: false,
       source: "env-example",
+      phase: inferEnvPhase(key),
     });
   });
 

@@ -152,6 +152,8 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         subdomain = data.get("subdomain")
         port = data.get("port", 3000)
         env_vars = data.get("envVars") or {}
+        build_args = data.get("buildArgs") or {}
+        env_phases = data.get("envPhases") or {}
 
         if not deployment_id:
             return
@@ -172,6 +174,8 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                     subdomain=subdomain,
                     port=port,
                     env_vars=env_vars,
+                    build_args=build_args,
+                    env_phases=env_phases,
                     data=data,
                 )
             except Exception as e:
@@ -195,8 +199,11 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
         subdomain: Optional[str],
         port: int,
         env_vars: Dict[str, Any],
-        data: Dict[str, Any],
+        build_args: Optional[Dict[str, Any]] = None,
+        env_phases: Optional[Dict[str, str]] = None,
+        data: Optional[Dict[str, Any]] = None,
     ) -> None:
+        data = data or {}
         if not deployment_id or not subdomain:
             logger.error(f"deployment:trigger missing required fields: {data}")
             await self._emit_status_update(
@@ -207,8 +214,10 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             return
 
         env_keys = sorted((env_vars or {}).keys())
+        build_arg_keys = sorted((build_args or {}).keys())
         logger.info(
-            "Received deployment trigger: %s image=%s repo=%s branch=%s subdomain=%s port=%s env_keys=%s",
+            "Received deployment trigger: %s image=%s repo=%s branch=%s subdomain=%s port=%s "
+            "runtime_env_keys=%s build_arg_keys=%s",
             deployment_id,
             image,
             data.get("repoUrl"),
@@ -216,6 +225,7 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
             subdomain,
             port,
             env_keys[:25],
+            build_arg_keys[:25],
         )
 
         async def status_cb(dep_id, status, message, **kwargs):
@@ -263,6 +273,8 @@ class AgentDeploymentNamespace(BaseAgentNamespace):
                     deployment_id=deployment_id,
                     status_callback=status_cb,
                     env_vars=env_vars,
+                    build_args=build_args,
+                    env_phases=env_phases,
                     dockerfile_path=dockerfile_path,
                 )
             except Exception as e:

@@ -302,6 +302,11 @@ const deploymentSchema = new mongoose.Schema(
           type: Boolean,
           default: false,
         },
+        phase: {
+          type: String,
+          enum: ["runtime", "build"],
+          default: "runtime",
+        },
       },
     ],
 

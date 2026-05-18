@@ -340,6 +340,11 @@ const projectSchema = new mongoose.Schema(
               type: Boolean,
               default: false,
             },
+            phase: {
+              type: String,
+              enum: ["runtime", "build"],
+              default: "runtime",
+            },
           },
         ],
         staging: [
@@ -362,6 +367,11 @@ const projectSchema = new mongoose.Schema(
               enum: ["env-example", "user", "system"],
               default: "user",
             },
+            phase: {
+              type: String,
+              enum: ["runtime", "build"],
+              default: "runtime",
+            },
           },
         ],
         production: [
@@ -383,6 +393,11 @@ const projectSchema = new mongoose.Schema(
               type: String,
               enum: ["env-example", "user", "system"],
               default: "user",
+            },
+            phase: {
+              type: String,
+              enum: ["runtime", "build"],
+              default: "runtime",
             },
           },
         ],

@@ -3,7 +3,10 @@ import { motion } from "framer-motion";
 import { FaCopy, FaPlus, FaTrash, FaUpload } from "react-icons/fa";
 import {
   DEPLOYMENT_ENVIRONMENT_KEYS,
+  inferEnvPhase,
+  isSensitiveBuildKey,
   normalizeEnvironmentVariables,
+  normalizeEnvRowPhase,
 } from "@utils/deploymentConstants";
 import { parseEnvFile } from "@utils/parseEnvFile";
 
@@ -106,6 +109,7 @@ const EnvironmentVariablesEditor = ({
           hasValue: false,
           required: false,
           source: "user",
+          phase: "runtime",
         },
       ],
     });
@@ -120,6 +124,15 @@ const EnvironmentVariablesEditor = ({
         if (field === "value" && fieldValue) {
           next.hasValue = true;
         }
+        if (field === "key") {
+          next.phase = inferEnvPhase(fieldValue);
+        }
+        if (field === "phase" && fieldValue === "build" && isSensitiveBuildKey(row.key)) {
+          next.phase = "runtime";
+        } else if (field === "phase") {
+          next.phase = fieldValue;
+        }
+        next.phase = normalizeEnvRowPhase(next);
         return next;
       }),
     });
@@ -244,7 +257,7 @@ const EnvironmentVariablesEditor = ({
               key={`${environment}-${index}`}
               className="grid grid-cols-12 gap-2 items-start"
             >
-              <div className="col-span-4 sm:col-span-3">
+              <div className="col-span-3 sm:col-span-2">
                 <input
                   type="text"
                   disabled={disabled}
@@ -256,7 +269,25 @@ const EnvironmentVariablesEditor = ({
                   placeholder="KEY"
                 />
               </div>
-              <div className="col-span-5 sm:col-span-5">
+              <div className="col-span-2 sm:col-span-2">
+                <select
+                  disabled={
+                    disabled ||
+                    isSensitiveBuildKey(env.key) ||
+                    env.isSecret === true
+                  }
+                  value={normalizeEnvRowPhase(env)}
+                  onChange={(e) =>
+                    updateVariable(environment, index, "phase", e.target.value)
+                  }
+                  className="w-full p-2 bg-neutral-700 border border-neutral-600 rounded text-white text-sm disabled:opacity-60"
+                  title="Runtime = container env at start. Build = docker build --build-arg."
+                >
+                  <option value="runtime">Runtime</option>
+                  <option value="build">Build</option>
+                </select>
+              </div>
+              <div className="col-span-4 sm:col-span-4">
                 <input
                   type="password"
                   disabled={disabled}
@@ -330,7 +361,11 @@ const EnvironmentVariablesEditor = ({
       )}
       <p className="text-xs text-gray-400">
         All values are stored as secrets and are never shown again after save.
-        Upload or paste from your repo&apos;s{" "}
+        <strong className="text-neutral-300 font-normal"> Runtime</strong> vars
+        apply when the container starts;{" "}
+        <strong className="text-neutral-300 font-normal">Build</strong> vars are
+        passed as Docker build-args (e.g. Vite <code className="text-gray-300">VITE_*</code>
+        ). Upload or paste from your repo&apos;s{" "}
         <code className="text-gray-300">.env.example</code> when analysis finds
         one.
       </p>

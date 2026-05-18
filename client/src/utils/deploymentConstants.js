@@ -17,6 +17,38 @@ export const EMPTY_ENVIRONMENT_VARIABLES = {
 
 const VALID_ENV_VAR_SOURCES = new Set(["env-example", "user", "system"]);
 
+export const ENV_VAR_PHASES = ["runtime", "build"];
+
+const BUILD_ARG_KEY_PREFIX = /^(VITE_|NEXT_PUBLIC_|REACT_APP_)/;
+const SENSITIVE_KEY_PATTERN = /(SECRET|TOKEN|PASSWORD|PRIVATE|API_KEY)/i;
+
+/** Infer build vs runtime from variable name (Vite, Next, CRA). */
+export const inferEnvPhase = (key) => {
+  const name = String(key || "").trim();
+  if (!name) return "runtime";
+  if (BUILD_ARG_KEY_PREFIX.test(name)) return "build";
+  return "runtime";
+};
+
+export const isSensitiveBuildKey = (key) => {
+  const name = String(key || "").trim();
+  if (!name) return true;
+  return SENSITIVE_KEY_PATTERN.test(name);
+};
+
+/** Resolved phase for UI / API (explicit phase, inference, secret guards). */
+export const normalizeEnvRowPhase = (row = {}) => {
+  const key = String(row.key || "").trim();
+  const explicit = ENV_VAR_PHASES.includes(String(row.phase || "").toLowerCase())
+    ? String(row.phase).toLowerCase()
+    : null;
+  let phase = explicit || inferEnvPhase(key);
+  if (row.isSecret === true || isSensitiveBuildKey(key)) {
+    phase = "runtime";
+  }
+  return phase;
+};
+
 /** Coerce env var `source` to values allowed by the Project schema. */
 export const normalizeEnvVarSource = (source) => {
   if (!source || source === "env-file") {
@@ -39,6 +71,7 @@ const normalizeEnvVarRow = (row) => {
     isSecret: true,
     hasValue,
     source: normalizeEnvVarSource(row.source),
+    phase: normalizeEnvRowPhase(row),
   };
 };
 
