@@ -271,11 +271,7 @@ const EnvironmentVariablesEditor = ({
               </div>
               <div className="col-span-2 sm:col-span-2">
                 <select
-                  disabled={
-                    disabled ||
-                    isSensitiveBuildKey(env.key) ||
-                    env.isSecret === true
-                  }
+                  disabled={disabled || isSensitiveBuildKey(env.key)}
                   value={normalizeEnvRowPhase(env)}
                   onChange={(e) =>
                     updateVariable(environment, index, "phase", e.target.value)
@@ -360,12 +356,15 @@ const EnvironmentVariablesEditor = ({
         </p>
       )}
       <p className="text-xs text-gray-400">
-        All values are stored as secrets and are never shown again after save.
-        <strong className="text-neutral-300 font-normal"> Runtime</strong> vars
-        apply when the container starts;{" "}
-        <strong className="text-neutral-300 font-normal">Build</strong> vars are
-        passed as Docker build-args (e.g. Vite <code className="text-gray-300">VITE_*</code>
-        ). Upload or paste from your repo&apos;s{" "}
+        Values are encrypted after save (hidden in the UI). That does not change
+        whether a var is Runtime or Build.{" "}
+        <strong className="text-neutral-300 font-normal">Runtime</strong> applies
+        when the container starts;{" "}
+        <strong className="text-neutral-300 font-normal">Build</strong> is passed
+        as Docker <code className="text-gray-300">--build-arg</code> (e.g.{" "}
+        <code className="text-gray-300">VITE_*</code>,{" "}
+        <code className="text-gray-300">REACT_APP_*</code>). Upload or paste from
+        your repo&apos;s{" "}
         <code className="text-gray-300">.env.example</code> when analysis finds
         one.
       </p>

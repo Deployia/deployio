@@ -36,17 +36,23 @@ export const isSensitiveBuildKey = (key) => {
   return SENSITIVE_KEY_PATTERN.test(name);
 };
 
-/** Resolved phase for UI / API (explicit phase, inference, secret guards). */
+/** Resolved phase for UI / API. ``isSecret`` hides values only — not phase. */
 export const normalizeEnvRowPhase = (row = {}) => {
   const key = String(row.key || "").trim();
+  if (!key) return "runtime";
+  if (isSensitiveBuildKey(key)) return "runtime";
+
   const explicit = ENV_VAR_PHASES.includes(String(row.phase || "").toLowerCase())
     ? String(row.phase).toLowerCase()
     : null;
-  let phase = explicit || inferEnvPhase(key);
-  if (row.isSecret === true || isSensitiveBuildKey(key)) {
-    phase = "runtime";
+  if (explicit === "build") return "build";
+
+  const inferred = inferEnvPhase(key);
+  if (explicit === "runtime") {
+    if (inferred === "build") return "build";
+    return "runtime";
   }
-  return phase;
+  return inferred;
 };
 
 /** Coerce env var `source` to values allowed by the Project schema. */

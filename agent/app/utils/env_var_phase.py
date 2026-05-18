@@ -31,15 +31,22 @@ def resolve_env_phase(
     phase: Optional[str] = None,
     is_secret: bool = False,
 ) -> str:
+    """``is_secret`` is ignored for phase (values are always stored encrypted)."""
+    del is_secret
     name = str(key or "").strip()
     if not name:
         return "runtime"
-    if is_secret or is_sensitive_build_key(name):
+    if is_sensitive_build_key(name):
         return "runtime"
     explicit = str(phase or "").strip().lower()
-    if explicit in _VALID_PHASES:
-        return explicit
-    return infer_env_phase(name)
+    if explicit == "build":
+        return "build"
+    inferred = infer_env_phase(name)
+    if explicit == "runtime":
+        if inferred == "build":
+            return "build"
+        return "runtime"
+    return inferred
 
 
 def split_env_vars(

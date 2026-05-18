@@ -28,20 +28,29 @@ function isSensitiveBuildKey(key) {
 }
 
 /**
- * Resolved phase for a stored env row (explicit phase wins, then inference, then guards).
+ * Resolved phase for a stored env row.
+ * ``isSecret`` only means the value is encrypted in the UI — not runtime-only.
+ * Sensitive key names (JWT_SECRET, etc.) are never build-args.
  */
 function resolveEnvPhase(row = {}) {
   const key = String(row.key || "").trim();
   if (!key) return "runtime";
 
-  if (row.isSecret === true || isSensitiveBuildKey(key)) {
+  if (isSensitiveBuildKey(key)) {
     return "runtime";
   }
 
   const explicit = normalizeEnvPhase(row.phase);
-  if (explicit) return explicit;
+  if (explicit === "build") return "build";
 
-  return inferEnvPhase(key);
+  const inferred = inferEnvPhase(key);
+  if (explicit === "runtime") {
+    // Rows saved before phase UI may have runtime stored for VITE_* / REACT_APP_*
+    if (inferred === "build") return "build";
+    return "runtime";
+  }
+
+  return inferred;
 }
 
 /**
@@ -70,15 +79,7 @@ function splitEnvVarsForDeploy(rows = []) {
  * Normalize phase on ingest (UI / API).
  */
 function normalizeEnvRowPhase(row = {}) {
-  const key = String(row.key || "").trim();
-  const explicit = normalizeEnvPhase(row.phase);
-  let phase = explicit || inferEnvPhase(key);
-
-  if (row.isSecret === true || isSensitiveBuildKey(key)) {
-    phase = "runtime";
-  }
-
-  return phase;
+  return resolveEnvPhase(row);
 }
 
 module.exports = {
