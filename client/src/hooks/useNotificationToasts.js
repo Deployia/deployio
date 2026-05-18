@@ -4,6 +4,7 @@ import {
   addNotification,
   fetchUnreadCount,
   updateNotificationCount,
+  markAllAsReadLocal,
 } from "@redux";
 import { fetchNotificationPreferences } from "@redux/slices/userSlice";
 import useNotifications from "@hooks/useNotifications";
@@ -45,12 +46,18 @@ function useNotificationToasts() {
       }
     };
 
+    const handleAllRead = () => {
+      dispatch(markAllAsReadLocal());
+    };
+
     addListener("new_notification", handleNewNotification);
     addListener("unread_count_changed", handleCountUpdate);
+    addListener("all_notifications_read", handleAllRead);
 
     return () => {
       removeListener("new_notification", handleNewNotification);
       removeListener("unread_count_changed", handleCountUpdate);
+      removeListener("all_notifications_read", handleAllRead);
     };
   }, [
     dispatch,

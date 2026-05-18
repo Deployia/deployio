@@ -9,6 +9,7 @@ import {
   selectNotificationLoading,
   addNotification,
   updateNotificationCount,
+  markAllAsReadLocal,
 } from "@redux";
 import NotificationCenter from "./NotificationCenter";
 import useNotifications from "@hooks/useNotifications";
@@ -68,12 +69,18 @@ const NotificationBell = ({ isOpen, onToggle, onClose }) => {
       }
     };
 
+    const handleAllRead = () => {
+      dispatch(markAllAsReadLocal());
+    };
+
     addListener("new_notification", handleNewNotification);
     addListener("unread_count_changed", handleCountUpdate);
+    addListener("all_notifications_read", handleAllRead);
 
     return () => {
       removeListener("new_notification", handleNewNotification);
       removeListener("unread_count_changed", handleCountUpdate);
+      removeListener("all_notifications_read", handleAllRead);
     };
   }, [dispatch, wsConnected, addListener, removeListener]);
 

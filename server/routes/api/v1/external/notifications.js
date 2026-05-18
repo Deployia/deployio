@@ -77,18 +77,19 @@ router.put(
 );
 
 /**
+ * @route   POST /api/notifications/mark-all-read
+ * @desc    Mark all notifications as read (frontend expects this endpoint)
+ * @access  Private
+ * @note    Must be registered before /:id/read or "mark-all-read" is captured as :id
+ */
+router.post("/mark-all-read", protect, notificationController.markAllAsRead);
+
+/**
  * @route   POST /api/notifications/:id/read
  * @desc    Mark a single notification as read
  * @access  Private
  */
 router.post("/:id/read", protect, notificationController.markSingleAsRead);
-
-/**
- * @route   POST /api/notifications/mark-all-read
- * @desc    Mark all notifications as read (frontend expects this endpoint)
- * @access  Private
- */
-router.post("/mark-all-read", protect, notificationController.markAllAsRead);
 
 /**
  * @route   DELETE /api/notifications

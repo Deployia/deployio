@@ -568,14 +568,28 @@ const markSingleAsRead = async (req, res) => {
     const userId = req.user.id;
     const notificationId = req.params.id;
 
-    const notification = await notificationService.markAsRead(userId, [
+    if (!notificationId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid notification ID",
+      });
+    }
+
+    const result = await notificationService.markAsRead(userId, [
       notificationId,
     ]);
+
+    if (!result.modifiedCount) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
 
     res.json({
       success: true,
       message: "Notification marked as read",
-      notification,
+      data: { modifiedCount: result.modifiedCount },
     });
   } catch (error) {
     logger.error("Mark single notification as read failed", {

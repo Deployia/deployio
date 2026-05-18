@@ -45,6 +45,8 @@ export const markAllNotificationsRead = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       const response = await api.post("/external/notifications/mark-all-read");
+      await thunkAPI.dispatch(fetchUnreadCount());
+      await thunkAPI.dispatch(fetchNotifications({ page: 1, limit: 20 }));
       return response.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -246,6 +248,17 @@ const notificationSlice = createSlice({
     setLastFetch: (state) => {
       state.lastFetch = Date.now();
     },
+
+    // WebSocket / server: all notifications marked read
+    markAllAsReadLocal: (state) => {
+      state.notifications.forEach((notification) => {
+        if (notification.status === "unread") {
+          notification.status = "read";
+          notification.readAt = new Date().toISOString();
+        }
+      });
+      state.unreadCount = 0;
+    },
   },
 
   extraReducers: (builder) => {
@@ -261,18 +274,6 @@ const notificationSlice = createSlice({
 
         // Handle pagination - append or replace based on page
         if (action.meta.arg?.page === 1) {
-          const apiIds = new Set(
-            notifications.map((n) => String(n._id || n.id)).filter(Boolean)
-          );
-
-          // Keep real-time items not yet returned by the API (avoids race on fetch)
-          const pendingRealtime = state.notifications.filter((n) => {
-            const id = n._id || n.id;
-            if (!id) return false;
-            if (apiIds.has(String(id))) return false;
-            return !n.isTest && !n.isWelcome;
-          });
-
           const webSocketOnlyNotifications = state.notifications.filter(
             (notification) =>
               notification.isTest ||
@@ -285,15 +286,11 @@ const notificationSlice = createSlice({
               !webSocketOnlyNotifications.some((wsNotification) => {
                 const wsId = wsNotification._id || wsNotification.id;
                 const apiId = apiNotification._id || apiNotification.id;
-                return wsId && apiId && wsId === apiId;
+                return wsId && apiId && String(wsId) === String(apiId);
               })
           );
 
-          const merged = [
-            ...pendingRealtime,
-            ...webSocketOnlyNotifications,
-            ...apiNotifications,
-          ];
+          const merged = [...webSocketOnlyNotifications, ...apiNotifications];
 
           const seen = new Set();
           state.notifications = merged.filter((n) => {
@@ -315,9 +312,14 @@ const notificationSlice = createSlice({
           limit: action.meta.arg?.limit || 20,
         };
 
-        // Update unread count if provided
+        // Prefer server unread count; fall back to list for consistency
         if (typeof unreadCount === "number") {
           state.unreadCount = unreadCount;
+        } else if (action.meta.arg?.page === 1) {
+          state.unreadCount = state.notifications.filter(
+            (n) =>
+              n.status === "unread" && !n.isTest && !n.isWelcome
+          ).length;
         }
 
         state.lastFetch = Date.now();
@@ -360,11 +362,10 @@ const notificationSlice = createSlice({
         state.error.markAllRead = null;
         state.success.markAllRead = false;
       })
-      .addCase(markAllNotificationsRead.fulfilled, (state, _action) => {
+      .addCase(markAllNotificationsRead.fulfilled, (state) => {
         state.loading.markAllRead = false;
         state.success.markAllRead = true;
 
-        // Mark all notifications as read
         state.notifications.forEach((notification) => {
           if (notification.status === "unread") {
             notification.status = "read";
@@ -408,6 +409,7 @@ export const {
   setLastFetch,
   addNotification,
   updateNotificationCount,
+  markAllAsReadLocal,
 } = notificationSlice.actions;
 
 // Selectors

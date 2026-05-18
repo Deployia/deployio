@@ -168,6 +168,7 @@ export {
   fetchNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  markAllAsReadLocal,
   fetchUnreadCount,
   reset as resetNotifications,
   clearError as clearNotificationError,
